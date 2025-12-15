@@ -16,6 +16,7 @@ import {
 import { api } from "../api";
 import EventModeOverrideWarning from "../components/common/EventModeOverrideWarning";
 import { ThemedJsonView } from "../components/common/ThemedJSONView";
+import LiveTrackerView from "../components/common/LiveTrackerView";
 
 type EventModeValue = 0 | 1 | 2;
 type InteractionState = "idle" | "selecting" | "verifying";
@@ -210,6 +211,7 @@ export default function EventMode() {
           </CardContent>
         </Card>
       )}
+      <LiveTrackerView/>
     </Box>
   );
 }

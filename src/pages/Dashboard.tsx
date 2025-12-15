@@ -19,6 +19,7 @@ import {
 } from "../interfaces";
 import EventModeOverrideWarning from "../components/common/EventModeOverrideWarning";
 import { ThemedJsonView } from "../components/common/ThemedJSONView";
+import LiveTrackerView from "../components/common/LiveTrackerView";
 
 const EVENT_MODE_LABELS: Record<number, string> = {
   0: "Pre-Show",
@@ -201,6 +202,7 @@ export default function Dashboard() {
           </Card>
         )}
       </Stack>
+      <LiveTrackerView/>
     </Box>
   );
 }

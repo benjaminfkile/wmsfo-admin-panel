@@ -18,6 +18,7 @@ import { api } from "../api";
 import { IEventModeOverride } from "../interfaces";
 import EventModeOverrideWarning from "../components/common/EventModeOverrideWarning";
 import CommentBox from "../components/common/CommentBox";
+import LiveTrackerView from "../components/common/LiveTrackerView";
 
 const EVENT_MODES = [
   { id: 0, label: "Pre-Show" },
@@ -171,6 +172,7 @@ export default function EventModeOverride() {
       >
         Expire All Overrides
       </Button>
+      <LiveTrackerView/>
     </Box>
   );
 }
