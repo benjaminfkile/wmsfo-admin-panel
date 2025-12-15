@@ -47,7 +47,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
 
-  useEffect(() => {
+  useEffect(() => {//bump
     if (needsSetup) return;
 
     api.dashboardConfig
