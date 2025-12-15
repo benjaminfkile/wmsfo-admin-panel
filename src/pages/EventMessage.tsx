@@ -15,61 +15,103 @@ import {
 import { api } from "../api";
 import { IEventUpdate } from "../interfaces";
 
+/* ================= CONFIG ================= */
+
+const FORCED_TIMEZONE = process.env.REACT_APP_FORCED_TIMEZONE;
+const FORCED_TIME_ABBR = process.env.REACT_APP_FORCED_TIME_ABBR;
+
 /* ================= HELPERS ================= */
 
+/**
+ * Format "now" for prefix (same rules as PreShow)
+ */
 function formatPrefix(): string {
-  const d = new Date();
+  const options: Intl.DateTimeFormatOptions = {
+    dateStyle: "short",
+    timeStyle: "short",
+  };
 
-  const month = d.getMonth() + 1;
-  const day = d.getDate();
-  const year = d.getFullYear().toString().slice(-2);
+  if (FORCED_TIMEZONE) {
+    options.timeZone = FORCED_TIMEZONE;
+  }
 
-  let hours = d.getHours();
-  const minutes = d.getMinutes().toString().padStart(2, "0");
-  const ampm = hours >= 12 ? "pm" : "am";
-
-  hours = hours % 12 || 12;
-
-  return `${month}/${day}/${year} ${hours}:${minutes} ${ampm} -- `;
+  const formatted = new Date().toLocaleString("en-US", options);
+  return `${formatted}${FORCED_TIME_ABBR ? ` ${FORCED_TIME_ABBR}` : ""} -- `;
 }
 
+/**
+ * Split ISO → date/time inputs using SAME display logic as PreShow
+ */
 function splitIsoToInputs(iso?: string) {
   if (!iso) return { date: "", time: "" };
 
   const d = new Date(iso);
-  const date = d.toISOString().slice(0, 10);
-  const time = d.toTimeString().slice(0, 5);
 
-  return { date, time };
+  const options: Intl.DateTimeFormatOptions = {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  };
+
+  if (FORCED_TIMEZONE) {
+    options.timeZone = FORCED_TIMEZONE;
+  }
+
+  const parts = new Intl.DateTimeFormat("en-CA", options).formatToParts(d);
+  const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
+
+  return {
+    date: `${map.year}-${map.month}-${map.day}`,
+    time: `${map.hour}:${map.minute}`,
+  };
 }
 
+/**
+ * Build ISO timestamp from date + time
+ * IMPORTANT: no forced timezone here — browser attaches offset
+ */
 function buildEventTime(date: string, time: string): string | undefined {
   if (!date || !time) return undefined;
   return new Date(`${date}T${time}:00`).toISOString();
+}
+
+/**
+ * Display time EXACTLY like PreShow
+ */
+function formatEventTime(iso: string): string {
+  const options: Intl.DateTimeFormatOptions = {
+    dateStyle: "short",
+    timeStyle: "short",
+  };
+
+  if (FORCED_TIMEZONE) {
+    options.timeZone = FORCED_TIMEZONE;
+  }
+
+  return new Date(iso).toLocaleString("en-US", options);
 }
 
 /* ================= COMPONENT ================= */
 
 export default function EventMessage() {
   const [latest, setLatest] = useState<IEventUpdate | null>(null);
-
   const [message, setMessage] = useState("");
   const [prefixWithDate, setPrefixWithDate] = useState(true);
-
   const [eventDate, setEventDate] = useState("");
   const [eventTime, setEventTime] = useState("");
-
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  /* ================= LOAD LATEST ================= */
+  /* ===== LOAD LATEST ===== */
   useEffect(() => {
     api.eventUpdates
       .getLatest()
       .then((data) => {
         setLatest(data);
 
-        // Prefill date/time inputs from last event
         const { date, time } = splitIsoToInputs(data.time);
         setEventDate(date);
         setEventTime(time);
@@ -77,7 +119,7 @@ export default function EventMessage() {
       .catch(() => setLatest(null));
   }, []);
 
-  /* ================= SUBMIT ================= */
+  /* ===== SUBMIT ===== */
   const handleSubmit = async () => {
     if (!message.trim()) return;
 
@@ -97,7 +139,6 @@ export default function EventMessage() {
       const refreshed = await api.eventUpdates.getLatest();
       setLatest(refreshed);
 
-      // Re-sync inputs with what was actually saved
       const { date, time } = splitIsoToInputs(refreshed.time);
       setEventDate(date);
       setEventTime(time);
@@ -110,20 +151,19 @@ export default function EventMessage() {
     }
   };
 
-  /* ================= CLEAR TIME ================= */
+  /* ===== CLEAR TIME ===== */
   const handleClearTime = () => {
     setEventDate("");
     setEventTime("");
   };
 
-  /* ================= UI ================= */
+  /* ===== UI ===== */
   return (
     <Box>
       <Typography variant="h4" gutterBottom>
         Event Message
       </Typography>
 
-      {/* ===== CURRENT MESSAGE ===== */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6">Current Message</Typography>
@@ -136,7 +176,8 @@ export default function EventMessage() {
 
               {latest.time && (
                 <Typography variant="body2" color="text.secondary">
-                  Event Time: {new Date(latest.time).toLocaleString()}
+                  Event Time: {formatEventTime(latest.time)}
+                  {FORCED_TIME_ABBR ? ` ${FORCED_TIME_ABBR}` : ""}
                 </Typography>
               )}
             </>
@@ -154,7 +195,6 @@ export default function EventMessage() {
         </Alert>
       )}
 
-      {/* ===== EDIT ===== */}
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>
@@ -176,7 +216,7 @@ export default function EventMessage() {
                 onChange={(e) => setPrefixWithDate(e.target.checked)}
               />
             }
-            label="Prefix message with current date/time"
+            label="Prefix message with date/time"
           />
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} mt={2}>

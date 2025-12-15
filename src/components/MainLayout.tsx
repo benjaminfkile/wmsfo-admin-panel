@@ -15,6 +15,7 @@ import {
   useTheme,
   useMediaQuery,
   Collapse,
+  Chip,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import ExpandLess from "@mui/icons-material/ExpandLess";
@@ -30,9 +31,18 @@ import EventMode from "../pages/EventMode";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
 
-
-
 const drawerWidth = 220;
+
+const APP_ENV = process.env.REACT_APP_ENVIRONMENT?.toUpperCase();
+
+const ENV_CONFIG: Record<
+  string,
+  { label: string; color: "success" | "error" | "info" }
+> = {
+  DEV: { label: "DEV", color: "success" },
+  PROD: { label: "PROD", color: "error" },
+  LOCAL: { label: "LOCAL", color: "info" },
+};
 
 interface Props {
   onToggleTheme: () => void;
@@ -188,6 +198,20 @@ export default function MainLayout(props: Props) {
             <Typography variant="h6" noWrap sx={{ flexGrow: 1 }}>
               WMSFO Admin
             </Typography>
+
+            {APP_ENV && ENV_CONFIG[APP_ENV] && (
+              <Chip
+                label={ENV_CONFIG[APP_ENV].label}
+                color={ENV_CONFIG[APP_ENV].color}
+                size="small"
+                sx={{
+                  mr: 2,
+                  fontWeight: 700,
+                  letterSpacing: "0.5px",
+                }}
+              />
+            )}
+
 
             <IconButton color="inherit" onClick={onToggleTheme}>
               {themeMode === "dark" ? <LightModeIcon /> : <DarkModeIcon />}
