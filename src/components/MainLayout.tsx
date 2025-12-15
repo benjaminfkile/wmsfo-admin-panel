@@ -186,7 +186,7 @@ export default function MainLayout(props: Props) {
             )}
 
             <Typography variant="h6" noWrap sx={{ flexGrow: 1 }}>
-              406 Santa Admin
+              WMSFO Admin
             </Typography>
 
             <IconButton color="inherit" onClick={onToggleTheme}>
