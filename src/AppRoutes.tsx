@@ -19,6 +19,8 @@ import Settings from "./pages/settings/Settings";
 import Subscribers from "./pages/subscribers/Subscribers";
 import People from "./pages/people/People";
 import ContactMessages from "./pages/contact/ContactMessages";
+import PagesList from "./pages/pages/PagesList";
+import PageEditor from "./pages/pages/PageEditor";
 import { NotifyProvider } from "./hooks/useNotify";
 import { ALL_ROUTES } from "./routesConfig";
 import { canAccess } from "./lib/roles";
@@ -62,6 +64,7 @@ const CUSTOM_ELEMENTS: Partial<Record<NavKey, ReactElement>> = {
   subscribers: <Subscribers />,
   people: <People />,
   "contact-messages": <ContactMessages />,
+  pages: <PagesList />,
 };
 
 function elementFor(role: Role, key: NavKey, label: string): ReactElement {
@@ -119,6 +122,16 @@ function AuthedShell({ themeMode, onToggleTheme }: Props) {
             element={
               canAccess(role, "sponsors") ? (
                 <SponsorDetail />
+              ) : (
+                <NotAvailable />
+              )
+            }
+          />
+          <Route
+            path="pages/:id"
+            element={
+              canAccess(role, "pages") ? (
+                <PageEditor />
               ) : (
                 <NotAvailable />
               )
