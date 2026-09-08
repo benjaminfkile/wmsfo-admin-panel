@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 // Coalesce edits into one save (admin.md 6.14 autosave). Returns a
 // `schedule(next)` and a `flush()` for immediate save on blur.
@@ -51,5 +51,6 @@ export function useDebouncedSave<T>(
     };
   }, []);
 
-  return { schedule, flush, cancel };
+  // One stable object per mount so effects keyed on it do not re-run every render.
+  return useMemo(() => ({ schedule, flush, cancel }), [schedule, flush, cancel]);
 }
