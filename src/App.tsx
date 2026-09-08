@@ -1,110 +1,67 @@
 import { useEffect, useMemo, useState } from "react";
-import { api } from "./api";
-import { setRuntimeConfig } from "./auth/runtimeConfig";
+import { CssBaseline, ThemeProvider } from "@mui/material";
+import type { UserManager } from "oidc-client-ts";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { Config } from "./config";
+import AuthProvider, { useAuth } from "./auth/AuthProvider";
+import { ConfigProvider } from "./ConfigContext";
+import { installClient } from "./api/client";
+import AppRoutes from "./AppRoutes";
+import { buildTheme, type AppThemeMode } from "./theme/theme";
+import { getStoredTheme, setStoredTheme } from "./theme/themeStorage";
 
-import {
-  CircularProgress,
-  Box,
-  Alert,
-  CssBaseline,
-  ThemeProvider,
-} from "@mui/material";
+interface AppProps {
+  config: Config;
+  userManager: UserManager;
+  queryClient?: QueryClient;
+}
 
-import MainLayout from "./components/MainLayout";
-import { buildTheme, AppThemeMode } from "./theme/theme";
-import {
-  getStoredTheme,
-  setStoredTheme,
-} from "./theme/themeStorage";
+function defaultQueryClient(): QueryClient {
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, staleTime: 0, refetchOnWindowFocus: true },
+      mutations: { retry: false },
+    },
+  });
+}
 
-import ApiKeyPrompt from "./components/ApiKeyPrompt";
-
-export default function App() {
-
+export default function App({ config, userManager, queryClient }: AppProps) {
   const [themeMode, setThemeMode] = useState<AppThemeMode>(getStoredTheme);
-
-  const theme = useMemo(
-    () => buildTheme(themeMode),
-    [themeMode]
-  );
+  const theme = useMemo(() => buildTheme(themeMode), [themeMode]);
+  const client = useMemo(() => queryClient ?? defaultQueryClient(), [queryClient]);
 
   const toggleTheme = () => {
     setThemeMode((prev) => {
-      const next = prev === "light" ? "dark" : "light";
+      const next: AppThemeMode = prev === "light" ? "dark" : "light";
       setStoredTheme(next);
       return next;
     });
   };
 
-
-  const hasSecrets =
-    !!localStorage.getItem("chrisTrackerAuth") &&
-    !!localStorage.getItem("secretSanta") &&
-    !!localStorage.getItem("protectedRoutePrefix");
-
-  const [needsSetup, setNeedsSetup] = useState(!hasSecrets);
-  const [ready, setReady] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-
-  useEffect(() => {//bump
-    if (needsSetup) return;
-
-    api.dashboardConfig
-      .get()
-      .then((res) => {
-        setRuntimeConfig(
-          res.secrets.protectedRoutePrefix,
-          res.secrets.chrisTrackerAuth,
-          res.secrets.secretSanta
-        );
-        setReady(true);
-      })
-      .catch((err) => {
-        setError(err.message ?? "Failed to initialize app");
-      });
-  }, [needsSetup]);
-
-
-  if (error) {
-    return <Alert severity="error">{error}</Alert>;
-  }
-
-
-  if (needsSetup) {
-    return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <ApiKeyPrompt
-          onSaved={() => {
-            setNeedsSetup(false);
-            setReady(false);
-          }}
-        />
-      </ThemeProvider>
-    );
-  }
-
-
-  if (!ready) {
-    return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Box display="flex" justifyContent="center" mt={6}>
-          <CircularProgress />
-        </Box>
-      </ThemeProvider>
-    );
-  }
-
-
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <MainLayout
-        themeMode={themeMode}
-        onToggleTheme={toggleTheme}
-      />
+      <ConfigProvider config={config}>
+        <QueryClientProvider client={client}>
+          <AuthProvider userManager={userManager}>
+            <ClientInstaller config={config} userManager={userManager} />
+            <AppRoutes themeMode={themeMode} onToggleTheme={toggleTheme} />
+          </AuthProvider>
+        </QueryClientProvider>
+      </ConfigProvider>
     </ThemeProvider>
   );
+}
+
+interface ClientInstallerProps {
+  config: Config;
+  userManager: UserManager;
+}
+
+function ClientInstaller({ config, userManager }: ClientInstallerProps) {
+  const { requireMfa } = useAuth();
+  useEffect(() => {
+    installClient({ config, userManager, onMfaRequired: requireMfa });
+  }, [config, userManager, requireMfa]);
+  return null;
 }
