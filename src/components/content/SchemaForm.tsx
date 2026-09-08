@@ -14,6 +14,7 @@ import LinkField from "./fields/LinkField";
 import InlineField from "./fields/InlineField";
 import BlocksField from "./fields/BlocksField";
 import PresentationPanelField from "./fields/PresentationPanelField";
+import ThemeField from "./fields/ThemeField";
 
 // The `$ref` values we route to custom fields. Matches the local
 // definitions bundled by `bundleSchema`.
@@ -34,6 +35,7 @@ const CUSTOM_FIELD = {
   InlineField,
   BlocksField,
   PresentationPanelField,
+  ThemeField,
 };
 
 function routedField(schema: unknown): keyof typeof CUSTOM_FIELD | null {
@@ -73,8 +75,11 @@ function RoutedSchemaField(props: FieldProps) {
   return <DefaultSchemaField {...props} />;
 }
 
+// UiSchema-based custom fields (used by SiteSettings for the theme
+// object; RJSF resolves these via `ui:field: "<name>"`).
 const FIELDS: RegistryFieldsType = {
   SchemaField: RoutedSchemaField,
+  ThemeField,
 };
 
 interface Props<T> {
