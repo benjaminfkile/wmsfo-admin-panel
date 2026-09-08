@@ -10,6 +10,7 @@ import EventDetail from "./pages/events/EventDetail";
 import RoutesList from "./pages/routes/RoutesList";
 import BeaconsList from "./pages/beacons/BeaconsList";
 import BeaconDetail from "./pages/beacons/BeaconDetail";
+import MediaLibrary from "./pages/media/MediaLibrary";
 import { NotifyProvider } from "./hooks/useNotify";
 import { ALL_ROUTES } from "./routesConfig";
 import { canAccess } from "./lib/roles";
@@ -45,6 +46,7 @@ const CUSTOM_ELEMENTS: Partial<Record<NavKey, ReactElement>> = {
   events: <EventsList />,
   routes: <RoutesList />,
   beacons: <BeaconsList />,
+  media: <MediaLibrary />,
 };
 
 function elementFor(role: Role, key: NavKey, label: string): ReactElement {
