@@ -8,6 +8,8 @@ import Dashboard from "./pages/Dashboard";
 import EventsList from "./pages/events/EventsList";
 import EventDetail from "./pages/events/EventDetail";
 import RoutesList from "./pages/routes/RoutesList";
+import BeaconsList from "./pages/beacons/BeaconsList";
+import BeaconDetail from "./pages/beacons/BeaconDetail";
 import { NotifyProvider } from "./hooks/useNotify";
 import { ALL_ROUTES } from "./routesConfig";
 import { canAccess } from "./lib/roles";
@@ -42,6 +44,7 @@ const CUSTOM_ELEMENTS: Partial<Record<NavKey, ReactElement>> = {
   dashboard: <Dashboard />,
   events: <EventsList />,
   routes: <RoutesList />,
+  beacons: <BeaconsList />,
 };
 
 function elementFor(role: Role, key: NavKey, label: string): ReactElement {
@@ -79,6 +82,16 @@ function AuthedShell({ themeMode, onToggleTheme }: Props) {
             element={
               canAccess(role, "events") ? (
                 <EventDetail />
+              ) : (
+                <NotAvailable />
+              )
+            }
+          />
+          <Route
+            path="beacons/:id"
+            element={
+              canAccess(role, "beacons") ? (
+                <BeaconDetail />
               ) : (
                 <NotAvailable />
               )
