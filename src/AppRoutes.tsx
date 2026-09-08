@@ -11,6 +11,14 @@ import RoutesList from "./pages/routes/RoutesList";
 import BeaconsList from "./pages/beacons/BeaconsList";
 import BeaconDetail from "./pages/beacons/BeaconDetail";
 import MediaLibrary from "./pages/media/MediaLibrary";
+import SponsorsList from "./pages/sponsors/SponsorsList";
+import SponsorDetail from "./pages/sponsors/SponsorDetail";
+import CookieTypesList from "./pages/cookieTypes/CookieTypesList";
+import CookiesModeration from "./pages/cookies/CookiesModeration";
+import Settings from "./pages/settings/Settings";
+import Subscribers from "./pages/subscribers/Subscribers";
+import People from "./pages/people/People";
+import ContactMessages from "./pages/contact/ContactMessages";
 import { NotifyProvider } from "./hooks/useNotify";
 import { ALL_ROUTES } from "./routesConfig";
 import { canAccess } from "./lib/roles";
@@ -47,6 +55,13 @@ const CUSTOM_ELEMENTS: Partial<Record<NavKey, ReactElement>> = {
   routes: <RoutesList />,
   beacons: <BeaconsList />,
   media: <MediaLibrary />,
+  sponsors: <SponsorsList />,
+  "cookie-types": <CookieTypesList />,
+  cookies: <CookiesModeration />,
+  settings: <Settings />,
+  subscribers: <Subscribers />,
+  people: <People />,
+  "contact-messages": <ContactMessages />,
 };
 
 function elementFor(role: Role, key: NavKey, label: string): ReactElement {
@@ -94,6 +109,16 @@ function AuthedShell({ themeMode, onToggleTheme }: Props) {
             element={
               canAccess(role, "beacons") ? (
                 <BeaconDetail />
+              ) : (
+                <NotAvailable />
+              )
+            }
+          />
+          <Route
+            path="sponsors/:id"
+            element={
+              canAccess(role, "sponsors") ? (
+                <SponsorDetail />
               ) : (
                 <NotAvailable />
               )
