@@ -21,6 +21,8 @@ import People from "./pages/people/People";
 import ContactMessages from "./pages/contact/ContactMessages";
 import PagesList from "./pages/pages/PagesList";
 import PageEditor from "./pages/pages/PageEditor";
+import SiteSettings from "./pages/siteSettings/SiteSettings";
+import Publish from "./pages/publish/Publish";
 import { NotifyProvider } from "./hooks/useNotify";
 import { ALL_ROUTES } from "./routesConfig";
 import { canAccess } from "./lib/roles";
@@ -65,6 +67,8 @@ const CUSTOM_ELEMENTS: Partial<Record<NavKey, ReactElement>> = {
   people: <People />,
   "contact-messages": <ContactMessages />,
   pages: <PagesList />,
+  "site-settings": <SiteSettings />,
+  publish: <Publish />,
 };
 
 function elementFor(role: Role, key: NavKey, label: string): ReactElement {

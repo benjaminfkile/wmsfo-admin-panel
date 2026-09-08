@@ -35,6 +35,7 @@ export type ContentStatus = S["ContentStatusDto"];
 export type ContentBundle = S["ContentBundleDto"];
 export type PreviewToken = S["PreviewTokenDto"];
 export type Problem = S["ProblemDto"];
+export type ProblemRef = S["ProblemRefDto"];
 export type Icon = S["IconValue"];
 export type MediaRef = { mediaId: string; alt: string | null };
 export type Presentation = S["PresentationDto"];
