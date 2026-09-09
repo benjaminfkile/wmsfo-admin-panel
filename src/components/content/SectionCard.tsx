@@ -14,7 +14,7 @@ import {
   Typography,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import type { RJSFSchema } from "@rjsf/utils";
+import type { ErrorSchema, RJSFSchema } from "@rjsf/utils";
 import SchemaForm from "./SchemaForm";
 import PresentationPanel from "./PresentationPanel";
 import ItemsEditor from "./ItemsEditor";
@@ -39,12 +39,14 @@ interface Props {
     isHidden?: boolean;
   }) => void;
   onDuplicate?: () => void;
+  onMove?: () => void;
   onDelete?: () => void;
   onCreateItem?: (data: object) => void;
   onPatchItem?: (id: number, data: object) => void;
   onRemoveItem?: (id: number) => void;
   onReorderItems?: (ids: number[]) => void;
   saveState?: SaveState;
+  extraErrors?: ErrorSchema;
 }
 
 // A single section card (admin.md 6.14). Content tab renders the kind's
@@ -57,11 +59,14 @@ export default function SectionCard({
   disabled,
   onPatch,
   onDuplicate,
+  onMove,
   onDelete,
   onCreateItem,
   onPatchItem,
   onRemoveItem,
+  onReorderItems,
   saveState = "idle",
+  extraErrors,
 }: Props) {
   const [tab, setTab] = useState<"content" | "presentation">("content");
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
@@ -173,6 +178,14 @@ export default function SectionCard({
           <MenuItem
             onClick={() => {
               setMenuAnchor(null);
+              onMove?.();
+            }}
+          >
+            Move to page
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              setMenuAnchor(null);
               onDelete?.();
             }}
           >
@@ -194,6 +207,7 @@ export default function SectionCard({
                 disabled={disabled}
                 onChange={(next: object) => setData(next)}
                 onBlur={() => debouncedData.flush()}
+                extraErrors={extraErrors}
               />
               {kind.hasItems ? (
                 <ItemsEditor
@@ -203,6 +217,7 @@ export default function SectionCard({
                   onCreate={onCreateItem ?? (() => undefined)}
                   onPatchItem={onPatchItem ?? (() => undefined)}
                   onRemoveItem={onRemoveItem ?? (() => undefined)}
+                  onReorder={onReorderItems}
                 />
               ) : null}
             </>

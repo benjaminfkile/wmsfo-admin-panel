@@ -9,24 +9,29 @@ import {
 } from "@mui/material";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import type { ErrorSchema } from "@rjsf/utils";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { pages as pagesApi } from "../../api/resources/pages";
 import { sections as sectionsApi } from "../../api/resources/sections";
 import { content as contentApi } from "../../api/resources/content";
 import { keys } from "../../queries/keys";
+import { ApiError } from "../../api/errors";
+import { fieldsToErrorSchema } from "../../lib/fieldErrors";
 import ErrorAlert from "../../components/ErrorAlert";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import SectionCard, {
   type SaveState,
 } from "../../components/content/SectionCard";
 import SectionPalette from "../../components/content/SectionPalette";
+import MoveSectionDialog from "../../components/content/MoveSectionDialog";
 import PageSettingsDialog, {
   type PageSettingsSubmit,
 } from "./PageSettingsDialog";
 import { useNotify } from "../../hooks/useNotify";
 import type {
   KindInfo,
+  PageAdmin,
   Presentation,
   SectionAdmin,
 } from "../../api/types";
@@ -40,12 +45,20 @@ export default function PageEditor() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [deleteFor, setDeleteFor] = useState<SectionAdmin | null>(null);
+  const [moveFor, setMoveFor] = useState<SectionAdmin | null>(null);
   const [saveStates, setSaveStates] = useState<Record<number, SaveState>>({});
+  const [fieldErrors, setFieldErrors] = useState<
+    Record<number, ErrorSchema>
+  >({});
 
   const pageQ = useQuery({
     queryKey: keys.page(pageId),
     queryFn: () => pagesApi.get(pageId),
     enabled: Number.isFinite(pageId),
+  });
+  const pagesQ = useQuery({
+    queryKey: keys.pages,
+    queryFn: () => pagesApi.list(),
   });
   const kindsQ = useQuery({
     queryKey: keys.kinds,
@@ -82,9 +95,21 @@ export default function PageEditor() {
     onMutate: ({ id }) => setSaveState(id, "saving"),
     onSuccess: (_res, vars) => {
       setSaveState(vars.id, "saved");
+      setFieldErrors((prev) => {
+        if (!prev[vars.id]) return prev;
+        const next = { ...prev };
+        delete next[vars.id];
+        return next;
+      });
       void qc.invalidateQueries({ queryKey: keys.page(pageId) });
     },
-    onError: (_e, vars) => setSaveState(vars.id, "error"),
+    onError: (err, vars) => {
+      setSaveState(vars.id, "error");
+      if (err instanceof ApiError && err.code === "validation_failed") {
+        const errorSchema = fieldsToErrorSchema(err.fields);
+        setFieldErrors((prev) => ({ ...prev, [vars.id]: errorSchema }));
+      }
+    },
   });
 
   const createSectionMut = useMutation({
@@ -168,6 +193,42 @@ export default function PageEditor() {
     mutationFn: (itemId: number) => sectionsApi.removeItem(itemId),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: keys.page(pageId) });
+    },
+  });
+  const orderItemsMut = useMutation({
+    mutationFn: ({
+      sectionId,
+      ids,
+    }: {
+      sectionId: number;
+      ids: number[];
+    }) => sectionsApi.orderItems(sectionId, ids),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.page(pageId) });
+    },
+  });
+  const moveMut = useMutation({
+    mutationFn: ({
+      sectionId,
+      targetPageId,
+      position,
+    }: {
+      sectionId: number;
+      targetPageId: number;
+      position: number;
+    }) =>
+      sectionsApi.move(sectionId, {
+        pageId: targetPageId,
+        position,
+      }),
+    onSuccess: (_res, vars) => {
+      notify("Section moved");
+      setMoveFor(null);
+      void qc.invalidateQueries({ queryKey: keys.page(pageId) });
+      void qc.invalidateQueries({
+        queryKey: keys.page(vars.targetPageId),
+      });
+      void qc.invalidateQueries({ queryKey: keys.pages });
     },
   });
 
@@ -261,8 +322,10 @@ export default function PageEditor() {
                   section={s}
                   kind={kind}
                   saveState={saveStates[id] ?? "idle"}
+                  extraErrors={fieldErrors[id]}
                   onPatch={(body) => patchSectionMut.mutate({ id, body })}
                   onDuplicate={() => duplicateMut.mutate(id)}
+                  onMove={() => setMoveFor(s)}
                   onDelete={() => setDeleteFor(s)}
                   onCreateItem={(data) =>
                     createItemMut.mutate({ sectionId: id, data })
@@ -271,6 +334,9 @@ export default function PageEditor() {
                     patchItemMut.mutate({ itemId, data })
                   }
                   onRemoveItem={(itemId) => removeItemMut.mutate(itemId)}
+                  onReorderItems={(ids) =>
+                    orderItemsMut.mutate({ sectionId: id, ids })
+                  }
                 />
               </Box>
             );
@@ -318,6 +384,22 @@ export default function PageEditor() {
           deleteFor ? deleteSectionMut.mutate(Number(deleteFor.id ?? 0)) : undefined
         }
         disabled={deleteSectionMut.isPending}
+      />
+
+      <MoveSectionDialog
+        open={Boolean(moveFor)}
+        pages={(pagesQ.data?.items ?? []) as PageAdmin[]}
+        currentPageId={pageId}
+        kind={moveFor ? kindByName[moveFor.kind ?? ""] ?? null : null}
+        onCancel={() => setMoveFor(null)}
+        onMove={(target) => {
+          if (!moveFor) return;
+          moveMut.mutate({
+            sectionId: Number(moveFor.id ?? 0),
+            targetPageId: Number(target.id ?? 0),
+            position: Number(target.sectionCount ?? 0),
+          });
+        }}
       />
     </>
   );
