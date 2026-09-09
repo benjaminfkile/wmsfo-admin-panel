@@ -27,3 +27,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .vercel
+
+# playwright
+/playwright-report
+/test-results
+tsconfig.e2e.tsbuildinfo

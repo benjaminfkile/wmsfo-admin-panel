@@ -5,7 +5,14 @@ import reactRefresh from "eslint-plugin-react-refresh";
 
 export default tseslint.config(
   {
-    ignores: ["dist", "src/api/schema.d.ts", "node_modules", "build"],
+    ignores: [
+      "dist",
+      "src/api/schema.d.ts",
+      "node_modules",
+      "build",
+      "playwright-report",
+      "test-results",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -17,6 +24,27 @@ export default tseslint.config(
         console: "readonly",
         fetch: "readonly",
       },
+    },
+  },
+  {
+    files: ["e2e/**/*.ts", "playwright.config.ts"],
+    languageOptions: {
+      globals: {
+        process: "readonly",
+        console: "readonly",
+        fetch: "readonly",
+        Buffer: "readonly",
+        URL: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        __dirname: "readonly",
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
     },
   },
   {
