@@ -1,0 +1,67 @@
+name: e2e
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Nightly at 07:00 UTC (~ 00:00 or 01:00 Mountain depending on DST).
+    - cron: "0 7 * * *"
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: dev
+    env:
+      # `vite preview` reads these at build time. The workflow points the
+      # built bundle at the dev API, dev Cognito, and dev CDN, per § 9.3.
+      VITE_ENV: dev
+      VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+      VITE_CDN_BASE_URL: ${{ vars.VITE_CDN_BASE_URL }}
+      VITE_COGNITO_AUTHORITY: ${{ vars.VITE_COGNITO_AUTHORITY }}
+      VITE_COGNITO_DOMAIN: ${{ vars.VITE_COGNITO_DOMAIN }}
+      VITE_COGNITO_CLIENT_ID: ${{ vars.VITE_COGNITO_CLIENT_ID }}
+      E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+      E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+      E2E_ADMIN_TOTP_SECRET: ${{ secrets.E2E_ADMIN_TOTP_SECRET }}
+      E2E_EDITOR_EMAIL: ${{ secrets.E2E_EDITOR_EMAIL }}
+      E2E_EDITOR_PASSWORD: ${{ secrets.E2E_EDITOR_PASSWORD }}
+      E2E_EDITOR_TOTP_SECRET: ${{ secrets.E2E_EDITOR_TOTP_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: npm ci
+        run: npm ci
+
+      - name: install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: build (with dev VITE_* vars)
+        run: npm run build
+
+      - name: run Playwright specs against vite preview
+        run: npm run e2e
+
+      - name: upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          if-no-files-found: ignore
+
+      - name: upload traces and videos
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: test-results
+          if-no-files-found: ignore
