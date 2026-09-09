@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import Form from "@rjsf/mui";
 import { getDefaultRegistry } from "@rjsf/core";
 import validator from "@rjsf/validator-ajv8";
-import type { RJSFSchema, UiSchema } from "@rjsf/utils";
+import type { ErrorSchema, RJSFSchema, UiSchema } from "@rjsf/utils";
 import type { FieldProps, RegistryFieldsType } from "@rjsf/utils";
 import { RJSF_REF_KEY } from "@rjsf/utils";
 import { deriveDraftSchema } from "../../schemas/draft";
@@ -91,6 +91,7 @@ interface Props<T> {
   disabled?: boolean;
   liveValidate?: boolean;
   readonly?: boolean;
+  extraErrors?: ErrorSchema;
   // The Form's default is to render its own submit button; hide when the
   // caller owns save state (the page editor autosaves).
   hideSubmit?: boolean;
@@ -108,6 +109,7 @@ export default function SchemaForm<T>({
   disabled,
   liveValidate = true,
   readonly,
+  extraErrors,
   hideSubmit = true,
 }: Props<T>) {
   const prepared = useMemo(() => {
@@ -125,6 +127,7 @@ export default function SchemaForm<T>({
       liveValidate={liveValidate}
       disabled={disabled}
       readonly={readonly}
+      extraErrors={extraErrors}
       showErrorList={false}
     >
       {hideSubmit ? <span /> : undefined}

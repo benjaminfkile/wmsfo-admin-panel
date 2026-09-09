@@ -39,7 +39,13 @@ import {
   makeUser,
   testConfig,
 } from "../../test/renderWithProviders";
-import type { KindInfo, PageDetail } from "../../api/types";
+import type {
+  KindInfo,
+  PageAdmin,
+  PageDetail,
+  SectionAdmin,
+  SectionItemAdmin,
+} from "../../api/types";
 
 function Harness() {
   const client = new QueryClient({
@@ -184,14 +190,87 @@ describe("PageEditor", () => {
     expect(patches).toBe(1);
   }, 10000);
 
-  it.skip(
-    "a 400 validation_failed with details.fields lands on the named field",
-    // PageEditor's onError only sets the section's save state to "error";
-    // it does not thread details.fields into a per-field message today.
-    async () => {
-      // intentionally empty
-    }
-  );
+  it("a 400 validation_failed with details.fields lands on the named field", async () => {
+    const kinds: KindInfo[] = [
+      {
+        ...(f.kinds[0] as KindInfo),
+        kind: "rich_text",
+        title: "Rich text",
+        schema: {
+          type: "object",
+          properties: {
+            title: { type: "string", title: "Section title" },
+          },
+        },
+        defaults: { title: "" },
+      },
+    ];
+    const section: SectionAdmin = {
+      ...f.sampleSection,
+      data: { title: "Hi" },
+    };
+    const pageDetail: PageDetail = {
+      ...f.pageDetail,
+      sections: [section],
+    };
+    let attempts = 0;
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/content/kinds`, () =>
+        HttpResponse.json({ items: kinds })
+      ),
+      http.get(`${testConfig.apiBaseUrl}/admin/pages/:id`, () =>
+        HttpResponse.json(pageDetail)
+      ),
+      http.patch(`${testConfig.apiBaseUrl}/admin/sections/:id`, () => {
+        attempts += 1;
+        if (attempts === 1) {
+          return HttpResponse.json(
+            {
+              code: "validation_failed",
+              message: "Validation failed",
+              details: { fields: { "/title": "Title is too short" } },
+              requestId: "req_1",
+            },
+            { status: 400 }
+          );
+        }
+        return HttpResponse.json(f.sampleSection);
+      })
+    );
+
+    render(<Harness />);
+    const card = await screen.findByTestId(
+      `section-card-${f.sampleSection.id}`
+    );
+
+    const title = await within(card).findByLabelText(/section title/i);
+    fireEvent.change(title, { target: { value: "New" } });
+    await act(async () => {
+      await sleep(1200);
+    });
+    await waitFor(() => {
+      expect(attempts).toBe(1);
+    });
+
+    await waitFor(() => {
+      expect(within(card).getAllByText(/title is too short/i).length).toBeGreaterThan(0);
+    });
+    expect(await within(card).findByText(/not saved/i)).toBeInTheDocument();
+
+    fireEvent.change(title, { target: { value: "New title" } });
+    await act(async () => {
+      await sleep(1200);
+    });
+    await waitFor(() => {
+      expect(attempts).toBe(2);
+    });
+    await waitFor(() => {
+      expect(
+        within(card).queryAllByText(/title is too short/i)
+      ).toHaveLength(0);
+    });
+    expect(await within(card).findByText(/^saved$/i)).toBeInTheDocument();
+  }, 10000);
 
   it("problems badge shows the count", async () => {
     // PageEditor renders "<n> problems" for page.problemCount > 0. Override
@@ -234,14 +313,54 @@ describe("PageEditor", () => {
     });
   });
 
-  it.skip(
-    "move calls POST /admin/sections/:id/move",
-    // SectionCard's menu today has only Duplicate and Delete. The Move to
-    // page dialog described in admin.md 6.14 is not built yet.
-    async () => {
-      // intentionally empty
-    }
-  );
+  it("move calls POST /admin/sections/:id/move", async () => {
+    const otherPage: PageAdmin = {
+      ...(f.pageAdmin[0] as PageAdmin),
+      id: 5,
+      slug: "events",
+      title: "Events",
+      role: "none",
+      sectionCount: 3,
+    };
+    const currentPage: PageAdmin = {
+      ...(f.pageAdmin[1] as PageAdmin),
+    };
+    let moveBody: unknown = null;
+    let movePathId: string | undefined;
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/pages`, () =>
+        HttpResponse.json({ items: [currentPage, otherPage] })
+      ),
+      http.post(
+        `${testConfig.apiBaseUrl}/admin/sections/:id/move`,
+        async ({ params, request }) => {
+          movePathId = params["id"] as string;
+          moveBody = await request.json();
+          return HttpResponse.json(f.sampleSection);
+        }
+      )
+    );
+    const user = userEvent.setup();
+    render(<Harness />);
+    await screen.findByTestId(`section-card-${f.sampleSection.id}`);
+    await user.click(screen.getByLabelText(/section menu/i));
+    await user.click(
+      await screen.findByRole("menuitem", { name: /move to page/i })
+    );
+
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByTestId(`move-target-${otherPage.id}`));
+    await user.click(within(dialog).getByRole("button", { name: /^move$/i }));
+
+    await waitFor(() => {
+      expect(moveBody).not.toBeNull();
+    });
+    expect(movePathId).toBe(String(f.sampleSection.id));
+    expect(moveBody).toEqual({
+      pageId: otherPage.id,
+      position: otherPage.sectionCount,
+    });
+  });
 
   it("hide calls PATCH /admin/sections/:id with isHidden", async () => {
     let patchBody: unknown = null;
@@ -290,12 +409,81 @@ describe("PageEditor", () => {
     });
   });
 
-  it.skip(
-    "items reorder inside ItemsEditor sends the new order",
-    // ItemsEditor today supports add/patch/remove but not reorder. There is
-    // no drag handle wired to onReorder.
-    async () => {
-      // intentionally empty
-    }
-  );
+  it("items reorder inside ItemsEditor sends the new order", async () => {
+    const kinds: KindInfo[] = [
+      {
+        ...(f.kinds[0] as KindInfo),
+        kind: "media",
+        title: "Media",
+        hasItems: true,
+        schema: { type: "object", properties: {} },
+        itemSchema: {
+          type: "object",
+          properties: { caption: { type: "string" } },
+        },
+        itemDefaults: { caption: "" },
+      },
+    ];
+    const items: SectionItemAdmin[] = [
+      {
+        id: 101,
+        sectionId: 9,
+        position: 0,
+        isHidden: false,
+        data: { caption: "First" },
+        problems: [],
+        updatedBy: "editor@example.com",
+        updatedAt: "2026-12-22T01:31:07.412Z",
+      },
+      {
+        id: 102,
+        sectionId: 9,
+        position: 1,
+        isHidden: false,
+        data: { caption: "Second" },
+        problems: [],
+        updatedBy: "editor@example.com",
+        updatedAt: "2026-12-22T01:31:07.412Z",
+      },
+    ];
+    const section: SectionAdmin = {
+      ...f.sampleSection,
+      kind: "media",
+      items,
+    };
+    const pageDetail: PageDetail = {
+      ...f.pageDetail,
+      sections: [section],
+    };
+    let orderBody: unknown = null;
+    let orderSectionId: string | undefined;
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/content/kinds`, () =>
+        HttpResponse.json({ items: kinds })
+      ),
+      http.get(`${testConfig.apiBaseUrl}/admin/pages/:id`, () =>
+        HttpResponse.json(pageDetail)
+      ),
+      http.put(
+        `${testConfig.apiBaseUrl}/admin/sections/:id/items/order`,
+        async ({ params, request }) => {
+          orderSectionId = params["id"] as string;
+          orderBody = await request.json();
+          return HttpResponse.json(section);
+        }
+      )
+    );
+    const user = userEvent.setup();
+    render(<Harness />);
+    await screen.findByTestId(`section-card-${f.sampleSection.id}`);
+
+    const row = await screen.findByTestId(`item-row-${items[0]!.id}`);
+    await user.click(within(row).getByLabelText(/move item 101 down/i));
+
+    await waitFor(() => {
+      expect(orderBody).not.toBeNull();
+    });
+    expect(orderSectionId).toBe(String(f.sampleSection.id));
+    expect(orderBody).toEqual({ ids: [102, 101] });
+  });
 });
