@@ -3558,6 +3558,7 @@ export interface components {
             /** Format: date-time */
             cacheRefreshedAt?: string;
             live?: components["schemas"]["LiveObject"];
+            counters?: components["schemas"]["NodeCountersSnapshot"];
         };
         AdminLiveResponse: {
             /** Format: date-time */
@@ -4229,6 +4230,34 @@ export interface components {
             /** Format: int32 */
             remaining?: number | string;
             items?: components["schemas"]["MyCookieItem"][];
+        };
+        NodeCountersSnapshot: {
+            /** Format: int64 */
+            locationsStored?: number | string;
+            /** Format: int64 */
+            locationsPublished?: number | string;
+            /** Format: int64 */
+            livePutsOk?: number | string;
+            /** Format: int64 */
+            livePutsFailed?: number | string;
+            /** Format: int64 */
+            publishesOk?: number | string;
+            /** Format: int64 */
+            publishesFailed?: number | string;
+            /** Format: int64 */
+            heartbeats?: number | string;
+            /** Format: int64 */
+            authorizePublicAllow?: number | string;
+            /** Format: int64 */
+            authorizeIngestAllow?: number | string;
+            /** Format: int64 */
+            authorizeIngestDeny?: number | string;
+            /** Format: int64 */
+            messageLocationOk?: number | string;
+            /** Format: int64 */
+            messageForbidden?: number | string;
+            /** Format: int64 */
+            messageValidationFailed?: number | string;
         };
         PageAdminDto: {
             /** Format: int64 */
