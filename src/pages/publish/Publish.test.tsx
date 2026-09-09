@@ -56,7 +56,7 @@ afterEach(() => {
   server.resetHandlers();
 });
 
-describe("Publish — status card states", () => {
+describe("Publish: status card states", () => {
   it("renders 'No unpublished changes' when hasUnpublishedChanges is false", async () => {
     server.use(
       http.get(`${testConfig.apiBaseUrl}/admin/content/status`, () =>
@@ -133,7 +133,7 @@ describe("Publish — status card states", () => {
   });
 });
 
-describe("Publish — publish action", () => {
+describe("Publish: publish action", () => {
   it("publishes with the entered label and refreshes the version list", async () => {
     const user = userEvent.setup();
     const publishBodies: unknown[] = [];
@@ -237,7 +237,7 @@ describe("Publish — publish action", () => {
   });
 });
 
-describe("Publish — versions", () => {
+describe("Publish: versions", () => {
   it("restore asks for confirmation and calls POST /admin/content/versions/{id}/restore", async () => {
     const user = userEvent.setup();
     let restoreCalls = 0;

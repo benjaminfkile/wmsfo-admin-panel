@@ -81,7 +81,7 @@ export default function BeaconLogs({ beaconId }: Props) {
                   data-testid={`beacon-log-row-${l.id}`}
                 >
                   <TableCell>{formatMt(l.receivedAt)}</TableCell>
-                  <TableCell>{l.appVersion ?? "—"}</TableCell>
+                  <TableCell>{l.appVersion ?? "none"}</TableCell>
                   <TableCell align="right">
                     {typeof l.sizeBytes === "number"
                       ? `${l.sizeBytes} B`

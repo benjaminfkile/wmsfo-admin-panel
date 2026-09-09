@@ -171,9 +171,9 @@ export default function Subscribers() {
       </Stack>
 
       <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-        <Chip label={`Verified: ${summaryQ.data?.verified ?? "—"}`} />
-        <Chip label={`Pending: ${summaryQ.data?.pending ?? "—"}`} />
-        <Chip label={`Unsubscribed: ${summaryQ.data?.unsubscribed ?? "—"}`} />
+        <Chip label={`Verified: ${summaryQ.data?.verified ?? "none"}`} />
+        <Chip label={`Pending: ${summaryQ.data?.pending ?? "none"}`} />
+        <Chip label={`Unsubscribed: ${summaryQ.data?.unsubscribed ?? "none"}`} />
         <TextField
           select
           label="Filter"
@@ -220,12 +220,12 @@ export default function Subscribers() {
                   key={String(s.id)}
                   data-testid={`subscriber-row-${s.id}`}
                 >
-                  <TableCell>{s.personEmail ?? "—"}</TableCell>
-                  <TableCell>{s.address ?? "—"}</TableCell>
-                  <TableCell>{s.channel ?? "—"}</TableCell>
-                  <TableCell>{formatMt(s.verifiedAt) || "—"}</TableCell>
-                  <TableCell>{formatMt(s.unsubscribedAt) || "—"}</TableCell>
-                  <TableCell>{formatMt(s.createdAt) || "—"}</TableCell>
+                  <TableCell>{s.personEmail ?? "none"}</TableCell>
+                  <TableCell>{s.address ?? "none"}</TableCell>
+                  <TableCell>{s.channel ?? "none"}</TableCell>
+                  <TableCell>{formatMt(s.verifiedAt) || "none"}</TableCell>
+                  <TableCell>{formatMt(s.unsubscribedAt) || "none"}</TableCell>
+                  <TableCell>{formatMt(s.createdAt) || "none"}</TableCell>
                   <TableCell align="right">
                     <IconButton
                       size="small"

@@ -147,11 +147,11 @@ export default function EventsList() {
                           <Chip size="small" color="primary" label="Current" />
                         ) : (
                           <Box component="span" sx={{ color: "text.secondary" }}>
-                            —
+                            none
                           </Box>
                         )}
                       </TableCell>
-                      <TableCell>{formatMt(e.scheduledAt) || "—"}</TableCell>
+                      <TableCell>{formatMt(e.scheduledAt) || "none"}</TableCell>
                       <TableCell>{routeLabel}</TableCell>
                       <TableCell align="right">
                         {String(e.fundsPercent)}

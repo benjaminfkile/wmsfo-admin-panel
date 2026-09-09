@@ -122,14 +122,14 @@ export default function Publish() {
               <Typography variant="body1">
                 Published version <strong>{String(published.id ?? "")}</strong>{" "}
                 {published.label ? `(${published.label})` : "(no label)"} by{" "}
-                {published.publishedBy ?? "—"}{" "}
+                {published.publishedBy ?? "none"}{" "}
                 <Typography
                   component="span"
                   color="text.secondary"
                   variant="body2"
                   title={formatMt(published.publishedAt ?? null)}
                 >
-                  {publishedAge ?? "—"}
+                  {publishedAge ?? "none"}
                 </Typography>
               </Typography>
             ) : (

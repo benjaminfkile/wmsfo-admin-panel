@@ -19,7 +19,7 @@ export default function StatusChip({
   size?: "small" | "medium";
 }) {
   if (statusId === null || statusId === undefined) {
-    return <Chip label="—" size={size} />;
+    return <Chip label="none" size={size} />;
   }
   return (
     <Chip

@@ -6,9 +6,9 @@ Vite 6 + React 19 + MUI v7 + TanStack Query v5 + `react-router-dom` v7 + `oidc-c
 
 Design and contracts under `docs/`:
 
-- `docs/admin.md` — this repository's technical design.
-- `docs/DESIGN.md` — the design overview for all of v2.
-- `docs/contracts.md` — the shared contracts every component codes against.
+- `docs/admin.md`: this repository's technical design.
+- `docs/DESIGN.md`: the design overview for all of v2.
+- `docs/contracts.md`: the shared contracts every component codes against.
 
 ## Run
 
@@ -20,16 +20,16 @@ npm run dev                    # http://localhost:5174
 
 ## Scripts
 
-- `npm run dev` — Vite dev server on port 5174 (strictPort).
-- `npm run build` — `tsc -b` then `vite build` into `dist/`.
-- `npm run preview` — serve the built `dist/` on port 5174.
-- `npm run typecheck` — `tsc -b`.
-- `npm run lint` — flat-config ESLint (`typescript-eslint`, `react-hooks`, `react-refresh`).
-- `npm test` — Vitest, jsdom, MSW.
-- `npm run test:watch` — Vitest in watch mode.
-- `npm run gen:api-types` — `openapi-typescript` over `contracts/openapi.json` into `src/api/schema.d.ts`.
-- `npm run check:contracts` — compare vendored `contracts/` against `CONTRACTS_SHA` from the API repository.
-- `npm run e2e` — Playwright against `vite preview`.
+- `npm run dev`: Vite dev server on port 5174 (strictPort).
+- `npm run build`: `tsc -b` then `vite build` into `dist/`.
+- `npm run preview`: serve the built `dist/` on port 5174.
+- `npm run typecheck`: `tsc -b`.
+- `npm run lint`: flat-config ESLint (`typescript-eslint`, `react-hooks`, `react-refresh`).
+- `npm test`: Vitest, jsdom, MSW.
+- `npm run test:watch`: Vitest in watch mode.
+- `npm run gen:api-types`: `openapi-typescript` over `contracts/openapi.json` into `src/api/schema.d.ts`.
+- `npm run check:contracts`: compare vendored `contracts/` against `CONTRACTS_SHA` from the API repository.
+- `npm run e2e`: Playwright against `vite preview`.
 
 ## Environment
 

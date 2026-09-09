@@ -91,12 +91,12 @@ export default function People() {
             ) : (
               rows.map((p) => (
                 <TableRow key={String(p.id)} data-testid={`person-row-${p.id}`}>
-                  <TableCell>{p.email ?? "—"}</TableCell>
+                  <TableCell>{p.email ?? "none"}</TableCell>
                   <TableCell align="right">
                     {String(p.cookieCount ?? 0)}
                   </TableCell>
-                  <TableCell>{formatMt(p.createdAt) || "—"}</TableCell>
-                  <TableCell>{formatMt(p.lastSeenAt) || "—"}</TableCell>
+                  <TableCell>{formatMt(p.createdAt) || "none"}</TableCell>
+                  <TableCell>{formatMt(p.lastSeenAt) || "none"}</TableCell>
                   <TableCell align="right">
                     <IconButton
                       size="small"

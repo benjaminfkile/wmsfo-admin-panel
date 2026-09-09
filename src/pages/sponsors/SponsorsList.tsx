@@ -216,7 +216,7 @@ function SponsorRow({ sponsor }: { sponsor: Sponsor }) {
           />
         ) : (
           <Alert severity="info" icon={false} sx={{ py: 0, px: 1 }}>
-            —
+            none
           </Alert>
         )}
       </TableCell>
@@ -224,7 +224,7 @@ function SponsorRow({ sponsor }: { sponsor: Sponsor }) {
         <RouterLink to={`/sponsors/${sponsor.id}`}>{sponsor.name}</RouterLink>
       </TableCell>
       <TableCell>
-        {latestYear !== null ? String(latestYear) : "—"}
+        {latestYear !== null ? String(latestYear) : "none"}
       </TableCell>
       <TableCell align="right">{years.length}</TableCell>
       <TableCell>
@@ -233,7 +233,7 @@ function SponsorRow({ sponsor }: { sponsor: Sponsor }) {
             {sponsor.websiteUrl}
           </Link>
         ) : (
-          "—"
+          "none"
         )}
       </TableCell>
     </TableRow>

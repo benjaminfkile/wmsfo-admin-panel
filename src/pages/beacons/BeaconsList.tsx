@@ -230,14 +230,14 @@ export default function BeaconsList() {
                           <Chip size="small" label="Active" color="success" />
                         ) : (
                           <Box component="span" sx={{ color: "text.secondary" }}>
-                            —
+                            none
                           </Box>
                         )}
                       </TableCell>
                       <TableCell>
                         {revoked ? (
                           <Box component="span" sx={{ color: "text.secondary" }}>
-                            —
+                            none
                           </Box>
                         ) : (
                           <Stack

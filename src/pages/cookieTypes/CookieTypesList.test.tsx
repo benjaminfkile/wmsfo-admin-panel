@@ -57,7 +57,7 @@ afterEach(() => {
   server.resetHandlers();
 });
 
-describe("CookieTypesList — locked while live", () => {
+describe("CookieTypesList: locked while live", () => {
   it("shows the banner and disables controls when an event is live", async () => {
     render(<Harness />);
     // Fixture events include one with statusId=3.
@@ -125,7 +125,7 @@ describe("CookieTypesList — locked while live", () => {
   });
 });
 
-describe("CookieTypesList — icon picker", () => {
+describe("CookieTypesList: icon picker", () => {
   it("offers the library plus svg assets only (not raster)", async () => {
     const user = userEvent.setup();
     // Force no live event so the controls are enabled.
@@ -155,9 +155,9 @@ describe("CookieTypesList — icon picker", () => {
     await waitFor(() => expect(newBtn).not.toBeDisabled());
     await user.click(newBtn);
     await user.click(screen.getByRole("button", { name: /^choose$/i }));
-    // Library tab first — the tile appears from the fixture icons.
+    // Library tab first: the tile appears from the fixture icons.
     await screen.findByTestId("icon-tile-cookie");
-    // Switch to SVG assets tab — the request is made and inspected above.
+    // Switch to SVG assets tab: the request is made and inspected above.
     await user.click(screen.getByRole("tab", { name: /svg assets/i }));
     // The upload tab exists for uploading a new SVG.
     expect(

@@ -141,7 +141,7 @@ export default function ThemeField(props: FieldProps) {
         >
           {PAIRINGS.map((p) => (
             <MenuItem key={p.id} value={p.id}>
-              {p.id} — {p.sample}
+              {p.id}: {p.sample}
             </MenuItem>
           ))}
         </TextField>

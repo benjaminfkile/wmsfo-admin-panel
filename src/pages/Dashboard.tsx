@@ -293,13 +293,13 @@ function CurrentEventCard({
               <StatusChip statusId={Number(event.statusId)} />
             </Box>
             <LabeledLine label="scheduledAt">
-              {formatMt(event.scheduledAt) || "—"}
+              {formatMt(event.scheduledAt) || "none"}
             </LabeledLine>
             <LabeledLine label="wentLiveAt">
-              {formatMt(event.wentLiveAt) || "—"}
+              {formatMt(event.wentLiveAt) || "none"}
             </LabeledLine>
             <LabeledLine label="endedAt">
-              {formatMt(event.endedAt) || "—"}
+              {formatMt(event.endedAt) || "none"}
             </LabeledLine>
             <LabeledLine label="fundsPercent">
               {String(event.fundsPercent)}%
@@ -385,7 +385,7 @@ function ActiveBeaconCard({
               {formatAgeS(ageS(beacon.lastLocationAt, now)) || "never"}
             </LabeledLine>
             <LabeledLine label="staleSince">
-              {beacon.staleSince ? formatMt(beacon.staleSince) : "—"}
+              {beacon.staleSince ? formatMt(beacon.staleSince) : "none"}
             </LabeledLine>
             <LabeledLine label="staleAfterS">{String(staleAfterS)} s</LabeledLine>
           </Stack>
@@ -462,28 +462,28 @@ function PublishedStateCard({
         {live ? (
           <Stack spacing={0.5} sx={{ mt: 2 }}>
             <LabeledLine label="lastWriteAt">
-              {formatMt(live.lastWriteAt) || "—"}
+              {formatMt(live.lastWriteAt) || "none"}
             </LabeledLine>
             <LabeledLine label="lastWriteSeq">
-              {live.lastWriteSeq === null ? "—" : String(live.lastWriteSeq)}
+              {live.lastWriteSeq === null ? "none" : String(live.lastWriteSeq)}
             </LabeledLine>
             <LabeledLine label="lastWriteVersion">
-              {live.lastWriteVersion === null ? "—" : String(live.lastWriteVersion)}
+              {live.lastWriteVersion === null ? "none" : String(live.lastWriteVersion)}
             </LabeledLine>
             <LabeledLine label="lastWriteNode">
-              {live.lastWriteNode ?? "—"}
+              {live.lastWriteNode ?? "none"}
             </LabeledLine>
             <LabeledLine label="node.instance">
-              {live.node.instance ?? "—"}
+              {live.node.instance ?? "none"}
             </LabeledLine>
             <LabeledLine label="node.isLeader">
               {String(live.node.isLeader)}
             </LabeledLine>
             <LabeledLine label="leaderEvaluatedAt">
-              {formatMt(live.node.leaderEvaluatedAt) || "—"}
+              {formatMt(live.node.leaderEvaluatedAt) || "none"}
             </LabeledLine>
             <LabeledLine label="cacheRefreshedAt">
-              {formatMt(live.node.cacheRefreshedAt) || "—"}
+              {formatMt(live.node.cacheRefreshedAt) || "none"}
             </LabeledLine>
           </Stack>
         ) : null}
@@ -600,37 +600,37 @@ function LiveObjectCard({
         ) : (
           <Stack spacing={0.5}>
             <LabeledLine label="eventId">
-              {cdn.eventId === null ? "—" : String(cdn.eventId)}
+              {cdn.eventId === null ? "none" : String(cdn.eventId)}
             </LabeledLine>
             <LabeledLine label="eventStatusId">
-              {cdn.eventStatusId === null ? "—" : String(cdn.eventStatusId)}
+              {cdn.eventStatusId === null ? "none" : String(cdn.eventStatusId)}
             </LabeledLine>
             <LabeledLine label="seq">
-              {cdn.seq === null ? "—" : String(cdn.seq)}
+              {cdn.seq === null ? "none" : String(cdn.seq)}
             </LabeledLine>
             <LabeledLine label="lat">
-              {cdn.lat === null ? "—" : String(cdn.lat)}
+              {cdn.lat === null ? "none" : String(cdn.lat)}
             </LabeledLine>
             <LabeledLine label="lng">
-              {cdn.lng === null ? "—" : String(cdn.lng)}
+              {cdn.lng === null ? "none" : String(cdn.lng)}
             </LabeledLine>
             <LabeledLine label="speedMps">
-              {cdn.speedMps === null ? "—" : String(cdn.speedMps)}
+              {cdn.speedMps === null ? "none" : String(cdn.speedMps)}
             </LabeledLine>
             <LabeledLine label="altitudeM">
-              {cdn.altitudeM === null ? "—" : String(cdn.altitudeM)}
+              {cdn.altitudeM === null ? "none" : String(cdn.altitudeM)}
             </LabeledLine>
             <LabeledLine label="headingDeg">
-              {cdn.headingDeg === null ? "—" : String(cdn.headingDeg)}
+              {cdn.headingDeg === null ? "none" : String(cdn.headingDeg)}
             </LabeledLine>
             <LabeledLine label="accuracyM">
-              {cdn.accuracyM === null ? "—" : String(cdn.accuracyM)}
+              {cdn.accuracyM === null ? "none" : String(cdn.accuracyM)}
             </LabeledLine>
             <LabeledLine label="recordedAt">
-              {formatMt(cdn.recordedAt) || "—"}
+              {formatMt(cdn.recordedAt) || "none"}
             </LabeledLine>
             <LabeledLine label="receivedAt">
-              {formatMt(cdn.receivedAt) || "—"}
+              {formatMt(cdn.receivedAt) || "none"}
             </LabeledLine>
             <LabeledLine label="publishedAt">
               {formatMt(cdn.publishedAt)}{" "}

@@ -58,7 +58,7 @@ afterEach(() => {
   server.resetHandlers();
 });
 
-describe("SponsorDetail — year upsert", () => {
+describe("SponsorDetail: year upsert", () => {
   it("PUTs the four fields to /admin/sponsors/{id}/years/{eventYear}", async () => {
     const user = userEvent.setup();
     const captured: Array<{
@@ -110,7 +110,7 @@ describe("SponsorDetail — year upsert", () => {
   });
 });
 
-describe("SponsorDetail — logo", () => {
+describe("SponsorDetail: logo", () => {
   it("choosing a logo sends PATCH { logoMediaId }", async () => {
     const user = userEvent.setup();
     const captured: Array<Record<string, unknown>> = [];

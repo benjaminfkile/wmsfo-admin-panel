@@ -218,9 +218,9 @@ export default function CookiesModeration() {
                     data-testid={`cookie-row-${c.id}`}
                     sx={hidden ? { opacity: 0.6 } : undefined}
                   >
-                    <TableCell>{formatMt(c.leftAt) || "—"}</TableCell>
+                    <TableCell>{formatMt(c.leftAt) || "none"}</TableCell>
                     <TableCell>{typeName}</TableCell>
-                    <TableCell>{c.personEmail ?? "—"}</TableCell>
+                    <TableCell>{c.personEmail ?? "none"}</TableCell>
                     <TableCell sx={{ whiteSpace: "pre-wrap" }}>
                       {c.note ?? ""}
                     </TableCell>
