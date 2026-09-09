@@ -124,7 +124,7 @@ describe("SiteSettings", () => {
     await waitFor(() =>
       expect(screen.getByTestId("theme-field")).toBeInTheDocument()
     );
-    // Change the theme accent — this triggers a form onChange and dirties.
+    // Change the theme accent, which triggers a form onChange and dirties.
     await user.click(screen.getByTestId("theme-accent-blue"));
     const save = await screen.findByTestId("site-settings-save");
     await waitFor(() => expect(save).not.toBeDisabled());

@@ -93,20 +93,20 @@ export default function ContactMessages() {
                   key={String(m.id)}
                   data-testid={`contact-row-${m.id}`}
                 >
-                  <TableCell>{formatMt(m.createdAt) || "—"}</TableCell>
-                  <TableCell>{m.name ?? "—"}</TableCell>
+                  <TableCell>{formatMt(m.createdAt) || "none"}</TableCell>
+                  <TableCell>{m.name ?? "none"}</TableCell>
                   <TableCell>
                     {m.email ? (
                       <Link href={`mailto:${m.email}`}>{m.email}</Link>
                     ) : (
-                      "—"
+                      "none"
                     )}
                   </TableCell>
                   <TableCell sx={{ whiteSpace: "pre-wrap" }}>
                     {m.body ?? ""}
                   </TableCell>
                   <TableCell>
-                    <code>{m.clientIp ?? "—"}</code>
+                    <code>{m.clientIp ?? "none"}</code>
                   </TableCell>
                   <TableCell align="right">
                     <Stack

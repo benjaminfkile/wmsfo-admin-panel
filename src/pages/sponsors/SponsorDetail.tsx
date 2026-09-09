@@ -312,13 +312,13 @@ export default function SponsorDetail() {
                       <TableCell>{String(y.eventYear)}</TableCell>
                       <TableCell align="right">
                         {y.amountDonated === null || y.amountDonated === undefined
-                          ? "—"
+                          ? "none"
                           : String(y.amountDonated)}
                       </TableCell>
                       <TableCell>{y.active ? "yes" : "no"}</TableCell>
                       <TableCell>{y.canAdvertise ? "yes" : "no"}</TableCell>
                       <TableCell>{y.anonymous ? "yes" : "no"}</TableCell>
-                      <TableCell>{formatMt(y.registeredAt) || "—"}</TableCell>
+                      <TableCell>{formatMt(y.registeredAt) || "none"}</TableCell>
                       <TableCell align="right">
                         <IconButton
                           size="small"

@@ -72,7 +72,7 @@ function Providers({ children }: { children: ReactNode }) {
   );
 }
 
-describe("SchemaForm — every vendored kind schema renders from its defaults", () => {
+describe("SchemaForm: every vendored kind schema renders from its defaults", () => {
   const kinds = (
     kindsJson as {
       kinds: Array<{
@@ -123,7 +123,7 @@ describe("SchemaForm — every vendored kind schema renders from its defaults", 
   });
 });
 
-describe("SchemaForm — primitive routing", () => {
+describe("SchemaForm: primitive routing", () => {
   it("routes InlineNullable to InlineField", () => {
     const schema = {
       type: "object",

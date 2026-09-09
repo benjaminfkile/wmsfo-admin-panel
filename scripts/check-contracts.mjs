@@ -6,10 +6,10 @@
 // the vendored copy.
 //
 // Optional env:
-//   GITHUB_TOKEN or GH_TOKEN — used for the tarball fetch (CI on
+//   GITHUB_TOKEN or GH_TOKEN: used for the tarball fetch (CI on
 //     private repos needs it; unauthenticated works when the repo is
 //     public or when the token in `origin` is available and passed in).
-//   CONTRACTS_REPO — override the default owner/repo.
+//   CONTRACTS_REPO: override the default owner/repo.
 
 import { spawn } from "node:child_process";
 import { createWriteStream } from "node:fs";

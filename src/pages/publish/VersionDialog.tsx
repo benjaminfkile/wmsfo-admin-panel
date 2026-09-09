@@ -60,9 +60,9 @@ export default function VersionDialog({ open, versionId, onClose }: Props) {
       <DialogTitle>
         {info ? (
           <>
-            Version {String(info.id)} — {info.label ?? "(no label)"}
+            Version {String(info.id)}: {info.label ?? "(no label)"}
             <Typography variant="caption" display="block" color="text.secondary">
-              Published by {info.publishedBy ?? "—"} at{" "}
+              Published by {info.publishedBy ?? "none"} at{" "}
               {formatMt(info.publishedAt ?? null)}
             </Typography>
           </>
@@ -110,7 +110,7 @@ export default function VersionDialog({ open, versionId, onClose }: Props) {
                           alignItems="flex-start"
                         >
                           <ListItemText
-                            primary={`${p.title ?? "(untitled)"} — /${
+                            primary={`${p.title ?? "(untitled)"}: /${
                               p.slug ?? ""
                             }`}
                             secondary={

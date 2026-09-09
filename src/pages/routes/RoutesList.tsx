@@ -169,12 +169,12 @@ export default function RoutesList() {
                             CDN
                           </Link>
                         ) : (
-                          "—"
+                          "none"
                         )}
                       </TableCell>
                       <TableCell>
                         {usedBy.length === 0
-                          ? "—"
+                          ? "none"
                           : usedBy.map((e) => e.name).join(", ")}
                       </TableCell>
                       <TableCell align="right">

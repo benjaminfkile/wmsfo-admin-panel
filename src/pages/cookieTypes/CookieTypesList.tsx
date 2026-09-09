@@ -245,7 +245,7 @@ function IconCell({
   icon: Icon | null;
   lib: Map<string, IconInfo>;
 }) {
-  if (!icon) return <>—</>;
+  if (!icon) return <>none</>;
   if (icon.source === "library") {
     const info = lib.get(String(icon.id));
     if (info?.url) {
@@ -260,7 +260,7 @@ function IconCell({
     }
     return <>{String(icon.id)}</>;
   }
-  // media asset — we don't have the URL here without a media fetch.
+  // media asset: we don't have the URL here without a media fetch.
   return <>media</>;
 }
 

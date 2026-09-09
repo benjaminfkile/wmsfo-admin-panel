@@ -105,7 +105,7 @@ describe("Settings", () => {
       )
     );
     render(<Harness />);
-    // poll_interval_ms range is 1000–60000.
+    // poll_interval_ms range is 1000 to 60000.
     const row = await screen.findByTestId("setting-row-poll_interval_ms");
     const input = within(row).getByRole("spinbutton");
     await user.clear(input);

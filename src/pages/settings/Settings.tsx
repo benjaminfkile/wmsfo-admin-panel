@@ -146,7 +146,7 @@ function SettingRow({ setting }: { setting: Setting }) {
             {spec.unit ? ` (${spec.unit})` : ""}
           </Typography>
         ) : (
-          "—"
+          "none"
         )}
       </TableCell>
       <TableCell align="right">
@@ -186,5 +186,5 @@ function SettingRow({ setting }: { setting: Setting }) {
 
 function rangeHint(spec: SettingSpec | null): string {
   if (!spec) return "";
-  return `${spec.min}–${spec.max}${spec.unit ? ` ${spec.unit}` : ""}`;
+  return `${spec.min} to ${spec.max}${spec.unit ? ` ${spec.unit}` : ""}`;
 }

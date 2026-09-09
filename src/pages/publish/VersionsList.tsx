@@ -115,7 +115,7 @@ export default function VersionsList({ currentPublishedId }: Props) {
                         ) : null}
                       </Stack>
                     </TableCell>
-                    <TableCell>{v.publishedBy ?? "—"}</TableCell>
+                    <TableCell>{v.publishedBy ?? "none"}</TableCell>
                     <TableCell>{formatMt(v.publishedAt ?? null)}</TableCell>
                     <TableCell align="right">{String(v.pageCount ?? 0)}</TableCell>
                     <TableCell align="right">
