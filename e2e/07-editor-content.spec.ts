@@ -71,7 +71,7 @@ test.describe("editor authoring flow", () => {
     await page.getByRole("link", { name: /pages/i }).click();
     await page.getByRole("link", { name: /about/i }).click();
     await page.getByRole("button", { name: /add section/i }).click();
-    await page.getByRole("button", { name: /^media/i }).click();
+    await page.getByRole("button", { name: /^media\b/i }).click();
     await page.getByRole("button", { name: /choose image/i }).click();
     await page.getByRole("button", { name: /e2e-editor\.png/i }).click();
     await page.getByRole("button", { name: /^select$/i }).click();
