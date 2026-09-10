@@ -7,7 +7,7 @@ import { readAdmin, readDevCdnBase, signIn, waitForCdnJson } from "./helpers";
 type Live = { pollIntervalMs: number; publishedAt: string };
 
 test.describe("poll_interval_ms round-trips to the CDN", () => {
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
 
   test("change and restore", async ({ page }) => {
     const admin = readAdmin();
@@ -20,15 +20,19 @@ test.describe("poll_interval_ms round-trips to the CDN", () => {
     await page.getByRole("link", { name: "Settings", exact: true }).click();
 
     const changed = before.pollIntervalMs === 1500 ? 2000 : 1500;
-    const input = page.getByLabel(/poll_interval_ms/i).locator("input");
+    // Settings saves through an explicit Save button per row, not blur or
+    // Enter; fill the row's numeric input and click its Save. The CDN's
+    // full refresh cycle needs longer than the default 15 s wait.
+    const row = page.getByTestId("setting-row-poll_interval_ms");
+    const input = row.getByRole("spinbutton");
     await input.fill(String(changed));
-    await input.blur();
+    await row.getByRole("button", { name: /^save$/i }).click();
 
-    await waitForCdnJson<Live>(cdnUrl, (j) => j.pollIntervalMs === changed);
+    await waitForCdnJson<Live>(cdnUrl, (j) => j.pollIntervalMs === changed, 30_000);
 
     await input.fill(String(before.pollIntervalMs));
-    await input.blur();
-    await waitForCdnJson<Live>(cdnUrl, (j) => j.pollIntervalMs === before.pollIntervalMs);
+    await row.getByRole("button", { name: /^save$/i }).click();
+    await waitForCdnJson<Live>(cdnUrl, (j) => j.pollIntervalMs === before.pollIntervalMs, 30_000);
 
     expect(true).toBe(true);
   });
