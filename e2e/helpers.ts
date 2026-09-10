@@ -53,7 +53,8 @@ export function readDevApiBase(): string {
 }
 
 // Sign in as admin in a throw-away browser context and hand back its OIDC
-// access token, read out of the sessionStorage the panel writes on load.
+// ID token (the token the panel itself sends as the bearer, see
+// src/api/client.ts), read out of the sessionStorage the panel writes on load.
 // The key format `oidc.user:<authority>:<clientId>` is the WebStorageStateStore
 // prefix ("oidc.") plus the User's own store key.
 export async function fetchAdminAccessToken(browser: Browser): Promise<string> {
@@ -68,9 +69,9 @@ export async function fetchAdminAccessToken(browser: Browser): Promise<string> {
         if (key.startsWith("oidc.user:")) {
           const raw = sessionStorage.getItem(key);
           if (raw !== null) {
-            const parsed = JSON.parse(raw) as { access_token?: string };
-            if (typeof parsed.access_token === "string") {
-              return parsed.access_token;
+            const parsed = JSON.parse(raw) as { id_token?: string };
+            if (typeof parsed.id_token === "string") {
+              return parsed.id_token;
             }
           }
         }

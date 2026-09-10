@@ -17,7 +17,7 @@ test.describe("poll_interval_ms round-trips to the CDN", () => {
     const before = await (await fetch(cdnUrl, { cache: "no-store" })).json() as Live;
 
     // "Site settings" is also a drawer entry; match the operational Settings exactly.
-    await page.getByRole("link", { name: "Settings", exact: true }).click();
+    await page.getByRole("navigation").locator('a[href="/settings"]').click();
 
     const changed = before.pollIntervalMs === 1500 ? 2000 : 1500;
     // Settings saves through an explicit Save button per row, not blur or

@@ -39,11 +39,18 @@ test.describe("cookie types are locked while an event is live", () => {
     await expect(page.getByText(/is live. Cookie types/i)).toBeVisible();
     await expect(page.getByRole("button", { name: /new type/i })).toBeDisabled();
 
-    // End the current event through the events page, then return.
-    await page.getByRole("link", { name: "Events", exact: true }).click();
-    const currentRow = page.getByRole("row", { name: /current/i }).first();
-    await currentRow.getByRole("button", { name: /^end$/i }).click();
-    await page.getByRole("button", { name: /^confirm$/i }).click();
+    // End the current event from its detail page (the list has no status
+    // controls): open the row carrying the Current chip, then the status
+    // card's Ended button and its confirmation.
+    await page.getByRole("navigation").locator('a[href="/events"]').click();
+    const currentRow = page.getByTestId(/^event-row-/).filter({ has: page.getByText("Current", { exact: true }) }).first();
+    await currentRow.getByRole("link", { name: /^open$/i }).click();
+    await page.getByRole("button", { name: /^ended$/i }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: /^change status$/i })
+      .click();
+    await expect(page.getByRole("dialog")).toBeHidden();
 
     await page.getByRole("link", { name: /cookie types/i }).click();
     await expect(page.getByText(/is live. Cookie types/i)).toBeHidden();
@@ -52,10 +59,16 @@ test.describe("cookie types are locked while an event is live", () => {
     // Editing a row must round-trip. Choose the first row's edit control.
     const firstRow = page.getByRole("row").nth(1);
     await firstRow.getByRole("button", { name: /edit/i }).click();
-    const label = page.getByLabel(/label/i);
-    const before = (await label.inputValue()) || "cookie";
-    await label.fill(`${before} (edited)`);
-    await page.getByRole("button", { name: /^save$/i }).click();
-    await expect(firstRow.getByText(new RegExp(`${before} \\(edited\\)`))).toBeVisible();
+    // The edit dialog's field is "Name"; toggle an "(edited)" suffix so
+    // repeated runs do not grow the name.
+    const dialog = page.getByRole("dialog");
+    // MUI renders the required label as "Name *".
+    const nameField = dialog.getByLabel(/^name/i);
+    const before = (await nameField.inputValue()) || "cookie";
+    const after = before.endsWith(" (edited)") ? before.slice(0, -" (edited)".length) : `${before} (edited)`;
+    await nameField.fill(after);
+    await dialog.getByRole("button", { name: /^save$/i }).click();
+    await expect(dialog).toBeHidden();
+    await expect(firstRow.getByText(after, { exact: true })).toBeVisible();
   });
 });
