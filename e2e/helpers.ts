@@ -61,6 +61,8 @@ export async function fetchAdminAccessToken(browser: Browser): Promise<string> {
   try {
     const page = await context.newPage();
     await signIn(page, readAdmin());
+    // signIn already waits for the OIDC user key to appear; reading it here
+    // is a straight lookup, not a race.
     const token = await page.evaluate(() => {
       for (const key of Object.keys(sessionStorage)) {
         if (key.startsWith("oidc.user:")) {
@@ -195,6 +197,25 @@ export async function signIn(page: Page, user: DevUser): Promise<void> {
   await page.locator(submit).first().click();
   await page.locator('input[name="totpCode"]:visible, input#totpCodeInput:visible').first().fill(await freshTotpCode(user.totpSecret));
   await page.locator(submit).first().click();
+  // The submit navigates out to Cognito and back through /auth/callback to
+  // the app's landing route. Wait for that landing before probing the app's
+  // sessionStorage; before the navigation completes, `sessionStorage` here
+  // still points at Cognito's origin, not the panel's.
+  await page.waitForURL((url) => !/\/oauth2\//.test(url.pathname) && !/\/auth\/callback\b/.test(url.pathname));
+  // oidc-client-ts writes the user into sessionStorage as part of the
+  // callback handler; the shell then transitions from `loading` to `member`
+  // and renders the drawer. Wait for the storage key so callers can rely on
+  // both signals: the access token is available and the panel has finished
+  // the callback.
+  await page.waitForFunction(() => {
+    for (const key of Object.keys(sessionStorage)) {
+      if (key.startsWith("oidc.user:")) return true;
+    }
+    return false;
+  });
+  // The drawer only mounts once AuthProvider has evaluated the user, so this
+  // second wait is the panel's "signed in" signal for callers driving the UI.
+  await page.getByRole("navigation").first().waitFor();
 }
 
 export async function signOut(page: Page): Promise<void> {
