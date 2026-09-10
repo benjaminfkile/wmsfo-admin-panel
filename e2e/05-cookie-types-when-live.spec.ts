@@ -1,10 +1,33 @@
 import { expect, test } from "@playwright/test";
-import { readAdmin, signIn } from "./helpers";
+import {
+  fetchAdminAccessToken,
+  readAdmin,
+  setWalkEventStatus,
+  signIn,
+} from "./helpers";
 
 // Spec 5 (docs/admin.md § 9.3): with the event live, cookie type controls
 // are disabled; after ended, a type can be edited.
+//
+// Precondition: the dev walk event (year 2100, site.md § 22.2) is set live
+// through the API before the test runs and ended again after, so this spec
+// carries its own environment and does not require any other spec to have
+// run first.
 
 test.describe("cookie types are locked while an event is live", () => {
+  let adminToken: string | null = null;
+
+  test.beforeAll(async ({ browser }) => {
+    adminToken = await fetchAdminAccessToken(browser);
+    await setWalkEventStatus(adminToken, 3);
+  });
+
+  test.afterAll(async () => {
+    if (adminToken === null) return;
+    // Idempotent: on 409 event_status_unchanged the event is already ended.
+    await setWalkEventStatus(adminToken, 4).catch(() => undefined);
+  });
+
   test("disabled while live, editable after end", async ({ page }) => {
     const admin = readAdmin();
     await signIn(page, admin);
