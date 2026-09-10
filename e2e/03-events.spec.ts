@@ -25,28 +25,52 @@ test.describe("events lifecycle", () => {
     await page.getByLabel(/inherit/i).check();
     await page.getByRole("button", { name: /^create$/i }).click();
 
+    // Creating the event opens its detail page; return to the events list
+    // so the row's "Set current" control is available.
+    await page.getByRole("link", { name: "Events", exact: true }).click();
+
     const row = page.getByRole("row", { name: new RegExp(title) });
     await row.getByRole("button", { name: /set current/i }).click();
+    await page
+      .getByRole("dialog", { name: /set current event/i })
+      .getByRole("button", { name: /^set current$/i })
+      .click();
 
     // Planned (status 1) is the initial state after "set current".
     await waitForCdnJson<Live>(cdnUrl, (j) => j.eventStatusId === 1);
 
-    await row.getByRole("button", { name: /schedule/i }).click();
+    // Row-scoped status controls do not exist in EventsList; open the
+    // event to walk planned → scheduled → live → ended from its status
+    // card.
+    await row.getByRole("link", { name: new RegExp(title) }).click();
+
     const now = new Date();
     now.setMinutes(now.getMinutes() + 5);
     const iso = now.toISOString().slice(0, 16);
     await page.getByLabel(/scheduled at/i).fill(iso);
-    await page.getByRole("button", { name: /^confirm$/i }).click();
+    await page.getByRole("button", { name: /^save$/i }).click();
+
+    await page.getByRole("button", { name: /^scheduled$/i }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: /^change status$/i })
+      .click();
     await waitForCdnJson<Live>(cdnUrl, (j) => j.eventStatusId === 2);
 
-    await row.getByRole("button", { name: /^go live$/i }).click();
-    await page.getByRole("button", { name: /^confirm$/i }).click();
+    await page.getByRole("button", { name: /^live$/i }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: /^set live$/i })
+      .click();
     await waitForCdnJson<Live>(cdnUrl, (j) => j.eventStatusId === 3);
 
-    await row.getByRole("button", { name: /^end$/i }).click();
-    await page.getByRole("button", { name: /^confirm$/i }).click();
+    await page.getByRole("button", { name: /^ended$/i }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: /^change status$/i })
+      .click();
     await waitForCdnJson<Live>(cdnUrl, (j) => j.eventStatusId === 4);
 
-    await expect(row.getByText(/ended/i)).toBeVisible();
+    await expect(page.getByText(/ended/i).first()).toBeVisible();
   });
 });

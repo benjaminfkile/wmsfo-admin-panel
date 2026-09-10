@@ -114,6 +114,20 @@ async function adminApi(
   return text === "" ? null : (JSON.parse(text) as unknown);
 }
 
+// Read the current event's name through `/admin/events`, so specs can
+// locate its row on the events page: the "Current" chip's label is not
+// part of the row's accessible name and cannot be matched by row text.
+export async function readCurrentEventName(token: string): Promise<string> {
+  const list = (await adminApi(token, "GET", "/admin/events")) as {
+    items: EventRow[];
+  };
+  const current = (list.items ?? []).find((e) => e.isCurrent);
+  if (current === undefined) {
+    throw new Error("No current event in /admin/events");
+  }
+  return current.name;
+}
+
 // Find the dev walk event (year 2100, site.md § 22.2) and drive it into the
 // requested status through the API. `isCurrent` is set first if needed since
 // status 3 requires the current flag.
