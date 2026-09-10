@@ -1,4 +1,4 @@
-import type { Page, TestInfo } from "@playwright/test";
+import type { Browser, Page, TestInfo } from "@playwright/test";
 import { TOTP } from "otpauth";
 
 // A dev admin and a dev editor, both with TOTP enabled on the dev Cognito
@@ -42,6 +42,102 @@ export function totpCode(secret: string): string {
 
 export function readDevCdnBase(): string {
   return required("VITE_CDN_BASE_URL").replace(/\/+$/, "");
+}
+
+export function readDevApiBase(): string {
+  return required("VITE_API_BASE_URL").replace(/\/+$/, "");
+}
+
+// Sign in as admin in a throw-away browser context and hand back its OIDC
+// access token, read out of the sessionStorage the panel writes on load.
+// The key format `oidc.user:<authority>:<clientId>` is the WebStorageStateStore
+// prefix ("oidc.") plus the User's own store key.
+export async function fetchAdminAccessToken(browser: Browser): Promise<string> {
+  const context = await browser.newContext();
+  try {
+    const page = await context.newPage();
+    await signIn(page, readAdmin());
+    const token = await page.evaluate(() => {
+      for (const key of Object.keys(sessionStorage)) {
+        if (key.startsWith("oidc.user:")) {
+          const raw = sessionStorage.getItem(key);
+          if (raw !== null) {
+            const parsed = JSON.parse(raw) as { access_token?: string };
+            if (typeof parsed.access_token === "string") {
+              return parsed.access_token;
+            }
+          }
+        }
+      }
+      return null;
+    });
+    if (token === null) {
+      throw new Error("OIDC user missing from sessionStorage after sign-in");
+    }
+    return token;
+  } finally {
+    await context.close();
+  }
+}
+
+type EventRow = {
+  id: number;
+  year: number;
+  name: string;
+  statusId: number;
+  isCurrent: boolean;
+};
+
+async function adminApi(
+  token: string,
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<unknown> {
+  const res = await fetch(`${readDevApiBase()}${path}`, {
+    method,
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`${method} ${path} → ${res.status}: ${text}`);
+  }
+  return text === "" ? null : (JSON.parse(text) as unknown);
+}
+
+// Find the dev walk event (year 2100, site.md § 22.2) and drive it into the
+// requested status through the API. `isCurrent` is set first if needed since
+// status 3 requires the current flag.
+export async function setWalkEventStatus(
+  token: string,
+  statusId: number,
+): Promise<EventRow> {
+  const list = (await adminApi(token, "GET", "/admin/events")) as {
+    items: EventRow[];
+  };
+  const walk = (list.items ?? []).find((e) => Number(e.year) === 2100);
+  if (walk === undefined) {
+    throw new Error(
+      "dev walk event (year 2100, site.md § 22.2) not found in /admin/events",
+    );
+  }
+  if (statusId === 3 && !walk.isCurrent) {
+    await adminApi(token, "POST", `/admin/events/${walk.id}/current`);
+  }
+  if (Number(walk.statusId) !== statusId) {
+    return (await adminApi(
+      token,
+      "POST",
+      `/admin/events/${walk.id}/status`,
+      { statusId, notify: false },
+    )) as EventRow;
+  }
+  return walk;
 }
 
 // Sign-in walks the Cognito hosted UI: username, password, TOTP. Selectors

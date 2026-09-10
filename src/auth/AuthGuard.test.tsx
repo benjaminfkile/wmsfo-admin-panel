@@ -244,6 +244,48 @@ describe("Auth guard", () => {
     );
   });
 
+  it("renders Not available for an editor loading /events directly", async () => {
+    // admin.md § 9.3 spec 8: as an editor, a full reload of /events must
+    // land on the "Not available for your role" page rather than be
+    // redirected into a role-allowed page. This locks in that on the
+    // initial bootstrap (getUser returns an editor) the /events path is
+    // matched to its Route element which is NotAvailable, and no code
+    // in AuthProvider or AppRoutes redirects the URL first.
+    const um = makeFakeUserManager(
+      makeUser({
+        email: "editor@example.com",
+        "cognito:groups": ["editor"],
+      })
+    );
+    render(
+      <ThemeProvider theme={buildTheme("light")}>
+        <CssBaseline />
+        <ConfigProvider config={testConfig}>
+          <QueryClientProvider client={new QueryClient()}>
+            <MemoryRouter initialEntries={["/events"]}>
+              <AuthProvider userManager={um}>
+                <AppRoutes themeMode="light" onToggleTheme={() => undefined} />
+              </AuthProvider>
+            </MemoryRouter>
+          </QueryClientProvider>
+        </ConfigProvider>
+      </ThemeProvider>
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByText(/not available for your role/i)
+      ).toBeInTheDocument()
+    );
+    // The Events page's own heading must not have rendered: NotAvailable
+    // renders in its place with its own "Not available" heading.
+    expect(
+      screen.queryByRole("button", { name: /new event/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /^not available$/i })
+    ).toBeInTheDocument();
+  });
+
   it("has a working sign-in button that calls signinRedirect", async () => {
     const um = makeFakeUserManager(null);
     let called = 0;

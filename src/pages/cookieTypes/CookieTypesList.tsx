@@ -74,27 +74,19 @@ export default function CookieTypesList() {
     staleTime: Infinity,
   });
 
-  const anyEventLive = useMemo(
-    () =>
-      (eventsQ.data?.items ?? []).some(
-        (e) => Number(e.statusId) === 3
-      ),
-    [eventsQ.data]
-  );
   const liveEvent = useMemo(
     () =>
       (eventsQ.data?.items ?? []).find((e) => Number(e.statusId) === 3) ??
       null,
     [eventsQ.data]
   );
-
-  const [locked, setLocked] = useState(false);
-  useEffect(() => setLocked(anyEventLive), [anyEventLive]);
+  const [lockedFromServer, setLockedFromServer] = useState(false);
+  const locked = liveEvent !== null || lockedFromServer;
 
   const [editing, setEditing] = useState<EditState | null>(null);
 
   const setLive = () => {
-    setLocked(true);
+    setLockedFromServer(true);
     void qc.invalidateQueries({ queryKey: keys.events });
   };
 
