@@ -17,11 +17,11 @@ test.describe("events lifecycle", () => {
 
     const cdnUrl = `${readDevCdnBase()}/live/location.json`;
 
-    await page.getByRole("link", { name: /events/i }).click();
+    await page.getByRole("link", { name: "Events", exact: true }).click();
     await page.getByRole("button", { name: /new event/i }).click();
 
     const title = `e2e event ${Date.now()}`;
-    await page.getByLabel(/title/i).fill(title);
+    await page.getByLabel(/^name$/i).fill(title);
     await page.getByLabel(/inherit/i).check();
     await page.getByRole("button", { name: /^create$/i }).click();
 

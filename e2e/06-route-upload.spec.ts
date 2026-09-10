@@ -12,7 +12,8 @@ test.describe("route upload", () => {
     const admin = readAdmin();
     await signIn(page, admin);
 
-    const fixturePath = path.resolve(__dirname, "../contracts/fixtures/route.json");
+    // ES module: no __dirname; resolve relative to this file's URL.
+    const fixturePath = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")), "../contracts/fixtures/route.json");
     const raw = JSON.parse(await readFile(fixturePath, "utf8")) as {
       schemaVersion?: number;
       name: string;
@@ -23,9 +24,9 @@ test.describe("route upload", () => {
     delete stripped.schemaVersion;
     const buffer = Buffer.from(JSON.stringify(stripped));
 
-    await page.getByRole("link", { name: /events/i }).click();
+    await page.getByRole("link", { name: "Events", exact: true }).click();
     const row = page.getByRole("row", { name: /current/i }).first();
-    await row.getByRole("link", { name: /open|view/i }).click();
+    await row.getByRole("link").first().click();
 
     await page.getByRole("button", { name: /upload route/i }).click();
     await page.setInputFiles('input[type="file"]', {

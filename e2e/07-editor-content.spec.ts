@@ -54,11 +54,12 @@ test.describe("editor authoring flow", () => {
     await page.getByRole("button", { name: /add section/i }).click();
     await page.getByRole("button", { name: /rich text/i }).click();
     const paragraph = `e2e paragraph ${Date.now()}`;
-    await page.getByLabel(/paragraph|body/i).fill(paragraph);
+    // The new section lands at the end of the stack with one default paragraph
+    // block whose field is labelled "Text"; take the last Text box on the page.
+    await page.getByLabel(/^text$/i).last().fill(paragraph);
 
     // Upload through Media library.
     await page.getByRole("link", { name: /^media$/i }).click();
-    await page.getByRole("button", { name: /upload/i }).click();
     await page.setInputFiles('input[type="file"]', {
       name: "e2e-editor.png",
       mimeType: "image/png",
@@ -70,7 +71,7 @@ test.describe("editor authoring flow", () => {
     await page.getByRole("link", { name: /pages/i }).click();
     await page.getByRole("link", { name: /about/i }).click();
     await page.getByRole("button", { name: /add section/i }).click();
-    await page.getByRole("button", { name: /^media$/i }).click();
+    await page.getByRole("button", { name: /^mediab/i }).click();
     await page.getByRole("button", { name: /choose image/i }).click();
     await page.getByRole("button", { name: /e2e-editor\.png/i }).click();
     await page.getByRole("button", { name: /^select$/i }).click();

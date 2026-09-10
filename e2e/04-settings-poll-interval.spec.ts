@@ -16,10 +16,11 @@ test.describe("poll_interval_ms round-trips to the CDN", () => {
     const cdnUrl = `${readDevCdnBase()}/live/location.json`;
     const before = await (await fetch(cdnUrl, { cache: "no-store" })).json() as Live;
 
-    await page.getByRole("link", { name: /settings/i }).click();
+    // "Site settings" is also a drawer entry; match the operational Settings exactly.
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
 
     const changed = before.pollIntervalMs === 1500 ? 2000 : 1500;
-    const input = page.getByLabel(/poll_interval_ms/i);
+    const input = page.getByLabel(/poll_interval_ms/i).locator("input");
     await input.fill(String(changed));
     await input.blur();
 

@@ -15,12 +15,12 @@ test.describe("beacons", () => {
     const name = `e2e-${Date.now()}`;
     await page.getByLabel(/name/i).fill(name);
     await page.getByLabel(/notes/i).fill("Created by end-to-end spec 2");
-    await page.getByLabel(/beacon/i).check();
+    await page.getByRole("radio", { name: /beacon/i }).check();
     await page.getByRole("button", { name: /^create$/i }).click();
 
     const keyDialog = page.getByRole("dialog", { name: /key/i });
     await expect(keyDialog).toBeVisible();
-    await expect(keyDialog.getByText(/^wbk_[A-Za-z0-9_-]+/)).toBeVisible();
+    await expect(keyDialog.getByLabel(/^key$/i)).toHaveValue(/^wbk_[A-Za-z0-9_-]+/);
     const qr = keyDialog.locator("img");
     await expect(qr).toHaveAttribute("src", /^data:image\/png;base64,/);
     await keyDialog.getByRole("button", { name: /i have stored the key/i }).click();
@@ -32,7 +32,7 @@ test.describe("beacons", () => {
     await page.getByRole("button", { name: /^rotate$/i }).click();
     const rotated = page.getByRole("dialog", { name: /key/i });
     await expect(rotated).toBeVisible();
-    await expect(rotated.getByText(/^wbk_/)).toBeVisible();
+    await expect(rotated.getByLabel(/^key$/i)).toHaveValue(/^wbk_/);
     await rotated.getByRole("button", { name: /i have stored the key/i }).click();
 
     await row.getByRole("button", { name: /revoke/i }).click();

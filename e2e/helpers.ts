@@ -1,5 +1,9 @@
 import type { Page, TestInfo } from "@playwright/test";
 import { TOTP } from "otpauth";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 // A dev admin and a dev editor, both with TOTP enabled on the dev Cognito
 // pool. The workflow supplies these through the `dev` GitHub environment;
@@ -47,14 +51,40 @@ export function readDevCdnBase(): string {
 // Sign-in walks the Cognito hosted UI: username, password, TOTP. Selectors
 // are the shared "amplify auth" screens the pool uses; anything more brittle
 // than a text/label lookup will drift the moment AWS reflows the page.
+// Cognito refuses a TOTP code that was already used, and consecutive specs sign
+// in faster than the 30 s window turns over. Remember the last code per secret
+// and wait for the next window when it would repeat.
+// Playwright loads each spec file in a fresh module scope, so the memory lives
+// in a temp file keyed by a hash of the secret.
+function totpMemoryPath(secret: string): string {
+  const key = createHash("sha256").update(secret).digest("hex").slice(0, 16);
+  return path.join(os.tmpdir(), `wmsfo-e2e-totp-${key}`);
+}
+export async function freshTotpCode(secret: string): Promise<string> {
+  const memory = totpMemoryPath(secret);
+  const last = existsSync(memory) ? readFileSync(memory, "utf8").trim() : "";
+  let code = totpCode(secret);
+  while (last === code) {
+    const wait = 30_000 - (Date.now() % 30_000) + 500;
+    await new Promise((r) => setTimeout(r, wait));
+    code = totpCode(secret);
+  }
+  writeFileSync(memory, code);
+  return code;
+}
+
 export async function signIn(page: Page, user: DevUser): Promise<void> {
   await page.goto("/");
   await page.getByRole("button", { name: /sign in/i }).first().click();
-  await page.getByLabel(/email|username/i).fill(user.email);
-  await page.getByLabel(/^password$/i).fill(user.password);
-  await page.getByRole("button", { name: /sign in|continue/i }).click();
-  await page.getByLabel(/one-time|authenticator|code/i).fill(totpCode(user.totpSecret));
-  await page.getByRole("button", { name: /confirm|verify|sign in/i }).click();
+  // The classic hosted UI renders the form twice (one copy hidden per
+  // breakpoint) and its visible inputs carry no associated label, so every
+  // lookup goes by field name and takes the visible copy.
+  await page.locator('input[name="username"]:visible').first().fill(user.email);
+  await page.locator('input[name="password"]:visible').first().fill(user.password);
+  const submit = 'input[type="submit" i]:visible, button[type="submit"]:visible';
+  await page.locator(submit).first().click();
+  await page.locator('input[name="totpCode"]:visible, input#totpCodeInput:visible').first().fill(await freshTotpCode(user.totpSecret));
+  await page.locator(submit).first().click();
 }
 
 export async function signOut(page: Page): Promise<void> {
