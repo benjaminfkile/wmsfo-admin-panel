@@ -25,11 +25,12 @@ Routes and what each one calls:
 |---|---|---|
 | `/` | Dashboard | `GET /admin/events`, `GET /admin/live`, `GET <cdn>/live/location.json`, `GET /admin/snapshot`, `GET /admin/beacons`, `POST /admin/live/republish`, `POST /admin/snapshot/rebuild`, `POST /admin/events/{id}/status` |
 | `/events` | Events list | `GET /admin/events`, `GET /admin/routes`, `POST /admin/events`, `POST /admin/events/{id}/current`, `DELETE /admin/events/{id}` |
-| `/events/:id` | Event detail | `GET /admin/events/{id}`, `PATCH`, `.../status`, `.../status-history`, `.../messages` (list, post, patch, delete), `.../locations`, `GET /admin/routes`, `POST /admin/routes` |
-| `/routes` | Routes | `GET /admin/routes`, `DELETE /admin/routes/{id}` |
+| `/events/:id` | Event detail | `GET /admin/events/{id}`, `PATCH` (fields, `routeId`, `routeImageMediaId`), `.../status`, `.../status-history`, `.../messages` (list, post, patch, delete), `.../locations`, `GET /admin/routes`, `POST /admin/routes` |
+| `/routes` | Flight recordings | `GET /admin/routes`, `DELETE /admin/routes/{id}` |
 | `/beacons` | Beacons list | `GET /admin/beacons`, `POST /admin/beacons`, `.../activate`, `.../deactivate`, `.../rotate`, `.../revoke` |
 | `/beacons/:id` | Beacon telemetry | `GET /admin/beacons` (shared poll), `PATCH /admin/beacons/{id}`, `GET .../logs`, `GET .../logs/{logId}` |
 | `/sponsors` | Sponsors list | `GET /admin/sponsors`, `POST /admin/sponsors` |
+| `/sponsors/order` | Sponsor order | `GET /admin/events`, `GET /admin/sponsors/order/{eventYear}`, `PUT /admin/sponsors/order/{eventYear}`, `PUT /admin/sponsors/{id}/years/{eventYear}` (time override), `GET /admin/settings` |
 | `/sponsors/:id` | Sponsor detail | `GET /admin/sponsors/{id}`, `PATCH` (fields and `logoMediaId`), `DELETE`, `PUT`/`DELETE .../years/{eventYear}` |
 | `/cookie-types` | Cookie types | `GET /admin/cookie-types`, `POST`, `PATCH .../{id}` (fields and `icon`), `GET /admin/events`, `GET /admin/icons` |
 | `/pages` | Pages | `GET /admin/pages`, `POST /admin/pages`, `PATCH /admin/pages/{id}`, `DELETE /admin/pages/{id}`, `PUT /admin/pages/order`, `GET /admin/content/status` |
@@ -42,6 +43,7 @@ Routes and what each one calls:
 | `/subscribers` | Subscribers | `GET /admin/subscribers/summary`, `GET /admin/subscribers`, `DELETE /admin/subscribers/{id}` |
 | `/people` | People | `GET /admin/people`, `DELETE /admin/people/{id}` |
 | `/contact-messages` | Contact messages | `GET /admin/contact-messages`, `DELETE /admin/contact-messages/{id}` |
+| `/api-keys` | API keys | `GET /admin/api-keys`, `POST /admin/api-keys`, `POST /admin/api-keys/{id}/revoke` |
 | `/auth/callback` | OIDC callback | none |
 | `/mfa-setup` | MFA setup | Cognito IdP calls (section 3.5) |
 
@@ -395,7 +397,7 @@ export function emailOf(user: User): string {
 }
 ```
 
-`user.profile` is the ID token's claim set. `cognito:groups` is the only authorization input; the panel never asks the API what the caller may do. `lib/roles.ts` maps a role to the views it may open (`editor`: pages, media, site settings, publish, sponsors; `admin`: all) and the layout and the router both read it.
+`user.profile` is the ID token's claim set. `cognito:groups` is the only authorization input; the panel never asks the API what the caller may do. `lib/roles.ts` maps a role to the views it may open (`editor`: pages, media, site settings, publish, sponsors, sponsor order; `admin`: all, API keys included) and the layout and the router both read it.
 
 ### 3.3 Boot sequence and route guard
 
@@ -737,7 +739,8 @@ export const beacons = {
 
 // sponsors.ts
 export type SponsorBody = { name: string } & Partial<Record<"contactPerson" | "email" | "phone" | "address" | "websiteUrl" | "fbUrl" | "igUrl" | "logoMediaId", string | null>>;
-export type SponsorYearBody = { amountDonated: number | null; active: boolean; canAdvertise: boolean; anonymous: boolean };
+export type SponsorYearBody = { amountDonated: number | null; active: boolean; canAdvertise: boolean; anonymous: boolean; pinnedPosition: number | null; lingerMsOverride: number | null };
+export type SponsorOrderRow = { sponsorId: number; name: string; pinnedPosition: number | null; amountDonated: number | null; lingerMs: number; lingerMsOverride: number | null; inSnapshot: boolean };
 export const sponsors = {
   list: () => get<{ items: Sponsor[] }>("/admin/sponsors"),
   get: (id: number) => get<Sponsor>(`/admin/sponsors/${id}`),
@@ -746,6 +749,16 @@ export const sponsors = {
   remove: (id: number) => del(`/admin/sponsors/${id}`),
   putYear: (id: number, eventYear: number, b: SponsorYearBody) => put<Sponsor>(`/admin/sponsors/${id}/years/${eventYear}`, b),
   deleteYear: (id: number, eventYear: number) => del(`/admin/sponsors/${id}/years/${eventYear}`),
+  order: (eventYear: number) => get<{ items: SponsorOrderRow[] }>(`/admin/sponsors/order/${eventYear}`),
+  putOrder: (eventYear: number, pinnedSponsorIds: number[]) => put<{ items: SponsorOrderRow[] }>(`/admin/sponsors/order/${eventYear}`, { pinnedSponsorIds }),
+};
+
+// apiKeys.ts
+export type ApiKeyCreateBody = { name: string; allCapabilities: boolean; capabilities: ApiKeyCapability[]; expiresAt: string | null };
+export const apiKeys = {
+  list: () => get<{ items: ApiKey[] }>("/admin/api-keys"),
+  create: (b: ApiKeyCreateBody) => post<ApiKeyMinted>("/admin/api-keys", b),
+  revoke: (id: number) => post<ApiKey>(`/admin/api-keys/${id}/revoke`),
 };
 
 // cookieTypes.ts
@@ -991,7 +1004,7 @@ export function beaconFlags(b: Beacon, staleAfterS: number, anyEventLive: boolea
 
 `MainLayout` keeps the legacy structure: fixed `AppBar`, permanent `Drawer` at 220 px on `md` and up, temporary drawer below, theme toggle stored under `localStorage` key `appThemeMode` (dark default). New in the bar: `EnvBadge`, the signed-in email, and a sign-out button.
 
-Drawer entries for `admin`: Dashboard, Events, Routes, Beacons, then a Content group (Pages, Media, Site settings, Publish), then Sponsors, Cookie types, Cookies, Subscribers, People, Contact messages, Settings. For `editor`: Pages, Media, Site settings, Publish, Sponsors, and the editor lands on Pages. A small "Unpublished changes" dot on the Publish entry reflects `keys.contentStatus.hasUnpublishedChanges` (fetched on layout mount and after every working-set write).
+Drawer entries for `admin`: Dashboard, Events, Flight recordings, Beacons, then a Content group (Pages, Media, Site settings, Publish), then Sponsors, Sponsor order, Cookie types, Cookies, Subscribers, People, Contact messages, Settings, API keys. For `editor`: Pages, Media, Site settings, Publish, Sponsors, and the editor lands on Pages. A small "Unpublished changes" dot on the Publish entry reflects `keys.contentStatus.hasUnpublishedChanges` (fetched on layout mount and after every working-set write).
 
 `EnvBadge`: an MUI `Chip` with `config.env.toUpperCase()`; colour `error` for `prod`, `success` for `dev`, `info` for `local`; tooltip shows `config.apiBaseUrl`. On `dev` and `local` the document title is prefixed `[DEV]` or `[LOCAL]`. The badge also appears on `SignIn`, `NotAdmin`, and `MfaSetup`.
 
@@ -1028,15 +1041,16 @@ Under the inherit choice the dialog shows what the rule selects, computed from t
 - **Details form**: `name`, `year`, `scheduledAt`, `wentLiveAt`, `endedAt`, `fundsPercent`; Save sends only changed fields as `PATCH`. The clear button on `scheduledAt` is disabled with the helper text "Required while the event is scheduled" when `statusId === 2`. Set current and Delete buttons live here with confirmations (8.3).
 - **Status**: current `StatusChip` plus one button per other status. Disabled with a tooltip: Scheduled when `scheduledAt === null` ("Set a scheduled time first"); Live when `!isCurrent` ("Set this event current first") or another event has `statusId === 3` ("<name> is live"). Clicking opens `StatusDialog` (below). Under the buttons, the status history newest first: `toStatusId`, `fromStatusId`, `changedBy`, `changedAt`.
 - **Messages**: post form with `body` (multiline), `eventTime` (datetime-local, optional, with a Clear button), `notify` checkbox; list newest first showing body, `eventTime`, `createdBy`, `createdAt`, with edit (inline form for `body` and `eventTime`; `PATCH`, no notify) and delete. The legacy "prefix with date/time" option is not carried over; `eventTime` is the field for that.
-- **Route**: current route (`name`, `pointCount`, `createdAt`, `uploadedBy`, `url` as a CDN link) or "No route". "Shared with" lists the other events whose `routeId` equals this one, from `keys.events`. Actions: Upload (opens `RouteUploadDialog`, 7.3), Choose existing (select from `keys.routes`, then `PATCH { routeId }`), Unlink (`PATCH { routeId: null }`). A route upload on this page is one action: `POST /admin/routes` then `PATCH /admin/events/{id} { routeId }`; a `200` from the POST is reported as "Identical route already exists as <name>; linked that one."
+- **Route poster**: the image the public route page shows. The current `routeImage` asset (picture, filename, dimensions) or "No poster", a "Choose poster" button opening `MediaPicker` (6.15, raster only; it can upload on the spot), and "Remove poster". Both send `PATCH { routeImageMediaId }`; `409 media_not_ready` reopens the picker on that asset with its Retry. Helper text: "Shown on the route page and as the route preview. Use the highest resolution you have; the site serves smaller copies where it can."
+- **Flight history**: the recording linked here is embedded in every snapshot as the event's flight history, which the tracker's "flight history" toggle draws as the projected route; it is also what replay and exports use. Helper text: "Visitors can turn this on in the tracker menu to see the projected route. Change it any time; the site picks it up on the next snapshot." Current recording (`name`, `pointCount`, `createdAt`, `uploadedBy`, `url` as a CDN link) or "No recording". "Shared with" lists the other events whose `routeId` equals this one, from `keys.events`. Actions: Upload (opens `RouteUploadDialog`, 7.3), Choose existing (select from `keys.routes`, then `PATCH { routeId }`), Unlink (`PATCH { routeId: null }`), and "Record from this event" (`POST /admin/routes/from-event/{id}`, then `PATCH { routeId }`). A recording upload on this page is one action: `POST /admin/routes` then `PATCH /admin/events/{id} { routeId }`; a `200` from the POST is reported as "Identical recording already exists as <name>; linked that one."
 - **Locations**: filters `beaconId` (select from `keys.beacons`, any) and `publishedOnly` (switch); a paged preview table of `LocationRow` (`limit` 100); "Download CSV" calls `events.locationsCsv` with the same filters and saves `locations-<year>.csv` through `downloadBlob`. The download goes through `fetch` because the request needs the `Authorization` header.
 - **Cookies**: a link "Moderate cookies" to `/cookies?eventId=<id>`.
 
 **StatusDialog** (shared with the dashboard): title "Change status of <name>: <from> to <to>"; a `notify` checkbox (default off) with a consequence line under it: for target 2 or 3 with `notify` on, "<verified count> verified subscribers will be emailed" (count from `keys.subscribersSummary`, fetched when the dialog opens); for target 2 or 3 with `notify` off, "No email will be sent"; for other targets, "Emails go out only when entering scheduled or live". For target 3 the dialog adds the active beacon line from `keys.beacons`: "Active beacon: <name>, heartbeat <age>, stale: yes/no" or "Active beacon: none". Confirm sends `{ statusId, notify }`.
 
-### 6.4 Routes
+### 6.4 Flight recordings
 
-Table newest first: `name`, `pointCount`, `createdAt`, `uploadedBy`, `url` link, "Used by" (events with this `routeId`, from `keys.events`). Delete with confirmation; `409 route_in_use` shows "Used by <event names>; unlink it there first". A "Upload route" button opens `RouteUploadDialog` without linking to an event.
+`/routes`, titled "Flight recordings", with the lead text "Recordings of past flights. The one linked to an event is its flight history on the tracker, and what Red-Nose replay and exports use. The route page shows the poster on each event." Table newest first: `name`, `pointCount`, `createdAt`, `uploadedBy`, `url` link, "Used by" (events with this `routeId`, from `keys.events`). Delete with confirmation; `409 route_in_use` shows "Used by <event names>; unlink it there first". An "Upload recording" button opens `RouteUploadDialog` without linking to an event.
 
 ### 6.5 Beacons
 
@@ -1067,7 +1081,9 @@ Keys inside a group that are not in the table render below the group as "Other" 
 
 **Detail**: edit form (`name`, `contactPerson`, `email`, `phone`, `address`, `websiteUrl`, `fbUrl`, `igUrl`; Save sends changed fields; empty strings become `null`). Delete sponsor with confirmation.
 
-**Years**: table of `years[]` (`eventYear`, `amountDonated` shown as received, `active`, `canAdvertise`, `anonymous`, `registeredAt`) with edit and delete per row, and "Add year". `SponsorYearDialog` fields: `eventYear` (number; fixed when editing), `amountDonated` (text, optional), three switches defaulting to `true`, `true`, `false` on add. Save is `PUT .../years/{eventYear}` (an upsert, so add and edit are the same call).
+**Years**: table of `years[]` (`eventYear`, `amountDonated` shown as received, `active`, `canAdvertise`, `anonymous`, "Tracker time" as `lingerMs` in seconds with "(override)" when `lingerMsOverride` is set, "Pinned #n" when `pinnedPosition` is set, `registeredAt`) with edit and delete per row, and "Add year". `SponsorYearDialog` fields: `eventYear` (number; fixed when editing), `amountDonated` (text, optional), three switches defaulting to `true`, `true`, `false` on add, `lingerMsOverride` as "Tracker time override (seconds)" (number, optional, 0 to 600; blank means computed from the amount; the helper text shows the computed value from `amountDonated` and the two settings), and `pinnedPosition` (number, optional; the helper text points to the Sponsor order page for reordering). Save is `PUT .../years/{eventYear}` (an upsert, so add and edit are the same call); `409 pinned_position_taken` is a field error on `pinnedPosition`: "Position n is taken for <year>; use Sponsor order to rearrange."
+
+**Sponsor order** (`/sponsors/order`, its own drawer entry, editor and admin): a year select (defaulting to the current event's year, options from `keys.events`), then one list in the exact order the site will show, from `GET /admin/sponsors/order/{eventYear}`. Rows show logo, name, amount, tracker time, and either a pin icon with the position or "by amount". The pinned rows sit at the top and are drag-reorderable (`@dnd-kit`, already a dependency); a row's "Pin" moves it to the bottom of the pinned block, "Unpin" drops it back into the by-amount block. Every reorder, pin, or unpin sends the whole pinned list as `PUT /admin/sponsors/order/{eventYear} { pinnedSponsorIds }` and replaces the list with the response. An inline "Time" field per row edits `lingerMsOverride` in seconds and saves with `PUT .../years/{eventYear}` (the other year fields resent unchanged from the row). A sponsor whose year row fails the snapshot filter (inactive, anonymous, or may not advertise) is greyed with "Not on the site" and cannot be pinned. A `CommentBox` under the year select: "Largest gift first unless pinned. Tracker time is the gift times the per-dollar rate (Settings), floored at the minimum, unless overridden here."
 
 **LogoSection**: the current `logo` asset (image, filename, dimensions) or "No logo", a "Choose logo" button opening `MediaPicker` (6.15, which can upload on the spot), and "Remove logo". Both send `PATCH { logoMediaId }`; the response `Sponsor` replaces the cached row. `409 media_not_ready` (an upload that never confirmed) reopens the picker on that asset with its Retry.
 
@@ -1092,6 +1108,7 @@ One row per key from `GET /admin/settings`, in this order, with the description 
 | `sponsor_linger_ms_per_dollar` | Sponsor carousel time per dollar donated | 0 to 100000 | ms |
 | `sponsor_linger_min_ms` | Minimum sponsor carousel time | 0 to 600000 | ms |
 | `beacon_stale_after_s` | Seconds without a heartbeat or location before a beacon is flagged stale | 15 to 3600 | s |
+| `flight_history_max_points` | Most points of the flight history carried in the snapshot (longer recordings are thinned) | 100 to 50000 | |
 
 Each row shows `value`, `updatedBy` and `updatedAt` ("default" when both are null), a number input, and its own Save button (`PUT /admin/settings/{key}` with `{ value }`). Validation per 7.2; the response `Setting` replaces the row. A `CommentBox` states that every save rebuilds the snapshot and rewrites the live object, so a new poll interval reaches the site within its next poll.
 
@@ -1142,7 +1159,7 @@ Everything else (strings, numbers, booleans, enums, nested objects, arrays of sc
 
 ### 6.16 Site settings
 
-`/site-settings`: one `SchemaForm` over the vendored `site-settings.schema.json` at the draft level, with the same custom fields (`IconField` for logo and favicon, `LinkField` lists for nav extras and footer links, `InlineField` for texts, `ThemeField` for the theme object: accent swatches, surface swatches, font pairing samples, snow default switch). Save sends the whole document with `PUT`; problems from `GET /admin/site-settings` render under their fields. A Preview button (6.17) opens the home page. A `CommentBox`: "Settings are drafts until you publish."
+`/site-settings`: one `SchemaForm` over the vendored `site-settings.schema.json` at the draft level, with the same custom fields (`IconField` for logo and favicon, `LinkField` lists for nav extras and footer links, `InlineField` for texts, `ThemeField` for the theme object: two switches, "Snow on by default" and "Lights on by default", with the helper text "Colours and fonts are part of the site design; visitors pick light or dark themselves."). Save sends the whole document with `PUT`; problems from `GET /admin/site-settings` render under their fields. A Preview button (6.17) opens the home page. A `CommentBox`: "Settings are drafts until you publish."
 
 ### 6.17 Preview
 
@@ -1157,6 +1174,14 @@ Everything else (strings, numbers, booleans, enums, nested objects, arrays of sc
 ### 6.19 Auth pages
 
 `SignIn`, `Callback`, `NoRole`, `MfaSetup`, `ConfigError` per section 3. Each renders the title, the environment badge, and one action; none fetches from the API.
+
+### 6.20 API keys
+
+`/api-keys`, `admin` only. Lead text: "Keys let a script or an agent, such as Claude Code, configure the site without signing in. A key is shown once."
+
+**List**: table newest first: name, `keyPrefix` in monospace, capabilities ("All" or the list as chips), `expiresAt` (Mountain time, or "Never"; red when past), `lastUsedAt` as an age, `createdBy`, `createdAt`, and a status chip: Active, Expired, or Revoked (revoked rows greyed). Row action: Revoke (hidden when revoked) with the confirmation "Revoke <name>? Anything using it stops working immediately." "New key" opens `ApiKeyCreateDialog`.
+
+**ApiKeyCreateDialog**: `name` (text, 1 to 100); a capability picker: an "All capabilities" checkbox that, when on, disables the individual list and sends `allCapabilities: true` with an empty `capabilities`, and otherwise a checkbox per capability from the contracts list (3.6), grouped and labelled in plain words (Events, Flight recordings, Beacons, Sponsors, Cookie types, Pages, Sections, Site settings, Publish and versions, Media, Icons, Cookie moderation, Settings, Contact messages, Subscribers, People, Diagnostics), at least one required; and `expiresAt` as a datetime-local with a "Never expires" checkbox, validated at least one hour ahead. `409 name_taken` is a field error on `name`. Success opens `KeyRevealDialog` (the same component the beacons page uses, without the QR block): the key in a monospace read-only field with Copy, the warning "This key is shown once. Store it before closing.", no backdrop or escape close, one button "I have stored the key".
 
 ---
 
@@ -1298,6 +1323,8 @@ Every datetime input shows `formatMt(fromLocalInput(value))` as helper text so t
 | `event_live` | cookie types: the locked banner (6.7); event delete: alert "A live event cannot be deleted" |
 | `event_has_locations` | alert "This event has recorded locations and cannot be deleted" |
 | `route_in_use` | alert "Used by <event names>; unlink it there first" |
+| `pinned_position_taken` | field error on `pinnedPosition`: "Position n is taken for <year>; use Sponsor order to rearrange" |
+| `name_taken` | field error on `name`: "A key with this name exists; revoke it or pick another name" |
 | `beacon_revoked` | alert "This beacon is revoked"; refetch beacons |
 | `slug_taken`, `slug_reserved` | field error on `slug` |
 | `page_has_role` | alert "Status pages cannot be deleted" |
@@ -1324,7 +1351,8 @@ Every datetime input shows `formatMt(fromLocalInput(value))` as helper text so t
 | Status change (any target) | `StatusDialog` (6.3); for target 3 it includes the active beacon's name or "none", heartbeat age, and stale flag | "Change status" / "Set live" |
 | Set current | "Make <name> the current event? The public site switches to it on its next poll." | "Set current" |
 | Delete event | "Delete <name>? Its messages, cookies, and status history are deleted with it." | "Delete" |
-| Delete message, route, sponsor, sponsor year, cookie, subscriber, person, contact message, page, section, item, media asset | "Delete <thing>? This cannot be undone." plus the specific note in 6.x where one exists | "Delete" |
+| Delete message, flight recording, sponsor, sponsor year, cookie, subscriber, person, contact message, page, section, item, media asset | "Delete <thing>? This cannot be undone." plus the specific note in 6.x where one exists | "Delete" |
+| Revoke API key | "Revoke <name>? Anything using it stops working immediately." | "Revoke" |
 | Restore a version | "Replace the current draft with version <id>? Unpublished changes are lost. Nothing is published until you publish." | "Restore" |
 | Restore and publish | the same plus "The public site updates within its next poll." | "Restore and publish" |
 | Publish | the label dialog with "The public site updates within its next poll." | "Publish" |
@@ -1410,6 +1438,10 @@ Vercel builds `main` into production with the prod variables. A second Vercel pr
 
 - The `MfaSetup` page enrols the authenticator in place through `AssociateSoftwareToken`, `VerifySoftwareToken`, and `SetUserMFAPreference` with the access token; the `wmsfo-admin` app client carries scope `aws.cognito.signin.user.admin` and the panel adds the `qrcode` dependency.
 - `contracts/admin-thresholds.json` is `{ "batteryLowPercent": 20, "noFixAgeS": 30, "noLocationAgeS": 30 }`, published by the API repository and imported by `thresholds.ts`.
+- The route the public sees is a poster chosen on the event through the media picker; the `/routes` page is renamed Flight recordings, and the recording linked to an event is its tracker flight history as well as the replay and export source.
+- Sponsor order is one page per year that sends the whole pinned list on every change; time overrides are edited inline there and in the year dialog.
+- Site settings expose only the snow and lights defaults; there is no theme picker in the panel.
+- API keys are minted with an "All capabilities" switch or a checkbox per capability plus an optional expiry, and revealed once through the same dialog beacons use.
 
 - The panel does not join the hub; it polls the API and the CDN as the contracts' data loop describes.
 - `@tanstack/react-query` provides polling, pause-when-hidden, refetch-on-visible, and refetch-after-write; queries and mutations do not retry.
