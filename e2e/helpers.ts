@@ -161,9 +161,10 @@ export async function setWalkEventStatus(
   return walk;
 }
 
-// Sign-in walks the Cognito hosted UI: username, password, TOTP. Selectors
-// are the shared "amplify auth" screens the pool uses; anything more brittle
-// than a text/label lookup will drift the moment AWS reflows the page.
+// Sign-in walks the Cognito managed login pages: username, password, TOTP.
+// The pool domain runs managed login (branding version 2), whose forms carry
+// real labels; anything more brittle than a name or label lookup will drift
+// the moment AWS reflows the page.
 // Cognito refuses a TOTP code that was already used, and consecutive specs sign
 // in faster than the 30 s window turns over. Remember the last code per secret
 // and wait for the next window when it would repeat.
@@ -189,14 +190,16 @@ export async function freshTotpCode(secret: string): Promise<string> {
 export async function signIn(page: Page, user: DevUser): Promise<void> {
   await page.goto("/");
   await page.getByRole("button", { name: /sign in/i }).first().click();
-  // The classic hosted UI renders the form twice (one copy hidden per
-  // breakpoint) and its visible inputs carry no associated label, so every
-  // lookup goes by field name and takes the visible copy.
+  // Managed login renders one form per step. The sign-in step's inputs are
+  // named username and password; the MFA step has a single textbox labelled
+  // "Code" and a submit button. Look the inputs up by name and label.
   await page.locator('input[name="username"]:visible').first().fill(user.email);
   await page.locator('input[name="password"]:visible').first().fill(user.password);
-  const submit = 'input[type="submit" i]:visible, button[type="submit"]:visible';
+  const submit = 'button[type="submit"]:visible';
   await page.locator(submit).first().click();
-  await page.locator('input[name="totpCode"]:visible, input#totpCodeInput:visible').first().fill(await freshTotpCode(user.totpSecret));
+  const code = page.getByRole("textbox", { name: /^code$/i });
+  await code.waitFor({ state: "visible" });
+  await code.fill(await freshTotpCode(user.totpSecret));
   await page.locator(submit).first().click();
   // The submit navigates out to Cognito and back through /auth/callback to
   // the app's landing route. Wait for that landing before probing the app's
