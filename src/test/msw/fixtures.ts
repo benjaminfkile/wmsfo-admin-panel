@@ -211,8 +211,6 @@ export const sponsorOrderRows: SponsorOrderRow[] = [
     amountDonated: 500,
     lingerMs: 20000,
     lingerMsOverride: null,
-    logoMediaId: "8c1d5e2a-7b3f-4c9e-9a1d-2f6e8b4c0a11",
-    logo: null,
     inSnapshot: true,
   },
   {
@@ -222,8 +220,6 @@ export const sponsorOrderRows: SponsorOrderRow[] = [
     amountDonated: 250,
     lingerMs: 10000,
     lingerMsOverride: null,
-    logoMediaId: null,
-    logo: null,
     inSnapshot: true,
   },
   {
@@ -233,8 +229,6 @@ export const sponsorOrderRows: SponsorOrderRow[] = [
     amountDonated: 100,
     lingerMs: 4000,
     lingerMsOverride: null,
-    logoMediaId: null,
-    logo: null,
     inSnapshot: false,
   },
 ];

@@ -37,7 +37,7 @@ import { keys } from "../../queries/keys";
 import CommentBox from "../../components/CommentBox";
 import ErrorAlert from "../../components/ErrorAlert";
 import { useNotify } from "../../hooks/useNotify";
-import type { SponsorOrderRow } from "../../api/types";
+import type { MediaAsset, SponsorOrderRow } from "../../api/types";
 
 // Sponsor order page (admin.md 6.6). One list per year in the exact
 // order the site will show. Pinned rows sit on top and reorder with
@@ -78,6 +78,13 @@ export default function SponsorOrder() {
     queryFn: () => sponsorsApi.order(Number(year)),
     enabled: year !== null,
   });
+
+  const sponsorsQ = useQuery({ queryKey: keys.sponsors, queryFn: () => sponsorsApi.list() });
+  const logoBySponsorId = useMemo(() => {
+    const m = new Map<number, MediaAsset | null>();
+    for (const sp of sponsorsQ.data?.items ?? []) m.set(Number(sp.id), sp.logo ?? null);
+    return m;
+  }, [sponsorsQ.data]);
 
   const [rows, setRows] = useState<SponsorOrderRow[]>([]);
   useEffect(() => {
@@ -208,6 +215,7 @@ export default function SponsorOrder() {
                   <SortableSponsorRow
                     key={String(row.sponsorId)}
                     row={row}
+                    logoUrl={logoUrlOf(logoBySponsorId.get(Number(row.sponsorId)) ?? null)}
                     disabled={disabled}
                     onPin={() => pinRow(Number(row.sponsorId))}
                     onUnpin={() => unpinRow(Number(row.sponsorId))}
@@ -273,6 +281,7 @@ function toNumberOrNull(v: unknown): number | null {
 
 interface RowProps {
   row: SponsorOrderRow;
+  logoUrl: string | null;
   disabled: boolean;
   saving: boolean;
   onPin: () => void;
@@ -282,6 +291,7 @@ interface RowProps {
 
 function SortableSponsorRow({
   row,
+  logoUrl,
   disabled,
   saving,
   onPin,
@@ -311,7 +321,6 @@ function SortableSponsorRow({
   }, [row.lingerMsOverride]);
 
   const grey = row.inSnapshot === false;
-  const logoUrl = rowLogoUrl(row);
   const amount = toNumberOrNull(row.amountDonated);
   const trackerSeconds = (Number(row.lingerMs) / 1000).toFixed(1);
 
@@ -411,8 +420,7 @@ function SortableSponsorRow({
   );
 }
 
-function rowLogoUrl(row: SponsorOrderRow): string | null {
-  const logo = row.logo;
+function logoUrlOf(logo: MediaAsset | null): string | null {
   if (!logo) return null;
   const v480 = logo.variants?.["480"];
   if (typeof v480 === "string" && v480.length > 0) return v480;
