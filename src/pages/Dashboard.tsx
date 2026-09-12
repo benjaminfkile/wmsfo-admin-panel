@@ -3,6 +3,8 @@ import {
   Alert,
   Box,
   Button,
+  Menu,
+  MenuItem,
   Card,
   CardActions,
   CardContent,
@@ -12,6 +14,7 @@ import {
   Typography,
 } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
+import { STATUS_IDS, statusName } from "../lib/statusNames";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { events as eventsApi } from "../api/resources/events";
 import { snapshot as snapshotApi } from "../api/resources/snapshot";
@@ -262,6 +265,7 @@ function CurrentEventCard({
   loading: boolean;
   onOpenStatus: (id: 1 | 2 | 3 | 4 | 5) => void;
 }) {
+  const [statusMenuAnchor, setStatusMenuAnchor] = useState<HTMLElement | null>(null);
   return (
     <Card>
       <CardContent>
@@ -315,10 +319,29 @@ function CurrentEventCard({
           <Button
             size="small"
             variant="outlined"
-            onClick={() => onOpenStatus(pickNextStatus(Number(event.statusId)))}
+            aria-haspopup="menu"
+            aria-expanded={statusMenuAnchor !== null}
+            onClick={(e) => setStatusMenuAnchor(e.currentTarget)}
           >
             Change status
           </Button>
+          <Menu
+            anchorEl={statusMenuAnchor}
+            open={statusMenuAnchor !== null}
+            onClose={() => setStatusMenuAnchor(null)}
+          >
+            {STATUS_IDS.filter((s) => s !== Number(event.statusId)).map((target) => (
+              <MenuItem
+                key={target}
+                onClick={() => {
+                  setStatusMenuAnchor(null);
+                  onOpenStatus(target);
+                }}
+              >
+                {statusName(target)}
+              </MenuItem>
+            ))}
+          </Menu>
           <Button
             size="small"
             component={RouterLink}
@@ -330,12 +353,6 @@ function CurrentEventCard({
       ) : null}
     </Card>
   );
-}
-
-function pickNextStatus(current: number): 1 | 2 | 3 | 4 | 5 {
-  const order: (1 | 2 | 3 | 4 | 5)[] = [1, 2, 3, 4, 5];
-  const other = order.find((s) => s !== current);
-  return other ?? 1;
 }
 
 function ActiveBeaconCard({
