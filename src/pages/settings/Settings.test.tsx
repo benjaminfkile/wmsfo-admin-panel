@@ -120,13 +120,22 @@ describe("Settings", () => {
   });
 
   it("has a spec for every documented key", () => {
-    // 6.9 lists five keys in a specific order; SETTING_SPECS is that order.
+    // 6.9 lists six keys in a specific order; SETTING_SPECS is that order.
     expect(SETTING_SPECS.map((s) => s.key)).toEqual([
       "poll_interval_ms",
       "cookie_limit_per_person",
       "sponsor_linger_ms_per_dollar",
       "sponsor_linger_min_ms",
       "beacon_stale_after_s",
+      "flight_history_max_points",
     ]);
+  });
+
+  it("renders the flight_history_max_points row from the fixture", async () => {
+    render(<Harness />);
+    const row = await screen.findByTestId(
+      "setting-row-flight_history_max_points"
+    );
+    expect(row).toBeInTheDocument();
   });
 });

@@ -121,6 +121,12 @@ export const handlers: HttpHandler[] = [
   http.post("*/admin/sponsors", () => HttpResponse.json(f.sponsors[0], { status: 201 })),
   http.patch("*/admin/sponsors/:id", () => HttpResponse.json(f.sponsors[0])),
   http.delete("*/admin/sponsors/:id", () => new HttpResponse(null, { status: 204 })),
+  http.get("*/admin/sponsors/order/:eventYear", () =>
+    HttpResponse.json({ items: f.sponsorOrderRows })
+  ),
+  http.put("*/admin/sponsors/order/:eventYear", () =>
+    HttpResponse.json({ items: f.sponsorOrderRows })
+  ),
   http.put("*/admin/sponsors/:id/years/:eventYear", () =>
     HttpResponse.json(f.sponsors[0])
   ),

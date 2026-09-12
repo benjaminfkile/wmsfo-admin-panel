@@ -72,6 +72,8 @@ const EMPTY_YEAR: SponsorYearInput = {
   active: true,
   canAdvertise: true,
   anonymous: false,
+  lingerMsOverride: "",
+  pinnedPosition: "",
 };
 
 describe("validateSponsorYear", () => {
@@ -122,7 +124,7 @@ describe("toSponsorYearBody", () => {
     ).toBeNull();
   });
 
-  it("carries the four fields", () => {
+  it("carries the six fields", () => {
     const body = toSponsorYearBody({
       ...EMPTY_YEAR,
       eventYear: "2026",
@@ -134,6 +136,76 @@ describe("toSponsorYearBody", () => {
       active: true,
       canAdvertise: true,
       anonymous: true,
+      pinnedPosition: null,
+      lingerMsOverride: null,
     });
+  });
+
+  it("converts the tracker time override from seconds to ms", () => {
+    const body = toSponsorYearBody({
+      ...EMPTY_YEAR,
+      eventYear: "2026",
+      lingerMsOverride: "12",
+    });
+    expect(body.lingerMsOverride).toBe(12000);
+  });
+
+  it("parses the pinned position as an integer", () => {
+    const body = toSponsorYearBody({
+      ...EMPTY_YEAR,
+      eventYear: "2026",
+      pinnedPosition: "3",
+    });
+    expect(body.pinnedPosition).toBe(3);
+  });
+});
+
+describe("validateSponsorYear extra fields", () => {
+  it("rejects an override outside 0..600 seconds", () => {
+    expect(
+      validateSponsorYear({
+        ...EMPTY_YEAR,
+        eventYear: "2026",
+        lingerMsOverride: "601",
+      }).lingerMsOverride
+    ).toBeDefined();
+    expect(
+      validateSponsorYear({
+        ...EMPTY_YEAR,
+        eventYear: "2026",
+        lingerMsOverride: "-1",
+      }).lingerMsOverride
+    ).toBeDefined();
+    expect(
+      validateSponsorYear({
+        ...EMPTY_YEAR,
+        eventYear: "2026",
+        lingerMsOverride: "12",
+      }).lingerMsOverride
+    ).toBeUndefined();
+  });
+
+  it("rejects a pinned position outside 1..1000", () => {
+    expect(
+      validateSponsorYear({
+        ...EMPTY_YEAR,
+        eventYear: "2026",
+        pinnedPosition: "0",
+      }).pinnedPosition
+    ).toBeDefined();
+    expect(
+      validateSponsorYear({
+        ...EMPTY_YEAR,
+        eventYear: "2026",
+        pinnedPosition: "1001",
+      }).pinnedPosition
+    ).toBeDefined();
+    expect(
+      validateSponsorYear({
+        ...EMPTY_YEAR,
+        eventYear: "2026",
+        pinnedPosition: "5",
+      }).pinnedPosition
+    ).toBeUndefined();
   });
 });

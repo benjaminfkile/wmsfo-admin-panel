@@ -1,4 +1,20 @@
 import type { ErrorSchema } from "@rjsf/utils";
+import { ApiError } from "../api/errors";
+
+// Look up a field error message on an ApiError for a specific field
+// name; both plain names ("pinnedPosition") and JSON pointer paths
+// ("/pinnedPosition") are matched.
+export function fieldErrorFor(
+  error: unknown,
+  field: string
+): string | null {
+  if (!(error instanceof ApiError)) return null;
+  const map = error.fields;
+  if (map[field]) return map[field];
+  const withSlash = `/${field}`;
+  return map[withSlash] ?? null;
+}
+
 
 function decodePointerSegment(seg: string): string {
   return seg.replace(/~1/g, "/").replace(/~0/g, "~");

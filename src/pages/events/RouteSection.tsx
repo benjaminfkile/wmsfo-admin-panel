@@ -45,12 +45,15 @@ export default function RouteSection({ event }: Props) {
     mutationFn: (routeId: number | null) =>
       eventsApi.patch(Number(event.id), { routeId }),
     onSuccess: () => {
-      notify("Route updated");
+      notify("Flight history updated");
       void qc.invalidateQueries({ queryKey: keys.event(Number(event.id)) });
       void qc.invalidateQueries({ queryKey: keys.events });
     },
     onError: (e) =>
-      notify(e instanceof Error ? e.message : "Route update failed", "error"),
+      notify(
+        e instanceof Error ? e.message : "Flight history update failed",
+        "error"
+      ),
   });
 
   const uploadMut = useMutation({
@@ -62,7 +65,7 @@ export default function RouteSection({ event }: Props) {
       return { route, event: patched };
     },
     onSuccess: (res) => {
-      notify(`Route linked: ${res.route.name}`);
+      notify(`Recording linked: ${res.route.name}`);
       void qc.invalidateQueries({ queryKey: keys.routes });
       void qc.invalidateQueries({ queryKey: keys.event(Number(event.id)) });
       void qc.invalidateQueries({ queryKey: keys.events });
@@ -71,13 +74,33 @@ export default function RouteSection({ event }: Props) {
     onError: (e) => {
       if (e instanceof ApiError && e.status === 200) {
         notify(
-          `Identical route already exists; linked that one.`,
+          `Identical recording already exists; linked that one.`,
           "info"
         );
       } else {
-        notify(e instanceof Error ? e.message : "Route upload failed", "error");
+        notify(e instanceof Error ? e.message : "Upload failed", "error");
       }
     },
+  });
+
+  const recordFromEventMut = useMutation({
+    mutationFn: async () => {
+      const route = await routesApi.fromEvent(Number(event.id), {
+        name: `${event.name ?? "Event"} recording`,
+      });
+      const patched = await eventsApi.patch(Number(event.id), {
+        routeId: Number(route.id),
+      });
+      return { route, event: patched };
+    },
+    onSuccess: (res) => {
+      notify(`Recording linked: ${res.route.name}`);
+      void qc.invalidateQueries({ queryKey: keys.routes });
+      void qc.invalidateQueries({ queryKey: keys.event(Number(event.id)) });
+      void qc.invalidateQueries({ queryKey: keys.events });
+    },
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Record failed", "error"),
   });
 
   const routes = routesQ.data?.items ?? [];
@@ -96,14 +119,24 @@ export default function RouteSection({ event }: Props) {
     <Card>
       <CardContent>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Typography variant="h6">Route</Typography>
+          <Typography variant="h6">Flight history</Typography>
           <Stack direction="row" spacing={1}>
             <Button
               size="small"
               variant="outlined"
               onClick={() => setUploadOpen(true)}
+              data-testid="flight-history-upload"
             >
               Upload
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => recordFromEventMut.mutate()}
+              disabled={recordFromEventMut.isPending}
+              data-testid="flight-history-record"
+            >
+              Record from this event
             </Button>
             {event.routeId !== null ? (
               <Button
@@ -111,18 +144,27 @@ export default function RouteSection({ event }: Props) {
                 variant="outlined"
                 color="warning"
                 onClick={() => patchMut.mutate(null)}
+                data-testid="flight-history-unlink"
               >
                 Unlink
               </Button>
             ) : null}
           </Stack>
         </Stack>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+          Visitors can turn this on in the tracker menu to see the projected
+          route. Change it any time; the site picks it up on the next
+          snapshot.
+        </Typography>
         {patchMut.error ? <ErrorAlert error={patchMut.error} /> : null}
+        {recordFromEventMut.error ? (
+          <ErrorAlert error={recordFromEventMut.error} />
+        ) : null}
 
         {event.routeId === null ? (
           <Box sx={{ mt: 2 }}>
             <Typography variant="body2" color="text.secondary" gutterBottom>
-              No route linked.
+              No recording linked.
             </Typography>
             <Stack direction="row" spacing={2} alignItems="center">
               <Select
@@ -135,7 +177,7 @@ export default function RouteSection({ event }: Props) {
                 sx={{ minWidth: 240 }}
               >
                 <MenuItem value="">
-                  <em>Choose existing route…</em>
+                  <em>Choose existing recording…</em>
                 </MenuItem>
                 {routes.map((r: Route) => (
                   <MenuItem key={String(r.id)} value={String(r.id)}>
@@ -155,7 +197,7 @@ export default function RouteSection({ event }: Props) {
         ) : (
           <Stack spacing={0.5} sx={{ mt: 2 }}>
             <Typography variant="subtitle1">
-              {currentRoute?.name ?? `Route #${event.routeId}`}
+              {currentRoute?.name ?? `Recording #${event.routeId}`}
             </Typography>
             {currentRoute ? (
               <>

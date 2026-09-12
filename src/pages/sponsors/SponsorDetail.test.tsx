@@ -59,27 +59,17 @@ afterEach(() => {
 });
 
 describe("SponsorDetail: year upsert", () => {
-  it("PUTs the four fields to /admin/sponsors/{id}/years/{eventYear}", async () => {
+  it("PUTs the six fields to /admin/sponsors/{id}/years/{eventYear}", async () => {
     const user = userEvent.setup();
     const captured: Array<{
       url: string;
-      body: {
-        amountDonated: number | null;
-        active: boolean;
-        canAdvertise: boolean;
-        anonymous: boolean;
-      };
+      body: Record<string, unknown>;
     }> = [];
     server.use(
       http.put(
         `${testConfig.apiBaseUrl}/admin/sponsors/:id/years/:eventYear`,
         async ({ request }) => {
-          const body = (await request.json()) as {
-            amountDonated: number | null;
-            active: boolean;
-            canAdvertise: boolean;
-            anonymous: boolean;
-          };
+          const body = (await request.json()) as Record<string, unknown>;
           captured.push({ url: request.url, body });
           return HttpResponse.json(f.sponsors[0]);
         }
@@ -100,13 +90,43 @@ describe("SponsorDetail: year upsert", () => {
     await waitFor(() => expect(captured.length).toBeGreaterThan(0));
     const c = captured[0]!;
     expect(c.url).toContain(`/years/2027`);
-    // The body carries the four documented fields with the switch defaults.
+    // The body carries the six documented fields with the switch defaults.
     expect(c.body).toEqual({
       amountDonated: 250,
       active: true,
       canAdvertise: true,
       anonymous: false,
+      pinnedPosition: null,
+      lingerMsOverride: null,
     });
+  });
+
+  it("rejects a lingerMsOverride outside 0..600 seconds without calling the API", async () => {
+    const user = userEvent.setup();
+    const captured: Array<Record<string, unknown>> = [];
+    server.use(
+      http.put(
+        `${testConfig.apiBaseUrl}/admin/sponsors/:id/years/:eventYear`,
+        async ({ request }) => {
+          captured.push((await request.json()) as Record<string, unknown>);
+          return HttpResponse.json(f.sponsors[0]);
+        }
+      )
+    );
+    render(<Harness id={Number(f.sponsors[0]!.id)} />);
+    await screen.findByText(f.sponsors[0]!.name!);
+    await user.click(screen.getByRole("button", { name: /add year/i }));
+    const yearInput = await screen.findByLabelText(/event year/i);
+    await user.clear(yearInput);
+    await user.type(yearInput, "2027");
+    const override = screen.getByLabelText(/tracker time override/i);
+    await user.clear(override);
+    await user.type(override, "601");
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+    expect(
+      await screen.findByText(/whole number of seconds between 0 and 600/i)
+    ).toBeInTheDocument();
+    expect(captured).toEqual([]);
   });
 });
 

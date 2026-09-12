@@ -11,6 +11,7 @@ export type Enrollment = S["EnrollmentDto"];
 export type BeaconLog = S["BeaconLogDto"];
 export type Sponsor = S["SponsorDto"];
 export type SponsorYear = S["SponsorYearDto"];
+export type SponsorOrderRow = S["SponsorOrderRowDto"];
 export type CookieType = S["CookieTypeDto"];
 export type CookieAdmin = S["CookieAdminDto"];
 export type Subscription = S["SubscriptionDto"];

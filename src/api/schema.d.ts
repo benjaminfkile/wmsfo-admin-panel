@@ -1705,6 +1705,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/sponsors/order/{eventYear}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItemsResponseOfSponsorOrderRowDto"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PutSponsorOrderRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItemsResponseOfSponsorOrderRowDto"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/cookie-types": {
         parameters: {
             query?: never;
@@ -3864,6 +3922,8 @@ export interface components {
             /** Format: int64 */
             routeId?: null | number | string;
             routeUrl?: null | string;
+            routeImageMediaId?: null | string;
+            routeImage?: null | components["schemas"]["MediaAssetDto"];
             createdBy?: string;
             /** Format: date-time */
             createdAt?: string;
@@ -4359,6 +4419,7 @@ export interface components {
             fundsPercent?: null | number | string;
             /** Format: int64 */
             routeId?: null | number | string;
+            routeImageMediaId?: null | string;
         };
         PatchPageRequest: {
             slug?: null | string;
@@ -4569,6 +4630,12 @@ export interface components {
             active?: boolean;
             canAdvertise?: boolean;
             anonymous?: boolean;
+            /** Format: int32 */
+            pinnedPosition?: null | number | string;
+            /** Format: int32 */
+            lingerMsOverride?: null | number | string;
+            /** Format: int32 */
+            lingerMs?: number | string;
             /** Format: date-time */
             registeredAt?: string;
         };
@@ -4650,6 +4717,32 @@ export interface components {
             active?: boolean;
             canAdvertise?: boolean;
             anonymous?: boolean;
+            /** Format: int32 */
+            pinnedPosition?: null | number | string;
+            /** Format: int32 */
+            lingerMsOverride?: null | number | string;
+        };
+        SponsorOrderRowDto: {
+            /** Format: int64 */
+            sponsorId?: number | string;
+            name?: string;
+            /** Format: int32 */
+            pinnedPosition?: null | number | string;
+            /** Format: double */
+            amountDonated?: unknown;
+            /** Format: int32 */
+            lingerMs?: number | string;
+            /** Format: int32 */
+            lingerMsOverride?: null | number | string;
+            logoMediaId?: null | string;
+            logo?: null | components["schemas"]["MediaAssetDto"];
+            inSnapshot?: boolean;
+        };
+        ItemsResponseOfSponsorOrderRowDto: {
+            items?: components["schemas"]["SponsorOrderRowDto"][];
+        };
+        PutSponsorOrderRequest: {
+            pinnedSponsorIds?: (number | string)[];
         };
     };
     responses: never;

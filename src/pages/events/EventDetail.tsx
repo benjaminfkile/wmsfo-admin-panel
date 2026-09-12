@@ -36,6 +36,7 @@ import {
 } from "../../lib/time";
 import MessagesSection from "./MessagesSection";
 import RouteSection from "./RouteSection";
+import RoutePosterSection from "./RoutePosterSection";
 import LocationsSection from "./LocationsSection";
 import StatusDialog from "./StatusDialog";
 
@@ -414,6 +415,9 @@ export default function EventDetail() {
 
         <Grid size={12}>
           <MessagesSection eventId={id} />
+        </Grid>
+        <Grid size={12}>
+          <RoutePosterSection event={event} />
         </Grid>
         <Grid size={12}>
           <RouteSection event={event} />

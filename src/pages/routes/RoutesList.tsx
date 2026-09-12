@@ -31,6 +31,7 @@ import { routes as routesApi } from "../../api/resources/routes";
 import type { RouteUploadBody } from "../../api/resources/routes";
 import { keys } from "../../queries/keys";
 import { ApiError } from "../../api/errors";
+import CommentBox from "../../components/CommentBox";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import { formatMt } from "../../lib/time";
@@ -112,16 +113,21 @@ export default function RoutesList() {
         alignItems="center"
         sx={{ mb: 2 }}
       >
-        <Typography variant="h4">Routes</Typography>
+        <Typography variant="h4">Flight recordings</Typography>
         <Stack direction="row" spacing={2}>
           <Button variant="outlined" onClick={() => setFromEventOpen(true)}>
             Build from event
           </Button>
           <Button variant="contained" onClick={() => setUploadOpen(true)}>
-            Upload route
+            Upload recording
           </Button>
         </Stack>
       </Stack>
+      <CommentBox>
+        Recordings of past flights. The one linked to an event is its flight
+        history on the tracker, and what Red-Nose replay and exports use. The
+        route page shows the poster on each event.
+      </CommentBox>
 
       {routesQ.error ? (
         <ErrorAlert error={routesQ.error} />
