@@ -111,11 +111,17 @@ export default function SponsorOrder() {
       lingerMsOverride: number | null;
       row: SponsorOrderRow;
     }) => {
+      const yearRow = (sponsorsQ.data?.items ?? [])
+        .find((sp) => Number(sp.id) === opts.sponsorId)
+        ?.years?.find((y) => Number(y.eventYear) === Number(year));
+      if (!yearRow) {
+        return Promise.reject(new Error("Sponsor year not loaded; reload and try again"));
+      }
       const body = {
         amountDonated: toNumberOrNull(opts.row.amountDonated),
-        active: true,
-        canAdvertise: true,
-        anonymous: false,
+        active: yearRow.active === true,
+        canAdvertise: yearRow.canAdvertise === true,
+        anonymous: yearRow.anonymous === true,
         pinnedPosition:
           opts.row.pinnedPosition === null ||
           opts.row.pinnedPosition === undefined

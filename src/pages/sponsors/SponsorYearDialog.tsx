@@ -22,6 +22,7 @@ import {
 import { settings as settingsApi } from "../../api/resources/settings";
 import { keys } from "../../queries/keys";
 import { fieldErrorFor } from "../../lib/fieldErrors";
+import { ApiError } from "../../api/errors";
 import type { Setting, SponsorYear } from "../../api/types";
 
 interface Props {
@@ -139,7 +140,11 @@ export default function SponsorYearDialog({
     onSubmit(Number(input.eventYear), toSponsorYearBody(input));
   };
 
-  const serverPinned = fieldErrorFor(error, "pinnedPosition");
+  const serverPinned =
+    fieldErrorFor(error, "pinnedPosition") ??
+    (error instanceof ApiError && error.code === "pinned_position_taken"
+      ? "Position is taken for this year; use Sponsor order to rearrange"
+      : null);
 
   return (
     <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>

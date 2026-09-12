@@ -75,9 +75,9 @@ function messageForCode(err: ApiError, ctx: MessageContext): string {
     case "route_in_use":
       return "Used by an event; unlink it there first";
     case "pinned_position_taken":
-      return "That pinned position is taken for that year; use Sponsor order to rearrange";
+      return "Position is taken for this year; use Sponsor order to rearrange";
     case "name_taken":
-      return "That name is already in use";
+      return "A key with this name exists; revoke it or pick another name";
     case "beacon_revoked":
       return "This beacon is revoked";
     case "slug_taken":
