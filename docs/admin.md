@@ -25,20 +25,19 @@ Routes and what each one calls:
 |---|---|---|
 | `/` | Dashboard | `GET /admin/events`, `GET /admin/live`, `GET <cdn>/live/location.json`, `GET /admin/snapshot`, `GET /admin/beacons`, `POST /admin/live/republish`, `POST /admin/snapshot/rebuild`, `POST /admin/events/{id}/status` |
 | `/events` | Events list | `GET /admin/events`, `GET /admin/routes`, `POST /admin/events`, `POST /admin/events/{id}/current`, `DELETE /admin/events/{id}` |
-| `/events/:id` | Event detail | `GET /admin/events/{id}`, `PATCH` (fields, `routeId`, `routeImageMediaId`), `.../status`, `.../status-history`, `.../messages` (list, post, patch, delete), `.../locations`, `GET /admin/routes`, `POST /admin/routes` |
+| `/events/:id` | Event detail | `GET /admin/events/{id}`, `PATCH` (fields, `routeId`, `routeImageMediaId`), `.../status`, `.../status-history`, `.../messages` (list, post, patch, delete), `.../locations`, `GET /admin/routes`, `POST /admin/routes`, `GET /admin/beacons` (the go-live gate) |
 | `/routes` | Flight recordings | `GET /admin/routes`, `DELETE /admin/routes/{id}` |
 | `/beacons` | Beacons list | `GET /admin/beacons`, `POST /admin/beacons`, `.../activate`, `.../deactivate`, `.../rotate`, `.../revoke` |
 | `/beacons/:id` | Beacon telemetry | `GET /admin/beacons` (shared poll), `PATCH /admin/beacons/{id}`, `GET .../logs`, `GET .../logs/{logId}` |
 | `/sponsors` | Sponsors list | `GET /admin/sponsors`, `POST /admin/sponsors` |
 | `/sponsors/order` | Sponsor order | `GET /admin/events`, `GET /admin/sponsors/order/{eventYear}`, `PUT /admin/sponsors/order/{eventYear}`, `PUT /admin/sponsors/{id}/years/{eventYear}` (time override), `GET /admin/settings` |
 | `/sponsors/:id` | Sponsor detail | `GET /admin/sponsors/{id}`, `PATCH` (fields and `logoMediaId`), `DELETE`, `PUT`/`DELETE .../years/{eventYear}` |
-| `/cookie-types` | Cookie types | `GET /admin/cookie-types`, `POST`, `PATCH .../{id}` (fields and `icon`), `GET /admin/events`, `GET /admin/icons` |
+| `/cookie-types` | Cookie types | `GET /admin/cookie-types`, `POST`, `PATCH .../{id}` (fields and `icon`), `DELETE .../{id}`, `GET /admin/events`, `GET /admin/icons` |
 | `/pages` | Pages | `GET /admin/pages`, `POST /admin/pages`, `PATCH /admin/pages/{id}`, `DELETE /admin/pages/{id}`, `PUT /admin/pages/order`, `GET /admin/content/status` |
 | `/pages/:id` | Page editor | `GET /admin/pages/{id}`, `PATCH /admin/pages/{id}`, `GET /admin/content/kinds`, `GET /admin/icons`, `POST .../sections`, `PATCH /admin/sections/{id}`, `DELETE`, `.../duplicate`, `.../move`, `PUT .../sections/order`, `POST .../items`, `PATCH /admin/items/{id}`, `DELETE`, `PUT .../items/order`, `POST /admin/content/preview-token` |
 | `/media` | Media library | `GET /admin/media`, `POST /admin/media/upload-url`, the presigned `PUT` to S3, `POST /admin/media/{id}/confirm`, `GET /admin/media/{id}`, `GET .../usage`, `PATCH`, `DELETE` |
 | `/site-settings` | Site settings | `GET /admin/site-settings`, `PUT /admin/site-settings`, `GET /admin/icons`, `POST /admin/content/preview-token` |
 | `/publish` | Publish | `GET /admin/content/status`, `POST /admin/content/publish`, `GET /admin/content/versions`, `GET .../{id}`, `POST .../{id}/restore`, `POST /admin/content/preview-token` |
-| `/cookies` | Cookie moderation | `GET /admin/events`, `GET /admin/cookie-types`, `GET /admin/events/{id}/cookies`, `POST /admin/cookies/{id}/hide`, `.../unhide`, `DELETE /admin/cookies/{id}` |
 | `/settings` | Settings | `GET /admin/settings`, `PUT /admin/settings/{key}` |
 | `/subscribers` | Subscribers | `GET /admin/subscribers/summary`, `GET /admin/subscribers`, `DELETE /admin/subscribers/{id}` |
 | `/people` | People | `GET /admin/people`, `DELETE /admin/people/{id}` |
@@ -49,6 +48,8 @@ Routes and what each one calls:
 | `/mfa-setup` | MFA setup | Cognito IdP calls (section 3.5) |
 
 Roles: a signed-in member of `editor` sees Pages, Media, Site settings, Publish, and Sponsors; a member of `admin` sees everything. The panel hides what a role cannot use and the API enforces it (`403 forbidden`).
+
+**Edit controls.** Every row the panel can edit carries an edit icon button (the MUI pencil, `aria-label="Edit <name>"`) at the right of the row that opens the same dialog or page the row's name link opens: events, flight recordings (the name is not editable, so the pencil opens the event links dialog only where one exists; otherwise the row has none), beacons, sponsors, sponsor years, cookie types, pages, media cards (opens the detail drawer), and API keys have none (a key is revoked, never edited). Names stay links as well; the pencil is the discoverable control. Row actions that change state (delete, revoke, activate) sit in a row menu next to the pencil, never as bare text.
 
 ---
 
@@ -312,7 +313,7 @@ wmsfo-admin-panel/
     main.tsx  App.tsx  config.ts  vite-env.d.ts  setupTests.ts
     auth/       userManager.ts  AuthProvider.tsx  RequireAdmin.tsx  claims.ts  signOut.ts  mfa.ts
     api/        client.ts  errors.ts  schema.d.ts (generated)  types.ts  cdn.ts
-                events.ts  routes.ts  beacons.ts  sponsors.ts  cookieTypes.ts  cookies.ts  settings.ts
+                events.ts  routes.ts  beacons.ts  sponsors.ts  cookieTypes.ts  settings.ts
                 subscribers.ts  people.ts  contactMessages.ts  snapshot.ts  live.ts
                 pages.ts  sections.ts  siteSettings.ts  content.ts  media.ts  icons.ts  upload.ts (the presigned PUT)
     queries/    keys.ts  polling.ts  useEvents.ts  useBeacons.ts  ... (one hook file per resource)
@@ -332,7 +333,7 @@ wmsfo-admin-panel/
                 routes/   RoutesList.tsx
                 beacons/  BeaconsList.tsx  BeaconDetail.tsx  BeaconCreateDialog.tsx  TelemetryPanel.tsx  BeaconLogs.tsx
                 sponsors/ SponsorsList.tsx  SponsorDetail.tsx  SponsorYearDialog.tsx  LogoSection.tsx
-                cookieTypes/CookieTypesList.tsx  cookies/CookiesModeration.tsx  settings/Settings.tsx
+                cookieTypes/CookieTypesList.tsx  settings/Settings.tsx
                 pages/    PagesList.tsx  PageCreateDialog.tsx  PageEditor.tsx  PageSettingsDialog.tsx
                 media/    MediaLibrary.tsx
                 siteSettings/SiteSettings.tsx
@@ -523,7 +524,6 @@ export type BeaconLog = S["BeaconLog"];
 export type Sponsor = S["Sponsor"];
 export type SponsorYear = S["SponsorYear"];
 export type CookieType = S["CookieType"];
-export type CookieAdmin = S["CookieAdmin"];
 export type SubscriberAdmin = S["SubscriberAdmin"];
 export type Person = S["Person"];
 export type ContactMessage = S["ContactMessage"];
@@ -565,24 +565,9 @@ export type LiveObject = {
 
 export type Heartbeat = {
   sentAt: string;
-  power: { batteryPercent: number | null; charging: boolean | null; batteryTempC: number | null;
-           thermalStatus: "none" | "light" | "moderate" | "severe" | "critical" | "emergency" | "shutdown" | "unknown" | null;
-           [k: string]: unknown } | null;
-  radio: { networkType: string | null; signalDbm: number | null; signalLevel: number | null;
-           airplaneMode: boolean | null; connected: boolean | null; [k: string]: unknown } | null;
-  gps: { provider: string | null; satellitesUsed: number | null; satellitesInView: number | null;
-         lastFixAccuracyM: number | null; lastFixAgeS: number | null; fixesLastMinute: number | null;
-         permission: { foreground: boolean | null; background: boolean | null; precise: boolean | null } | null;
-         [k: string]: unknown } | null;
-  transport: { socketState: "connected" | "connecting" | "reconnecting" | "disconnected" | null; reconnectCount: number | null;
-               httpFallbackSeconds: number | null; lastReceiptLatencyMs: number | null; sendsFailedSinceBoot: number | null;
-               [k: string]: unknown } | null;
-  process: { deviceUptimeS: number | null; serviceUptimeS: number | null; serviceRestartCount: number | null;
-             memoryPressure: "normal" | "moderate" | "low" | "critical" | "unknown" | null;
-             batteryOptimizationExempt: boolean | null; notificationPermission: boolean | null; systemApp: boolean | null; rootAvailable: boolean | null;
-             [k: string]: unknown } | null;
-  identity: { deviceModel: string | null; androidVersion: string | null; appVersion: string | null; clockSkewMs: number | null;
-              [k: string]: unknown } | null;
+  health: { batteryPercent?: number | null; lastFixAgeS?: number | null;
+            socketState?: "connected" | "connecting" | "reconnecting" | "disconnected" | null } | null;
+  debug: Record<string, unknown> | null;     // the beacon's own JSON, rendered as a tree and never read by the panel
 };
 
 export type LiveState = {
@@ -592,7 +577,7 @@ export type LiveState = {
 };
 ```
 
-The index signatures carry unknown nested telemetry keys through to the telemetry page, which renders them raw.
+`debug` is whatever the beacon sent; the beacon page renders it as a JSON tree in the panel's theme (`ThemedJsonView`) and reads nothing out of it.
 
 ### 4.2 Errors
 
@@ -709,7 +694,6 @@ export const events = {
   locations: (id: number, q: LocationsQuery) => get<Page<LocationRow>>(`/admin/events/${id}/locations`, q),
   locationsCsv: (id: number, q: Omit<LocationsQuery, "cursor" | "limit">) =>
     request<Blob>({ method: "GET", path: `/admin/events/${id}/locations`, query: q, accept: "text/csv", parse: "blob" }),
-  cookies: (id: number, q: { cursor?: string; limit?: number; includeHidden?: boolean }) => get<Page<CookieAdmin>>(`/admin/events/${id}/cookies`, q),
 };
 
 // routes.ts
@@ -728,7 +712,7 @@ export type KeyMint = { beacon: Beacon; key: string; enrollment: Enrollment };
 export const beacons = {
   list: () => get<BeaconsResponse>("/admin/beacons"),
   get: (id: number) => get<Beacon>(`/admin/beacons/${id}`),
-  create: (b: { name: string; notes: string; role: "beacon" | "admin" }) => post<KeyMint>("/admin/beacons", b),
+  create: (b: { name: string; notes: string }) => post<KeyMint>("/admin/beacons", b),
   patch: (id: number, b: Partial<{ name: string; notes: string }>) => patch<Beacon>(`/admin/beacons/${id}`, b),
   activate: (id: number) => post<Beacon>(`/admin/beacons/${id}/activate`),
   deactivate: (id: number) => post<Beacon>(`/admin/beacons/${id}/deactivate`),
@@ -768,13 +752,7 @@ export const cookieTypes = {
   list: () => get<{ items: CookieType[] }>("/admin/cookie-types"),
   create: (b: CookieTypeBody) => post<CookieType>("/admin/cookie-types", b),
   patch: (id: number, b: Partial<CookieTypeBody>) => patch<CookieType>(`/admin/cookie-types/${id}`, b),
-};
-
-// cookies.ts
-export const cookies = {
-  hide: (id: number) => post<CookieAdmin>(`/admin/cookies/${id}/hide`),
-  unhide: (id: number) => post<CookieAdmin>(`/admin/cookies/${id}/unhide`),
-  remove: (id: number) => del(`/admin/cookies/${id}`),
+  remove: (id: number) => del(`/admin/cookie-types/${id}`),
 };
 
 // settings.ts
@@ -889,7 +867,6 @@ export const keys = {
   event: (id: number) => ["events", id] as const,
   eventHistory: (id: number) => ["events", id, "history"] as const,
   eventMessages: (id: number) => ["events", id, "messages"] as const,
-  eventCookies: (id: number, includeHidden: boolean) => ["events", id, "cookies", includeHidden] as const,
   eventLocations: (id: number, q: LocationsQuery) => ["events", id, "locations", q] as const,
   routes: ["routes"] as const,
   beacons: ["beacons"] as const,
@@ -974,20 +951,18 @@ Rendering: `ok` green "CDN current, written <age> ago by <lastWriteNode>"; `behi
 
 ```ts
 // src/lib/beaconFlags.ts
-export type BeaconFlag = "battery_low" | "no_recent_fix" | "permission_missing" | "socket_down" | "stale" | "heartbeat_old";
+export type BeaconFlag = "battery_low" | "no_recent_fix" | "socket_down" | "stale" | "heartbeat_old";
 
 export function beaconFlags(b: Beacon, staleAfterS: number, anyEventLive: boolean, nowMs: number, t = thresholds): BeaconFlag[] {
   if (b.revokedAt !== null) return [];
   const f: BeaconFlag[] = [];
-  const tel = b.telemetry as Heartbeat | null;
-  const battery = tel?.power?.batteryPercent ?? null;
+  const h = (b.telemetry as Heartbeat | null)?.health ?? null;
+  const battery = h?.batteryPercent ?? null;
   if (battery !== null && battery < t.batteryLowPercent) f.push("battery_low");
-  const fixAge = tel?.gps?.lastFixAgeS ?? null;
+  const fixAge = h?.lastFixAgeS ?? null;
   const locAge = ageS(b.lastLocationAt, nowMs);
   if ((fixAge !== null && fixAge > t.noFixAgeS) || (anyEventLive && locAge !== null && locAge > t.noLocationAgeS)) f.push("no_recent_fix");
-  const p = tel?.gps?.permission ?? null;
-  if (p !== null && (p.foreground === false || p.background === false || p.precise === false)) f.push("permission_missing");
-  if (b.hubConnected === false || (b.hubConnected === null && (tel?.transport?.socketState ?? null) !== "connected")) f.push("socket_down");
+  if (b.hubConnected === false || (b.hubConnected === null && (h?.socketState ?? null) !== "connected")) f.push("socket_down");
   if (b.staleSince !== null) f.push("stale");
   const hbAge = ageS(b.lastHeartbeatAt, nowMs);
   if (hbAge !== null && hbAge > staleAfterS) f.push("heartbeat_old");
@@ -995,7 +970,7 @@ export function beaconFlags(b: Beacon, staleAfterS: number, anyEventLive: boolea
 }
 ```
 
-`anyEventLive` is `events.some(e => e.statusId === 3)` from the events list the dashboard already holds (the beacons list page fetches `keys.events` once on entry for the same purpose). `staleAfterS` comes from the beacons response. Each flag renders as a red `FlagChip` on the row and colours the underlying value red on the telemetry page. Nothing else is coloured. A shared `useNow()` hook ticks once a second so ages and flags move without a fetch.
+`anyEventLive` is `events.some(e => e.statusId === 3)` from the events list the dashboard already holds (the beacons list page fetches `keys.events` once on entry for the same purpose). `staleAfterS` comes from the beacons response. Each flag renders as a red `FlagChip` on the row and colours the underlying value red on the beacon page. Nothing else is coloured, and nothing inside `debug` is ever read. A shared `useNow()` hook ticks once a second so ages and flags move without a fetch. `Beacon.healthy` from the API is what the go-live gate uses (6.3); the flags are advisory colour.
 
 ---
 
@@ -1005,7 +980,7 @@ export function beaconFlags(b: Beacon, staleAfterS: number, anyEventLive: boolea
 
 `MainLayout` keeps the legacy structure: fixed `AppBar`, permanent `Drawer` at 220 px on `md` and up, temporary drawer below, theme toggle stored under `localStorage` key `appThemeMode` (dark default). New in the bar: `EnvBadge`, the signed-in email, and a sign-out button.
 
-Drawer entries for `admin`: Dashboard, Events, Flight recordings, Beacons, then a Content group (Pages, Media, Site settings, Publish), then Sponsors, Sponsor order, Cookie types, Cookies, Subscribers, People, Contact messages, Settings, API keys, Agents. For `editor`: Pages, Media, Site settings, Publish, Sponsors, and the editor lands on Pages. A small "Unpublished changes" dot on the Publish entry reflects `keys.contentStatus.hasUnpublishedChanges` (fetched on layout mount and after every working-set write).
+Drawer entries for `admin`: Dashboard, Events, Flight recordings, Beacons, then a Content group (Pages, Media, Site settings, Publish), then Sponsors, Sponsor order, Cookie types, Subscribers, People, Contact messages, Settings, API keys, Agents. There is no cookie view: the tally on the dashboard's live object is all the panel shows about cookies. For `editor`: Pages, Media, Site settings, Publish, Sponsors, and the editor lands on Pages. A small "Unpublished changes" dot on the Publish entry reflects `keys.contentStatus.hasUnpublishedChanges` (fetched on layout mount and after every working-set write).
 
 `EnvBadge`: an MUI `Chip` with `config.env.toUpperCase()`; colour `error` for `prod`, `success` for `dev`, `info` for `local`; tooltip shows `config.apiBaseUrl`. On `dev` and `local` the document title is prefixed `[DEV]` or `[LOCAL]`. The badge also appears on `SignIn`, `NotAdmin`, and `MfaSetup`.
 
@@ -1016,7 +991,7 @@ A global `NetworkBanner` under the bar shows "API unreachable" while the most re
 Cards, top to bottom:
 
 1. **Current event.** From `keys.events`: the event with `isCurrent`. Shows name, year, `StatusChip` (1 Planned, 2 Scheduled, 3 Live, 4 Ended, 5 Cancelled), `scheduledAt`, `wentLiveAt`, `endedAt` (Mountain time, section 7.5), `fundsPercent`, route name or "no route", and a "Change status" button that opens the same `StatusDialog` as the event page (6.3). "No current event" with a link to Events when none is flagged.
-2. **Active beacon.** From `keys.beacons`: the beacon with `isActive`. Name, role, `keyPrefix`, heartbeat age, last location age, `staleSince`, battery, socket state, fix age, permissions, with flags from 5.2. "No active beacon" in red when an event is live, grey otherwise. Link to the beacon page.
+2. **Active beacon.** From `keys.beacons`: the beacon with `isActive`. Name, `keyPrefix`, a Healthy or Unhealthy chip from `healthy`, heartbeat age, last location age, `staleSince`, hub state, and the three health values when the beacon reports them, with flags from 5.2. "No active beacon" in red when an event is live, grey otherwise. Link to the beacon page.
 3. **Published state.** Section 5.1. Also shows `lastWriteAt`, `lastWriteSeq`, `lastWriteVersion`, `lastWriteNode`, and the answering node's `instance`, `isLeader`, `leaderEvaluatedAt`, `cacheRefreshedAt` from `GET /admin/live`.
 4. **Snapshot.** `version`, `builtAt`, `s3Key`, `url` as a link, and a "Rebuild snapshot" button (`POST /admin/snapshot/rebuild`, no confirmation).
 5. **Live object.** The CDN object as a field grid: `eventId`, `eventStatusId`, `seq`, `lat`, `lng`, `speedMps`, `altitudeM`, `headingDeg`, `accuracyM`, `recordedAt`, `receivedAt`, `publishedAt` with its age, `pollIntervalMs`, `snapshotUrl` as a link, and `cookieTally` joined with `keys.cookieTypes` names when that query is loaded (fetched on entry, not polled). Below it the raw JSON in `ThemedJsonView`, and a second collapsed `ThemedJsonView` with `node.live` from `GET /admin/live` for a side-by-side check.
@@ -1025,7 +1000,7 @@ The legacy dashboard's iframe of the public site is not carried over.
 
 ### 6.3 Events
 
-**List** (`/events`): table ordered as returned (`year` desc): year, name, `StatusChip`, "Current" chip, `scheduledAt`, route (name from `keys.routes` by `routeId`, or "none"), `fundsPercent`. Row actions: open, "Set current" (hidden on the current event), delete. "New event" opens `EventCreateDialog`.
+**List** (`/events`): table ordered as returned (`year` desc): year, name, `StatusChip`, "Current" chip, `scheduledAt`, route (name from `keys.routes` by `routeId`, or "none"), `fundsPercent`. Row controls: the edit pencil (opens the detail page), then a row menu with "Set current" (hidden on the current event) and Delete. "New event" opens `EventCreateDialog`.
 
 **Create dialog**: fields `year` (number), `name`, `scheduledAt` (datetime-local, optional), `fundsPercent` (number, default 0), and a route radio group with three explicit choices:
 
@@ -1040,14 +1015,13 @@ Under the inherit choice the dialog shows what the rule selects, computed from t
 **Detail** (`/events/:id`), sections on one page:
 
 - **Details form**: `name`, `year`, `scheduledAt`, `wentLiveAt`, `endedAt`, `fundsPercent`; Save sends only changed fields as `PATCH`. The clear button on `scheduledAt` is disabled with the helper text "Required while the event is scheduled" when `statusId === 2`. Set current and Delete buttons live here with confirmations (8.3).
-- **Status**: current `StatusChip` plus one button per other status. Disabled with a tooltip: Scheduled when `scheduledAt === null` ("Set a scheduled time first"); Live when `!isCurrent` ("Set this event current first") or another event has `statusId === 3` ("<name> is live"). Clicking opens `StatusDialog` (below). Under the buttons, the status history newest first: `toStatusId`, `fromStatusId`, `changedBy`, `changedAt`.
+- **Status**: current `StatusChip` plus one button per other status. Disabled with a tooltip: Scheduled when `scheduledAt === null` ("Set a scheduled time first"); Live when `!isCurrent` ("Set this event current first"), when another event has `statusId === 3` ("<name> is live"), or when no beacon in `keys.beacons` is both `isActive` and `healthy` ("No healthy active beacon: <reason>", the reason being "none is active", "<name> is revoked", "<name> is stale since <age>", or "<name> has never been heard from"). Clicking opens `StatusDialog` (below). The API repeats the check (`409 no_healthy_beacon`, 8.2), so a beacon that goes stale between the render and the click is caught too. Under the buttons, the status history newest first: `toStatusId`, `fromStatusId`, `changedBy`, `changedAt`.
 - **Messages**: post form with `body` (multiline), `eventTime` (datetime-local, optional, with a Clear button), `notify` checkbox; list newest first showing body, `eventTime`, `createdBy`, `createdAt`, with edit (inline form for `body` and `eventTime`; `PATCH`, no notify) and delete. The legacy "prefix with date/time" option is not carried over; `eventTime` is the field for that.
 - **Route poster**: the image the public route page shows. The current `routeImage` asset (picture, filename, dimensions) or "No poster", a "Choose poster" button opening `MediaPicker` (6.15, raster only; it can upload on the spot), and "Remove poster". Both send `PATCH { routeImageMediaId }` (the asset id, or an empty string to remove; null leaves it unchanged); `409 media_not_ready` reopens the picker on that asset with its Retry. Helper text: "Shown on the route page and as the route preview. Use the highest resolution you have; the site serves smaller copies where it can."
 - **Flight history**: the recording linked here is embedded in every snapshot as the event's flight history, which the tracker's "flight history" toggle draws as the projected route; it is also what replay and exports use. Helper text: "Visitors can turn this on in the tracker menu to see the projected route. Change it any time; the site picks it up on the next snapshot." Current recording (`name`, `pointCount`, `createdAt`, `uploadedBy`, `url` as a CDN link) or "No recording". "Shared with" lists the other events whose `routeId` equals this one, from `keys.events`. Actions: Upload (opens `RouteUploadDialog`, 7.3), Choose existing (select from `keys.routes`, then `PATCH { routeId }`), Unlink (`PATCH { routeId: null }`), and "Record from this event" (`POST /admin/routes/from-event/{id}`, then `PATCH { routeId }`). A recording upload on this page is one action: `POST /admin/routes` then `PATCH /admin/events/{id} { routeId }`; a `200` from the POST is reported as "Identical recording already exists as <name>; linked that one."
 - **Locations**: filters `beaconId` (select from `keys.beacons`, any) and `publishedOnly` (switch); a paged preview table of `LocationRow` (`limit` 100); "Download CSV" calls `events.locationsCsv` with the same filters and saves `locations-<year>.csv` through `downloadBlob`. The download goes through `fetch` because the request needs the `Authorization` header.
-- **Cookies**: a link "Moderate cookies" to `/cookies?eventId=<id>`.
 
-**StatusDialog** (shared with the dashboard): title "Change status of <name>: <from> to <to>"; a `notify` checkbox (default off) with a consequence line under it: for target 2 or 3 with `notify` on, "<verified count> verified subscribers will be emailed" (count from `keys.subscribersSummary`, fetched when the dialog opens); for target 2 or 3 with `notify` off, "No email will be sent"; for other targets, "Emails go out only when entering scheduled or live". For target 3 the dialog adds the active beacon line from `keys.beacons`: "Active beacon: <name>, heartbeat <age>, stale: yes/no" or "Active beacon: none". Confirm sends `{ statusId, notify }`.
+**StatusDialog** (shared with the dashboard): title "Change status of <name>: <from> to <to>"; a `notify` checkbox (default off) with a consequence line under it: for target 2 or 3 with `notify` on, "<verified count> verified subscribers will be emailed" (count from `keys.subscribersSummary`, fetched when the dialog opens); for target 2 or 3 with `notify` off, "No email will be sent"; for other targets, "Emails go out only when entering scheduled or live". For target 3 the dialog adds the active beacon line from `keys.beacons`: "Active beacon: <name>, healthy, heartbeat <age>, hub connected/polling" or, when the gate fails, the reason in red with the confirm button disabled. Confirm sends `{ statusId, notify }`; a `409 no_healthy_beacon` answer renders `details.beacon` in the dialog and refetches beacons.
 
 ### 6.4 Flight recordings
 
@@ -1055,30 +1029,26 @@ Under the inherit choice the dialog shows what the rule selects, computed from t
 
 ### 6.5 Beacons
 
-**List** (`/beacons`, polled): table by name: name, role, `keyPrefix`, "Active" chip, flags (5.2), last seen, last heartbeat, last location as ages, revoked marker (row greyed, no flags, no actions but open). Row actions: Activate (hidden when active or revoked), Deactivate (when active), Rotate, Revoke (hidden when revoked), open. "New beacon" opens `BeaconCreateDialog`: `name`, `notes`, `role` radio (beacon, admin) with the text "Role cannot be changed later; admin unlocks Red-Nose's debug mode and log upload."
+**List** (`/beacons`, polled): table by name: name, `keyPrefix`, "Active" chip, Healthy chip (`healthy`), hub state (connected, polling, unknown), flags (5.2), last seen, last heartbeat, last location as ages, revoked marker (row greyed, no flags, no actions but open). Row controls: the edit pencil (opens the beacon page), then a row menu with Activate (hidden when active or revoked), Deactivate (when active), Rotate, Revoke (hidden when revoked). "New beacon" opens `BeaconCreateDialog`: `name` and `notes` only, with the text "A beacon is a key. Anything that holds it can post locations, heartbeats, and logs; what runs behind it is up to you."
 
 **KeyRevealDialog** (after create and after rotate): the `key` in a monospace read-only field with a Copy button; the `enrollment.qrPngDataUrl` as `<img>`; `enrollment.url` as text with Copy; a live countdown to `enrollment.expiresAt` ("QR valid for 14:32"; at zero, "QR expired. The key still works when typed by hand; rotate to mint a new QR"); the warning "This key is shown once. Store it before closing." The dialog has no backdrop close and no escape close; the only button is "I have stored the key".
 
-**Detail** (`/beacons/:id`): selects the row from `keys.beacons` (same poll as the list, `staleAfterS` included). Header: name, role, `keyPrefix`, Active chip, revoked banner with `revokedAt`, `createdBy`, `createdAt`. An edit form for `name` and `notes`. The same activate, deactivate, rotate, revoke actions. Ages block: `lastSeenAt`, `lastHeartbeatAt`, `lastLocationAt`, `staleSince`, each as an age plus the absolute Mountain time; `heartbeat_old` and `stale` flags colour these red.
+**Detail** (`/beacons/:id`): selects the row from `keys.beacons` (same poll as the list, `staleAfterS` included). Header: name, `keyPrefix`, Active chip, Healthy chip, revoked banner with `revokedAt`, `createdBy`, `createdAt`. An edit form for `name` and `notes`. The same activate, deactivate, rotate, revoke actions. Ages block: `lastSeenAt`, `lastHeartbeatAt`, `lastLocationAt`, `staleSince`, each as an age plus the absolute Mountain time; `heartbeat_old` and `stale` flags colour these red.
 
-**TelemetryPanel**: `telemetry === null` renders "No heartbeat received". Otherwise `sentAt` with its age, then six groups, every documented leaf shown with its unit, `null` rendered as "unknown":
+**TelemetryPanel**: `telemetry === null` renders "No heartbeat received". Otherwise two blocks:
 
-| Group | Leaves | Coloured by |
+| Block | Content | Coloured by |
 |---|---|---|
-| Power | `batteryPercent` %, `charging`, `batteryTempC` C, `thermalStatus` | `battery_low` on `batteryPercent` |
-| Radio | `networkType`, `signalDbm` dBm, `signalLevel`, `airplaneMode`, `connected` | none |
-| GPS | `provider`, `satellitesUsed`, `satellitesInView`, `lastFixAccuracyM` m, `lastFixAgeS` s, `fixesLastMinute`, `permission.foreground`, `.background`, `.precise` | `no_recent_fix` on `lastFixAgeS`; `permission_missing` on each false permission |
-| Transport | `socketState`, `reconnectCount`, `httpFallbackSeconds` s, `lastReceiptLatencyMs` ms, `sendsFailedSinceBoot` | `socket_down` on `hubConnected` (gateway truth), falling back to `socketState` when the gateway did not answer |
-| Process | `deviceUptimeS`, `serviceUptimeS` (rendered as d h m), `serviceRestartCount`, `memoryPressure`, `batteryOptimizationExempt`, `notificationPermission`, `systemApp`, `rootAvailable` | none |
-| Identity | `deviceModel`, `androidVersion`, `appVersion`, `clockSkewMs` ms | none |
+| Health | `sentAt` with its age; hub: connected, polling, or unknown from `hubConnected`; then each of the three `health` leaves the beacon reported (`batteryPercent` %, `lastFixAgeS` s, `socketState`), "not reported" for a missing leaf, "unknown" for null | `battery_low`, `no_recent_fix`, `socket_down` |
+| Debug | the beacon's `debug` object as a themed, collapsible JSON tree (`ThemedJsonView`, expanded two levels, copy button, search box filtering keys); "This beacon sends no debug data" when null or empty | nothing; the panel never reads it |
 
-Keys inside a group that are not in the table render below the group as "Other" in a `ThemedJsonView`. A collapsed "Raw heartbeat" `ThemedJsonView` shows the whole object.
+The panel has no idea what a beacon is, so it names nothing inside `debug`; Red-Nose's power, radio, GPS, transport, process, and identity groups appear there exactly as the phone sends them, and the simulator's or the legacy beacon's own objects the same way.
 
-**BeaconLogs** (role `admin` only): list from `GET /admin/beacons/{id}/logs` newest first (`receivedAt`, `appVersion`, `sizeBytes`); clicking a row fetches the text and shows it in a `<pre>` with a Download button (`download.ts`, `beacon-<id>-log-<logId>.txt`).
+**BeaconLogs**: list from `GET /admin/beacons/{id}/logs` newest first (`receivedAt`, `appVersion`, `sizeBytes`); clicking a row fetches the text and shows it in a `<pre>` with a Download button (`download.ts`, `beacon-<id>-log-<logId>.txt`). Shown for every beacon; "No logs uploaded" when empty.
 
 ### 6.6 Sponsors
 
-**List**: table by name: logo (the resolved `logo` asset's 480 px variant or `url`, 40 px, through `lib/mediaUrl.ts`), name, `latestYear` and years count derived from `years[]`, `websiteUrl`. "New sponsor" opens a dialog with `name` plus the seven optional fields; success navigates to the detail page.
+**List**: table by name: logo (the resolved `logo` asset's 480 px variant or `url`, 40 px, through `lib/mediaUrl.ts`), name, `latestYear` and years count derived from `years[]`, `websiteUrl`, then the edit pencil (opens the detail page) and a row menu with Delete. "New sponsor" opens a dialog with `name` plus the seven optional fields; success navigates to the detail page.
 
 **Detail**: edit form (`name`, `contactPerson`, `email`, `phone`, `address`, `websiteUrl`, `fbUrl`, `igUrl`; Save sends changed fields; empty strings become `null`). Delete sponsor with confirmation.
 
@@ -1090,13 +1060,9 @@ Keys inside a group that are not in the table render below the group as "Other" 
 
 ### 6.7 Cookie types
 
-Table ordered as returned (`sort`, `id`): icon (resolved through the icon list or the media asset, 32 px, or "none"), `name`, `sort`, `active`. Actions: edit (dialog with `name`, `sort`, `active`, and an `IconField`), and "New type" (the same dialog, `active` default on). There is no delete; `active` off removes the type from the snapshot. The icon picker offers the library and uploaded SVG assets only (`kind=svg`).
+Table ordered as returned (`sort`, `id`): icon (resolved through the icon list or the media asset, 32 px, or "none"), `name`, `sort`, `active`, `cookieCount`. Row controls: the edit pencil (dialog with `name`, `sort`, `active`, and an `IconField`) and a row menu with Delete, disabled with the tooltip "<n> cookies use this type; deactivate it instead" when `cookieCount > 0`, else confirmed ("Delete <name>? This cannot be undone.") and sent as `DELETE`; a `409 cookie_type_in_use` (the count moved) shows the same tooltip text as an alert and refetches. "New type" opens the same dialog with `active` default on. `active` off removes the type from the snapshot without deleting it. The icon picker offers the library and uploaded SVG assets only (`kind=svg`).
 
 **Locked while live**: the page fetches `keys.events` on entry. When any event has `statusId === 3`, a `CommentBox` (warning) at the top reads "Locked: <event name> is live. Cookie types can be created, edited, and deactivated again after the event ends." and every write control is disabled. A `409 event_live` from any write (the list was stale) shows the same text and refetches `keys.events`.
-
-### 6.8 Cookies moderation
-
-`/cookies` with an event selector (`keys.events`, preselected to the event flagged `isCurrent`, or to `?eventId=` when present) and an "Include hidden" switch (default on). Paged table from `GET /admin/events/{id}/cookies`: `leftAt`, type name (from `keys.cookieTypes` by `cookieTypeId`, falling back to the id), `personEmail`, `note` (full text; notes are never public), status ("hidden by <hiddenBy> at <hiddenAt>" or "visible"). Actions per row: Hide or Unhide (no confirmation; the response row replaces the cached row), Delete (confirmation). A `CommentBox` states: hidden cookies leave the public tally and still count toward the person's limit; deleted cookies do neither; moderation is allowed in any event status.
 
 ### 6.9 Settings
 
@@ -1125,7 +1091,7 @@ Header counts from `GET /admin/subscribers/summary`: verified, pending, unsubscr
 
 ### 6.13 Pages
 
-`/pages`: two lists. **Status pages**: the six role pages in status order (No event, Planned, Scheduled, Live, Ended, Cancelled), each with its title, section count, and problem count; they cannot be deleted, hidden, or renamed by role, and open the editor. **Pages**: the `none` pages in nav order with drag handles (`PUT /admin/pages/order` on drop), showing slug, title, nav label (or "not in nav"), hidden state, section count, problem count (red when non-zero). Row actions: open, page settings (`PageSettingsDialog`: `slug`, `title`, `navLabel` with an "in navigation" switch, `isHidden`; `PATCH`), delete with confirmation ("Delete <title> and its <n> sections? Links to /<slug> will stop working until you publish a page with that slug."). "New page" opens `PageCreateDialog` (`slug` auto-derived from `title` and editable, `title`, `navLabel`); success opens the editor. A `CommentBox` at the top: "Changes here are drafts until you publish."
+`/pages`: two lists. **Status pages**: the six role pages in status order (No event, Planned, Scheduled, Live, Ended, Cancelled), each with its title, section count, and problem count, and an edit pencil that opens the editor; they cannot be deleted, hidden, or renamed by role. **Pages**: the `none` pages in nav order with drag handles (`PUT /admin/pages/order` on drop), showing slug, title, nav label (or "not in nav"), hidden state, section count, problem count (red when non-zero). Row controls: the edit pencil (opens the editor), a settings icon (`PageSettingsDialog`: `slug`, `title`, `navLabel` with an "in navigation" switch, `isHidden`; `PATCH`), and a row menu with Delete, confirmed ("Delete <title> and its <n> sections? Links to /<slug> will stop working until you publish a page with that slug."). "New page" opens `PageCreateDialog` (`slug` auto-derived from `title` and editable, `title`, `navLabel`); success opens the editor. A `CommentBox` at the top: "Changes here are drafts until you publish."
 
 ### 6.14 Page editor
 
@@ -1154,7 +1120,7 @@ Everything else (strings, numbers, booleans, enums, nested objects, arrays of sc
 
 **Upload**: for each dropped file, the client pre-check (7.4: type by magic bytes, size against 20 MB or 1 MB) runs first; then `POST /admin/media/upload-url`, `uploadToS3` with a progress bar, `POST .../confirm`; the card shows pending, uploading (percent), confirming, ready, or failed with the reason and a Retry that repeats confirm (or the whole sequence when the PUT failed). Several files upload in parallel, at most three at a time. Alt and title can be typed before the upload starts and are sent on the ticket.
 
-**Card**: the 480 px variant (or the original for svg and gif), filename, dimensions, size, kind chip, state chip (pending grey, ready none, orphaned amber with "expires in N days"). Click opens `MediaDetailDrawer`: the original at full size, every variant as a link, `alt` and `title` editable (`PATCH`), a copy-URL button per variant, a `UsageList` from `GET .../usage` (draft pages as links to their editors, version count, sponsors, cookie types, site settings), and Delete. Delete is confirmed ("Delete <filename>? The file and its variants are removed from the CDN.") and refused by the API with `409 media_in_use`, which the drawer renders as "In use by:" with the usage list.
+**Card**: the 480 px variant (or the original for svg and gif), filename, dimensions, size, kind chip, a "Deep zoom" chip when `dziUrl` is set, state chip (pending grey, ready none, orphaned amber with "expires in N days"), and an edit pencil. The pencil and a click on the picture open `MediaDetailDrawer`: the original at full size, every variant and the deep-zoom descriptor as links, `alt` and `title` editable (`PATCH`), a copy-URL button per variant, a `UsageList` from `GET .../usage` (draft pages as links to their editors, version count, sponsors, cookie types, the event whose route poster it is, site settings), and Delete. Delete is confirmed ("Delete <filename>? The file and its variants are removed from the CDN.") and refused by the API with `409 media_in_use`, which the drawer renders as "In use by:" with the usage list.
 
 **`MediaPicker`** (used by `MediaField`, the sponsor logo, and cookie icons through `IconPicker`): a dialog with the same grid filtered to `state=ready` (plus the kind filter the caller passes, `svg` for icons), a search box, and an Upload tab that runs the upload flow inline and selects the asset when it is ready.
 
@@ -1182,7 +1148,7 @@ Everything else (strings, numbers, booleans, enums, nested objects, arrays of sc
 
 **List**: table newest first: name, `keyPrefix` in monospace, capabilities ("All" or the list as chips), `expiresAt` (Mountain time, or "Never"; red when past), `lastUsedAt` as an age, `createdBy`, `createdAt`, and a status chip: Active, Expired, or Revoked (revoked rows greyed). Row action: Revoke (hidden when revoked) with the confirmation "Revoke <name>? Anything using it stops working immediately." "New key" opens `ApiKeyCreateDialog`.
 
-**ApiKeyCreateDialog**: `name` (text, 1 to 100); a capability picker: an "All capabilities" checkbox that, when on, disables the individual list and sends `allCapabilities: true` with an empty `capabilities`, and otherwise a checkbox per capability from the contracts list (3.6), grouped and labelled in plain words (Events, Flight recordings, Beacons, Sponsors, Cookie types, Pages, Sections, Site settings, Publish and versions, Media, Icons, Cookie moderation, Settings, Contact messages, Subscribers, People, Diagnostics), at least one required; and `expiresAt` as a datetime-local with a "Never expires" checkbox, validated at least one hour ahead. `409 name_taken` is a field error on `name`. Success opens `KeyRevealDialog` (the same component the beacons page uses, without the QR block): the key in a monospace read-only field with Copy, the warning "This key is shown once. Store it before closing.", no backdrop or escape close, one button "I have stored the key".
+**ApiKeyCreateDialog**: `name` (text, 1 to 100); a capability picker: an "All capabilities" checkbox that, when on, disables the individual list and sends `allCapabilities: true` with an empty `capabilities`, and otherwise a checkbox per capability from the contracts list (3.6), grouped and labelled in plain words (Events, Flight recordings, Beacons, Sponsors, Cookie types, Pages, Sections, Site settings, Publish and versions, Media, Icons, Settings, Contact messages, Subscribers, People, Diagnostics), at least one required; and `expiresAt` as a datetime-local with a "Never expires" checkbox, validated at least one hour ahead. `409 name_taken` is a field error on `name`. Success opens `KeyRevealDialog` (the same component the beacons page uses, without the QR block): the key in a monospace read-only field with Copy, the warning "This key is shown once. Store it before closing.", no backdrop or escape close, one button "I have stored the key".
 
 ### 6.21 Agents
 
@@ -1221,7 +1187,6 @@ Below it the page mounts `ApiKeysList` unchanged (the same component as `/api-ke
 | Route upload | see 7.3 | | |
 | Beacon | `name` | 1 to 100 | |
 | | `notes` | 0 to 2000 | |
-| | `role` | `beacon` or `admin` | "Choose a role" |
 | Sponsor | `name` | 1 to 200 | |
 | | `websiteUrl`, `fbUrl`, `igUrl` | null, or parses with `new URL()` with protocol `http:` or `https:`, length at most 2048 | "Enter an absolute http or https URL" |
 | | `contactPerson`, `email`, `phone`, `address` | trimmed; empty becomes null | |
@@ -1244,7 +1209,19 @@ Below it the page mounts `ApiKeysList` unchanged (the same component as `/api-ke
 
 ### 7.3 Route file validation
 
-`RouteUploadDialog`: a file input (`.json`), a `name` field prefilled from the file's `name` key once parsed (editable), and a validation report. Validation runs client-side on file selection and mirrors the route object rules exactly; the API remains the authority and its `400` is shown the same way.
+`RouteUploadDialog`: a file input (`.json`), a `name` field prefilled from the file's `name` key once parsed (editable), a validation report, and, above the file input, an **Expected shape** panel that is always visible: a monospace block showing the exact JSON the dialog accepts,
+
+```json
+{
+  "name": "2025 flight",
+  "points": [
+    { "lat": 46.8721, "lng": -114.0012, "recordedAt": "2025-12-22T01:31:07Z" },
+    { "lat": 46.8730, "lng": -114.0030, "recordedAt": null }
+  ]
+}
+```
+
+followed by the rules in one line each (`name` 1 to 200 characters; `points` 2 to 50,000 in flight order; `lat` -90 to 90 and `lng` -180 to 180; `recordedAt` an RFC 3339 time or `null`; no other keys; at most 5 MB), a Copy button for the example, and a "Download example" link that saves the example as `route-example.json`. The vendored `contracts/fixtures/route.json` with `schemaVersion` removed is the source of the example, so it can never drift from the contract. Validation runs client-side on file selection and mirrors the route object rules exactly; the API remains the authority and its `400` is shown the same way.
 
 ```ts
 // src/validation/routeFile.ts
@@ -1328,6 +1305,8 @@ Every datetime input shows `formatMt(fromLocalInput(value))` as helper text so t
 | `another_event_live` | alert "Another event is live: <name>" (name from `keys.events`) |
 | `current_event_live` | alert "The current event is live. End it before changing the current event." |
 | `event_live` | cookie types: the locked banner (6.7); event delete: alert "A live event cannot be deleted" |
+| `no_healthy_beacon` | the status dialog renders `details.beacon` (name, last seen, stale since) or "No beacon is active" in red, keeps the dialog open, and refetches beacons |
+| `cookie_type_in_use` | alert "<n> cookies use this type; deactivate it instead" (n from `details.cookieCount`); refetch the list |
 | `event_has_locations` | alert "This event has recorded locations and cannot be deleted" |
 | `route_in_use` | alert "Used by <event names>; unlink it there first" |
 | `pinned_position_taken` | field error on `pinnedPosition`: "Position n is taken for <year>; use Sponsor order to rearrange" |
@@ -1358,7 +1337,7 @@ Every datetime input shows `formatMt(fromLocalInput(value))` as helper text so t
 | Status change (any target) | `StatusDialog` (6.3); for target 3 it includes the active beacon's name or "none", heartbeat age, and stale flag | "Change status" / "Set live" |
 | Set current | "Make <name> the current event? The public site switches to it on its next poll." | "Set current" |
 | Delete event | "Delete <name>? Its messages, cookies, and status history are deleted with it." | "Delete" |
-| Delete message, flight recording, sponsor, sponsor year, cookie, subscriber, person, contact message, page, section, item, media asset | "Delete <thing>? This cannot be undone." plus the specific note in 6.x where one exists | "Delete" |
+| Delete message, flight recording, sponsor, sponsor year, cookie type, subscriber, person, contact message, page, section, item, media asset | "Delete <thing>? This cannot be undone." plus the specific note in 6.x where one exists | "Delete" |
 | Revoke API key | "Revoke <name>? Anything using it stops working immediately." | "Revoke" |
 | Restore a version | "Replace the current draft with version <id>? Unpublished changes are lost. Nothing is published until you publish." | "Restore" |
 | Restore and publish | the same plus "The public site updates within its next poll." | "Restore and publish" |
@@ -1368,7 +1347,7 @@ Every datetime input shows `formatMt(fromLocalInput(value))` as helper text so t
 | Rotate key | "Rotate the key for <name>? The current key stops working immediately and the phone must be re-enrolled with the new key." plus, when `isActive` and an event is live: "Location fan-out stops until this phone is re-enrolled with the new key or another beacon is activated." | "Rotate" |
 | Revoke beacon | "Revoke <name>? This is permanent." plus, when `isActive` and an event is live: "Location fan-out stops until another beacon is activated." | "Revoke" |
 
-"An event is live" means `keys.events` contains a `statusId === 3` row at the moment the dialog opens. Republish, Rebuild snapshot, Hide, Unhide, section and item edits, and every save have no confirmation.
+"An event is live" means `keys.events` contains a `statusId === 3` row at the moment the dialog opens. Republish, Rebuild snapshot, section and item edits, and every save have no confirmation.
 
 ---
 
@@ -1382,7 +1361,7 @@ Every datetime input shows `formatMt(fromLocalInput(value))` as helper text so t
 | `validation/routeFile.test.ts` | `contracts/fixtures/route.json` with `schemaVersion` removed passes; with it present fails on `schemaVersion`; one point, 50,001 points, `lat` 91, missing `recordedAt` key, bad RFC 3339, 5 MB + 1 byte; issue paths and the `total` count |
 | `validation/image.test.ts` | magic bytes for each type, SVG with BOM and comments, a renamed PNG declared as SVG returns `png` |
 | `lib/publishedState.test.ts` | identical inputs give `[]`; each of the three mismatches; two-poll persistence; reset on a clean poll; `write_error` precedence; `cdn_unreachable` |
-| `lib/beaconFlags.test.ts` | each flag on and off; null telemetry; null permission not flagged; revoked returns `[]`; `anyEventLive` gate on `lastLocationAt` |
+| `lib/beaconFlags.test.ts` | each flag on and off; null telemetry; a missing `health` leaf is not flagged; nothing in `debug` is read (a debug object full of alarming values yields no flag); revoked returns `[]`; `anyEventLive` gate on `lastLocationAt` |
 | `lib/time.test.ts`, `lib/csv.test.ts` | conversions, `formatMt` with DST dates, RFC 4180 quoting |
 | `api/errors.test.ts` | body parse, `fields`, `retryAfterSeconds`, 405 without body |
 | `api/types.test.ts` | `contracts/fixtures/live-object.json`, `snapshot.json`, `heartbeat.json` satisfy `LiveObject`, `Snapshot`, `Heartbeat` (compile-time `satisfies` plus a runtime key check) |
@@ -1400,10 +1379,10 @@ MSW handlers in `src/test/msw/handlers.ts` serve every endpoint in 4.4 from fixt
 |---|---|
 | Auth guard | spinner while loading; `SignIn` when no user; `NoRole` for a user without a group; layout for an admin and the reduced layout for an editor; a `userLoaded` event without a group switches to `NoRole`; `403 mfa_required` switches state; `403 forbidden` shows the alert and keeps the layout |
 | Dashboard | cards render from fixtures; with fake timers, two mismatched polls render "CDN behind" and one does not; Republish calls the endpoint and invalidates; `lastWriteError` renders red |
-| Events | create dialog inherit preview names the right route; disabled reasons on status buttons; `StatusDialog` for target 3 shows the active beacon line; `409` codes map per 8.2; route upload posts then patches |
-| Beacons | create shows `KeyRevealDialog` with the key and the QR `data:` URL, and only "I have stored the key" closes it; rotate on the active beacon while live shows the fan-out sentence; telemetry colouring per flag; unknown nested keys appear under Other |
+| Events | create dialog inherit preview names the right route; disabled reasons on status buttons including the healthy-beacon reasons; `StatusDialog` for target 3 shows the active beacon line and disables confirm when no active beacon is healthy; `409 no_healthy_beacon` renders `details.beacon`; `409` codes map per 8.2; route upload posts then patches; the upload dialog shows the expected shape and its Copy and Download example work; every row has an edit pencil |
+| Beacons | create has no role field and shows `KeyRevealDialog` with the key and the QR `data:` URL, and only "I have stored the key" closes it; rotate on the active beacon while live shows the fan-out sentence; health colouring per flag; the debug object renders as a tree with its keys verbatim and the Health block shows "not reported" for absent leaves; logs render for any beacon |
 | Sponsors | year upsert sends the four fields; choosing a logo sends `PATCH { logoMediaId }`; `409 media_not_ready` reopens the picker |
-| Cookie types | banner and disabled controls when an event is live; `409 event_live` shows the banner; the icon picker offers the library and svg assets only |
+| Cookie types | banner and disabled controls when an event is live; `409 event_live` shows the banner; the icon picker offers the library and svg assets only; Delete is disabled with the count tooltip when `cookieCount > 0`, sends `DELETE` after confirmation otherwise, and `409 cookie_type_in_use` shows the alert |
 | Pages | role pages have no delete; drag reorder sends `PUT /admin/pages/order` with every `none` id; delete confirmation names the section count |
 | Page editor | palette greys a kind the page's role excludes; add section posts the kind's defaults; a debounced edit patches once; a `400` lands on the field; problems badge; duplicate, move, hide, delete; items reorder |
 | SchemaForm | every vendored kind schema renders from its defaults; each primitive `$ref` mounts its custom field; an unknown scalar field renders the default widget |
@@ -1411,7 +1390,6 @@ MSW handlers in `src/test/msw/handlers.ts` serve every endpoint in 4.4 from fixt
 | Site settings | the form renders from the vendored schema; save sends the whole document |
 | Publish | status card states; problem rows link to the editor; `content_unchanged` and `content_invalid` handling; restore confirmations; restore and publish sends two calls with the label |
 | Preview | opening mints a token and sets the frame `src` with the page; reload keeps the token; expiry mints a new one |
-| Cookies | hide and unhide replace the row; the event selector preselects the current event |
 | Settings | each key's range; `PUT` body is `{ value }` |
 | Subscribers | export follows `nextCursor` across pages and produces the documented header |
 | Errors | `requestId` renders; `details.fields` land on inputs; `rate_limited` disables the button |
@@ -1424,7 +1402,8 @@ Runs against `vite preview` on `http://localhost:5174` with the dev variables, s
 2. Create a beacon; the key dialog shows a `wbk_` key and a PNG data URL; rotate it; revoke it.
 3. Create an event with inherit; set it current; walk planned to scheduled (after setting `scheduledAt`) to live to ended through the confirmations; after each change `GET <dev cdn>/live/location.json` reports the new `eventStatusId` within 10 s.
 4. Change `poll_interval_ms`; the CDN object's `pollIntervalMs` follows within 10 s; restore it.
-5. With the event live, cookie type controls are disabled; after ended, a type can be edited.
+5. With the event live, cookie type controls are disabled; after ended, a type can be edited, a fresh type can be created and deleted, and Delete is disabled on a type with cookies.
+5a. Going live is refused while the e2e beacon is stale: the Live button carries the reason until the harness posts a heartbeat for its beacon, then the walk proceeds.
 6. Upload the vendored route fixture (with `schemaVersion` stripped by the test) to an event; the route section shows its point count.
 7. As an editor (a second dev user in group `editor` with TOTP, secrets `E2E_EDITOR_*`): the drawer shows five entries; open the about page, add a `rich_text` section with a paragraph, upload a small PNG through the media library, add a `media` section using it, preview the page in the frame and see both, publish with a label; `GET <dev cdn>/live/location.json` reports a new `snapshotUrl` within 10 s and the snapshot's `content` contains the paragraph and the media map contains the asset with three variants absent (the PNG is 400 px wide) and its `url` present; restore the previous version and publish again; delete the section and the asset (`409 media_in_use` first, then after removing the reference, `204`).
 8. As the editor, `GET /admin/events` answers `403 forbidden` and the Events route renders "Not available for your role".
@@ -1460,7 +1439,11 @@ Vercel builds `main` into production with the prod variables. A second Vercel pr
 - All displayed times are `America/Denver` labelled `MT`; inputs are `datetime-local` in the browser zone with the resulting Mountain time as helper text; no timezone variables.
 - The beacon detail page reads the polled beacons list rather than polling `GET /admin/beacons/{id}`.
 - Flags are not evaluated for revoked beacons; every flag colours red; the `anyEventLive` input to the fix rule comes from the events list.
-- Cookie moderation is one top-level view with an explicit event selector preselected to the event flagged current.
+- There is no cookie view and no moderation (2026-09-12); cookie types can be deleted while unreferenced.
+- Beacons have no role (2026-09-12); the beacon page shows a Health block from the typed core and the beacon's `debug` object as a themed JSON tree it never reads; logs show for every beacon.
+- The Live status button and dialog are gated on a healthy active beacon in the panel and by the API (2026-09-12).
+- Every editable row carries an edit pencil; state-changing actions live in a row menu (2026-09-12).
+- The flight recording upload dialog shows the expected JSON shape, built from the vendored route fixture, with Copy and Download (2026-09-12).
 - Subscriber export is built client-side by paging the list at 500 rows; no export endpoint is assumed.
 - Location CSV export goes through `fetch` with the bearer token and a Blob download, not a link.
 - Route upload validation mirrors the route object rules client-side before the POST; the route name is editable; the file's points are sent unchanged.
