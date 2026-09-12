@@ -12,6 +12,26 @@ export type BeaconLog = S["BeaconLogDto"];
 export type Sponsor = S["SponsorDto"];
 export type SponsorYear = S["SponsorYearDto"];
 export type SponsorOrderRow = S["SponsorOrderRow"];
+export type ApiKey = S["ApiKeyDto"];
+export type ApiKeyMinted = S["ApiKeyMintedDto"];
+export type ApiKeyCapability =
+  | "events"
+  | "routes"
+  | "beacons"
+  | "sponsors"
+  | "cookie_types"
+  | "pages"
+  | "sections"
+  | "site_settings"
+  | "content"
+  | "media"
+  | "icons"
+  | "cookies"
+  | "settings"
+  | "contact_messages"
+  | "subscribers"
+  | "people"
+  | "diagnostics";
 export type CookieType = S["CookieTypeDto"];
 export type CookieAdmin = S["CookieAdminDto"];
 export type Subscription = S["SubscriptionDto"];

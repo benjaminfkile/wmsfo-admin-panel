@@ -2,6 +2,7 @@
 // can import individual pieces and reason about IDs.
 
 import type {
+  ApiKey,
   Beacon,
   BeaconLog,
   ContactMessage,
@@ -530,6 +531,33 @@ export const contentBundle: ContentBundle = {
   media: {},
   icons: {},
 };
+
+export const apiKeys: ApiKey[] = [
+  {
+    id: 11,
+    name: "claude-code",
+    keyPrefix: "wak_abcdef012",
+    allCapabilities: false,
+    capabilities: ["pages", "sections", "content", "media"],
+    expiresAt: "2027-01-31T00:00:00.000Z",
+    createdBy: AUTHOR,
+    createdAt: NOW,
+    lastUsedAt: NOW,
+    revokedAt: null,
+  },
+  {
+    id: 12,
+    name: "posting-bot",
+    keyPrefix: "wak_defabc345",
+    allCapabilities: true,
+    capabilities: [],
+    expiresAt: null,
+    createdBy: AUTHOR,
+    createdAt: "2026-11-10T00:00:00.000Z",
+    lastUsedAt: null,
+    revokedAt: null,
+  },
+];
 
 export const previewToken: PreviewToken = {
   token: "wpv_" + "a".repeat(43),

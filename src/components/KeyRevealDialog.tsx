@@ -22,12 +22,15 @@ interface Props {
   open: boolean;
   title: string;
   beaconKey: string;
-  enrollment: Enrollment;
+  // When present the QR block and enrolment URL render (beacon flow,
+  // admin.md 6.5). Omit for the API key flow (admin.md 6.20).
+  enrollment?: Enrollment;
   onClose: () => void;
 }
 
-// admin.md 6.5: after create and after rotate. No backdrop close, no
-// escape close. The only button is "I have stored the key".
+// Reveal-once dialog used after minting a beacon or an API key. No
+// backdrop close, no escape close. The only button is
+// "I have stored the key".
 export default function KeyRevealDialog({
   open,
   title,
@@ -38,7 +41,7 @@ export default function KeyRevealDialog({
   const notify = useNotify();
   const now = useNow(1000);
 
-  const expiresAt = enrollment.expiresAt ?? "";
+  const expiresAt = enrollment?.expiresAt ?? "";
   const remainingS = useMemo(() => {
     if (!expiresAt) return null;
     const t = Date.parse(expiresAt);
@@ -111,7 +114,7 @@ export default function KeyRevealDialog({
             }}
             helperText={copied === "key" ? "Copied" : ""}
           />
-          {enrollment.qrPngDataUrl ? (
+          {enrollment?.qrPngDataUrl ? (
             <Box
               sx={{
                 display: "flex",
@@ -132,33 +135,37 @@ export default function KeyRevealDialog({
               />
             </Box>
           ) : null}
-          <TextField
-            label="Enrolment URL"
-            value={enrollment.url ?? ""}
-            fullWidth
-            InputProps={{
-              readOnly: true,
-              sx: { fontFamily: "Menlo, Monaco, Consolas, monospace" },
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    edge="end"
-                    aria-label="Copy enrolment URL"
-                    onClick={() => void copy("url", enrollment.url ?? "")}
-                  >
-                    <ContentCopyIcon fontSize="small" />
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-            helperText={copied === "url" ? "Copied" : ""}
-          />
-          <Typography
-            variant="body2"
-            color={remainingS !== null && remainingS <= 0 ? "error" : "text.secondary"}
-          >
-            {countdownLabel}
-          </Typography>
+          {enrollment ? (
+            <TextField
+              label="Enrolment URL"
+              value={enrollment.url ?? ""}
+              fullWidth
+              InputProps={{
+                readOnly: true,
+                sx: { fontFamily: "Menlo, Monaco, Consolas, monospace" },
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      edge="end"
+                      aria-label="Copy enrolment URL"
+                      onClick={() => void copy("url", enrollment.url ?? "")}
+                    >
+                      <ContentCopyIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              helperText={copied === "url" ? "Copied" : ""}
+            />
+          ) : null}
+          {enrollment ? (
+            <Typography
+              variant="body2"
+              color={remainingS !== null && remainingS <= 0 ? "error" : "text.secondary"}
+            >
+              {countdownLabel}
+            </Typography>
+          ) : null}
         </Stack>
       </DialogContent>
       <DialogActions>
