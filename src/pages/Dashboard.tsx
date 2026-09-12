@@ -138,18 +138,26 @@ export default function Dashboard() {
   const anyLive = eventsList.some((e) => e.statusId === 3);
 
   const previousMismatched = useRef(false);
-  const cdnStatus =
-    cdnQ.error instanceof CdnError ? cdnQ.error.status : cdnQ.error ? null : null;
+  const cdnStatus = cdnQ.error instanceof CdnError ? cdnQ.error.status : null;
+  const cdnError =
+    cdnQ.error && !(cdnQ.error instanceof CdnError)
+      ? cdnQ.error instanceof Error
+        ? cdnQ.error.message
+        : String(cdnQ.error)
+      : null;
+  const cdnPending = cdnQ.isPending;
   const resolvedPublished = useMemo(() => {
     return resolvePublishedState({
       cdn: cdnQ.data ?? null,
       cdnStatus,
+      cdnPending,
+      cdnError,
       current: currentEvent,
       snapshot: snapshotQ.data ?? null,
       state: liveQ.data ?? null,
       previousMismatched: previousMismatched.current,
     });
-  }, [cdnQ.data, cdnStatus, currentEvent, snapshotQ.data, liveQ.data]);
+  }, [cdnQ.data, cdnStatus, cdnPending, cdnError, currentEvent, snapshotQ.data, liveQ.data]);
   previousMismatched.current = resolvedPublished.mismatchedNow;
 
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -471,7 +479,12 @@ function PublishedStateCard({
           <Alert severity="error">Write error: {resolved.error}</Alert>
         ) : resolved.kind === "cdn_unreachable" ? (
           <Alert severity="warning">
-            CDN unreachable{resolved.status ? ` (HTTP ${resolved.status})` : ""}
+            CDN unreachable
+            {resolved.status
+              ? ` (HTTP ${resolved.status})`
+              : resolved.error
+                ? ` (${resolved.error})`
+                : ""}
           </Alert>
         ) : (
           <Typography variant="body2">Loading…</Typography>

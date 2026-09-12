@@ -170,7 +170,7 @@ describe("resolvePublishedState", () => {
     input.cdn = null;
     input.cdnStatus = 502;
     const r = resolvePublishedState(input);
-    expect(r.state).toEqual({ kind: "cdn_unreachable", status: 502 });
+    expect(r.state).toEqual({ kind: "cdn_unreachable", status: 502, error: null });
   });
 
   it("cdn_unreachable does not toggle the mismatched flag", () => {
@@ -188,5 +188,25 @@ describe("resolvePublishedState", () => {
     input.snapshot = null;
     const r = resolvePublishedState(input);
     expect(r.state).toEqual({ kind: "loading" });
+  });
+});
+
+describe("resolvePublishedState: first load", () => {
+  it("renders loading, not unreachable, while the CDN query is still pending", () => {
+    const input = okInput();
+    input.cdn = null;
+    input.cdnStatus = null;
+    input.cdnPending = true;
+    const r = resolvePublishedState(input);
+    expect(r.state).toEqual({ kind: "loading" });
+  });
+
+  it("carries the fetch error text when the failure had no HTTP status", () => {
+    const input = okInput();
+    input.cdn = null;
+    input.cdnStatus = null;
+    input.cdnError = "Failed to fetch";
+    const r = resolvePublishedState(input);
+    expect(r.state).toEqual({ kind: "cdn_unreachable", status: null, error: "Failed to fetch" });
   });
 });

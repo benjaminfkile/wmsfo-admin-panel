@@ -44,6 +44,7 @@ Routes and what each one calls:
 | `/people` | People | `GET /admin/people`, `DELETE /admin/people/{id}` |
 | `/contact-messages` | Contact messages | `GET /admin/contact-messages`, `DELETE /admin/contact-messages/{id}` |
 | `/api-keys` | API keys | `GET /admin/api-keys`, `POST /admin/api-keys`, `POST /admin/api-keys/{id}/revoke` |
+| `/agents` | Agents | the same three calls through the embedded keys table; the prompt is built in the panel |
 | `/auth/callback` | OIDC callback | none |
 | `/mfa-setup` | MFA setup | Cognito IdP calls (section 3.5) |
 
@@ -397,7 +398,7 @@ export function emailOf(user: User): string {
 }
 ```
 
-`user.profile` is the ID token's claim set. `cognito:groups` is the only authorization input; the panel never asks the API what the caller may do. `lib/roles.ts` maps a role to the views it may open (`editor`: pages, media, site settings, publish, sponsors, sponsor order; `admin`: all, API keys included) and the layout and the router both read it.
+`user.profile` is the ID token's claim set. `cognito:groups` is the only authorization input; the panel never asks the API what the caller may do. `lib/roles.ts` maps a role to the views it may open (`editor`: pages, media, site settings, publish, sponsors, sponsor order; `admin`: all, API keys and Agents included) and the layout and the router both read it.
 
 ### 3.3 Boot sequence and route guard
 
@@ -1004,7 +1005,7 @@ export function beaconFlags(b: Beacon, staleAfterS: number, anyEventLive: boolea
 
 `MainLayout` keeps the legacy structure: fixed `AppBar`, permanent `Drawer` at 220 px on `md` and up, temporary drawer below, theme toggle stored under `localStorage` key `appThemeMode` (dark default). New in the bar: `EnvBadge`, the signed-in email, and a sign-out button.
 
-Drawer entries for `admin`: Dashboard, Events, Flight recordings, Beacons, then a Content group (Pages, Media, Site settings, Publish), then Sponsors, Sponsor order, Cookie types, Cookies, Subscribers, People, Contact messages, Settings, API keys. For `editor`: Pages, Media, Site settings, Publish, Sponsors, and the editor lands on Pages. A small "Unpublished changes" dot on the Publish entry reflects `keys.contentStatus.hasUnpublishedChanges` (fetched on layout mount and after every working-set write).
+Drawer entries for `admin`: Dashboard, Events, Flight recordings, Beacons, then a Content group (Pages, Media, Site settings, Publish), then Sponsors, Sponsor order, Cookie types, Cookies, Subscribers, People, Contact messages, Settings, API keys, Agents. For `editor`: Pages, Media, Site settings, Publish, Sponsors, and the editor lands on Pages. A small "Unpublished changes" dot on the Publish entry reflects `keys.contentStatus.hasUnpublishedChanges` (fetched on layout mount and after every working-set write).
 
 `EnvBadge`: an MUI `Chip` with `config.env.toUpperCase()`; colour `error` for `prod`, `success` for `dev`, `info` for `local`; tooltip shows `config.apiBaseUrl`. On `dev` and `local` the document title is prefixed `[DEV]` or `[LOCAL]`. The badge also appears on `SignIn`, `NotAdmin`, and `MfaSetup`.
 
@@ -1182,6 +1183,12 @@ Everything else (strings, numbers, booleans, enums, nested objects, arrays of sc
 **List**: table newest first: name, `keyPrefix` in monospace, capabilities ("All" or the list as chips), `expiresAt` (Mountain time, or "Never"; red when past), `lastUsedAt` as an age, `createdBy`, `createdAt`, and a status chip: Active, Expired, or Revoked (revoked rows greyed). Row action: Revoke (hidden when revoked) with the confirmation "Revoke <name>? Anything using it stops working immediately." "New key" opens `ApiKeyCreateDialog`.
 
 **ApiKeyCreateDialog**: `name` (text, 1 to 100); a capability picker: an "All capabilities" checkbox that, when on, disables the individual list and sends `allCapabilities: true` with an empty `capabilities`, and otherwise a checkbox per capability from the contracts list (3.6), grouped and labelled in plain words (Events, Flight recordings, Beacons, Sponsors, Cookie types, Pages, Sections, Site settings, Publish and versions, Media, Icons, Cookie moderation, Settings, Contact messages, Subscribers, People, Diagnostics), at least one required; and `expiresAt` as a datetime-local with a "Never expires" checkbox, validated at least one hour ahead. `409 name_taken` is a field error on `name`. Success opens `KeyRevealDialog` (the same component the beacons page uses, without the QR block): the key in a monospace read-only field with Copy, the warning "This key is shown once. Store it before closing.", no backdrop or escape close, one button "I have stored the key".
+
+### 6.21 Agents
+
+`/agents`, `admin` only. The page for running an agent (Claude Code or any script) against the admin API for one session. Lead text: mint a key with only the capabilities the job needs, give the agent the key and the prompt, let it work, then revoke the key. An info block spells out the four steps (mint, hand over, work, revoke) and why revocation is the only lasting control: keys are hashed at rest, cannot mint or revoke keys, and skip the TOTP gate.
+
+Below it the page mounts `ApiKeysList` unchanged (the same component as `/api-keys`, so minting and revoking happen in place), then the **Agent prompt**: `pages/agents/agentPrompt.ts` exports `buildAgentPrompt(baseUrl)`, a plain-text guide to the API for an agent (base URL and bearer auth, the error shape and codes, paging, the working set and publish model, every endpoint group keyed by the capability that reaches it, the Cognito-only key endpoints, five workflows, and the rules: never change a status, publish, restore, delete, touch beacons, or change a setting unless asked; read `GET /admin/content/kinds` before writing data; media through the ticket flow; no em or en dashes in copy). The page renders it with `config.apiBaseUrl` filled in, in a monospace read-only block with a Copy button (a clipboard failure leaves the text on the page). The prompt is kept in step with contracts 4.5 by hand; a test asserts it names every capability group and carries no dashes.
 
 ---
 

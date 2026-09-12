@@ -37,7 +37,7 @@ export function compare(
 
 export type PublishedState =
   | { kind: "loading" }
-  | { kind: "cdn_unreachable"; status: number | null }
+  | { kind: "cdn_unreachable"; status: number | null; error?: string | null }
   | { kind: "ok" }
   | { kind: "behind"; mismatches: Mismatch[] }
   | { kind: "write_error"; error: string };
@@ -47,6 +47,11 @@ export type ResolveInput = {
   // failed (with a status when the error was an HTTP one).
   cdn: LiveObject | null;
   cdnStatus: number | null;
+  // True while the CDN query has never settled (first load): rendered as
+  // loading, not as unreachable. A settled failure without an HTTP status
+  // (network, CORS, a blocked host) carries the error text in `cdnError`.
+  cdnPending?: boolean;
+  cdnError?: string | null;
   current: Event | null;
   snapshot: SnapshotInfo | null;
   state: LiveState | null;
@@ -69,8 +74,11 @@ export type Resolved = {
 //   - A poll with no mismatch resets the flag.
 export function resolvePublishedState(input: ResolveInput): Resolved {
   if (input.cdn === null) {
+    if (input.cdnPending === true) {
+      return { state: { kind: "loading" }, mismatchedNow: input.previousMismatched };
+    }
     return {
-      state: { kind: "cdn_unreachable", status: input.cdnStatus },
+      state: { kind: "cdn_unreachable", status: input.cdnStatus, error: input.cdnError ?? null },
       // A failed CDN fetch is not a mismatch and should not toggle the flag.
       mismatchedNow: input.previousMismatched,
     };
