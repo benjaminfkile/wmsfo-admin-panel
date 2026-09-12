@@ -23,7 +23,7 @@ interface Props {
 type Stage = "intro" | "enrolling" | "ready" | "verified" | "error";
 
 export default function MfaSetup({ email }: Props) {
-  const { userManager } = useAuth();
+  const { userManager, refresh } = useAuth();
   const config = useConfig();
   const [stage, setStage] = useState<Stage>("intro");
   const [error, setError] = useState<string | null>(null);
@@ -149,10 +149,15 @@ export default function MfaSetup({ email }: Props) {
           )}
 
           {stage === "verified" && (
-            <Alert severity="success">
-              MFA is now enabled. Sign out and sign in again; the API re-checks
-              MFA status every five minutes.
-            </Alert>
+            <Stack spacing={2}>
+              <Alert severity="success">
+                MFA is now enabled. Continue to the panel; your next sign-in will
+                ask for a code from your authenticator.
+              </Alert>
+              <Button variant="contained" onClick={() => void refresh()} data-testid="mfa-continue">
+                Continue
+              </Button>
+            </Stack>
           )}
 
           <Button variant="outlined" onClick={() => signOut(userManager, config)}>

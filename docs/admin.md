@@ -495,7 +495,7 @@ export const prefer = (accessToken: string) =>
   idp<Record<string, never>>("SetUserMFAPreference", { AccessToken: accessToken, SoftwareTokenMfaSettings: { Enabled: true, PreferredMfa: true } });
 ```
 
-  Flow: `associate` returns `SecretCode`; the page renders `otpauth://totp/WMSFO%20Admin:<email>?secret=<SecretCode>&issuer=WMSFO%20Admin` as a QR (`qrcode.toDataURL`) and as text; the admin enters the six-digit code; `verify` must answer `SUCCESS`; `prefer` turns TOTP on; the page then says "Sign out and sign in again; the API re-checks MFA status every five minutes" and offers sign-out. These three calls need the access token to carry scope `aws.cognito.signin.user.admin` (item 1).
+  Flow: `associate` returns `SecretCode`; the page renders `otpauth://totp/WMSFO%20Admin:<email>?secret=<SecretCode>&issuer=WMSFO%20Admin` as a QR (`qrcode.toDataURL`) and as text; the admin enters the six-digit code; `verify` must answer `SUCCESS`; `prefer` turns TOTP on; the page then says MFA is enabled and offers Continue, which re-evaluates the stored user and opens the panel (the API admits an enrolled admin on the next request); the next sign-in asks for a code. Sign-out stays available throughout. These three calls need the access token to carry scope `aws.cognito.signin.user.admin` (item 1).
 
 ### 3.6 No-role page
 

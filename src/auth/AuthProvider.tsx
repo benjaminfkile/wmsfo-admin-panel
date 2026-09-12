@@ -15,6 +15,9 @@ export type AuthContextValue = {
   userManager: UserManager;
   requireMfa: () => void;
   reset: () => void;
+  // Re-evaluate the stored user (after TOTP enrolment): member, no_role, or
+  // signed_out, without a round trip through the hosted UI.
+  refresh: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -111,6 +114,10 @@ export default function AuthProvider({ userManager, children }: Props) {
         setState({ kind: "mfa_required", email });
       },
       reset: () => setState({ kind: "loading" }),
+      refresh: async () => {
+        const u = await userManager.getUser().catch(() => null);
+        setState(u ? evaluate(u) : { kind: "signed_out", returnTo: currentReturnTo() });
+      },
     }),
     [state, userManager]
   );
