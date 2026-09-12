@@ -176,8 +176,8 @@ The prefix changes from `REACT_APP_` to `VITE_` and access changes from `process
 | `VITE_ENV` | `prod` | `dev` (`local` when the API runs on this machine) |
 | `VITE_API_BASE_URL` | `https://<api-domain>` | dev `https://<api-domain>` |
 | `VITE_CDN_BASE_URL` | `https://<cdn-domain>` | dev `https://<cdn-domain>` |
-| `VITE_COGNITO_AUTHORITY` | `https://cognito-idp.<region>.amazonaws.com/<pool-id>` (prod pool) | same shape, dev pool |
-| `VITE_COGNITO_DOMAIN` | `https://<cognito-domain>` | dev hosted UI domain |
+| `VITE_COGNITO_AUTHORITY` | `https://cognito-idp.<region>.amazonaws.com/<admin-pool-id>` (the prod admin pool; the panel never talks to the people pool) | same shape, the dev admin pool |
+| `VITE_COGNITO_DOMAIN` | `https://<cognito-domain>` (the admin pool's managed login domain) | the dev admin pool's domain |
 | `VITE_COGNITO_CLIENT_ID` | `<admin-client-id>` | dev `<admin-client-id>` |
 
 `.env.example` lists the six names with empty values and is committed; `.env.local` is ignored. The legacy variables `REACT_APP_API_URL`, `REACT_APP_ENVIRONMENT`, `REACT_APP_IFRAME_SOURCE`, `REACT_APP_FORCED_TIMEZONE`, `REACT_APP_FORCED_TIME_ABBR` are removed.
@@ -469,7 +469,7 @@ export async function signOut(um: UserManager, c: Config): Promise<void> {
 
 ### 3.5 MFA
 
-The pool's MFA setting is optional with TOTP; every member of `admin` or `editor` has TOTP enabled on their user, and the API enforces it by answering `403 mfa_required` after `AdminGetUser`). The panel's part:
+The admin pool's MFA setting is optional with TOTP; every member of `admin` or `editor` has TOTP enabled on their user, and the API enforces it by answering `403 mfa_required` after `AdminGetUser` on the admin pool. The panel's part:
 
 - Any response with `code: "mfa_required"` sets state `mfa_required`; the layout is replaced by `MfaSetup` until the next sign-in.
 - `MfaSetup` shows who is signed in, why the panel is blocked (TOTP is not enabled on this account), and a sign-out button.
