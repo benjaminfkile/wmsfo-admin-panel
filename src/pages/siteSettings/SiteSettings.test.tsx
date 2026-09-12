@@ -48,10 +48,8 @@ const FULL_DRAFT = {
   logo: null,
   favicon: null,
   theme: {
-    accent: "red",
-    surface: "night",
-    fontPairing: "classic",
     snowDefault: false,
+    lightsDefault: true,
   },
   navExtraLinks: [],
   footerLinks: [],
@@ -85,22 +83,18 @@ afterEach(() => {
 });
 
 describe("SiteSettings", () => {
-  it("renders the form from the vendored schema (theme swatches present)", async () => {
+  it("renders the form from the vendored schema (two theme switches)", async () => {
     render(<Harness />);
     await waitFor(() =>
       expect(screen.getByTestId("theme-field")).toBeInTheDocument()
     );
-    // Accent swatches for the enum values.
-    expect(screen.getByTestId("theme-accent-red")).toBeInTheDocument();
-    expect(screen.getByTestId("theme-accent-green")).toBeInTheDocument();
-    expect(screen.getByTestId("theme-accent-gold")).toBeInTheDocument();
-    expect(screen.getByTestId("theme-accent-blue")).toBeInTheDocument();
-    // Surface swatches.
-    expect(screen.getByTestId("theme-surface-night")).toBeInTheDocument();
-    expect(screen.getByTestId("theme-surface-snow")).toBeInTheDocument();
-    expect(screen.getByTestId("theme-surface-forest")).toBeInTheDocument();
-    // Snow default switch.
+    // The theme field carries only the two documented switches.
     expect(screen.getByTestId("theme-snow-default")).toBeInTheDocument();
+    expect(screen.getByTestId("theme-lights-default")).toBeInTheDocument();
+    // The removed accent, surface, and font-pairing controls are gone.
+    expect(screen.queryByTestId("theme-accent-blue")).toBeNull();
+    expect(screen.queryByTestId("theme-surface-night")).toBeNull();
+    expect(screen.queryByTestId("theme-font-pairing")).toBeNull();
   });
 
   it("save sends the whole document with PUT", async () => {
@@ -124,8 +118,9 @@ describe("SiteSettings", () => {
     await waitFor(() =>
       expect(screen.getByTestId("theme-field")).toBeInTheDocument()
     );
-    // Change the theme accent, which triggers a form onChange and dirties.
-    await user.click(screen.getByTestId("theme-accent-blue"));
+    // Flip the snow-default switch: this triggers onChange and dirties.
+    const snow = screen.getByTestId("theme-snow-default").querySelector("input");
+    if (snow) await user.click(snow);
     const save = await screen.findByTestId("site-settings-save");
     await waitFor(() => expect(save).not.toBeDisabled());
     await user.click(save);
@@ -136,9 +131,9 @@ describe("SiteSettings", () => {
     for (const key of Object.keys(FULL_DRAFT)) {
       expect(body?.data).toHaveProperty(key);
     }
-    // The accent change is reflected.
-    const theme = body?.data?.theme as { accent?: string } | undefined;
-    expect(theme?.accent).toBe("blue");
+    // The snow default flip is reflected.
+    const theme = body?.data?.theme as { snowDefault?: boolean } | undefined;
+    expect(theme?.snowDefault).toBe(true);
   });
 
   it("renders problems from the draft response", async () => {

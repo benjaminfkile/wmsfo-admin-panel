@@ -13,6 +13,7 @@ import BeaconDetail from "./pages/beacons/BeaconDetail";
 import MediaLibrary from "./pages/media/MediaLibrary";
 import SponsorsList from "./pages/sponsors/SponsorsList";
 import SponsorDetail from "./pages/sponsors/SponsorDetail";
+import SponsorOrder from "./pages/sponsors/SponsorOrder";
 import CookieTypesList from "./pages/cookieTypes/CookieTypesList";
 import CookiesModeration from "./pages/cookies/CookiesModeration";
 import Settings from "./pages/settings/Settings";
@@ -60,6 +61,7 @@ const CUSTOM_ELEMENTS: Partial<Record<NavKey, ReactElement>> = {
   beacons: <BeaconsList />,
   media: <MediaLibrary />,
   sponsors: <SponsorsList />,
+  "sponsors-order": <SponsorOrder />,
   "cookie-types": <CookieTypesList />,
   cookies: <CookiesModeration />,
   settings: <Settings />,

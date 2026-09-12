@@ -74,6 +74,10 @@ function messageForCode(err: ApiError, ctx: MessageContext): string {
       return "This event has recorded locations and cannot be deleted";
     case "route_in_use":
       return "Used by an event; unlink it there first";
+    case "pinned_position_taken":
+      return "That pinned position is taken for that year; use Sponsor order to rearrange";
+    case "name_taken":
+      return "That name is already in use";
     case "beacon_revoked":
       return "This beacon is revoked";
     case "slug_taken":

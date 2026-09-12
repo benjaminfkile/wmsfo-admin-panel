@@ -10,6 +10,7 @@ export type NavKey =
   | "site-settings"
   | "publish"
   | "sponsors"
+  | "sponsors-order"
   | "cookie-types"
   | "cookies"
   | "subscribers"
@@ -27,6 +28,7 @@ export const ADMIN_NAV: NavKey[] = [
   "site-settings",
   "publish",
   "sponsors",
+  "sponsors-order",
   "cookie-types",
   "cookies",
   "subscribers",
@@ -41,6 +43,7 @@ export const EDITOR_NAV: NavKey[] = [
   "site-settings",
   "publish",
   "sponsors",
+  "sponsors-order",
 ];
 
 export function navFor(role: Role): NavKey[] {

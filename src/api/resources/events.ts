@@ -26,6 +26,7 @@ export type PatchEventBody = Partial<{
   endedAt: string | null;
   fundsPercent: number;
   routeId: number | null;
+  routeImageMediaId: string;
 }>;
 
 export type StatusBody = { statusId: StatusId; notify: boolean };

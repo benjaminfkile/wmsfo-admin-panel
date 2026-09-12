@@ -1,5 +1,5 @@
 import { del, get, patch, post, put } from "../client";
-import type { Sponsor } from "../types";
+import type { Sponsor, SponsorOrderRow } from "../types";
 
 export type SponsorBody = { name: string } & Partial<
   Record<
@@ -20,6 +20,8 @@ export type SponsorYearBody = {
   active: boolean;
   canAdvertise: boolean;
   anonymous: boolean;
+  pinnedPosition: number | null;
+  lingerMsOverride: number | null;
 };
 
 export const sponsors = {
@@ -33,4 +35,11 @@ export const sponsors = {
     put<Sponsor>(`/admin/sponsors/${id}/years/${eventYear}`, b),
   deleteYear: (id: number, eventYear: number) =>
     del(`/admin/sponsors/${id}/years/${eventYear}`),
+  order: (eventYear: number) =>
+    get<{ items: SponsorOrderRow[] }>(`/admin/sponsors/order/${eventYear}`),
+  putOrder: (eventYear: number, pinnedSponsorIds: number[]) =>
+    put<{ items: SponsorOrderRow[] }>(
+      `/admin/sponsors/order/${eventYear}`,
+      { pinnedSponsorIds }
+    ),
 };

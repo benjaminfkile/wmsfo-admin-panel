@@ -107,13 +107,14 @@ describe("Auth guard", () => {
     for (const label of [
       "Dashboard",
       "Events",
-      "Routes",
+      "Flight recordings",
       "Beacons",
       "Pages",
       "Media",
       "Site settings",
       "Publish",
       "Sponsors",
+      "Sponsor order",
       "Cookie types",
       "Cookies",
       "Subscribers",
@@ -127,7 +128,7 @@ describe("Auth guard", () => {
     }
   });
 
-  it("renders exactly five drawer entries for an editor", async () => {
+  it("renders the editor's drawer entries", async () => {
     const um = makeFakeUserManager(
       makeUser({
         email: "editor@example.com",
@@ -136,13 +137,20 @@ describe("Auth guard", () => {
     );
     render(<Harness userManager={um} />);
     await screen.findAllByText("Pages");
-    for (const label of ["Pages", "Media", "Site settings", "Publish", "Sponsors"]) {
+    for (const label of [
+      "Pages",
+      "Media",
+      "Site settings",
+      "Publish",
+      "Sponsors",
+      "Sponsor order",
+    ]) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
     for (const forbidden of [
       "Dashboard",
       "Events",
-      "Routes",
+      "Flight recordings",
       "Beacons",
       "Cookie types",
       "Cookies",

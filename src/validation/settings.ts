@@ -5,7 +5,8 @@ export type SettingKey =
   | "cookie_limit_per_person"
   | "sponsor_linger_ms_per_dollar"
   | "sponsor_linger_min_ms"
-  | "beacon_stale_after_s";
+  | "beacon_stale_after_s"
+  | "flight_history_max_points";
 
 export type SettingSpec = {
   key: SettingKey;
@@ -58,6 +59,15 @@ export const SETTING_SPECS: SettingSpec[] = [
     unit: "s",
     min: 15,
     max: 3600,
+  },
+  {
+    key: "flight_history_max_points",
+    label: "flight_history_max_points",
+    description:
+      "Most points of the flight history carried in the snapshot (longer recordings are thinned)",
+    unit: "",
+    min: 100,
+    max: 50000,
   },
 ];
 

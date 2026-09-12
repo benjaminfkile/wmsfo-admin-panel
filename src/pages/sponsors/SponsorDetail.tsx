@@ -38,6 +38,19 @@ import type { Sponsor, SponsorYear } from "../../api/types";
 import SponsorYearDialog from "./SponsorYearDialog";
 import LogoSection from "./LogoSection";
 
+function trackerTimeCell(y: SponsorYear): string {
+  const linger = y.lingerMs;
+  const seconds =
+    linger === null || linger === undefined
+      ? "unknown"
+      : `${(Number(linger) / 1000).toFixed(1)} s`;
+  const override =
+    y.lingerMsOverride !== null && y.lingerMsOverride !== undefined
+      ? " (override)"
+      : "";
+  return `${seconds}${override}`;
+}
+
 const FIELDS: { key: SponsorField; label: string; required?: boolean }[] = [
   { key: "name", label: "Name", required: true },
   { key: "contactPerson", label: "Contact person" },
@@ -142,6 +155,8 @@ export default function SponsorDetail() {
         active: boolean;
         canAdvertise: boolean;
         anonymous: boolean;
+        pinnedPosition: number | null;
+        lingerMsOverride: number | null;
       };
     }) => sponsorsApi.putYear(sponsorId, eventYear, body),
     onSuccess: (s) => {
@@ -290,6 +305,8 @@ export default function SponsorDetail() {
                   <TableCell>Active</TableCell>
                   <TableCell>Can advertise</TableCell>
                   <TableCell>Anonymous</TableCell>
+                  <TableCell>Tracker time</TableCell>
+                  <TableCell>Pinned</TableCell>
                   <TableCell>Registered</TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
@@ -297,7 +314,7 @@ export default function SponsorDetail() {
               <TableBody>
                 {years.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7}>
+                    <TableCell colSpan={9}>
                       <Typography variant="body2" color="text.secondary">
                         No years yet.
                       </Typography>
@@ -318,6 +335,15 @@ export default function SponsorDetail() {
                       <TableCell>{y.active ? "yes" : "no"}</TableCell>
                       <TableCell>{y.canAdvertise ? "yes" : "no"}</TableCell>
                       <TableCell>{y.anonymous ? "yes" : "no"}</TableCell>
+                      <TableCell>
+                        {trackerTimeCell(y)}
+                      </TableCell>
+                      <TableCell>
+                        {y.pinnedPosition === null ||
+                        y.pinnedPosition === undefined
+                          ? "no"
+                          : `#${y.pinnedPosition}`}
+                      </TableCell>
                       <TableCell>{formatMt(y.registeredAt) || "none"}</TableCell>
                       <TableCell align="right">
                         <IconButton

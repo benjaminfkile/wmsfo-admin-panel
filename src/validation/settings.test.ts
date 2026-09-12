@@ -2,13 +2,14 @@ import { describe, expect, it } from "vitest";
 import { SETTING_SPECS, specFor, validateSettingValue } from "./settings";
 
 describe("SETTING_SPECS", () => {
-  it("lists the five documented keys in the documented order", () => {
+  it("lists the six documented keys in the documented order", () => {
     expect(SETTING_SPECS.map((s) => s.key)).toEqual([
       "poll_interval_ms",
       "cookie_limit_per_person",
       "sponsor_linger_ms_per_dollar",
       "sponsor_linger_min_ms",
       "beacon_stale_after_s",
+      "flight_history_max_points",
     ]);
   });
 });
