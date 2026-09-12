@@ -3913,6 +3913,20 @@ export interface components {
             hiddenAt?: null | string;
             hiddenBy?: null | string;
         };
+        CookieLeft: {
+            /** Format: int64 */
+            id?: number | string;
+            /** Format: int64 */
+            cookieTypeId?: number | string;
+            /** Format: date-time */
+            leftAt?: string;
+        };
+        CookiePick: {
+            /** Format: int64 */
+            cookieTypeId?: number | string;
+            /** Format: int32 */
+            count?: number | string;
+        };
         CookieTypeDto: {
             /** Format: int64 */
             id?: number | string;
@@ -3939,22 +3953,17 @@ export interface components {
             role?: string;
         };
         CreateCookieRequest: {
-            /** Format: int64 */
-            cookieTypeId?: number | string;
+            items?: components["schemas"]["CookiePick"][];
             note?: null | string;
         };
         CreateCookieResponse: {
             /** Format: int64 */
-            id?: number | string;
-            /** Format: int64 */
             eventId?: number | string;
-            /** Format: int64 */
-            cookieTypeId?: number | string;
-            note?: null | string;
-            /** Format: date-time */
-            leftAt?: string;
+            /** Format: int32 */
+            left?: number | string;
             /** Format: int32 */
             remaining?: number | string;
+            cookies?: components["schemas"]["CookieLeft"][];
         };
         CreateCookieTypeRequest: {
             name?: string;
