@@ -24,6 +24,7 @@ import PagesList from "./pages/pages/PagesList";
 import PageEditor from "./pages/pages/PageEditor";
 import SiteSettings from "./pages/siteSettings/SiteSettings";
 import Publish from "./pages/publish/Publish";
+import ApiKeysList from "./pages/apiKeys/ApiKeysList";
 import { NotifyProvider } from "./hooks/useNotify";
 import { ALL_ROUTES } from "./routesConfig";
 import { canAccess } from "./lib/roles";
@@ -71,6 +72,7 @@ const CUSTOM_ELEMENTS: Partial<Record<NavKey, ReactElement>> = {
   pages: <PagesList />,
   "site-settings": <SiteSettings />,
   publish: <Publish />,
+  "api-keys": <ApiKeysList />,
 };
 
 function elementFor(role: Role, key: NavKey, label: string): ReactElement {

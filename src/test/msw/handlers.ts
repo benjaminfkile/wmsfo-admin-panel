@@ -270,6 +270,23 @@ export const handlers: HttpHandler[] = [
   http.patch("*/admin/media/:id", () => HttpResponse.json(f.mediaAssets[0])),
   http.delete("*/admin/media/:id", () => new HttpResponse(null, { status: 204 })),
 
+  // API keys
+  http.get("*/admin/api-keys", () =>
+    HttpResponse.json({ items: f.apiKeys })
+  ),
+  http.post("*/admin/api-keys", () =>
+    HttpResponse.json(
+      {
+        ...f.apiKeys[0],
+        key: "wak_" + "a".repeat(43),
+      },
+      { status: 201 }
+    )
+  ),
+  http.post("*/admin/api-keys/:id/revoke", () =>
+    HttpResponse.json({ ...f.apiKeys[0], revokedAt: "2026-12-22T02:00:00.000Z" })
+  ),
+
   // CDN read (not an admin API path but the panel dashboard fetches it)
   http.get("*/live/location.json", () => HttpResponse.json(f.liveObject)),
 ];
