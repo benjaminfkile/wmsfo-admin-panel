@@ -1727,7 +1727,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ItemsResponseOfSponsorOrderRowDto"];
+                        "application/json": components["schemas"]["ItemsResponseOfSponsorOrderRow"];
                     };
                 };
             };
@@ -1741,7 +1741,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["PutSponsorOrderRequest"];
+                    "application/json": components["schemas"]["SponsorOrderRequest"];
                 };
             };
             responses: {
@@ -1751,7 +1751,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ItemsResponseOfSponsorOrderRowDto"];
+                        "application/json": components["schemas"]["ItemsResponseOfSponsorOrderRow"];
                     };
                 };
             };
@@ -3386,6 +3386,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItemsResponseOfApiKeyDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateApiKeyRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiKeyMintedDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/api-keys/{id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiKeyDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/realtime/authorize": {
         parameters: {
             query?: never;
@@ -3629,6 +3722,41 @@ export interface components {
             lastWriteNode?: null | string;
             node?: components["schemas"]["AdminLiveNode"];
         };
+        ApiKeyDto: {
+            /** Format: int64 */
+            id?: number | string;
+            name?: string;
+            keyPrefix?: string;
+            allCapabilities?: boolean;
+            capabilities?: string[];
+            /** Format: date-time */
+            expiresAt?: null | string;
+            createdBy?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            lastUsedAt?: null | string;
+            /** Format: date-time */
+            revokedAt?: null | string;
+        };
+        ApiKeyMintedDto: {
+            /** Format: int64 */
+            id?: number | string;
+            name?: string;
+            keyPrefix?: string;
+            allCapabilities?: boolean;
+            capabilities?: string[];
+            /** Format: date-time */
+            expiresAt?: null | string;
+            createdBy?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            lastUsedAt?: null | string;
+            /** Format: date-time */
+            revokedAt?: null | string;
+            key?: string;
+        };
         BeaconDto: {
             /** Format: int64 */
             id?: number | string;
@@ -3797,6 +3925,13 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
+        };
+        CreateApiKeyRequest: {
+            name?: null | string;
+            allCapabilities?: null | boolean;
+            capabilities?: null | string[];
+            /** Format: date-time */
+            expiresAt?: null | string;
         };
         CreateBeaconRequest: {
             name?: string;
@@ -4046,6 +4181,9 @@ export interface components {
         ItemOrderRequest: {
             ids?: (number | string)[];
         };
+        ItemsResponseOfApiKeyDto: {
+            items?: components["schemas"]["ApiKeyDto"][];
+        };
         ItemsResponseOfBeaconLogDto: {
             items?: components["schemas"]["BeaconLogDto"][];
         };
@@ -4078,6 +4216,9 @@ export interface components {
         };
         ItemsResponseOfSponsorDto: {
             items?: components["schemas"]["SponsorDto"][];
+        };
+        ItemsResponseOfSponsorOrderRow: {
+            items?: components["schemas"]["SponsorOrderRow"][];
         };
         ItemsResponseOfStatusHistoryDto: {
             items?: components["schemas"]["StatusHistoryDto"][];
@@ -4622,6 +4763,23 @@ export interface components {
             /** Format: date-time */
             updatedAt?: string;
         };
+        SponsorOrderRequest: {
+            pinnedSponsorIds?: (number | string)[];
+        };
+        SponsorOrderRow: {
+            /** Format: int64 */
+            sponsorId?: number | string;
+            name?: string;
+            /** Format: int32 */
+            pinnedPosition?: null | number | string;
+            /** Format: double */
+            amountDonated?: unknown;
+            /** Format: int32 */
+            lingerMs?: number | string;
+            /** Format: int32 */
+            lingerMsOverride?: null | number | string;
+            inSnapshot?: boolean;
+        };
         SponsorYearDto: {
             /** Format: int32 */
             eventYear?: number | string;
@@ -4721,28 +4879,6 @@ export interface components {
             pinnedPosition?: null | number | string;
             /** Format: int32 */
             lingerMsOverride?: null | number | string;
-        };
-        SponsorOrderRowDto: {
-            /** Format: int64 */
-            sponsorId?: number | string;
-            name?: string;
-            /** Format: int32 */
-            pinnedPosition?: null | number | string;
-            /** Format: double */
-            amountDonated?: unknown;
-            /** Format: int32 */
-            lingerMs?: number | string;
-            /** Format: int32 */
-            lingerMsOverride?: null | number | string;
-            logoMediaId?: null | string;
-            logo?: null | components["schemas"]["MediaAssetDto"];
-            inSnapshot?: boolean;
-        };
-        ItemsResponseOfSponsorOrderRowDto: {
-            items?: components["schemas"]["SponsorOrderRowDto"][];
-        };
-        PutSponsorOrderRequest: {
-            pinnedSponsorIds?: (number | string)[];
         };
     };
     responses: never;

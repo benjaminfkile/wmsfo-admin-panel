@@ -1156,7 +1156,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ItemsResponseOfSponsorOrderRowDto"
+                  "$ref": "#/components/schemas/ItemsResponseOfSponsorOrderRow"
                 }
               }
             }
@@ -1171,7 +1171,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PutSponsorOrderRequest"
+                "$ref": "#/components/schemas/SponsorOrderRequest"
               }
             }
           },
@@ -1183,7 +1183,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ItemsResponseOfSponsorOrderRowDto"
+                  "$ref": "#/components/schemas/ItemsResponseOfSponsorOrderRow"
                 }
               }
             }
@@ -2218,6 +2218,71 @@
         }
       }
     },
+    "/admin/api-keys": {
+      "get": {
+        "tags": [
+          "AdminApiKeys"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemsResponseOfApiKeyDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "AdminApiKeys"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyMintedDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/api-keys/{id}/revoke": {
+      "post": {
+        "tags": [
+          "AdminApiKeys"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/realtime/authorize": {
       "post": {
         "tags": [
@@ -2428,6 +2493,121 @@
           },
           "node": {
             "$ref": "#/components/schemas/AdminLiveNode"
+          }
+        }
+      },
+      "ApiKeyDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "keyPrefix": {
+            "type": "string"
+          },
+          "allCapabilities": {
+            "type": "boolean"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastUsedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "revokedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "ApiKeyMintedDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "keyPrefix": {
+            "type": "string"
+          },
+          "allCapabilities": {
+            "type": "boolean"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "expiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastUsedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "revokedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "key": {
+            "type": "string"
           }
         }
       },
@@ -2985,6 +3165,39 @@
           },
           "updatedAt": {
             "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreateApiKeyRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "allCapabilities": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "capabilities": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "expiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           }
         }
@@ -3973,6 +4186,17 @@
           }
         }
       },
+      "ItemsResponseOfApiKeyDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiKeyDto"
+            }
+          }
+        }
+      },
       "ItemsResponseOfBeaconLogDto": {
         "type": "object",
         "properties": {
@@ -4090,6 +4314,17 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SponsorDto"
+            }
+          }
+        }
+      },
+      "ItemsResponseOfSponsorOrderRow": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SponsorOrderRow"
             }
           }
         }
@@ -6121,6 +6356,70 @@
           }
         }
       },
+      "SponsorOrderRequest": {
+        "type": "object",
+        "properties": {
+          "pinnedSponsorIds": {
+            "type": "array",
+            "items": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            }
+          }
+        }
+      },
+      "SponsorOrderRow": {
+        "type": "object",
+        "properties": {
+          "sponsorId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "pinnedPosition": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "amountDonated": {
+            "format": "double"
+          },
+          "lingerMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "lingerMsOverride": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "inSnapshot": {
+            "type": "boolean"
+          }
+        }
+      },
       "SponsorYearDto": {
         "type": "object",
         "properties": {
@@ -6432,97 +6731,6 @@
             "format": "int32"
           }
         }
-      },
-      "SponsorOrderRowDto": {
-        "type": "object",
-        "properties": {
-          "sponsorId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "name": {
-            "type": "string"
-          },
-          "pinnedPosition": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "amountDonated": {
-            "format": "double"
-          },
-          "lingerMs": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "lingerMsOverride": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "logoMediaId": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "logo": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/MediaAssetDto"
-              }
-            ]
-          },
-          "inSnapshot": {
-            "type": "boolean"
-          }
-        }
-      },
-      "ItemsResponseOfSponsorOrderRowDto": {
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/SponsorOrderRowDto"
-            }
-          }
-        }
-      },
-      "PutSponsorOrderRequest": {
-        "type": "object",
-        "properties": {
-          "pinnedSponsorIds": {
-            "type": "array",
-            "items": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int64"
-            }
-          }
-        }
       }
     }
   },
@@ -6580,6 +6788,9 @@
     },
     {
       "name": "AdminInbox"
+    },
+    {
+      "name": "AdminApiKeys"
     },
     {
       "name": "Realtime"
