@@ -6,6 +6,7 @@ import type { Config } from "./config";
 import AuthProvider, { useAuth } from "./auth/AuthProvider";
 import { ConfigProvider } from "./ConfigContext";
 import { installClient } from "./api/client";
+import { installCdn } from "./api/cdn";
 import AppRoutes from "./AppRoutes";
 import { buildTheme, type AppThemeMode } from "./theme/theme";
 import { getStoredTheme, setStoredTheme } from "./theme/themeStorage";
@@ -62,6 +63,7 @@ function ClientInstaller({ config, userManager }: ClientInstallerProps) {
   const { requireMfa } = useAuth();
   useEffect(() => {
     installClient({ config, userManager, onMfaRequired: requireMfa });
+    installCdn({ cdnBaseUrl: config.cdnBaseUrl });
   }, [config, userManager, requireMfa]);
   return null;
 }
