@@ -18,6 +18,7 @@ import { settings as settingsApi } from "../../api/resources/settings";
 import { keys } from "../../queries/keys";
 import CommentBox from "../../components/CommentBox";
 import ErrorAlert from "../../components/ErrorAlert";
+import AuditCell from "../../components/audit/AuditCell";
 import { useNotify } from "../../hooks/useNotify";
 import { formatMt } from "../../lib/time";
 import {
@@ -67,6 +68,7 @@ export default function Settings() {
                 <TableCell>Updated by</TableCell>
                 <TableCell>Updated at</TableCell>
                 <TableCell align="right">Save</TableCell>
+                <TableCell align="right">Audit</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -180,6 +182,13 @@ function SettingRow({ setting }: { setting: Setting }) {
           </Button>
         </Box>
       </TableCell>
+      <AuditCell
+        entity="setting"
+        entityId={setting.key ?? ""}
+        name={setting.key ?? "setting"}
+        audit={setting.audit}
+        align="right"
+      />
     </TableRow>
   );
 }

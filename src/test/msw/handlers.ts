@@ -303,6 +303,36 @@ export const handlers: HttpHandler[] = [
     HttpResponse.json({ ...f.apiKeys[0], revokedAt: "2026-12-22T02:00:00.000Z" })
   ),
 
+  // Audit
+  http.get("*/admin/audit", ({ request }) => {
+    const url = new URL(request.url);
+    const entity = url.searchParams.get("entity");
+    const entityId = url.searchParams.get("entityId");
+    const action = url.searchParams.get("action");
+    const actor = url.searchParams.get("actor");
+    const filtered = f.auditEntries.filter((e) => {
+      if (entity && e.entity !== entity) return false;
+      if (entityId && String(e.entityId) !== entityId) return false;
+      if (action && e.action !== action) return false;
+      if (actor && !(e.actor ?? "").toLowerCase().includes(actor.toLowerCase()))
+        return false;
+      return true;
+    });
+    return HttpResponse.json({ items: filtered, nextCursor: null });
+  }),
+  http.get("*/admin/audit/entities", () =>
+    HttpResponse.json({
+      items: [
+        "event",
+        "sponsor",
+        "beacon",
+        "cookie_type",
+        "page",
+        "api_key",
+      ],
+    })
+  ),
+
   // CDN read (not an admin API path but the panel dashboard fetches it)
   http.get("*/live/location.json", () => HttpResponse.json(f.liveObject)),
 ];

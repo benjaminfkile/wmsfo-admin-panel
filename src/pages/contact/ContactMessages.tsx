@@ -24,6 +24,7 @@ import { contactMessages as contactMessagesApi } from "../../api/resources/conta
 import { keys } from "../../queries/keys";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
+import AuditCell from "../../components/audit/AuditCell";
 import { useNotify } from "../../hooks/useNotify";
 import { formatMt } from "../../lib/time";
 import type { ContactMessage } from "../../api/types";
@@ -76,12 +77,13 @@ export default function ContactMessages() {
               <TableCell>Body</TableCell>
               <TableCell>Client IP</TableCell>
               <TableCell align="right">Actions</TableCell>
+              <TableCell align="right">Audit</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6}>
+                <TableCell colSpan={7}>
                   <Typography variant="body2" color="text.secondary">
                     No contact messages.
                   </Typography>
@@ -124,6 +126,13 @@ export default function ContactMessages() {
                       </IconButton>
                     </Stack>
                   </TableCell>
+                  <AuditCell
+                    entity="contact_message"
+                    entityId={m.id ?? ""}
+                    name={m.name ?? "contact message"}
+                    audit={m.audit}
+                    align="right"
+                  />
                 </TableRow>
               ))
             )}

@@ -34,6 +34,7 @@ import { keys } from "../../queries/keys";
 import { polled } from "../../queries/polling";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
+import AuditCell from "../../components/audit/AuditCell";
 import FlagChip from "../../components/FlagChip";
 import KeyRevealDialog from "../../components/KeyRevealDialog";
 import { useNotify } from "../../hooks/useNotify";
@@ -217,12 +218,13 @@ export default function BeaconsList() {
                   <TableCell>Last heartbeat</TableCell>
                   <TableCell>Last location</TableCell>
                   <TableCell align="right">Actions</TableCell>
+                  <TableCell align="right">Audit</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {activeBeacons.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10}>
+                    <TableCell colSpan={11}>
                       <Typography variant="body2" color="text.secondary">
                         No beacons yet.
                       </Typography>
@@ -320,6 +322,13 @@ export default function BeaconsList() {
                             </IconButton>
                           </Stack>
                         </TableCell>
+                        <AuditCell
+                          entity="beacon"
+                          entityId={b.id ?? ""}
+                          name={b.name ?? "beacon"}
+                          audit={b.audit}
+                          align="right"
+                        />
                       </TableRow>
                     );
                   })
@@ -428,6 +437,13 @@ export default function BeaconsList() {
                               <EditIcon fontSize="small" />
                             </IconButton>
                           </TableCell>
+                          <AuditCell
+                            entity="beacon"
+                            entityId={b.id ?? ""}
+                            name={b.name ?? "beacon"}
+                            audit={b.audit}
+                            align="right"
+                          />
                         </TableRow>
                       ))}
                     </TableBody>

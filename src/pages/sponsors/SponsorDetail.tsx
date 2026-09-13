@@ -31,6 +31,7 @@ import { events as eventsApi } from "../../api/resources/events";
 import { keys } from "../../queries/keys";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
+import AuditCell from "../../components/audit/AuditCell";
 import { ApiError } from "../../api/errors";
 import { useNotify } from "../../hooks/useNotify";
 import { formatMt } from "../../lib/time";
@@ -366,12 +367,13 @@ export default function SponsorDetail() {
                   <TableCell>Pinned</TableCell>
                   <TableCell>Registered</TableCell>
                   <TableCell align="right">Actions</TableCell>
+                  <TableCell align="right">Audit</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {years.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9}>
+                    <TableCell colSpan={10}>
                       <Typography variant="body2" color="text.secondary">
                         No years yet.
                       </Typography>
@@ -423,6 +425,13 @@ export default function SponsorDetail() {
                           <MoreVertIcon fontSize="small" />
                         </IconButton>
                       </TableCell>
+                      <AuditCell
+                        entity="sponsor_year"
+                        entityId={String(y.eventYear)}
+                        name={`sponsor year ${y.eventYear ?? ""}`}
+                        audit={null}
+                        align="right"
+                      />
                     </TableRow>
                   ))
                 )}

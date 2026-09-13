@@ -3,6 +3,7 @@
 
 import type {
   ApiKey,
+  AuditEntry,
   Beacon,
   BeaconLog,
   ContactMessage,
@@ -203,6 +204,49 @@ export const sponsors: Sponsor[] = [
     ],
     createdAt: NOW,
     updatedAt: NOW,
+    audit: {
+      action: "update",
+      by: "person:" + AUTHOR,
+      at: NOW,
+    },
+  },
+];
+
+// Sample audit entries served by /admin/audit. Newest first; the
+// cursor pages through them in blocks the handler slices below.
+export const auditEntries: AuditEntry[] = [
+  {
+    id: 900,
+    at: NOW,
+    actor: "person:" + AUTHOR,
+    action: "update",
+    entity: "sponsor",
+    entityId: "4",
+    before: { name: "Old Bakery", email: "old@example.com" },
+    after: { name: "Example Bakery", email: "hello@example.com" },
+    requestId: "req-900",
+  },
+  {
+    id: 899,
+    at: "2026-12-21T22:00:00.000Z",
+    actor: "person:" + AUTHOR,
+    action: "create",
+    entity: "sponsor",
+    entityId: "4",
+    before: null,
+    after: { name: "Old Bakery", email: "old@example.com" },
+    requestId: "req-899",
+  },
+  {
+    id: 898,
+    at: "2026-12-21T21:00:00.000Z",
+    actor: "person:" + AUTHOR,
+    action: "delete",
+    entity: "cookie_type",
+    entityId: "42",
+    before: { name: "Snickerdoodle", sort: 30, active: true },
+    after: null,
+    requestId: "req-898",
   },
 ];
 

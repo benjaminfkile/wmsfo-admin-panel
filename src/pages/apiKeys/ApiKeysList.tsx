@@ -23,6 +23,7 @@ import type { ApiKeyCreateBody } from "../../api/resources/apiKeys";
 import { keys } from "../../queries/keys";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
+import AuditCell from "../../components/audit/AuditCell";
 import KeyRevealDialog from "../../components/KeyRevealDialog";
 import { useNotify } from "../../hooks/useNotify";
 import { useNow } from "../../hooks/useNow";
@@ -131,12 +132,13 @@ export default function ApiKeysList() {
                 <TableCell>Created</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell align="right">Actions</TableCell>
+                <TableCell align="right">Audit</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9}>
+                  <TableCell colSpan={10}>
                     <Typography variant="body2" color="text.secondary">
                       No keys yet.
                     </Typography>
@@ -224,6 +226,13 @@ export default function ApiKeysList() {
                           </IconButton>
                         ) : null}
                       </TableCell>
+                      <AuditCell
+                        entity="api_key"
+                        entityId={k.id ?? ""}
+                        name={`key ${k.name ?? "key"}`}
+                        audit={k.audit}
+                        align="right"
+                      />
                     </TableRow>
                   );
                 })

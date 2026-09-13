@@ -17,7 +17,8 @@ export type NavKey =
   | "contact-messages"
   | "settings"
   | "api-keys"
-  | "agents";
+  | "agents"
+  | "audit";
 
 export const ADMIN_NAV: NavKey[] = [
   "dashboard",
@@ -37,6 +38,7 @@ export const ADMIN_NAV: NavKey[] = [
   "settings",
   "api-keys",
   "agents",
+  "audit",
 ];
 
 export const EDITOR_NAV: NavKey[] = [
@@ -46,6 +48,7 @@ export const EDITOR_NAV: NavKey[] = [
   "publish",
   "sponsors",
   "sponsors-order",
+  "audit",
 ];
 
 export function navFor(role: Role): NavKey[] {

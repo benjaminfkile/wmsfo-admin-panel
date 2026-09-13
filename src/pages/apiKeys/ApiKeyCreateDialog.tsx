@@ -43,6 +43,7 @@ export const CAPABILITY_LABELS: ReadonlyArray<{
   { value: "subscribers", label: "Subscribers" },
   { value: "people", label: "People" },
   { value: "diagnostics", label: "Diagnostics" },
+  { value: "audit", label: "Audit" },
 ];
 
 interface Props {

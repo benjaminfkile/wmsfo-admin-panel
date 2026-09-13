@@ -30,6 +30,7 @@ import {
 import { keys } from "../../queries/keys";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
+import AuditCell from "../../components/audit/AuditCell";
 import { useNotify } from "../../hooks/useNotify";
 import { csvFromRecords } from "../../lib/csv";
 import { downloadCsv } from "../../lib/download";
@@ -203,12 +204,13 @@ export default function Subscribers() {
               <TableCell>Unsubscribed at</TableCell>
               <TableCell>Created at</TableCell>
               <TableCell align="right">Actions</TableCell>
+              <TableCell align="right">Audit</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={8}>
                   <Typography variant="body2" color="text.secondary">
                     No subscribers.
                   </Typography>
@@ -236,6 +238,13 @@ export default function Subscribers() {
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
+                  <AuditCell
+                    entity="subscriber"
+                    entityId={s.id ?? ""}
+                    name={s.personEmail ?? "subscriber"}
+                    audit={s.audit}
+                    align="right"
+                  />
                 </TableRow>
               ))
             )}
