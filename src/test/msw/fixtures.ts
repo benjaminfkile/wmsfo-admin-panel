@@ -115,6 +115,9 @@ export const statusHistory: StatusHistory[] = [
     toStatusId: 3,
     changedBy: AUTHOR,
     changedAt: "2026-12-22T01:02:11.000Z",
+    notify: true,
+    message: null,
+    sentCount: 42,
   },
 ];
 

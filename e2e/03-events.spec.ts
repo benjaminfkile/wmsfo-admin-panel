@@ -107,29 +107,35 @@ test.describe("events lifecycle", () => {
     await page.getByRole("button", { name: /^save$/i }).click();
 
     await page.getByRole("button", { name: /^scheduled$/i }).click();
-    await page
-      .getByRole("dialog")
-      .getByRole("button", { name: /^change status$/i })
-      .click();
+    await changeWithoutNotifying(page);
     await waitForCdnJson<Live>(cdnUrl, (j) => j.eventStatusId === 2);
 
     await page.getByRole("button", { name: /^live$/i }).click();
-    await page
-      .getByRole("dialog")
-      .getByRole("button", { name: /^set live$/i })
-      .click();
+    await changeWithoutNotifying(page);
     await waitForCdnJson<Live>(cdnUrl, (j) => j.eventStatusId === 3);
 
     await page.getByRole("button", { name: /^ended$/i }).click();
-    await page
-      .getByRole("dialog")
-      .getByRole("button", { name: /^change status$/i })
-      .click();
+    await changeWithoutNotifying(page);
     await waitForCdnJson<Live>(cdnUrl, (j) => j.eventStatusId === 4);
 
     await expect(page.getByText(/ended/i).first()).toBeVisible();
   });
 });
+
+// Confirm the status change through StatusDialog's silent path (admin.md
+// 6.3): press "Change without notifying", then confirm the nested
+// dialog.
+async function changeWithoutNotifying(page: Page): Promise<void> {
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /^change without notifying$/i })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /^change without notifying$/i })
+    .click();
+  await expect(page.getByRole("dialog")).toBeHidden();
+}
 
 // Delete every event row whose name matches, through the row's actions
 // menu (Delete lives in the row menu per M19, admin.md 1) and its

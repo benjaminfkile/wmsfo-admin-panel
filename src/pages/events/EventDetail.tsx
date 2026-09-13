@@ -7,6 +7,11 @@ import {
   CardContent,
   Grid,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
   TextField,
   Tooltip,
   Typography,
@@ -25,6 +30,8 @@ import { STATUS_IDS, statusName } from "../../lib/statusNames";
 import { useNotify } from "../../hooks/useNotify";
 import { useNow } from "../../hooks/useNow";
 import {
+  ageS,
+  formatAgeS,
   fromLocalInputValue,
   formatMt,
   toLocalInputValue,
@@ -34,6 +41,7 @@ import RouteSection from "./RouteSection";
 import RoutePosterSection from "./RoutePosterSection";
 import LocationsSection from "./LocationsSection";
 import StatusDialog from "./StatusDialog";
+import NotifyDialog from "./NotifyDialog";
 
 export default function EventDetail() {
   const params = useParams<{ id: string }>();
@@ -75,10 +83,12 @@ export default function EventDetail() {
     mutationFn: ({
       statusId,
       doNotify,
+      message,
     }: {
       statusId: StatusId;
       doNotify: boolean;
-    }) => eventsApi.setStatus(id, { statusId, notify: doNotify }),
+      message: string | null;
+    }) => eventsApi.setStatus(id, { statusId, notify: doNotify, message }),
     onSuccess: () => {
       notify("Status changed");
       void qc.invalidateQueries({ queryKey: keys.event(id) });
@@ -89,6 +99,17 @@ export default function EventDetail() {
       notify(e instanceof Error ? e.message : "Status change failed", "error");
       void qc.invalidateQueries({ queryKey: keys.beacons });
     },
+  });
+
+  const notifyMut = useMutation({
+    mutationFn: (message: string | null) => eventsApi.notify(id, { message }),
+    onSuccess: () => {
+      notify("Subscribers notified");
+      void qc.invalidateQueries({ queryKey: keys.event(id) });
+      void qc.invalidateQueries({ queryKey: keys.eventHistory(id) });
+    },
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Notify failed", "error"),
   });
 
   const setCurrentMut = useMutation({
@@ -110,6 +131,7 @@ export default function EventDetail() {
 
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [statusTarget, setStatusTarget] = useState<StatusId | null>(null);
+  const [notifyDialogOpen, setNotifyDialogOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmCurrent, setConfirmCurrent] = useState(false);
 
@@ -377,6 +399,34 @@ export default function EventDetail() {
                   current
                 </Box>
               </Stack>
+              {event.statusNotifiedAt ? (
+                <Typography variant="body2" sx={{ mb: 2 }} color="text.secondary">
+                  Subscribers were notified{" "}
+                  {formatAgeS(ageS(event.statusNotifiedAt, now)) || "just now"}{" "}
+                  ago
+                </Typography>
+              ) : (
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  spacing={2}
+                  sx={{ mb: 2 }}
+                >
+                  <Typography variant="body2" color="warning.main">
+                    Nobody was notified of {statusName(currentStatusId)}
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => {
+                      notifyMut.reset();
+                      setNotifyDialogOpen(true);
+                    }}
+                  >
+                    Notify subscribers
+                  </Button>
+                </Stack>
+              )}
               {statusMut.error ? (
                 <ErrorAlert error={statusMut.error} />
               ) : null}
@@ -411,21 +461,62 @@ export default function EventDetail() {
                 History
               </Typography>
               {historyQ.data?.items && historyQ.data.items.length > 0 ? (
-                <Box component="ul" sx={{ pl: 3, m: 0 }}>
-                  {[...historyQ.data.items]
-                    .sort((a, b) =>
-                      (a.changedAt ?? "") < (b.changedAt ?? "") ? 1 : -1
-                    )
-                    .map((h) => (
-                      <li key={String(h.id)}>
-                        <Typography variant="body2">
-                          {statusName(Number(h.fromStatusId))} →{" "}
-                          {statusName(Number(h.toStatusId))} by {h.changedBy}{" "}
-                          on {formatMt(h.changedAt)}
-                        </Typography>
-                      </li>
-                    ))}
-                </Box>
+                <Table size="small" data-testid="status-history">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Change</TableCell>
+                      <TableCell>Who</TableCell>
+                      <TableCell>When</TableCell>
+                      <TableCell>Notified</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {[...historyQ.data.items]
+                      .sort((a, b) =>
+                        (a.changedAt ?? "") < (b.changedAt ?? "") ? 1 : -1
+                      )
+                      .map((h) => {
+                        const from = Number(h.fromStatusId);
+                        const to = Number(h.toStatusId);
+                        const same = from === to;
+                        const notified = h.notify === true;
+                        const excerpt =
+                          h.message && h.message.length > 0
+                            ? h.message.slice(0, 60)
+                            : null;
+                        return (
+                          <TableRow key={String(h.id)}>
+                            <TableCell>
+                              {same
+                                ? "announced again"
+                                : `${statusName(from)} → ${statusName(to)}`}
+                            </TableCell>
+                            <TableCell>{h.changedBy}</TableCell>
+                            <TableCell>{formatMt(h.changedAt)}</TableCell>
+                            <TableCell>
+                              {notified ? (
+                                <>
+                                  <Typography variant="body2">
+                                    Yes · {String(h.sentCount ?? 0)} sent
+                                  </Typography>
+                                  {excerpt ? (
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                    >
+                                      {excerpt}
+                                    </Typography>
+                                  ) : null}
+                                </>
+                              ) : (
+                                "No"
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                  </TableBody>
+                </Table>
               ) : (
                 <Typography variant="body2" color="text.secondary">
                   No history yet.
@@ -464,9 +555,9 @@ export default function EventDetail() {
             statusMut.reset();
             setStatusDialogOpen(false);
           }}
-          onConfirm={(doNotify) => {
+          onConfirm={({ notify: doNotify, message }) => {
             statusMut.mutate(
-              { statusId: statusTarget, doNotify },
+              { statusId: statusTarget, doNotify, message },
               {
                 onSuccess: () => {
                   statusMut.reset();
@@ -477,6 +568,25 @@ export default function EventDetail() {
           }}
         />
       ) : null}
+
+      <NotifyDialog
+        open={notifyDialogOpen}
+        event={event}
+        confirming={notifyMut.isPending}
+        error={notifyMut.error}
+        onCancel={() => {
+          notifyMut.reset();
+          setNotifyDialogOpen(false);
+        }}
+        onConfirm={(message) => {
+          notifyMut.mutate(message, {
+            onSuccess: () => {
+              notifyMut.reset();
+              setNotifyDialogOpen(false);
+            },
+          });
+        }}
+      />
 
       <ConfirmDialog
         open={confirmCurrent}

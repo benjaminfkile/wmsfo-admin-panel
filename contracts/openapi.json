@@ -354,6 +354,25 @@
         }
       }
     },
+    "/me/alerts": {
+      "get": {
+        "tags": [
+          "Me"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemsResponseOfAlertItemDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/me/cookies": {
       "get": {
         "tags": [
@@ -541,6 +560,64 @@
         "responses": {
           "200": {
             "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/events/{id}/notify": {
+      "post": {
+        "tags": [
+          "AdminEvents"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotifyStatusRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/events/{id}/clone": {
+      "post": {
+        "tags": [
+          "AdminEvents"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloneEventRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
             "content": {
               "application/json": {
                 "schema": {
@@ -1122,6 +1199,54 @@
         "responses": {
           "204": {
             "description": "No Content"
+          }
+        }
+      }
+    },
+    "/admin/sponsors/{id}/years/{eventYear}/copy-from/{sourceYear}": {
+      "post": {
+        "tags": [
+          "AdminSponsors"
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SponsorYearDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/sponsors/import": {
+      "post": {
+        "tags": [
+          "AdminSponsors"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SponsorImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SponsorImportResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -2224,6 +2349,44 @@
         }
       }
     },
+    "/admin/audit": {
+      "get": {
+        "tags": [
+          "AdminAudit"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageResponseOfAuditEntryDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/audit/entities": {
+      "get": {
+        "tags": [
+          "AdminAudit"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemsResponseOfstring"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/realtime/authorize": {
       "post": {
         "tags": [
@@ -2437,6 +2600,69 @@
           }
         }
       },
+      "AlertItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "subscriptionId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "address": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "eventId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "eventName": {
+            "type": "string"
+          },
+          "statusId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "messageId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "ApiKeyDto": {
         "type": "object",
         "properties": {
@@ -2490,6 +2716,16 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
           }
         }
       },
@@ -2547,8 +2783,88 @@
             ],
             "format": "date-time"
           },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
+          },
           "key": {
             "type": "string"
+          }
+        }
+      },
+      "AuditEntryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actor": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "entity": {
+            "type": "string"
+          },
+          "entityId": {
+            "type": "string"
+          },
+          "before": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
+          "after": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
+          "requestId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "AuditStampDto": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "by": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -2639,6 +2955,16 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
           }
         }
       },
@@ -2789,6 +3115,52 @@
           },
           "notify": {
             "type": "boolean"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CloneEventCopy": {
+        "type": "object",
+        "properties": {
+          "sponsors": {
+            "type": "boolean"
+          },
+          "route": {
+            "type": "boolean"
+          },
+          "poster": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CloneEventRequest": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "copy": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CloneEventCopy"
+              }
+            ]
           }
         }
       },
@@ -2818,6 +3190,16 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
           }
         }
       },
@@ -2996,6 +3378,16 @@
               "string"
             ],
             "format": "int32"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
           }
         }
       },
@@ -3095,6 +3487,16 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
           }
         }
       },
@@ -3546,6 +3948,13 @@
             ],
             "format": "date-time"
           },
+          "statusNotifiedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
           "fundsPercent": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -3595,6 +4004,16 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
           }
         }
       },
@@ -3637,6 +4056,16 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
           }
         }
       },
@@ -3776,6 +4205,17 @@
                 "string"
               ],
               "format": "int64"
+            }
+          }
+        }
+      },
+      "ItemsResponseOfAlertItemDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AlertItemDto"
             }
           }
         }
@@ -3930,6 +4370,17 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/StatusHistoryDto"
+            }
+          }
+        }
+      },
+      "ItemsResponseOfstring": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           }
         }
@@ -4403,6 +4854,16 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
           }
         }
       },
@@ -4802,6 +5263,17 @@
           }
         }
       },
+      "NotifyStatusRequest": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "PageAdminDto": {
         "type": "object",
         "properties": {
@@ -4868,6 +5340,16 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
           }
         }
       },
@@ -4959,6 +5441,23 @@
               ],
               "format": "int64"
             }
+          }
+        }
+      },
+      "PageResponseOfAuditEntryDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEntryDto"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -5353,6 +5852,16 @@
           "lastSeenAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
           }
         }
       },
@@ -5385,6 +5894,16 @@
               "string"
             ],
             "format": "int32"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
           }
         }
       },
@@ -5443,6 +5962,16 @@
           "expiresAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
           }
         }
       },
@@ -5597,6 +6126,16 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
           }
         }
       },
@@ -5693,6 +6232,16 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
           }
         }
       },
@@ -5741,6 +6290,16 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
           }
         }
       },
@@ -5781,6 +6340,16 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
           }
         }
       },
@@ -5935,6 +6504,69 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
+          }
+        }
+      },
+      "SponsorImportRequest": {
+        "type": "object",
+        "properties": {
+          "fromYear": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "toYear": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sponsorIds": {
+            "type": "array",
+            "items": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            }
+          }
+        }
+      },
+      "SponsorImportResponse": {
+        "type": "object",
+        "properties": {
+          "created": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "skipped": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -6099,6 +6731,23 @@
           "changedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "notify": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sentCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -6147,6 +6796,16 @@
           },
           "personEmail": {
             "type": "string"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
           }
         }
       },
@@ -6370,6 +7029,9 @@
     },
     {
       "name": "AdminApiKeys"
+    },
+    {
+      "name": "AdminAudit"
     },
     {
       "name": "Realtime"

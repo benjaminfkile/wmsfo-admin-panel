@@ -119,11 +119,13 @@ export default function Dashboard() {
       id,
       statusId,
       notify: doNotify,
+      message,
     }: {
       id: number;
       statusId: 1 | 2 | 3 | 4 | 5;
       notify: boolean;
-    }) => eventsApi.setStatus(id, { statusId, notify: doNotify }),
+      message: string | null;
+    }) => eventsApi.setStatus(id, { statusId, notify: doNotify, message }),
     onSuccess: () => {
       notify("Status changed");
       invalidateAll();
@@ -264,9 +266,14 @@ export default function Dashboard() {
             setStatusMut.reset();
             setStatusDialogOpen(false);
           }}
-          onConfirm={(notifyValue) => {
+          onConfirm={({ notify: notifyValue, message }) => {
             setStatusMut.mutate(
-              { id: Number(currentEvent.id), statusId: statusTarget, notify: notifyValue },
+              {
+                id: Number(currentEvent.id),
+                statusId: statusTarget,
+                notify: notifyValue,
+                message,
+              },
               {
                 onSuccess: () => {
                   setStatusMut.reset();
