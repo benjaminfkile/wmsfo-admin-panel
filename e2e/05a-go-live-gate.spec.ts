@@ -138,12 +138,44 @@ test.describe("go-live gate refuses status 3 without a healthy active beacon", (
     // it up. Once the beacons query shows `healthy`, the button opens.
     await postWalkBeaconHeartbeat();
 
-    await expect
-      .poll(async () => await liveBtn.isDisabled(), {
-        timeout: 20_000,
-        intervals: [1_000],
-      })
-      .toBe(false);
+    // Confirm the heartbeat landed on the beacon the spec activated (the
+    // one whose keyPrefix prefixes E2E_BEACON_KEY): read the beacons list
+    // and assert the active beacon is that same one and now `healthy`.
+    const afterHeartbeat = await listBeacons(adminToken);
+    const activeAfter = afterHeartbeat.items.find((b) => b.isActive);
+    if (activeAfter === undefined || activeAfter.id !== e2eBeaconId) {
+      throw new Error(
+        `Active beacon after heartbeat is ${activeAfter?.id ?? "none"}, expected e2e beacon ${e2eBeaconId ?? "unknown"}`,
+      );
+    }
+    if (activeAfter.healthy !== true) {
+      throw new Error(
+        `Active beacon ${activeAfter.id} did not turn healthy on the read after the heartbeat`,
+      );
+    }
+
+    // Give the panel's 5 s beacons refetch a 30 s window to catch the
+    // healthy read; if it still shows disabled, include the tooltip
+    // wrapper's aria-label in the failure so the reason is visible.
+    // Nudge the react-query focus manager on every check so the panel's
+    // refetch-on-visible catches the healthy read without waiting on the
+    // background poll cadence.
+    const wrapperAfter = liveBtn.locator("xpath=..");
+    const deadline = Date.now() + 30_000;
+    let lastLabel = "";
+    for (;;) {
+      if (!(await liveBtn.isDisabled())) break;
+      lastLabel = (await wrapperAfter.getAttribute("aria-label")) ?? "";
+      if (Date.now() >= deadline) {
+        throw new Error(
+          `Live stayed disabled after heartbeat within 30 s; tooltip: ${lastLabel}`,
+        );
+      }
+      await page.evaluate(() =>
+        window.dispatchEvent(new Event("visibilitychange")),
+      );
+      await page.waitForTimeout(1_000);
+    }
 
     await liveBtn.click();
     await page

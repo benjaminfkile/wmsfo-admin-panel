@@ -103,7 +103,7 @@ test.describe("editor authoring flow", () => {
     await addMediaSection(page, draftRe);
 
     await page.getByRole("link", { name: "Media", exact: true }).click();
-    await page.getByRole("button", { name: draftRe }).first().click();
+    await page.getByTestId(/^media-card-/).filter({ hasText: draftRe }).first().click();
     await page.getByRole("button", { name: /^delete$/i }).click();
     await page
       .getByRole("dialog", { name: /delete media asset/i })
@@ -117,13 +117,22 @@ test.describe("editor authoring flow", () => {
     await deleteLastSection(page);
 
     await page.getByRole("link", { name: "Media", exact: true }).click();
-    await expect(page.getByRole("button", { name: draftRe }).first()).toBeVisible();
+    await expect(
+      page.getByTestId(/^media-card-/).filter({ hasText: draftRe }).first(),
+    ).toBeVisible();
     await deleteAssets(page, draftRe);
-    await expect(page.getByRole("button", { name: draftRe })).toHaveCount(0);
+    await expect(
+      page.getByTestId(/^media-card-/).filter({ hasText: draftRe }),
+    ).toHaveCount(0);
 
     // The section that gets published. Reuse the asset when an earlier run
     // left it in the library.
-    if ((await page.getByRole("button", { name: /e2e-editor-published\.png/i }).count()) === 0) {
+    if (
+      (await page
+        .getByTestId(/^media-card-/)
+        .filter({ hasText: /e2e-editor-published\.png/i })
+        .count()) === 0
+    ) {
       await uploadPng(page, "e2e-editor-published.png");
     }
     await page.getByRole("link", { name: "Pages", exact: true }).click();
@@ -171,9 +180,12 @@ test.describe("editor authoring flow", () => {
 // card (the upload confirms on the API and the card renders when ready).
 async function uploadPng(page: Page, name: string): Promise<void> {
   await page.setInputFiles('input[type="file"]', { name, mimeType: "image/png", buffer: tinyPng() });
-  // The card's accessible name carries the filename plus its size line, so
-  // match the filename alone.
-  await expect(page.getByRole("button", { name: new RegExp(name.replace(/\./g, "\\."), "i") }).first()).toBeVisible({ timeout: 30_000 });
+  // Since M19 a media card carries a pencil (aria-label="Edit <filename>")
+  // as well as the card action; count/locate through the card testid
+  // (MediaCard.tsx) filtered by the filename text.
+  await expect(
+    page.getByTestId(/^media-card-/).filter({ hasText: name }).first(),
+  ).toBeVisible({ timeout: 30_000 });
 }
 
 // Add a media section at the end of the open page, one item choosing the
@@ -185,7 +197,11 @@ async function addMediaSection(page: Page, assetName: RegExp): Promise<void> {
   await section.getByRole("button", { name: /^add item$/i }).click();
   await section.getByRole("button", { name: /^choose$/i }).first().click();
   const picker = page.getByRole("dialog", { name: /choose media/i });
-  await picker.getByRole("button", { name: assetName }).first().click();
+  await picker
+    .getByTestId(/^media-card-/)
+    .filter({ hasText: assetName })
+    .first()
+    .click();
   await picker.getByRole("button", { name: /^choose$/i }).click();
   await expect(picker).toBeHidden();
   // The editor saves each section a second after its last change; let the
@@ -215,7 +231,11 @@ async function deleteAssets(page: Page, name: RegExp): Promise<void> {
   // Let the grid load before counting: a card or the empty state.
   await expect(page.getByTestId(/^media-card-/).first().or(page.getByText(/no media/i))).toBeVisible();
   for (;;) {
-    const cards = page.getByRole("button", { name });
+    // Since M19 a card carries a pencil (aria-label="Edit <filename>") as
+    // well as the CardActionArea, so getByRole("button", { name }) counts
+    // two controls per asset. Count through the card testid filtered by
+    // the filename text (MediaCard.tsx) so remaining - 1 stays truthful.
+    const cards = page.getByTestId(/^media-card-/).filter({ hasText: name });
     const remaining = await cards.count();
     if (remaining === 0) return;
     await cards.first().click();
