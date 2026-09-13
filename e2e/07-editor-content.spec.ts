@@ -58,14 +58,14 @@ test.describe("editor authoring flow", () => {
 
     const nav = page.getByRole("navigation");
     for (const label of ["Pages", "Media", "Site settings", "Publish", "Sponsors"]) {
-      await expect(nav.getByRole("link", { name: label })).toBeVisible();
+      await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
     }
-    await expect(nav.getByRole("link", { name: "Events" })).toHaveCount(0);
+    await expect(nav.getByRole("link", { name: "Events", exact: true })).toHaveCount(0);
 
     // Start from the published content: an interrupted run leaves draft
     // sections behind (an empty media item blocks publishing), so restore
     // the published version into the draft first.
-    await page.getByRole("link", { name: /^publish$/i }).click();
+    await page.getByRole("link", { name: "Publish", exact: true }).click();
     const starterRow = page.getByRole("row").filter({ hasText: /Starter content/ }).first();
     await starterRow.getByRole("button", { name: /^restore$/i }).click();
     await page
@@ -73,12 +73,12 @@ test.describe("editor authoring flow", () => {
       .getByRole("button", { name: /^restore$/i })
       .click();
     await expect(page.getByRole("dialog")).toBeHidden();
-    await page.getByRole("link", { name: /^media$/i }).click();
+    await page.getByRole("link", { name: "Media", exact: true }).click();
     await expect(page.getByRole("heading", { name: /media/i }).first()).toBeVisible();
     await deleteAssets(page, /e2e-editor-draft/i);
 
-    await page.getByRole("link", { name: /pages/i }).click();
-    await page.getByRole("link", { name: /about/i }).click();
+    await page.getByRole("link", { name: "Pages", exact: true }).click();
+    await page.getByRole("link", { name: "About the flyover", exact: true }).click();
 
     // Rich text section with a paragraph.
     await page.getByRole("button", { name: /add section/i }).click();
@@ -95,14 +95,14 @@ test.describe("editor authoring flow", () => {
     // A per-run name keeps this asset distinct from any leftover.
     const draftName = `e2e-editor-draft-${Date.now()}.png`;
     const draftRe = new RegExp(draftName.replace(/\./g, "\\."), "i");
-    await page.getByRole("link", { name: /^media$/i }).click();
+    await page.getByRole("link", { name: "Media", exact: true }).click();
     await uploadPng(page, draftName);
 
-    await page.getByRole("link", { name: /pages/i }).click();
-    await page.getByRole("link", { name: /about/i }).click();
+    await page.getByRole("link", { name: "Pages", exact: true }).click();
+    await page.getByRole("link", { name: "About the flyover", exact: true }).click();
     await addMediaSection(page, draftRe);
 
-    await page.getByRole("link", { name: /^media$/i }).click();
+    await page.getByRole("link", { name: "Media", exact: true }).click();
     await page.getByRole("button", { name: draftRe }).first().click();
     await page.getByRole("button", { name: /^delete$/i }).click();
     await page
@@ -112,11 +112,11 @@ test.describe("editor authoring flow", () => {
     await expect(page.getByText(/media_in_use|in use/i)).toBeVisible();
     await closeDrawer(page);
 
-    await page.getByRole("link", { name: /pages/i }).click();
-    await page.getByRole("link", { name: /about/i }).click();
+    await page.getByRole("link", { name: "Pages", exact: true }).click();
+    await page.getByRole("link", { name: "About the flyover", exact: true }).click();
     await deleteLastSection(page);
 
-    await page.getByRole("link", { name: /^media$/i }).click();
+    await page.getByRole("link", { name: "Media", exact: true }).click();
     await expect(page.getByRole("button", { name: draftRe }).first()).toBeVisible();
     await deleteAssets(page, draftRe);
     await expect(page.getByRole("button", { name: draftRe })).toHaveCount(0);
@@ -126,8 +126,8 @@ test.describe("editor authoring flow", () => {
     if ((await page.getByRole("button", { name: /e2e-editor-published\.png/i }).count()) === 0) {
       await uploadPng(page, "e2e-editor-published.png");
     }
-    await page.getByRole("link", { name: /pages/i }).click();
-    await page.getByRole("link", { name: /about/i }).click();
+    await page.getByRole("link", { name: "Pages", exact: true }).click();
+    await page.getByRole("link", { name: "About the flyover", exact: true }).click();
     await addMediaSection(page, /e2e-editor-published\.png/i);
 
     // Preview is documented (admin.md 6.17) but the PageEditor header does
@@ -136,7 +136,7 @@ test.describe("editor authoring flow", () => {
     // Publish with a label; the live object moves to the new snapshot.
     const cdnUrl = `${readDevCdnBase()}/live/location.json`;
     const live0 = (await (await fetch(cdnUrl, { cache: "no-store" })).json()) as Live;
-    await page.getByRole("link", { name: /^publish$/i }).click();
+    await page.getByRole("link", { name: "Publish", exact: true }).click();
     const label = `e2e publish ${Date.now()}`;
     await page.getByRole("button", { name: /^publish$/i }).click();
     const publishDialog = page.getByRole("dialog", { name: /publish draft/i });

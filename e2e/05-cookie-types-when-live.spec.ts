@@ -42,7 +42,7 @@ test.describe("cookie types are locked while an event is live", () => {
     const admin = readAdmin();
     await signIn(page, admin);
 
-    await page.getByRole("link", { name: /cookie types/i }).click();
+    await page.getByRole("link", { name: "Cookie types", exact: true }).click();
 
     // The banner is the panel's own signal that an event is live and the
     // section is read-only, per 6.7.
@@ -50,14 +50,16 @@ test.describe("cookie types are locked while an event is live", () => {
     await expect(page.getByRole("button", { name: /new type/i })).toBeDisabled();
 
     // End the current event from its detail page (the list has no status
-    // controls): open the row carrying the Current chip, then the status
-    // card's Ended button and its confirmation.
+    // controls): open the row carrying the Current chip through its edit
+    // pencil (M19: the Open link is gone, the pencil is the discoverable
+    // control, aria-label "Edit <name>"), then the status card's Ended
+    // button and its confirmation.
     await page.getByRole("navigation").locator('a[href="/events"]').click();
     const currentRow = page
       .getByTestId(/^event-row-/)
       .filter({ has: page.getByText("Current", { exact: true }) })
       .first();
-    await currentRow.getByRole("link", { name: /^open$/i }).click();
+    await currentRow.getByRole("link", { name: /^edit /i }).click();
     await page.getByRole("button", { name: /^ended$/i }).click();
     await page
       .getByRole("dialog")
@@ -65,7 +67,7 @@ test.describe("cookie types are locked while an event is live", () => {
       .click();
     await expect(page.getByRole("dialog")).toBeHidden();
 
-    await page.getByRole("link", { name: /cookie types/i }).click();
+    await page.getByRole("link", { name: "Cookie types", exact: true }).click();
     await expect(page.getByText(/is live. Cookie types/i)).toBeHidden();
     await expect(page.getByRole("button", { name: /new type/i })).toBeEnabled();
 

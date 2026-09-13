@@ -9,7 +9,7 @@ test.describe("beacons", () => {
     const admin = readAdmin();
     await signIn(page, admin);
 
-    await page.getByRole("link", { name: /beacons/i }).click();
+    await page.getByRole("link", { name: "Beacons", exact: true }).click();
     await page.getByRole("button", { name: /new beacon/i }).click();
 
     const name = `e2e-${Date.now()}`;

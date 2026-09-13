@@ -13,7 +13,7 @@ test.describe("sign in and out", () => {
 
     await expect(page).toHaveURL(/localhost:5174\//);
     await expect(page.getByText("DEV", { exact: true })).toBeVisible();
-    await expect(page.getByRole("link", { name: /dashboard/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Dashboard", exact: true })).toBeVisible();
 
     await signOut(page);
 

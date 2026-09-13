@@ -1,10 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
+  deleteEvent,
   fetchAdminAccessToken,
   listEvents,
   readAdmin,
   readDevCdnBase,
   setEventCurrent,
+  setEventStatus,
   signIn,
   waitForCdnJson,
 } from "./helpers";
@@ -14,8 +16,10 @@ import {
 // confirmations; after each change `GET <dev cdn>/live/location.json`
 // reports the new eventStatusId within 10 s.
 //
-// Restores the event that was current when the spec started in
-// `afterAll`, so the dev stack is unchanged for the reviewer.
+// `afterAll` restores the event that was current when the spec started
+// and deletes this run's event through `DELETE /admin/events/{id}`
+// (contracts 4.5 Events), so the dev events list is unchanged whether
+// the test passed, failed, or was interrupted.
 
 type Live = { eventId: number | null; eventStatusId: number | null; publishedAt: string };
 
@@ -24,6 +28,7 @@ test.describe("events lifecycle", () => {
 
   let adminToken: string | null = null;
   let prevCurrentEventId: number | null = null;
+  let createdEventId: number | null = null;
 
   test.beforeAll(async ({ browser }) => {
     adminToken = await fetchAdminAccessToken(browser);
@@ -32,8 +37,18 @@ test.describe("events lifecycle", () => {
   });
 
   test.afterAll(async () => {
-    if (adminToken === null || prevCurrentEventId === null) return;
-    await setEventCurrent(adminToken, prevCurrentEventId).catch(() => undefined);
+    if (adminToken === null) return;
+    // Detach "current" from this run's event first (DELETE cascades but
+    // does not run on a current event), then push it to `ended` in case
+    // the test bailed while it was still live (`DELETE` answers
+    // `409 event_live` at status 3), then remove the row.
+    if (prevCurrentEventId !== null) {
+      await setEventCurrent(adminToken, prevCurrentEventId).catch(() => undefined);
+    }
+    if (createdEventId !== null) {
+      await setEventStatus(adminToken, createdEventId, 4).catch(() => undefined);
+      await deleteEvent(adminToken, createdEventId).catch(() => undefined);
+    }
   });
 
   test("create → current → planned → scheduled → live → ended, CDN follows", async ({ page }) => {
@@ -61,73 +76,67 @@ test.describe("events lifecycle", () => {
     while (usedYears.has(String(year))) year += 1;
 
     const title = `e2e event ${Date.now()}`;
-    try {
-      await page.getByRole("button", { name: /new event/i }).click();
-      await page.getByLabel(/^year$/i).fill(String(year));
-      await page.getByLabel(/^name$/i).fill(title);
-      await page.getByLabel(/inherit/i).check();
-      await page.getByRole("button", { name: /^create$/i }).click();
+    await page.getByRole("button", { name: /new event/i }).click();
+    await page.getByLabel(/^year$/i).fill(String(year));
+    await page.getByLabel(/^name$/i).fill(title);
+    await page.getByLabel(/inherit/i).check();
+    await page.getByRole("button", { name: /^create$/i }).click();
 
-      // Creating the event opens its detail page, which carries the
-      // "Set current" control and the status card.
-      await page.waitForURL(/\/events\/\d+$/);
-      await page.getByRole("button", { name: /^set current$/i }).click();
-      await page
-        .getByRole("dialog", { name: /set current event/i })
-        .getByRole("button", { name: /^set current$/i })
-        .click();
+    // Creating the event opens its detail page (`/events/{id}`); read
+    // the id off the URL so `afterAll` can delete it through the API.
+    await page.waitForURL(/\/events\/\d+$/);
+    const match = /\/events\/(\d+)$/.exec(new URL(page.url()).pathname);
+    createdEventId = match ? Number(match[1]) : null;
 
-      await expect(page.getByRole("dialog")).toBeHidden();
+    await page.getByRole("button", { name: /^set current$/i }).click();
+    await page
+      .getByRole("dialog", { name: /set current event/i })
+      .getByRole("button", { name: /^set current$/i })
+      .click();
 
-      // Planned (status 1) is the initial state after "set current".
-      await waitForCdnJson<Live>(cdnUrl, (j) => j.eventStatusId === 1);
-      await expect(page.getByRole("button", { name: /^save$/i })).toBeVisible();
+    await expect(page.getByRole("dialog")).toBeHidden();
 
-      const now = new Date();
-      now.setMinutes(now.getMinutes() + 5);
-      const iso = now.toISOString().slice(0, 16);
-      await page.getByLabel(/scheduled at/i).fill(iso);
-      await page.getByRole("button", { name: /^save$/i }).click();
+    // Planned (status 1) is the initial state after "set current".
+    await waitForCdnJson<Live>(cdnUrl, (j) => j.eventStatusId === 1);
+    await expect(page.getByRole("button", { name: /^save$/i })).toBeVisible();
 
-      await page.getByRole("button", { name: /^scheduled$/i }).click();
-      await page
-        .getByRole("dialog")
-        .getByRole("button", { name: /^change status$/i })
-        .click();
-      await waitForCdnJson<Live>(cdnUrl, (j) => j.eventStatusId === 2);
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 5);
+    const iso = now.toISOString().slice(0, 16);
+    await page.getByLabel(/scheduled at/i).fill(iso);
+    await page.getByRole("button", { name: /^save$/i }).click();
 
-      await page.getByRole("button", { name: /^live$/i }).click();
-      await page
-        .getByRole("dialog")
-        .getByRole("button", { name: /^set live$/i })
-        .click();
-      await waitForCdnJson<Live>(cdnUrl, (j) => j.eventStatusId === 3);
+    await page.getByRole("button", { name: /^scheduled$/i }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: /^change status$/i })
+      .click();
+    await waitForCdnJson<Live>(cdnUrl, (j) => j.eventStatusId === 2);
 
-      await page.getByRole("button", { name: /^ended$/i }).click();
-      await page
-        .getByRole("dialog")
-        .getByRole("button", { name: /^change status$/i })
-        .click();
-      await waitForCdnJson<Live>(cdnUrl, (j) => j.eventStatusId === 4);
+    await page.getByRole("button", { name: /^live$/i }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: /^set live$/i })
+      .click();
+    await waitForCdnJson<Live>(cdnUrl, (j) => j.eventStatusId === 3);
 
-      await expect(page.getByText(/ended/i).first()).toBeVisible();
-    } finally {
-      // The created event is still current here; detach "current" from
-      // it through the API so it can be deleted. `afterAll` puts current
-      // back on whichever event was current when the spec started.
-      if (adminToken !== null && prevCurrentEventId !== null) {
-        await setEventCurrent(adminToken, prevCurrentEventId).catch(() => undefined);
-      }
-      await page.getByRole("navigation").locator('a[href="/events"]').click();
-      await deleteEventsNamed(page, new RegExp(title));
-    }
+    await page.getByRole("button", { name: /^ended$/i }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: /^change status$/i })
+      .click();
+    await waitForCdnJson<Live>(cdnUrl, (j) => j.eventStatusId === 4);
+
+    await expect(page.getByText(/ended/i).first()).toBeVisible();
   });
 });
 
 // Delete every event row whose name matches, through the row's actions
 // menu (Delete lives in the row menu per M19, admin.md 1) and its
 // confirmation. Rows that are current cannot be deleted; callers hand
-// "current" elsewhere first.
+// "current" elsewhere first. Used only to clean up rows left behind by
+// an interrupted earlier run; this run's own event is deleted through
+// the API in `afterAll`.
 async function deleteEventsNamed(page: Page, name: RegExp): Promise<void> {
   for (;;) {
     const row = page.getByTestId(/^event-row-/).filter({ hasText: name }).first();

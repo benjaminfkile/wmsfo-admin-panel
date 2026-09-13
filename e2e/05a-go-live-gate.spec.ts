@@ -87,13 +87,15 @@ test.describe("go-live gate refuses status 3 without a healthy active beacon", (
     await signIn(page, admin);
 
     // Set the walk scheduled and current from the events UI so the Live
-    // button becomes eligible except for the healthy-beacon gate.
+    // button becomes eligible except for the healthy-beacon gate. M19
+    // dropped the row's Open link; the edit pencil ("Edit <name>") is
+    // the discoverable control now.
     await page.getByRole("navigation").locator('a[href="/events"]').click();
     const walkRow = page
       .getByTestId(/^event-row-/)
       .filter({ hasText: /E2E walk/i })
       .first();
-    await walkRow.getByRole("link", { name: /^open$/i }).click();
+    await walkRow.getByRole("link", { name: "Edit E2E walk" }).click();
 
     const now = new Date();
     now.setMinutes(now.getMinutes() + 5);
