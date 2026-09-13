@@ -358,6 +358,68 @@ export const handlers: HttpHandler[] = [
 
   // Places
   http.get("*/admin/places", () => HttpResponse.json({ items: f.places })),
+  http.post("*/admin/places", async ({ request }) => {
+    const body = (await request.json()) as {
+      name?: string;
+      parentId?: number | null;
+      description?: string;
+    };
+    const src = f.places[0] as (typeof f.places)[number];
+    const created = {
+      ...src,
+      id: 900,
+      parentId: body?.parentId ?? null,
+      name: body?.name ?? "New place",
+      description: body?.description ?? "",
+      path: [body?.name ?? "New place"],
+    };
+    return HttpResponse.json(created, { status: 201 });
+  }),
+  http.patch("*/admin/places/:id", ({ params }) => {
+    const id = Number(params.id);
+    const src = f.places.find((p) => p.id === id) ?? f.places[0];
+    return HttpResponse.json(src);
+  }),
+  http.delete("*/admin/places/:id", () => new HttpResponse(null, { status: 204 })),
+  http.put("*/admin/places/:id/location", async ({ params, request }) => {
+    const id = Number(params.id);
+    const src = f.places.find((p) => p.id === id) ?? f.places[0];
+    const body = (await request.json()) as {
+      lat: number;
+      lng: number;
+      accuracyM: number | null;
+      source: "phone" | "search" | "drag";
+    };
+    const location = {
+      lat: body.lat,
+      lng: body.lng,
+      accuracyM: body.source === "phone" ? body.accuracyM : null,
+      source: body.source,
+      pinnedBy: "person:admin@example.com",
+      pinnedAt: new Date("2026-12-22T01:31:07.412Z").toISOString(),
+    };
+    return HttpResponse.json({
+      ...(src as (typeof f.places)[number]),
+      location,
+      pin: {
+        lat: body.lat,
+        lng: body.lng,
+        fromPlaceId: (src as (typeof f.places)[number]).id,
+      },
+    });
+  }),
+  http.delete("*/admin/places/:id/location", ({ params }) => {
+    const id = Number(params.id);
+    const src = f.places.find((p) => p.id === id) ?? f.places[0];
+    return HttpResponse.json({
+      ...(src as (typeof f.places)[number]),
+      location: null,
+      pin: null,
+    });
+  }),
+  http.get("*/admin/places/map", () =>
+    HttpResponse.json({ items: f.placePins, unpinned: 1, unattached: 2 })
+  ),
 
   // CDN read (not an admin API path but the panel dashboard fetches it)
   http.get("*/live/location.json", () => HttpResponse.json(f.liveObject)),

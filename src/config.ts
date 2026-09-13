@@ -7,6 +7,7 @@ export type Config = {
   cognitoAuthority: string;
   cognitoDomain: string;
   cognitoClientId: string;
+  googleMapsKey: string;
 };
 
 const NAMES = [
@@ -17,6 +18,7 @@ const NAMES = [
   "VITE_COGNITO_AUTHORITY",
   "VITE_COGNITO_DOMAIN",
   "VITE_COGNITO_CLIENT_ID",
+  "VITE_GOOGLE_MAPS_KEY",
 ] as const;
 
 export type ConfigResult = { config: Config } | { missing: string[] };
@@ -40,6 +42,7 @@ export function loadConfig(env: ImportMetaEnv = import.meta.env): ConfigResult {
       cognitoAuthority: strip(env.VITE_COGNITO_AUTHORITY),
       cognitoDomain: strip(env.VITE_COGNITO_DOMAIN),
       cognitoClientId: env.VITE_COGNITO_CLIENT_ID,
+      googleMapsKey: env.VITE_GOOGLE_MAPS_KEY,
     },
   };
 }

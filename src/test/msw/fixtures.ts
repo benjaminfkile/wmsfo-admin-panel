@@ -24,6 +24,7 @@ import type {
   PageDetail,
   Person,
   Place,
+  PlacePin,
   PreviewToken,
   Presentation,
   QrCode,
@@ -686,6 +687,20 @@ export const qrCodes: QrCode[] = [
     createdAt: NOW,
     updatedAt: NOW,
     audit: null,
+  },
+];
+
+export const placePins: PlacePin[] = [
+  {
+    placeId: 1,
+    name: "Southgate Mall",
+    path: ["Southgate Mall"],
+    lat: 46.916,
+    lng: -114.039,
+    people: 4,
+    codes: [
+      { tag: "qr-001", placeName: "Southgate Mall", people: 4 },
+    ],
   },
 ];
 

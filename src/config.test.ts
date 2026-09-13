@@ -10,6 +10,7 @@ function envFrom(overrides: Partial<Record<string, string>>): ImportMetaEnv {
     VITE_COGNITO_AUTHORITY: "https://cognito-idp.us-west-2.amazonaws.com/pool-id/",
     VITE_COGNITO_DOMAIN: "https://auth.example.com/",
     VITE_COGNITO_CLIENT_ID: "client-abc",
+    VITE_GOOGLE_MAPS_KEY: "maps-key-abc",
     ...overrides,
   } as unknown as ImportMetaEnv;
   return base;
