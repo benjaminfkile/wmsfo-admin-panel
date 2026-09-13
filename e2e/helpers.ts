@@ -175,6 +175,21 @@ export async function setEventStatus(
   });
 }
 
+// Return the id of the currently published content version, from
+// `GET /admin/content/status` (admin.md 6.18). Spec 07 records this in
+// `beforeAll` so its restore-and-publish step can put the same version
+// back at the end of the run instead of clobbering the dev site with
+// version 1.
+export async function readPublishedContentVersionId(
+  token: string,
+): Promise<number | null> {
+  const status = (await adminApi(token, "GET", "/admin/content/status")) as {
+    published: { id?: number | string | null } | null;
+  };
+  const raw = status.published?.id ?? null;
+  return raw === null ? null : Number(raw);
+}
+
 type BeaconRow = {
   id: number;
   keyPrefix: string;
