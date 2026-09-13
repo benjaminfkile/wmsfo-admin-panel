@@ -96,13 +96,22 @@ test.describe("cookie types are locked while an event is live", () => {
     // A fresh type with cookieCount === 0 can be created and deleted round-trip.
     const freshName = `e2e-delete-${Date.now()}`;
     await page.getByRole("button", { name: /new type/i }).click();
-    await dialog.getByLabel(/^name/i).fill(freshName);
-    // The panel requires an icon; pick from the library through the picker.
-    await dialog.getByRole("button", { name: /choose/i }).click();
+    // While the icon picker is open two dialogs coexist, so scope the create
+    // dialog by its own name; wait for the picker to close after the click
+    // before pressing Save.
+    const createDialog = page.getByRole("dialog", {
+      name: /new type|cookie type/i,
+    });
+    await createDialog.getByLabel(/^name/i).fill(freshName);
+    // The panel requires an icon; pick from the library through the picker,
+    // then confirm the picker's own Choose so it closes before Save.
+    await createDialog.getByRole("button", { name: /choose/i }).click();
     const iconPicker = page.getByRole("dialog", { name: /icon/i });
     await iconPicker.locator("img").first().click();
-    await dialog.getByRole("button", { name: /^save$/i }).click();
-    await expect(dialog).toBeHidden();
+    await iconPicker.getByRole("button", { name: /^choose$/i }).click();
+    await expect(iconPicker).toBeHidden();
+    await createDialog.getByRole("button", { name: /^save$/i }).click();
+    await expect(createDialog).toBeHidden();
     const freshRow = page
       .getByTestId(/^cookie-type-row-/)
       .filter({ hasText: freshName })

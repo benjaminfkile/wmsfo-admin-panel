@@ -303,7 +303,26 @@ export async function signIn(page: Page, user: DevUser): Promise<void> {
   const submit = 'button[type="submit"]:visible';
   await page.locator(submit).first().click();
   const code = page.getByRole("textbox", { name: /^code$/i });
-  await code.waitFor({ state: "visible" });
+  // Managed login occasionally re-renders the sign-in step with the email
+  // field marked invalid instead of advancing to the code step. Retry the
+  // credentials once (after a brief settle) before giving up on the code.
+  try {
+    await code.waitFor({ state: "visible", timeout: 15_000 });
+  } catch {
+    const username = page.locator('input[name="username"]:visible').first();
+    if ((await username.count()) > 0) {
+      await page.waitForTimeout(2_000);
+      await username.fill(user.email);
+      await page
+        .locator('input[name="password"]:visible')
+        .first()
+        .fill(user.password);
+      await page.locator(submit).first().click();
+      await code.waitFor({ state: "visible" });
+    } else {
+      await code.waitFor({ state: "visible" });
+    }
+  }
   await code.fill(await freshTotpCode(user.totpSecret));
   await page.locator(submit).first().click();
   // The submit navigates out to Cognito and back through /auth/callback to
