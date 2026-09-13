@@ -1,5 +1,18 @@
 import type { Opens } from "../../api/types";
 
+// The printed tag format (contracts 4.5a): `qr-` followed by digits.
+// The scan page accepts either the bare tag or the full printed URL
+// `https://<site>/q/<tag>`.
+export function extractTag(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const url = trimmed.match(/\/q\/([a-z]+-\d+)/i);
+  if (url && url[1]) return url[1].toLowerCase();
+  const bare = trimmed.match(/^([a-z]+-\d+)$/i);
+  if (bare && bare[1]) return bare[1].toLowerCase();
+  return null;
+}
+
 // admin.md 6.23 opens cell: "(from <place>)", "(own)", or "(default)"
 // suffix depending on `opensSource`.
 export function formatOpens(
