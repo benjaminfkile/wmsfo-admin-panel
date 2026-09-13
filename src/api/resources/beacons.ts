@@ -11,7 +11,7 @@ export type KeyMint = {
 export const beacons = {
   list: () => get<BeaconsResponse>("/admin/beacons"),
   get: (id: number) => get<Beacon>(`/admin/beacons/${id}`),
-  create: (b: { name: string; notes: string; role: "beacon" | "admin" }) =>
+  create: (b: { name: string; notes: string }) =>
     post<KeyMint>("/admin/beacons", b),
   patch: (id: number, b: Partial<{ name: string; notes: string }>) =>
     patch<Beacon>(`/admin/beacons/${id}`, b),

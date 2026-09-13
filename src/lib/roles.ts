@@ -12,7 +12,6 @@ export type NavKey =
   | "sponsors"
   | "sponsors-order"
   | "cookie-types"
-  | "cookies"
   | "subscribers"
   | "people"
   | "contact-messages"
@@ -32,7 +31,6 @@ export const ADMIN_NAV: NavKey[] = [
   "sponsors",
   "sponsors-order",
   "cookie-types",
-  "cookies",
   "subscribers",
   "people",
   "contact-messages",

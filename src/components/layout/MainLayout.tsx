@@ -43,7 +43,6 @@ const ALL_ENTRIES: Record<NavKey, NavEntry> = {
   sponsors: { key: "sponsors", label: "Sponsors", to: "/sponsors" },
   "sponsors-order": { key: "sponsors-order", label: "Sponsor order", to: "/sponsors/order" },
   "cookie-types": { key: "cookie-types", label: "Cookie types", to: "/cookie-types" },
-  cookies: { key: "cookies", label: "Cookies", to: "/cookies" },
   subscribers: { key: "subscribers", label: "Subscribers", to: "/subscribers" },
   people: { key: "people", label: "People", to: "/people" },
   "contact-messages": { key: "contact-messages", label: "Contact messages", to: "/contact-messages" },

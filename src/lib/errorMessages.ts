@@ -18,6 +18,7 @@ export type MessageContext = {
   liveEventName?: string;
   uploadLimitLabel?: string;
   allowedUploadTypes?: string;
+  cookieCount?: number;
 };
 
 export function toCopy(
@@ -70,6 +71,14 @@ function messageForCode(err: ApiError, ctx: MessageContext): string {
       return "The current event is live. End it before changing the current event.";
     case "event_live":
       return "A live event cannot be deleted";
+    case "cookie_type_in_use": {
+      const n = ctx.cookieCount ?? Number(
+        (err.body?.details?.["cookieCount"] as number | undefined) ?? 0
+      );
+      return `${n} cookies use this type; deactivate it instead`;
+    }
+    case "no_healthy_beacon":
+      return "No healthy active beacon";
     case "event_has_locations":
       return "This event has recorded locations and cannot be deleted";
     case "route_in_use":

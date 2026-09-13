@@ -4,6 +4,8 @@ import {
   Button,
   Chip,
   IconButton,
+  Menu,
+  MenuItem,
   Paper,
   Stack,
   Table,
@@ -14,8 +16,9 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
-import { Link as RouterLink } from "react-router-dom";
+import EditIcon from "@mui/icons-material/Edit";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { beacons as beaconsApi } from "../../api/resources/beacons";
 import type {
@@ -45,10 +48,17 @@ type Confirm = {
   beacon: Beacon;
 };
 
+function hubStateLabel(b: Beacon): string {
+  if (b.hubConnected === true) return "connected";
+  if (b.hubConnected === false) return "polling";
+  return "unknown";
+}
+
 export default function BeaconsList() {
   const qc = useQueryClient();
   const notify = useNotify();
   const now = useNow();
+  const navigate = useNavigate();
 
   const beaconsQ = useQuery({
     queryKey: keys.beacons,
@@ -64,6 +74,10 @@ export default function BeaconsList() {
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [keyMint, setKeyMint] = useState<KeyMint | null>(null);
   const [keyMintTitle, setKeyMintTitle] = useState("New beacon key");
+  const [menuAnchor, setMenuAnchor] = useState<{
+    el: HTMLElement;
+    beacon: Beacon;
+  } | null>(null);
 
   const invalidateBeacons = () =>
     void qc.invalidateQueries({ queryKey: keys.beacons });
@@ -159,6 +173,8 @@ export default function BeaconsList() {
     }
   };
 
+  const closeMenu = () => setMenuAnchor(null);
+
   return (
     <>
       <Stack
@@ -181,9 +197,10 @@ export default function BeaconsList() {
             <TableHead>
               <TableRow>
                 <TableCell>Name</TableCell>
-                <TableCell>Role</TableCell>
                 <TableCell>Key prefix</TableCell>
                 <TableCell>Active</TableCell>
+                <TableCell>Healthy</TableCell>
+                <TableCell>Hub</TableCell>
                 <TableCell>Flags</TableCell>
                 <TableCell>Last seen</TableCell>
                 <TableCell>Last heartbeat</TableCell>
@@ -194,7 +211,7 @@ export default function BeaconsList() {
             <TableBody>
               {beacons.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9}>
+                  <TableCell colSpan={10}>
                     <Typography variant="body2" color="text.secondary">
                       No beacons yet.
                     </Typography>
@@ -209,6 +226,7 @@ export default function BeaconsList() {
                     anyEventLive,
                     now
                   );
+                  const isHealthy = b.healthy === true;
                   return (
                     <TableRow
                       key={String(b.id)}
@@ -219,7 +237,6 @@ export default function BeaconsList() {
                       <TableCell>
                         <RouterLink to={`/beacons/${b.id}`}>{b.name}</RouterLink>
                       </TableCell>
-                      <TableCell>{b.role}</TableCell>
                       <TableCell>
                         <code>{b.keyPrefix}</code>
                       </TableCell>
@@ -234,6 +251,20 @@ export default function BeaconsList() {
                           </Box>
                         )}
                       </TableCell>
+                      <TableCell>
+                        {revoked ? (
+                          <Box component="span" sx={{ color: "text.secondary" }}>
+                            none
+                          </Box>
+                        ) : (
+                          <Chip
+                            size="small"
+                            label={isHealthy ? "Healthy" : "Unhealthy"}
+                            color={isHealthy ? "success" : "error"}
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell>{hubStateLabel(b)}</TableCell>
                       <TableCell>
                         {revoked ? (
                           <Box component="span" sx={{ color: "text.secondary" }}>
@@ -272,56 +303,26 @@ export default function BeaconsList() {
                       <TableCell align="right">
                         <Stack
                           direction="row"
-                          spacing={1}
+                          spacing={0.5}
                           justifyContent="flex-end"
                         >
-                          <Button
+                          <IconButton
                             size="small"
                             component={RouterLink}
                             to={`/beacons/${b.id}`}
+                            aria-label={`Edit ${b.name ?? "beacon"}`}
                           >
-                            Open
-                          </Button>
-                          {!revoked && !b.isActive ? (
-                            <Button
-                              size="small"
-                              onClick={() =>
-                                setConfirm({ action: "activate", beacon: b })
-                              }
-                            >
-                              Activate
-                            </Button>
-                          ) : null}
-                          {!revoked && b.isActive ? (
-                            <Button
-                              size="small"
-                              onClick={() =>
-                                setConfirm({ action: "deactivate", beacon: b })
-                              }
-                            >
-                              Deactivate
-                            </Button>
-                          ) : null}
-                          {!revoked ? (
-                            <Button
-                              size="small"
-                              onClick={() =>
-                                setConfirm({ action: "rotate", beacon: b })
-                              }
-                            >
-                              Rotate
-                            </Button>
-                          ) : null}
+                            <EditIcon fontSize="small" />
+                          </IconButton>
                           {!revoked ? (
                             <IconButton
                               size="small"
-                              color="error"
-                              aria-label="Revoke"
-                              onClick={() =>
-                                setConfirm({ action: "revoke", beacon: b })
+                              aria-label={`Actions for ${b.name ?? "beacon"}`}
+                              onClick={(ev) =>
+                                setMenuAnchor({ el: ev.currentTarget, beacon: b })
                               }
                             >
-                              <DeleteForeverIcon fontSize="small" />
+                              <MoreVertIcon fontSize="small" />
                             </IconButton>
                           ) : null}
                         </Stack>
@@ -345,6 +346,59 @@ export default function BeaconsList() {
         }}
         onSubmit={(b) => createMut.mutate(b)}
       />
+
+      {menuAnchor ? (
+        <Menu
+          open
+          anchorEl={menuAnchor.el}
+          onClose={closeMenu}
+        >
+          {!menuAnchor.beacon.isActive ? (
+            <MenuItem
+              onClick={() => {
+                setConfirm({ action: "activate", beacon: menuAnchor.beacon });
+                closeMenu();
+              }}
+            >
+              Activate
+            </MenuItem>
+          ) : null}
+          {menuAnchor.beacon.isActive ? (
+            <MenuItem
+              onClick={() => {
+                setConfirm({ action: "deactivate", beacon: menuAnchor.beacon });
+                closeMenu();
+              }}
+            >
+              Deactivate
+            </MenuItem>
+          ) : null}
+          <MenuItem
+            onClick={() => {
+              setConfirm({ action: "rotate", beacon: menuAnchor.beacon });
+              closeMenu();
+            }}
+          >
+            Rotate
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              setConfirm({ action: "revoke", beacon: menuAnchor.beacon });
+              closeMenu();
+            }}
+          >
+            Revoke
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              navigate(`/beacons/${menuAnchor.beacon.id}`);
+              closeMenu();
+            }}
+          >
+            Open
+          </MenuItem>
+        </Menu>
+      ) : null}
 
       {confirmSpec ? (
         <ConfirmDialog

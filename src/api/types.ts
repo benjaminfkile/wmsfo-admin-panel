@@ -26,14 +26,12 @@ export type ApiKeyCapability =
   | "content"
   | "media"
   | "icons"
-  | "cookies"
   | "settings"
   | "contact_messages"
   | "subscribers"
   | "people"
   | "diagnostics";
 export type CookieType = S["CookieTypeDto"];
-export type CookieAdmin = S["CookieAdminDto"];
 export type Subscription = S["SubscriptionDto"];
 export type SubscriberAdmin = S["SubscriberAdminDto"];
 export type Person = S["PersonDto"];
@@ -83,86 +81,22 @@ export type LiveObject = {
   publishedAt: string;
 };
 
-export type ThermalStatus =
-  | "none"
-  | "light"
-  | "moderate"
-  | "severe"
-  | "critical"
-  | "emergency"
-  | "shutdown"
-  | "unknown";
-
-export type MemoryPressure =
-  | "normal"
-  | "moderate"
-  | "low"
-  | "critical"
-  | "unknown";
-
 export type SocketState =
   | "connected"
   | "connecting"
   | "reconnecting"
   | "disconnected";
 
+export type HeartbeatHealth = {
+  batteryPercent?: number | null;
+  lastFixAgeS?: number | null;
+  socketState?: SocketState | null;
+};
+
 export type Heartbeat = {
   sentAt: string;
-  power: {
-    batteryPercent: number | null;
-    charging: boolean | null;
-    batteryTempC: number | null;
-    thermalStatus: ThermalStatus | null;
-    [k: string]: unknown;
-  } | null;
-  radio: {
-    networkType: string | null;
-    signalDbm: number | null;
-    signalLevel: number | null;
-    airplaneMode: boolean | null;
-    connected: boolean | null;
-    [k: string]: unknown;
-  } | null;
-  gps: {
-    provider: string | null;
-    satellitesUsed: number | null;
-    satellitesInView: number | null;
-    lastFixAccuracyM: number | null;
-    lastFixAgeS: number | null;
-    fixesLastMinute: number | null;
-    permission: {
-      foreground: boolean | null;
-      background: boolean | null;
-      precise: boolean | null;
-    } | null;
-    [k: string]: unknown;
-  } | null;
-  transport: {
-    socketState: SocketState | null;
-    reconnectCount: number | null;
-    httpFallbackSeconds: number | null;
-    lastReceiptLatencyMs: number | null;
-    sendsFailedSinceBoot: number | null;
-    [k: string]: unknown;
-  } | null;
-  process: {
-    deviceUptimeS: number | null;
-    serviceUptimeS: number | null;
-    serviceRestartCount: number | null;
-    memoryPressure: MemoryPressure | null;
-    batteryOptimizationExempt: boolean | null;
-    notificationPermission: boolean | null;
-    systemApp: boolean | null;
-    rootAvailable: boolean | null;
-    [k: string]: unknown;
-  } | null;
-  identity: {
-    deviceModel: string | null;
-    androidVersion: string | null;
-    appVersion: string | null;
-    clockSkewMs: number | null;
-    [k: string]: unknown;
-  } | null;
+  health: HeartbeatHealth | null;
+  debug: Record<string, unknown> | null;
 };
 
 export type LiveState = {

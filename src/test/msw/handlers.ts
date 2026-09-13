@@ -62,7 +62,6 @@ export const handlers: HttpHandler[] = [
     }
     return HttpResponse.json(page(f.locations));
   }),
-  http.get("*/admin/events/:id/cookies", () => HttpResponse.json(page(f.cookies))),
 
   // Routes
   http.get("*/admin/routes", () => HttpResponse.json({ items: f.routes })),
@@ -138,11 +137,7 @@ export const handlers: HttpHandler[] = [
     HttpResponse.json(f.cookieTypes[0], { status: 201 })
   ),
   http.patch("*/admin/cookie-types/:id", () => HttpResponse.json(f.cookieTypes[0])),
-
-  // Cookies moderation
-  http.post("*/admin/cookies/:id/hide", () => HttpResponse.json(f.cookies[0])),
-  http.post("*/admin/cookies/:id/unhide", () => HttpResponse.json(f.cookies[0])),
-  http.delete("*/admin/cookies/:id", () => new HttpResponse(null, { status: 204 })),
+  http.delete("*/admin/cookie-types/:id", () => new HttpResponse(null, { status: 204 })),
 
   // Settings
   http.get("*/admin/settings", () => HttpResponse.json({ items: f.settings })),

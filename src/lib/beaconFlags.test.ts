@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { beaconFlags } from "./beaconFlags";
-import type { Beacon, Heartbeat } from "../api/types";
+import type { Beacon, Heartbeat, HeartbeatHealth } from "../api/types";
 import { thresholds } from "./thresholds";
 
 const NOW_ISO = "2026-12-22T01:31:07.000Z";
@@ -11,7 +11,6 @@ function makeBeacon(overrides: Partial<Beacon> = {}): Beacon {
     id: 5,
     name: "b",
     notes: "",
-    role: "beacon",
     keyPrefix: "wbk_a",
     isActive: true,
     revokedAt: null,
@@ -21,6 +20,7 @@ function makeBeacon(overrides: Partial<Beacon> = {}): Beacon {
     staleSince: null,
     telemetry: null,
     hubConnected: true,
+    healthy: true,
     createdBy: "a@b",
     createdAt: NOW_ISO,
     updatedAt: NOW_ISO,
@@ -28,56 +28,12 @@ function makeBeacon(overrides: Partial<Beacon> = {}): Beacon {
   } as Beacon;
 }
 
-function makeHeartbeat(overrides: Partial<Heartbeat> = {}): Heartbeat {
-  return {
-    sentAt: NOW_ISO,
-    power: {
-      batteryPercent: 90,
-      charging: true,
-      batteryTempC: 30,
-      thermalStatus: "none",
-    },
-    radio: {
-      networkType: "LTE",
-      signalDbm: -80,
-      signalLevel: 4,
-      airplaneMode: false,
-      connected: true,
-    },
-    gps: {
-      provider: "fused",
-      satellitesUsed: 9,
-      satellitesInView: 12,
-      lastFixAccuracyM: 5,
-      lastFixAgeS: 1,
-      fixesLastMinute: 60,
-      permission: { foreground: true, background: true, precise: true },
-    },
-    transport: {
-      socketState: "connected",
-      reconnectCount: 0,
-      httpFallbackSeconds: 0,
-      lastReceiptLatencyMs: 100,
-      sendsFailedSinceBoot: 0,
-    },
-    process: {
-      deviceUptimeS: 1000,
-      serviceUptimeS: 500,
-      serviceRestartCount: 0,
-      memoryPressure: "normal",
-      batteryOptimizationExempt: true,
-      notificationPermission: true,
-      systemApp: true,
-      rootAvailable: false,
-    },
-    identity: {
-      deviceModel: "Pixel",
-      androidVersion: "14",
-      appVersion: "1.0.0",
-      clockSkewMs: 0,
-    },
-    ...overrides,
-  };
+function makeHeartbeat(health: HeartbeatHealth | null = {
+  batteryPercent: 90,
+  lastFixAgeS: 1,
+  socketState: "connected",
+}, debug: Record<string, unknown> | null = null): Heartbeat {
+  return { sentAt: NOW_ISO, health, debug };
 }
 
 describe("beaconFlags", () => {
@@ -90,12 +46,9 @@ describe("beaconFlags", () => {
     const beacon = makeBeacon({
       revokedAt: NOW_ISO,
       telemetry: makeHeartbeat({
-        power: {
-          batteryPercent: 1,
-          charging: false,
-          batteryTempC: 90,
-          thermalStatus: "critical",
-        },
+        batteryPercent: 1,
+        lastFixAgeS: 999,
+        socketState: "disconnected",
       }),
       hubConnected: false,
       staleSince: NOW_ISO,
@@ -107,23 +60,17 @@ describe("beaconFlags", () => {
   it("flags battery_low when batteryPercent < threshold and not below when >=", () => {
     const low = makeBeacon({
       telemetry: makeHeartbeat({
-        power: {
-          batteryPercent: thresholds.batteryLowPercent - 1,
-          charging: false,
-          batteryTempC: 30,
-          thermalStatus: "none",
-        },
+        batteryPercent: thresholds.batteryLowPercent - 1,
+        lastFixAgeS: 1,
+        socketState: "connected",
       }),
     });
     expect(beaconFlags(low, 60, false, NOW_MS)).toContain("battery_low");
     const at = makeBeacon({
       telemetry: makeHeartbeat({
-        power: {
-          batteryPercent: thresholds.batteryLowPercent,
-          charging: false,
-          batteryTempC: 30,
-          thermalStatus: "none",
-        },
+        batteryPercent: thresholds.batteryLowPercent,
+        lastFixAgeS: 1,
+        socketState: "connected",
       }),
     });
     expect(beaconFlags(at, 60, false, NOW_MS)).not.toContain("battery_low");
@@ -132,15 +79,9 @@ describe("beaconFlags", () => {
   it("flags no_recent_fix when lastFixAgeS exceeds noFixAgeS", () => {
     const b = makeBeacon({
       telemetry: makeHeartbeat({
-        gps: {
-          provider: "fused",
-          satellitesUsed: 0,
-          satellitesInView: 0,
-          lastFixAccuracyM: 100,
-          lastFixAgeS: thresholds.noFixAgeS + 1,
-          fixesLastMinute: 0,
-          permission: { foreground: true, background: true, precise: true },
-        },
+        batteryPercent: 90,
+        lastFixAgeS: thresholds.noFixAgeS + 1,
+        socketState: "connected",
       }),
     });
     expect(beaconFlags(b, 60, false, NOW_MS)).toContain("no_recent_fix");
@@ -162,44 +103,32 @@ describe("beaconFlags", () => {
     );
   });
 
-  it("flags permission_missing when any permission is false", () => {
-    for (const key of ["foreground", "background", "precise"] as const) {
-      const perm = { foreground: true, background: true, precise: true };
-      perm[key] = false;
-      const b = makeBeacon({
-        telemetry: makeHeartbeat({
-          gps: {
-            provider: null,
-            satellitesUsed: null,
-            satellitesInView: null,
-            lastFixAccuracyM: null,
-            lastFixAgeS: null,
-            fixesLastMinute: null,
-            permission: perm,
-          },
-        }),
-      });
-      expect(beaconFlags(b, 60, false, NOW_MS)).toContain("permission_missing");
-    }
-  });
-
-  it("does not flag permission_missing when permission is null", () => {
+  it("does not flag a missing health leaf", () => {
     const b = makeBeacon({
       telemetry: makeHeartbeat({
-        gps: {
-          provider: null,
-          satellitesUsed: null,
-          satellitesInView: null,
-          lastFixAccuracyM: null,
-          lastFixAgeS: null,
-          fixesLastMinute: null,
-          permission: null,
-        },
+        // no batteryPercent, no lastFixAgeS
+        socketState: "connected",
       }),
     });
-    expect(beaconFlags(b, 60, false, NOW_MS)).not.toContain(
-      "permission_missing"
-    );
+    const flags = beaconFlags(b, 60, false, NOW_MS);
+    expect(flags).not.toContain("battery_low");
+    expect(flags).not.toContain("no_recent_fix");
+    expect(flags).not.toContain("socket_down");
+  });
+
+  it("never reads the debug object", () => {
+    const alarmingDebug = {
+      power: { batteryPercent: 1 },
+      transport: { socketState: "disconnected" },
+      gps: { lastFixAgeS: 9999 },
+    };
+    const b = makeBeacon({
+      telemetry: makeHeartbeat(
+        { batteryPercent: 90, lastFixAgeS: 1, socketState: "connected" },
+        alarmingDebug
+      ),
+    });
+    expect(beaconFlags(b, 60, false, NOW_MS)).toEqual([]);
   });
 
   it("flags socket_down when hubConnected is false", () => {
@@ -214,13 +143,9 @@ describe("beaconFlags", () => {
     const b = makeBeacon({
       hubConnected: null,
       telemetry: makeHeartbeat({
-        transport: {
-          socketState: "reconnecting",
-          reconnectCount: 4,
-          httpFallbackSeconds: 20,
-          lastReceiptLatencyMs: 500,
-          sendsFailedSinceBoot: 2,
-        },
+        batteryPercent: 90,
+        lastFixAgeS: 1,
+        socketState: "reconnecting",
       }),
     });
     expect(beaconFlags(b, 60, false, NOW_MS)).toContain("socket_down");
@@ -256,6 +181,6 @@ describe("beaconFlags", () => {
     const flags = beaconFlags(b, 60, false, NOW_MS);
     expect(flags).not.toContain("battery_low");
     expect(flags).not.toContain("no_recent_fix");
-    expect(flags).not.toContain("permission_missing");
+    expect(flags).not.toContain("socket_down");
   });
 });

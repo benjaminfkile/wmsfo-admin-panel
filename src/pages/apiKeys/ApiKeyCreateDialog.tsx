@@ -38,7 +38,6 @@ export const CAPABILITY_LABELS: ReadonlyArray<{
   { value: "content", label: "Publish and versions" },
   { value: "media", label: "Media" },
   { value: "icons", label: "Icons" },
-  { value: "cookies", label: "Cookie moderation" },
   { value: "settings", label: "Settings" },
   { value: "contact_messages", label: "Contact messages" },
   { value: "subscribers", label: "Subscribers" },

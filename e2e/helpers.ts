@@ -131,9 +131,38 @@ export async function readCurrentEventName(token: string): Promise<string> {
   return current.name;
 }
 
+// Post a heartbeat as the e2e walk beacon so the API's go-live gate
+// (admin.md 6.3, 8.2 no_healthy_beacon) admits status 3. `E2E_BEACON_KEY`
+// carries the walk beacon's key; the endpoint accepts a bearer token.
+export async function postWalkBeaconHeartbeat(): Promise<void> {
+  const key = required("E2E_BEACON_KEY");
+  const res = await fetch(`${readDevApiBase()}/beacons/heartbeat`, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      sentAt: new Date().toISOString(),
+      health: {
+        batteryPercent: 90,
+        lastFixAgeS: 1,
+        socketState: "connected",
+      },
+      debug: null,
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`POST /beacons/heartbeat → ${res.status}: ${text}`);
+  }
+}
+
 // Find the dev walk event (year 2100, site.md § 22.2) and drive it into the
 // requested status through the API. `isCurrent` is set first if needed since
-// status 3 requires the current flag.
+// status 3 requires the current flag; a fresh heartbeat is posted before
+// status 3 so the API's healthy-beacon gate admits the change.
 export async function setWalkEventStatus(
   token: string,
   statusId: number,
@@ -149,6 +178,9 @@ export async function setWalkEventStatus(
   }
   if (statusId === 3 && !walk.isCurrent) {
     await adminApi(token, "POST", `/admin/events/${walk.id}/current`);
+  }
+  if (statusId === 3) {
+    await postWalkBeaconHeartbeat();
   }
   if (Number(walk.statusId) !== statusId) {
     return (await adminApi(

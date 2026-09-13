@@ -57,32 +57,43 @@ afterEach(() => {
 });
 
 describe("BeaconsList", () => {
-  it("renders one row per beacon with name, role and key prefix", async () => {
+  it("renders one row per beacon with name and key prefix (no role column)", async () => {
     render(<Harness />);
     await screen.findByTestId(`beacon-row-${f.beacons[0]!.id}`);
     const row = screen.getByTestId(`beacon-row-${f.beacons[0]!.id}`);
     expect(within(row).getByText(f.beacons[0]!.name!)).toBeInTheDocument();
-    expect(within(row).getByText(f.beacons[0]!.role!)).toBeInTheDocument();
     expect(
       within(row).getByText(f.beacons[0]!.keyPrefix!)
     ).toBeInTheDocument();
+    // No role column header.
+    expect(screen.queryByRole("columnheader", { name: /^role$/i })).toBeNull();
+    // Healthy and hub headers are present.
+    expect(
+      screen.getByRole("columnheader", { name: /^healthy$/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: /^hub$/i })
+    ).toBeInTheDocument();
   });
 
-  it("shows the Active chip on the active beacon", async () => {
+  it("shows the Active and Healthy chip on the active beacon", async () => {
     render(<Harness />);
     const row = await screen.findByTestId(`beacon-row-${f.beacons[0]!.id}`);
     expect(within(row).getByText("Active")).toBeInTheDocument();
+    expect(within(row).getByText("Healthy")).toBeInTheDocument();
   });
 
-  it("opens the create dialog and shows the role text", async () => {
+  it("opens the create dialog with the new text and no role radio", async () => {
     const user = userEvent.setup();
     render(<Harness />);
     const newBtn = await screen.findByRole("button", { name: /new beacon/i });
     await user.click(newBtn);
     expect(
-      await screen.findByText(/role cannot be changed later/i)
+      await screen.findByText(/A beacon is a key/i)
     ).toBeInTheDocument();
     expect(await screen.findByLabelText(/^name$/i)).toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup")).toBeNull();
+    expect(screen.queryByText(/role cannot be changed later/i)).toBeNull();
   });
 
   it("shows KeyRevealDialog after create with the key and QR image", async () => {
@@ -110,9 +121,12 @@ describe("BeaconsList", () => {
   it("rotate on an active beacon while an event is live warns about fan-out", async () => {
     const user = userEvent.setup();
     render(<Harness />);
-    await screen.findByTestId(`beacon-row-${f.beacons[0]!.id}`);
-    const row = screen.getByTestId(`beacon-row-${f.beacons[0]!.id}`);
-    await user.click(within(row).getByRole("button", { name: /^rotate$/i }));
+    const row = await screen.findByTestId(`beacon-row-${f.beacons[0]!.id}`);
+    // Open the row menu, then click Rotate.
+    await user.click(
+      within(row).getByRole("button", { name: /actions for/i })
+    );
+    await user.click(await screen.findByRole("menuitem", { name: /^rotate$/i }));
     // Confirm dialog opens with the fan-out sentence.
     expect(
       await screen.findByText(
@@ -121,18 +135,14 @@ describe("BeaconsList", () => {
     ).toBeInTheDocument();
   });
 
-  it("captures the create body with the chosen role", async () => {
+  it("sends only {name, notes} on create (no role field)", async () => {
     const user = userEvent.setup();
-    const captured: Array<{ name: string; notes: string; role: string }> = [];
+    const captured: Array<Record<string, unknown>> = [];
     server.use(
       http.post(
         `${testConfig.apiBaseUrl}/admin/beacons`,
         async ({ request }) => {
-          const body = (await request.json()) as {
-            name: string;
-            notes: string;
-            role: string;
-          };
+          const body = (await request.json()) as Record<string, unknown>;
           captured.push(body);
           return HttpResponse.json(
             {
@@ -153,12 +163,20 @@ describe("BeaconsList", () => {
     render(<Harness />);
     const newBtn = await screen.findByRole("button", { name: /new beacon/i });
     await user.click(newBtn);
-    await user.type(await screen.findByLabelText(/^name$/i), "Debug phone");
-    await user.click(screen.getByRole("radio", { name: /admin/i }));
+    await user.type(await screen.findByLabelText(/^name$/i), "Backup phone");
     await user.click(screen.getByRole("button", { name: /^create$/i }));
 
     await waitFor(() => expect(captured.length).toBeGreaterThan(0));
-    expect(captured[0]?.name).toBe("Debug phone");
-    expect(captured[0]?.role).toBe("admin");
+    expect(captured[0]).toEqual({ name: "Backup phone", notes: "" });
+    expect(captured[0]).not.toHaveProperty("role");
+  });
+
+  it("has an edit pencil that links to the beacon page", async () => {
+    render(<Harness />);
+    const row = await screen.findByTestId(`beacon-row-${f.beacons[0]!.id}`);
+    const pencil = within(row).getByRole("link", {
+      name: new RegExp(`edit ${f.beacons[0]!.name}`, "i"),
+    });
+    expect(pencil).toHaveAttribute("href", `/beacons/${f.beacons[0]!.id}`);
   });
 });

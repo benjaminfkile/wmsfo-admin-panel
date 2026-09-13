@@ -6,17 +6,12 @@ import {
   Card,
   CardContent,
   Grid,
-  Link,
   Stack,
   TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
-import {
-  Link as RouterLink,
-  useNavigate,
-  useParams,
-} from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { events as eventsApi } from "../../api/resources/events";
 import { beacons as beaconsApi } from "../../api/resources/beacons";
@@ -90,8 +85,10 @@ export default function EventDetail() {
       void qc.invalidateQueries({ queryKey: keys.eventHistory(id) });
       void qc.invalidateQueries({ queryKey: keys.events });
     },
-    onError: (e) =>
-      notify(e instanceof Error ? e.message : "Status change failed", "error"),
+    onError: (e) => {
+      notify(e instanceof Error ? e.message : "Status change failed", "error");
+      void qc.invalidateQueries({ queryKey: keys.beacons });
+    },
   });
 
   const setCurrentMut = useMutation({
@@ -213,11 +210,36 @@ export default function EventDetail() {
     (e) => Number(e.statusId) === 3 && Number(e.id) !== Number(event.id)
   )?.name;
 
+  const healthyReason = (): string | null => {
+    // Return null when the panel can confirm a healthy, active beacon;
+    // otherwise return the reason for the tooltip and gate.
+    const beaconItems = beaconsQ.data?.items ?? [];
+    const active = beaconItems.find((b) => b.isActive === true) ?? null;
+    if (active === null) return "none is active";
+    if (active.revokedAt !== null && active.revokedAt !== undefined) {
+      return `${active.name ?? "the active beacon"} is revoked`;
+    }
+    if (active.staleSince !== null && active.staleSince !== undefined) {
+      return `${active.name ?? "the active beacon"} is stale since ${formatMt(active.staleSince)}`;
+    }
+    if (active.lastHeartbeatAt === null || active.lastHeartbeatAt === undefined) {
+      return `${active.name ?? "the active beacon"} has never been heard from`;
+    }
+    if (active.healthy !== true) {
+      return `${active.name ?? "the active beacon"} is not healthy`;
+    }
+    return null;
+  };
+
   const disabledReason = (target: StatusId): string | null => {
     if (target === 2 && !event.scheduledAt) return "Set a scheduled time first";
     if (target === 3 && !event.isCurrent) return "Set this event current first";
     if (target === 3 && anotherEventLive)
       return `${liveEventName ?? "Another event"} is live`;
+    if (target === 3) {
+      const reason = healthyReason();
+      if (reason !== null) return `No healthy active beacon: ${reason}`;
+    }
     return null;
   };
 
@@ -425,21 +447,6 @@ export default function EventDetail() {
         <Grid size={12}>
           <LocationsSection event={event} />
         </Grid>
-        <Grid size={12}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Cookies
-              </Typography>
-              <Link
-                component={RouterLink}
-                to={`/cookies?eventId=${event.id}`}
-              >
-                Moderate cookies
-              </Link>
-            </CardContent>
-          </Card>
-        </Grid>
       </Grid>
 
       {statusTarget !== null ? (
@@ -449,13 +456,23 @@ export default function EventDetail() {
           target={statusTarget}
           eventsList={eventsList}
           activeBeacon={activeBeacon}
+          healthyReason={statusTarget === 3 ? healthyReason() : null}
           now={now}
           confirming={statusMut.isPending}
-          onCancel={() => setStatusDialogOpen(false)}
+          error={statusMut.error}
+          onCancel={() => {
+            statusMut.reset();
+            setStatusDialogOpen(false);
+          }}
           onConfirm={(doNotify) => {
             statusMut.mutate(
               { statusId: statusTarget, doNotify },
-              { onSettled: () => setStatusDialogOpen(false) }
+              {
+                onSuccess: () => {
+                  statusMut.reset();
+                  setStatusDialogOpen(false);
+                },
+              }
             );
           }}
         />

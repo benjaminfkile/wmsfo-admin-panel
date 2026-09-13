@@ -31,12 +31,8 @@ const LIVE_KEYS: (keyof LiveObject)[] = [
 
 const HEARTBEAT_TOP_KEYS: (keyof Heartbeat)[] = [
   "sentAt",
-  "power",
-  "radio",
-  "gps",
-  "transport",
-  "process",
-  "identity",
+  "health",
+  "debug",
 ];
 
 describe("LiveObject fixture", () => {
@@ -84,7 +80,12 @@ describe("Heartbeat fixture", () => {
     }
   });
 
-  it("uses the documented socketState lookup", () => {
-    expect(hb.transport?.socketState).toBe("connected");
+  it("carries the socketState leaf in health", () => {
+    expect(hb.health?.socketState).toBe("connected");
+  });
+
+  it("carries the beacon's own debug object verbatim", () => {
+    expect(hb.debug).not.toBeNull();
+    expect(typeof hb.debug).toBe("object");
   });
 });

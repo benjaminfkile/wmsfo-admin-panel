@@ -3,7 +3,6 @@ export { routes } from "./routes";
 export { beacons } from "./beacons";
 export { sponsors } from "./sponsors";
 export { cookieTypes } from "./cookieTypes";
-export { cookies } from "./cookies";
 export { settings } from "./settings";
 export { subscribers } from "./subscribers";
 export { people } from "./people";

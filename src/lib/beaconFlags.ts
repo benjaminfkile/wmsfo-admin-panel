@@ -3,11 +3,11 @@ import { ageS } from "./time";
 import { thresholds as defaultThresholds, type Thresholds } from "./thresholds";
 
 // The flag set rendered on beacon rows and used to colour the
-// telemetry page (admin.md 5.2).
+// telemetry page (admin.md 5.2). Read from the typed `health`
+// leaves only; the beacon's `debug` object is never consulted.
 export type BeaconFlag =
   | "battery_low"
   | "no_recent_fix"
-  | "permission_missing"
   | "socket_down"
   | "stale"
   | "heartbeat_old";
@@ -23,30 +23,21 @@ export function beaconFlags(
 
   const flags: BeaconFlag[] = [];
   const tel = (b.telemetry as Heartbeat | null | undefined) ?? null;
+  const h = tel?.health ?? null;
 
-  const battery = tel?.power?.batteryPercent ?? null;
+  const battery = h?.batteryPercent ?? null;
   if (battery !== null && battery < t.batteryLowPercent) {
     flags.push("battery_low");
   }
 
-  const fixAge = tel?.gps?.lastFixAgeS ?? null;
+  const fixAge = h?.lastFixAgeS ?? null;
   const locAge = ageS(b.lastLocationAt ?? null, nowMs);
   const fixTooOld = fixAge !== null && fixAge > t.noFixAgeS;
   const locTooOld =
     anyEventLive && locAge !== null && locAge > t.noLocationAgeS;
   if (fixTooOld || locTooOld) flags.push("no_recent_fix");
 
-  const perm = tel?.gps?.permission ?? null;
-  if (
-    perm !== null &&
-    (perm.foreground === false ||
-      perm.background === false ||
-      perm.precise === false)
-  ) {
-    flags.push("permission_missing");
-  }
-
-  const socketState = tel?.transport?.socketState ?? null;
+  const socketState = h?.socketState ?? null;
   const hub = b.hubConnected ?? null;
   if (hub === false || (hub === null && socketState !== "connected")) {
     flags.push("socket_down");
@@ -66,7 +57,6 @@ export function beaconFlags(
 export const FLAG_LABEL: Record<BeaconFlag, string> = {
   battery_low: "Battery low",
   no_recent_fix: "No recent fix",
-  permission_missing: "Permission missing",
   socket_down: "Socket down",
   stale: "Stale",
   heartbeat_old: "Heartbeat old",

@@ -9,7 +9,6 @@ import type {
   ContentBundle,
   ContentStatus,
   ContentVersionInfo,
-  CookieAdmin,
   CookieType,
   Event,
   EventMessage,
@@ -153,7 +152,6 @@ export const beacons: Beacon[] = [
     id: 5,
     name: "Helicopter phone",
     notes: "primary",
-    role: "beacon",
     keyPrefix: "wbk_abcdef012",
     isActive: true,
     revokedAt: null,
@@ -163,6 +161,7 @@ export const beacons: Beacon[] = [
     staleSince: null,
     telemetry: null,
     hubConnected: true,
+    healthy: true,
     createdBy: AUTHOR,
     createdAt: NOW,
     updatedAt: NOW,
@@ -241,6 +240,7 @@ export const cookieTypes: CookieType[] = [
     icon: { source: "library", id: "cookie" },
     sort: 10,
     active: true,
+    cookieCount: 412,
     createdAt: NOW,
     updatedAt: NOW,
   },
@@ -253,22 +253,9 @@ export const cookieTypes: CookieType[] = [
     },
     sort: 20,
     active: true,
+    cookieCount: 0,
     createdAt: NOW,
     updatedAt: NOW,
-  },
-];
-
-export const cookies: CookieAdmin[] = [
-  {
-    id: 90,
-    eventId: 7,
-    personId: 1,
-    personEmail: "person@example.com",
-    cookieTypeId: 3,
-    note: "yum",
-    leftAt: NOW,
-    hiddenAt: null,
-    hiddenBy: null,
   },
 ];
 

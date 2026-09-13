@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Box,
   Button,
   Dialog,
@@ -8,6 +9,8 @@ import {
   DialogTitle,
   FormControlLabel,
   IconButton,
+  Menu,
+  MenuItem,
   Paper,
   Stack,
   Switch,
@@ -18,9 +21,11 @@ import {
   TableHead,
   TableRow,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cookieTypes as cookieTypesApi } from "../../api/resources/cookieTypes";
 import type { CookieTypeBody } from "../../api/resources/cookieTypes";
@@ -29,6 +34,7 @@ import { icons as iconsApi } from "../../api/resources/icons";
 import { keys } from "../../queries/keys";
 import { ApiError } from "../../api/errors";
 import CommentBox from "../../components/CommentBox";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import IconPicker from "../../components/content/IconPicker";
 import { useNotify } from "../../hooks/useNotify";
@@ -54,6 +60,10 @@ function fromCookieType(t: CookieType): FormInput {
     active: Boolean(t.active),
     icon: (t.icon as Icon | null) ?? null,
   };
+}
+
+function inUseTooltip(count: number): string {
+  return `${count} cookies use this type; deactivate it instead`;
 }
 
 export default function CookieTypesList() {
@@ -84,6 +94,11 @@ export default function CookieTypesList() {
   const locked = liveEvent !== null || lockedFromServer;
 
   const [editing, setEditing] = useState<EditState | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<
+    { el: HTMLElement; type: CookieType } | null
+  >(null);
+  const [confirmDelete, setConfirmDelete] = useState<CookieType | null>(null);
+  const [deleteAlert, setDeleteAlert] = useState<string | null>(null);
 
   const setLive = () => {
     setLockedFromServer(true);
@@ -113,6 +128,33 @@ export default function CookieTypesList() {
       if (e instanceof ApiError && e.code === "event_live") setLive();
     },
   });
+  const deleteMut = useMutation({
+    mutationFn: (id: number) => cookieTypesApi.remove(id),
+    onSuccess: () => {
+      notify("Cookie type deleted");
+      void qc.invalidateQueries({ queryKey: keys.cookieTypes });
+      setConfirmDelete(null);
+    },
+    onError: (e) => {
+      if (e instanceof ApiError) {
+        if (e.code === "event_live") {
+          setLive();
+          setConfirmDelete(null);
+          return;
+        }
+        if (e.code === "cookie_type_in_use") {
+          const count = Number(
+            (e.body?.details?.["cookieCount"] as number | undefined) ?? 0
+          );
+          setDeleteAlert(inUseTooltip(count));
+          void qc.invalidateQueries({ queryKey: keys.cookieTypes });
+          setConfirmDelete(null);
+          return;
+        }
+      }
+      notify(e instanceof Error ? e.message : "Delete failed", "error");
+    },
+  });
 
   const iconsById = useMemo(() => {
     const m = new Map<string, IconInfo>();
@@ -123,6 +165,8 @@ export default function CookieTypesList() {
   }, [iconsQ.data]);
 
   const cookieTypes = cookieTypesQ.data?.items ?? [];
+
+  const closeMenu = () => setMenuAnchor(null);
 
   return (
     <>
@@ -135,6 +179,15 @@ export default function CookieTypesList() {
             liveEvent?.name ?? "an event"
           } is live. Cookie types can be created, edited, and deactivated again after the event ends.`}
         </CommentBox>
+      ) : null}
+      {deleteAlert ? (
+        <Alert
+          severity="warning"
+          sx={{ mb: 2 }}
+          onClose={() => setDeleteAlert(null)}
+        >
+          {deleteAlert}
+        </Alert>
       ) : null}
 
       <Stack
@@ -164,42 +217,63 @@ export default function CookieTypesList() {
                 <TableCell>Name</TableCell>
                 <TableCell align="right">Sort</TableCell>
                 <TableCell>Active</TableCell>
+                <TableCell align="right">Cookies</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {cookieTypes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5}>
+                  <TableCell colSpan={6}>
                     <Typography variant="body2" color="text.secondary">
                       No cookie types yet.
                     </Typography>
                   </TableCell>
                 </TableRow>
               ) : (
-                cookieTypes.map((t) => (
-                  <TableRow
-                    key={String(t.id)}
-                    data-testid={`cookie-type-row-${t.id}`}
-                  >
-                    <TableCell>
-                      <IconCell icon={t.icon as Icon | null} lib={iconsById} />
-                    </TableCell>
-                    <TableCell>{t.name}</TableCell>
-                    <TableCell align="right">{String(t.sort ?? 0)}</TableCell>
-                    <TableCell>{t.active ? "yes" : "no"}</TableCell>
-                    <TableCell align="right">
-                      <IconButton
-                        size="small"
-                        aria-label="Edit"
-                        disabled={locked}
-                        onClick={() => setEditing({ mode: "edit", type: t })}
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))
+                cookieTypes.map((t) => {
+                  const count = Number(t.cookieCount ?? 0);
+                  return (
+                    <TableRow
+                      key={String(t.id)}
+                      data-testid={`cookie-type-row-${t.id}`}
+                    >
+                      <TableCell>
+                        <IconCell icon={t.icon as Icon | null} lib={iconsById} />
+                      </TableCell>
+                      <TableCell>{t.name}</TableCell>
+                      <TableCell align="right">{String(t.sort ?? 0)}</TableCell>
+                      <TableCell>{t.active ? "yes" : "no"}</TableCell>
+                      <TableCell align="right">{String(count)}</TableCell>
+                      <TableCell align="right">
+                        <Stack
+                          direction="row"
+                          spacing={0.5}
+                          justifyContent="flex-end"
+                        >
+                          <IconButton
+                            size="small"
+                            aria-label={`Edit ${t.name ?? "cookie type"}`}
+                            disabled={locked}
+                            onClick={() => setEditing({ mode: "edit", type: t })}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            aria-label={`Actions for ${t.name ?? "cookie type"}`}
+                            disabled={locked}
+                            onClick={(ev) =>
+                              setMenuAnchor({ el: ev.currentTarget, type: t })
+                            }
+                          >
+                            <MoreVertIcon fontSize="small" />
+                          </IconButton>
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -226,6 +300,46 @@ export default function CookieTypesList() {
           }
         }}
       />
+
+      {menuAnchor ? (
+        <Menu open anchorEl={menuAnchor.el} onClose={closeMenu}>
+          {(() => {
+            const count = Number(menuAnchor.type.cookieCount ?? 0);
+            const disabled = count > 0;
+            const item = (
+              <MenuItem
+                disabled={disabled}
+                onClick={() => {
+                  setConfirmDelete(menuAnchor.type);
+                  closeMenu();
+                }}
+              >
+                Delete
+              </MenuItem>
+            );
+            return disabled ? (
+              <Tooltip title={inUseTooltip(count)} placement="left">
+                <span>{item}</span>
+              </Tooltip>
+            ) : (
+              item
+            );
+          })()}
+        </Menu>
+      ) : null}
+
+      {confirmDelete ? (
+        <ConfirmDialog
+          open
+          title="Delete cookie type?"
+          body={`Delete ${confirmDelete.name}? This cannot be undone.`}
+          confirmLabel="Delete"
+          danger
+          disabled={deleteMut.isPending}
+          onCancel={() => setConfirmDelete(null)}
+          onConfirm={() => deleteMut.mutate(Number(confirmDelete.id))}
+        />
+      ) : null}
     </>
   );
 }

@@ -22,7 +22,6 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import FlagChip from "../../components/FlagChip";
 import KeyRevealDialog from "../../components/KeyRevealDialog";
-import { useAuth } from "../../auth/AuthProvider";
 import { useNotify } from "../../hooks/useNotify";
 import { useNow } from "../../hooks/useNow";
 import { ageS, formatAgeS, formatMt } from "../../lib/time";
@@ -38,7 +37,6 @@ export default function BeaconDetail() {
   const id = Number(params.id);
   const qc = useQueryClient();
   const notify = useNotify();
-  const { state: authState } = useAuth();
   const now = useNow();
 
   const beaconsQ = useQuery({
@@ -145,8 +143,7 @@ export default function BeaconDetail() {
   const revoked = beacon.revokedAt !== null && beacon.revokedAt !== undefined;
   const flags = beaconFlags(beacon, staleAfterS, anyEventLive, now);
   const flagSet = new Set(flags);
-  const isAdmin = authState.kind === "member" && authState.role === "admin";
-  const showLogs = isAdmin && beacon.role === "admin";
+  const isHealthy = beacon.healthy === true;
 
   const save = () => {
     const trimmedName = formName.trim();
@@ -187,12 +184,18 @@ export default function BeaconDetail() {
         <Typography variant="h4" sx={{ flexGrow: 1 }}>
           {beacon.name}
         </Typography>
-        <Chip size="small" label={`role: ${beacon.role}`} />
         <Box component="code">{beacon.keyPrefix}</Box>
         {revoked ? (
           <Chip size="small" color="default" label="Revoked" />
         ) : beacon.isActive ? (
           <Chip size="small" color="success" label="Active" />
+        ) : null}
+        {!revoked ? (
+          <Chip
+            size="small"
+            label={isHealthy ? "Healthy" : "Unhealthy"}
+            color={isHealthy ? "success" : "error"}
+          />
         ) : null}
       </Stack>
 
@@ -391,15 +394,13 @@ export default function BeaconDetail() {
           </Card>
         </Grid>
 
-        {showLogs ? (
-          <Grid size={12}>
-            <Card>
-              <CardContent>
-                <BeaconLogs beaconId={id} />
-              </CardContent>
-            </Card>
-          </Grid>
-        ) : null}
+        <Grid size={12}>
+          <Card>
+            <CardContent>
+              <BeaconLogs beaconId={id} />
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
 
       {confirmSpec ? (

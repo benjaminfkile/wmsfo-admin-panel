@@ -18,7 +18,6 @@ export const ALL_ROUTES: RouteDef[] = [
   { key: "sponsors", path: "/sponsors", label: "Sponsors" },
   { key: "sponsors-order", path: "/sponsors/order", label: "Sponsor order" },
   { key: "cookie-types", path: "/cookie-types", label: "Cookie types" },
-  { key: "cookies", path: "/cookies", label: "Cookies" },
   { key: "subscribers", path: "/subscribers", label: "Subscribers" },
   { key: "people", path: "/people", label: "People" },
   { key: "contact-messages", path: "/contact-messages", label: "Contact messages" },

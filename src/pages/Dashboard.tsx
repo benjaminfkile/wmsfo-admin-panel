@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   Menu,
   MenuItem,
   Card,
@@ -127,8 +128,10 @@ export default function Dashboard() {
       notify("Status changed");
       invalidateAll();
     },
-    onError: (e) =>
-      notify(e instanceof Error ? e.message : "Status change failed", "error"),
+    onError: (e) => {
+      notify(e instanceof Error ? e.message : "Status change failed", "error");
+      void qc.invalidateQueries({ queryKey: keys.beacons });
+    },
   });
 
   const eventsList = eventsQ.data?.items ?? [];
@@ -136,6 +139,23 @@ export default function Dashboard() {
   const activeBeacon = beaconsQ.data?.items.find((b) => b.isActive) ?? null;
   const staleAfterS = beaconsQ.data?.staleAfterS ?? 45;
   const anyLive = eventsList.some((e) => e.statusId === 3);
+
+  const healthyReason = (): string | null => {
+    if (activeBeacon === null) return "none is active";
+    if (activeBeacon.revokedAt !== null && activeBeacon.revokedAt !== undefined) {
+      return `${activeBeacon.name ?? "the active beacon"} is revoked`;
+    }
+    if (activeBeacon.staleSince !== null && activeBeacon.staleSince !== undefined) {
+      return `${activeBeacon.name ?? "the active beacon"} is stale`;
+    }
+    if (activeBeacon.lastHeartbeatAt === null || activeBeacon.lastHeartbeatAt === undefined) {
+      return `${activeBeacon.name ?? "the active beacon"} has never been heard from`;
+    }
+    if (activeBeacon.healthy !== true) {
+      return `${activeBeacon.name ?? "the active beacon"} is not healthy`;
+    }
+    return null;
+  };
 
   const previousMismatched = useRef(false);
   const cdnStatus = cdnQ.error instanceof CdnError ? cdnQ.error.status : null;
@@ -236,13 +256,23 @@ export default function Dashboard() {
           target={statusTarget}
           eventsList={eventsList}
           activeBeacon={activeBeacon}
+          healthyReason={statusTarget === 3 ? healthyReason() : null}
           now={now}
           confirming={setStatusMut.isPending}
-          onCancel={() => setStatusDialogOpen(false)}
+          error={setStatusMut.error}
+          onCancel={() => {
+            setStatusMut.reset();
+            setStatusDialogOpen(false);
+          }}
           onConfirm={(notifyValue) => {
             setStatusMut.mutate(
               { id: Number(currentEvent.id), statusId: statusTarget, notify: notifyValue },
-              { onSettled: () => setStatusDialogOpen(false) }
+              {
+                onSuccess: () => {
+                  setStatusMut.reset();
+                  setStatusDialogOpen(false);
+                },
+              }
             );
           }}
         />
@@ -394,12 +424,14 @@ function ActiveBeaconCard({
           </Typography>
         ) : (
           <Stack spacing={0.5}>
-            <Typography variant="subtitle1">
-              {beacon.name}{" "}
-              <Box component="span" sx={{ color: "text.secondary" }}>
-                ({beacon.role})
-              </Box>
-            </Typography>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography variant="subtitle1">{beacon.name}</Typography>
+              <Chip
+                size="small"
+                label={beacon.healthy === true ? "Healthy" : "Unhealthy"}
+                color={beacon.healthy === true ? "success" : "error"}
+              />
+            </Stack>
             <LabeledLine label="keyPrefix">
               <code>{beacon.keyPrefix}</code>
             </LabeledLine>
