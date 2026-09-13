@@ -42,8 +42,11 @@ test.describe("route upload", () => {
     const buffer = Buffer.from(JSON.stringify(stripped));
 
     await page.getByRole("link", { name: "Events", exact: true }).click();
+    // Every row also carries an "Edit <name>" pencil link (M19), so a
+    // loose regex on the row's name link would match the pencil too;
+    // pin the name link with `exact: true`.
     const row = page.getByRole("row", { name: new RegExp(currentEventName) });
-    await row.getByRole("link", { name: new RegExp(currentEventName) }).click();
+    await row.getByRole("link", { name: currentEventName, exact: true }).click();
 
     // RouteSection's button is labelled "Upload" (opens the dialog); the
     // dialog's submit is also "Upload" and is scoped by the dialog role.

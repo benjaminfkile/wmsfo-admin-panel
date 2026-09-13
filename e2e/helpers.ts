@@ -150,6 +150,18 @@ export async function setEventCurrent(
   await adminApi(token, "POST", `/admin/events/${eventId}/current`);
 }
 
+// Delete an event through the API (`DELETE /admin/events/{id}`, contracts
+// 4.5 Events). Specs use this in `afterAll` to remove the event they
+// created so the dev events list stops accumulating rows. The API answers
+// 409 for a live event or one that carries location rows; callers hand
+// "current" and status back to another event first.
+export async function deleteEvent(
+  token: string,
+  eventId: number,
+): Promise<void> {
+  await adminApi(token, "DELETE", `/admin/events/${eventId}`);
+}
+
 // Change an event's status without sending a notification. Used to bring
 // the walk back to status 4 after a spec pushes it forward.
 export async function setEventStatus(
