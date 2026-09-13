@@ -1,0 +1,372 @@
+import { useMemo, useState } from "react";
+import { Link as RouterLink } from "react-router-dom";
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  IconButton,
+  Menu,
+  MenuItem,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+} from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { places as placesApi } from "../../api/resources/places";
+import { pages as pagesApi } from "../../api/resources/pages";
+import { keys } from "../../queries/keys";
+import AuditCell from "../../components/audit/AuditCell";
+import ConfirmDialog from "../../components/ConfirmDialog";
+import ErrorAlert from "../../components/ErrorAlert";
+import { useNotify } from "../../hooks/useNotify";
+import { useAuth } from "../../auth/AuthProvider";
+import type { Place } from "../../api/types";
+import PlaceDialog, { type PlaceDialogValues } from "./PlaceDialog";
+import { locationCellFor, toTree } from "./placeHelpers";
+
+export default function PlacesList() {
+  const qc = useQueryClient();
+  const notify = useNotify();
+  const { state } = useAuth();
+  const isAdmin = state.kind === "member" && state.role === "admin";
+
+  const listQ = useQuery({
+    queryKey: keys.places,
+    queryFn: () => placesApi.list(),
+  });
+  const pagesQ = useQuery({
+    queryKey: keys.pages,
+    queryFn: () => pagesApi.list(),
+  });
+
+  const rows = useMemo<Place[]>(() => listQ.data?.items ?? [], [listQ.data]);
+  const byId = useMemo(() => {
+    const m = new Map<number, Place>();
+    for (const p of rows) m.set(p.id, p);
+    return m;
+  }, [rows]);
+  const tree = useMemo(() => toTree(rows), [rows]);
+
+  const invalidate = () => {
+    void qc.invalidateQueries({ queryKey: keys.places });
+  };
+
+  // Every row starts expanded per admin.md 6.24.
+  const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
+  const isHidden = (row: (typeof tree)[number]) =>
+    row.ancestors.some((id) => collapsed.has(id));
+  const toggle = (id: number) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const [createOpen, setCreateOpen] = useState<{ parentId: number | null } | null>(
+    null,
+  );
+  const [moveTarget, setMoveTarget] = useState<Place | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Place | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{
+    el: HTMLElement;
+    row: Place;
+  } | null>(null);
+
+  const createMut = useMutation({
+    mutationFn: (v: PlaceDialogValues) => placesApi.create(v),
+    onSuccess: () => {
+      notify("Place created");
+      invalidate();
+      setCreateOpen(null);
+    },
+  });
+
+  const moveMut = useMutation({
+    mutationFn: ({ id, parentId }: { id: number; parentId: number | null }) =>
+      placesApi.patch(id, { parentId }),
+    onSuccess: () => {
+      notify("Moved");
+      invalidate();
+      setMoveTarget(null);
+    },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: number) => placesApi.remove(id),
+    onSuccess: () => {
+      notify("Deleted");
+      invalidate();
+    },
+    onSettled: () => setConfirmDelete(null),
+  });
+
+  return (
+    <>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        sx={{ mb: 2 }}
+        flexWrap="wrap"
+      >
+        <Typography variant="h4">Places</Typography>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Button
+            variant="contained"
+            onClick={() => setCreateOpen({ parentId: null })}
+          >
+            New place
+          </Button>
+          <Button variant="outlined" component={RouterLink} to="/places/map">
+            Map
+          </Button>
+        </Stack>
+      </Stack>
+
+      {listQ.error ? <ErrorAlert error={listQ.error} /> : null}
+
+      {rows.length === 0 && !listQ.isLoading ? (
+        <Alert severity="info">No places yet. Start with a top-level place.</Alert>
+      ) : (
+        <TableContainer component={Paper}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Description</TableCell>
+                <TableCell>Codes</TableCell>
+                <TableCell align="right">People</TableCell>
+                <TableCell>Location</TableCell>
+                <TableCell align="right">Edit</TableCell>
+                <TableCell align="right">Actions</TableCell>
+                <TableCell align="right">Audit</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {tree.map((row) => {
+                if (isHidden(row)) return null;
+                const p = row.place;
+                const loc = locationCellFor(p, byId);
+                const hasChildren = row.childCount > 0;
+                const isCollapsed = collapsed.has(p.id);
+                return (
+                  <TableRow
+                    key={String(p.id)}
+                    hover
+                    data-testid={`place-row-${p.id}`}
+                  >
+                    <TableCell>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          pl: row.depth * 2,
+                        }}
+                      >
+                        {hasChildren ? (
+                          <IconButton
+                            size="small"
+                            onClick={() => toggle(p.id)}
+                            aria-label={
+                              isCollapsed
+                                ? `Expand ${p.name}`
+                                : `Collapse ${p.name}`
+                            }
+                          >
+                            {isCollapsed ? (
+                              <ChevronRightIcon fontSize="small" />
+                            ) : (
+                              <ExpandMoreIcon fontSize="small" />
+                            )}
+                          </IconButton>
+                        ) : (
+                          <Box sx={{ width: 34 }} />
+                        )}
+                        <RouterLink to={`/places/${p.id}`}>{p.name}</RouterLink>
+                      </Box>
+                    </TableCell>
+                    <TableCell>{p.description}</TableCell>
+                    <TableCell>
+                      {p.codes.length === 0
+                        ? ""
+                        : p.codes.map((c) => c.tag).join(", ")}
+                    </TableCell>
+                    <TableCell align="right">{p.scans.people}</TableCell>
+                    <TableCell>
+                      {loc.kind === "pinned" ? (
+                        <Chip size="small" label="Pinned" color="success" />
+                      ) : loc.kind === "uses" ? (
+                        <Chip
+                          size="small"
+                          label={`Uses ${loc.fromName}`}
+                          variant="outlined"
+                        />
+                      ) : loc.kind === "warning" ? (
+                        <Chip
+                          size="small"
+                          label="Not pinned yet"
+                          color="warning"
+                        />
+                      ) : (
+                        <Typography variant="caption" color="text.secondary">
+                          No pin
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell align="right">
+                      <IconButton
+                        component={RouterLink}
+                        to={`/places/${p.id}`}
+                        size="small"
+                        aria-label={`Edit ${p.name}`}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
+                    <TableCell align="right">
+                      <IconButton
+                        size="small"
+                        aria-label={`Actions for ${p.name}`}
+                        onClick={(ev) =>
+                          setMenuAnchor({ el: ev.currentTarget, row: p })
+                        }
+                      >
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
+                    <AuditCell
+                      entity="place"
+                      entityId={p.id}
+                      name={p.name}
+                      audit={p.audit}
+                      align="right"
+                    />
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+
+      {menuAnchor ? (
+        <Menu open anchorEl={menuAnchor.el} onClose={() => setMenuAnchor(null)}>
+          <MenuItem
+            onClick={() => {
+              setCreateOpen({ parentId: menuAnchor.row.id });
+              setMenuAnchor(null);
+            }}
+          >
+            New place inside
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              setMoveTarget(menuAnchor.row);
+              setMenuAnchor(null);
+            }}
+          >
+            Move…
+          </MenuItem>
+          {isAdmin ? (
+            <MenuItem
+              onClick={() => {
+                setConfirmDelete(menuAnchor.row);
+                setMenuAnchor(null);
+              }}
+            >
+              Delete
+            </MenuItem>
+          ) : null}
+        </Menu>
+      ) : null}
+
+      {createOpen ? (
+        <PlaceDialog
+          open
+          title={
+            createOpen.parentId == null
+              ? "New place"
+              : `New place inside ${byId.get(createOpen.parentId)?.name ?? ""}`
+          }
+          submitLabel="Create"
+          places={rows}
+          pages={pagesQ.data?.items ?? []}
+          initial={{ parentId: createOpen.parentId }}
+          onCancel={() => setCreateOpen(null)}
+          onSubmit={(v) => createMut.mutate(v)}
+          submitting={createMut.isPending}
+          error={createMut.error}
+        />
+      ) : null}
+
+      {moveTarget ? (
+        <PlaceDialog
+          open
+          title={`Move ${moveTarget.name}`}
+          submitLabel="Move"
+          places={rows}
+          pages={pagesQ.data?.items ?? []}
+          initial={{
+            parentId: moveTarget.parentId,
+            name: moveTarget.name,
+            description: moveTarget.description,
+            opensPageId: moveTarget.opensPageId,
+            forwardUrl: moveTarget.forwardUrl,
+          }}
+          excludeIds={descendantsOf(moveTarget.id, rows)}
+          onCancel={() => setMoveTarget(null)}
+          onSubmit={(v) =>
+            moveMut.mutate({ id: moveTarget.id, parentId: v.parentId })
+          }
+          submitting={moveMut.isPending}
+          error={moveMut.error}
+        />
+      ) : null}
+
+      {confirmDelete ? (
+        <ConfirmDialog
+          open
+          title="Delete place?"
+          body={
+            <Box>
+              Delete <strong>{confirmDelete.name}</strong>? Its subtree and
+              codes stay put; the API refuses if either has content.
+            </Box>
+          }
+          confirmLabel="Delete"
+          danger
+          disabled={deleteMut.isPending}
+          onCancel={() => setConfirmDelete(null)}
+          onConfirm={() => deleteMut.mutate(confirmDelete.id)}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function descendantsOf(id: number, places: Place[]): Set<number> {
+  const out = new Set<number>([id]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const p of places) {
+      if (p.parentId != null && out.has(p.parentId) && !out.has(p.id)) {
+        out.add(p.id);
+        grew = true;
+      }
+    }
+  }
+  return out;
+}

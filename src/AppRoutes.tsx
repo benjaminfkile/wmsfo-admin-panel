@@ -29,6 +29,9 @@ import AuditPage from "./pages/audit/AuditPage";
 import QrCodesList from "./pages/qr/QrCodesList";
 import QrCodeDetail from "./pages/qr/QrCodeDetail";
 import ScanPlaceholder from "./pages/qr/ScanPlaceholder";
+import PlacesList from "./pages/places/PlacesList";
+import PlaceDetail from "./pages/places/PlaceDetail";
+import PlacesMap from "./pages/places/PlacesMap";
 import { NotifyProvider } from "./hooks/useNotify";
 import { ALL_ROUTES } from "./routesConfig";
 import { canAccess, landingFor } from "./lib/roles";
@@ -80,6 +83,7 @@ const CUSTOM_ELEMENTS: Partial<Record<NavKey, ReactElement>> = {
   audit: <AuditPage />,
   "qr-codes": <QrCodesList />,
   scan: <ScanPlaceholder />,
+  places: <PlacesList />,
 };
 
 function elementFor(role: Role, key: NavKey, label: string): ReactElement {
@@ -168,6 +172,18 @@ function AuthedShell({ themeMode, onToggleTheme }: Props) {
               ) : (
                 <NotAvailable />
               )
+            }
+          />
+          <Route
+            path="places/map"
+            element={
+              canAccess(role, "places") ? <PlacesMap /> : <NotAvailable />
+            }
+          />
+          <Route
+            path="places/:id"
+            element={
+              canAccess(role, "places") ? <PlaceDetail /> : <NotAvailable />
             }
           />
           <Route

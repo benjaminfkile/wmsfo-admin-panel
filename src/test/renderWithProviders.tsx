@@ -89,6 +89,7 @@ export const testConfig: Config = {
   cognitoAuthority: "https://cognito.test/pool",
   cognitoDomain: "https://auth.test",
   cognitoClientId: "client-test",
+  googleMapsKey: "test-maps-key",
 };
 
 interface ProvidersProps {

@@ -33,16 +33,18 @@ npm run dev                    # http://localhost:5174
 
 ## Environment
 
-Six variables, all prefixed `VITE_`. `.env.example` lists the names; `.env.local` is gitignored.
+Eight variables, all prefixed `VITE_`. `.env.example` lists the names; `.env.local` is gitignored.
 
 | Variable | Meaning |
 |---|---|
 | `VITE_ENV` | `prod`, `dev`, or `local` |
 | `VITE_API_BASE_URL` | base URL of the WMSFO API |
 | `VITE_CDN_BASE_URL` | base URL of the public CDN |
+| `VITE_SITE_BASE_URL` | base URL of the public site (used for the `/q/<tag>` QR target) |
 | `VITE_COGNITO_AUTHORITY` | Cognito user-pool issuer URL |
 | `VITE_COGNITO_DOMAIN` | Cognito hosted-UI domain |
 | `VITE_COGNITO_CLIENT_ID` | `wmsfo-admin` app-client id |
+| `VITE_GOOGLE_MAPS_KEY` | Google Maps JS API key (Maps and Places libraries) |
 
 A missing variable renders the configuration-error page; no auth or API request is made.
 
