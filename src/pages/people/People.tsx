@@ -22,6 +22,7 @@ import { people as peopleApi } from "../../api/resources/people";
 import { keys } from "../../queries/keys";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
+import AuditCell from "../../components/audit/AuditCell";
 import { useNotify } from "../../hooks/useNotify";
 import { formatMt } from "../../lib/time";
 import type { Person } from "../../api/types";
@@ -77,12 +78,13 @@ export default function People() {
               <TableCell>Created at</TableCell>
               <TableCell>Last seen</TableCell>
               <TableCell align="right">Actions</TableCell>
+              <TableCell align="right">Audit</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5}>
+                <TableCell colSpan={6}>
                   <Typography variant="body2" color="text.secondary">
                     No people.
                   </Typography>
@@ -107,6 +109,13 @@ export default function People() {
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </TableCell>
+                  <AuditCell
+                    entity="person"
+                    entityId={p.id ?? ""}
+                    name={p.email ?? "person"}
+                    audit={p.audit}
+                    align="right"
+                  />
                 </TableRow>
               ))
             )}

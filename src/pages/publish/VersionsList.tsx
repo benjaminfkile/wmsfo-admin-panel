@@ -18,6 +18,7 @@ import { content as contentApi } from "../../api/resources/content";
 import { keys } from "../../queries/keys";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
+import AuditCell from "../../components/audit/AuditCell";
 import { formatMt } from "../../lib/time";
 import { useNotify } from "../../hooks/useNotify";
 import VersionDialog from "./VersionDialog";
@@ -93,6 +94,7 @@ export default function VersionsList({ currentPublishedId }: Props) {
                 <TableCell align="right">Pages</TableCell>
                 <TableCell align="right">Sections</TableCell>
                 <TableCell align="right">Actions</TableCell>
+                <TableCell align="right">Audit</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -143,6 +145,13 @@ export default function VersionsList({ currentPublishedId }: Props) {
                         </Button>
                       </Stack>
                     </TableCell>
+                    <AuditCell
+                      entity="content_version"
+                      entityId={id}
+                      name={v.label ?? `version ${id}`}
+                      audit={v.audit}
+                      align="right"
+                    />
                   </TableRow>
                 );
               })}

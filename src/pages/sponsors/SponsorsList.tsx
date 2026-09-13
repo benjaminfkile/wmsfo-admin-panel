@@ -26,6 +26,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { sponsors as sponsorsApi } from "../../api/resources/sponsors";
 import { keys } from "../../queries/keys";
 import ErrorAlert from "../../components/ErrorAlert";
+import AuditCell from "../../components/audit/AuditCell";
 import { useNotify } from "../../hooks/useNotify";
 import {
   toSponsorBody,
@@ -144,12 +145,13 @@ export default function SponsorsList() {
                 <TableCell align="right">Years</TableCell>
                 <TableCell>Website</TableCell>
                 <TableCell align="right">Actions</TableCell>
+                <TableCell align="right">Audit</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {sponsors.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6}>
+                  <TableCell colSpan={7}>
                     <Typography variant="body2" color="text.secondary">
                       No sponsors yet.
                     </Typography>
@@ -284,6 +286,13 @@ function SponsorRow({ sponsor }: { sponsor: Sponsor }) {
           <EditIcon fontSize="small" />
         </IconButton>
       </TableCell>
+      <AuditCell
+        entity="sponsor"
+        entityId={sponsor.id ?? ""}
+        name={sponsor.name ?? "sponsor"}
+        audit={sponsor.audit}
+        align="right"
+      />
     </TableRow>
   );
 }

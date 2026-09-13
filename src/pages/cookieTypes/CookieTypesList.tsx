@@ -36,6 +36,7 @@ import { ApiError } from "../../api/errors";
 import CommentBox from "../../components/CommentBox";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
+import AuditCell from "../../components/audit/AuditCell";
 import IconPicker from "../../components/content/IconPicker";
 import { useNotify } from "../../hooks/useNotify";
 import type { CookieType, Icon, IconInfo } from "../../api/types";
@@ -219,12 +220,13 @@ export default function CookieTypesList() {
                 <TableCell>Active</TableCell>
                 <TableCell align="right">Cookies</TableCell>
                 <TableCell align="right">Actions</TableCell>
+                <TableCell align="right">Audit</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {cookieTypes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6}>
+                  <TableCell colSpan={7}>
                     <Typography variant="body2" color="text.secondary">
                       No cookie types yet.
                     </Typography>
@@ -271,6 +273,13 @@ export default function CookieTypesList() {
                           </IconButton>
                         </Stack>
                       </TableCell>
+                      <AuditCell
+                        entity="cookie_type"
+                        entityId={t.id ?? ""}
+                        name={t.name ?? "cookie type"}
+                        audit={t.audit}
+                        align="right"
+                      />
                     </TableRow>
                   );
                 })

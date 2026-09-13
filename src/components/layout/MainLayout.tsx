@@ -49,6 +49,7 @@ const ALL_ENTRIES: Record<NavKey, NavEntry> = {
   settings: { key: "settings", label: "Settings", to: "/settings" },
   "api-keys": { key: "api-keys", label: "API keys", to: "/api-keys" },
   agents: { key: "agents", label: "Agents", to: "/agents" },
+  audit: { key: "audit", label: "Audit", to: "/audit" },
 };
 
 interface Props {

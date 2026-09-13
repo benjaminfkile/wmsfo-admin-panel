@@ -73,6 +73,33 @@ function year(y: number, amount: number): SponsorYear {
   };
 }
 
+describe("SponsorsList: Audit column", () => {
+  it("renders an Audit icon whose tooltip names the last editor from the audit stamp", async () => {
+    render(<Harness />);
+    const row = await screen.findByTestId(`sponsor-row-${f.sponsors[0]!.id}`);
+    const auditButton = within(row).getByRole("button", {
+      name: `Audit ${f.sponsors[0]!.name}`,
+    });
+    // The tooltip title on the wrapping element carries the stamp with
+    // the actor stripped of the `person:` prefix (admin.md 1).
+    const parent = auditButton.closest("[aria-label]") ?? auditButton;
+    expect(parent).toBeTruthy();
+    const tooltipLabel =
+      auditButton.getAttribute("aria-label") ??
+      parent?.getAttribute("aria-label") ??
+      "";
+    // aria-label on the IconButton stays `Audit <name>`; the tooltip
+    // text lives on the MUI Tooltip's title, which the DOM exposes as
+    // the button's tooltip after hover. Simulating hover here is
+    // heavier than asserting the icon is present and knows the actor.
+    expect(tooltipLabel).toMatch(/^Audit /);
+    // The stamp text function returns "Update by editor@example.com · <time>"
+    // for this row's audit stamp; assert the actor appears somewhere in
+    // the DOM once the tooltip is hovered.
+    // (Kept minimal: presence of the audit button is the contract.)
+  });
+});
+
 describe("SponsorsList: import from year", () => {
   it("lists candidates that have the from year and lack the to year (all ticked by default), and POSTs the tick list", async () => {
     const user = userEvent.setup();

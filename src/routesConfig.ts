@@ -24,4 +24,5 @@ export const ALL_ROUTES: RouteDef[] = [
   { key: "settings", path: "/settings", label: "Settings" },
   { key: "api-keys", path: "/api-keys", label: "API keys" },
   { key: "agents", path: "/agents", label: "Agents" },
+  { key: "audit", path: "/audit", label: "Audit" },
 ];
