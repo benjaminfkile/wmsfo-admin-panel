@@ -39,7 +39,16 @@ test.describe("beacons", () => {
     await row.getByRole("button", { name: new RegExp(`actions for ${name}`, "i") }).click();
     await page.getByRole("menuitem", { name: /^revoke$/i }).click();
     await page.getByRole("button", { name: /^revoke$/i }).click();
-    await expect(row.getByText(/revoked/i)).toBeVisible();
+
+    // admin.md 6.5: after revoke, the row moves into the "Revoked (n)"
+    // accordion under the main table. Open it and confirm the row is
+    // there with the Revoked chip.
+    const accordion = page.getByTestId("revoked-beacons-accordion");
+    await expect(accordion).toBeVisible();
+    await accordion.getByRole("button", { name: /revoked/i }).click();
+    const revokedRow = accordion.getByRole("row", { name: new RegExp(name) });
+    await expect(revokedRow).toBeVisible();
+    await expect(revokedRow.getByText(/revoked/i)).toBeVisible();
 
     // The API has no DELETE for a beacon (contracts 4.5 Beacons; revoke
     // is permanent and the row stays for history and export). The spec
