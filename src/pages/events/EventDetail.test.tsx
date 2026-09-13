@@ -17,7 +17,9 @@ import {
   makeUser,
   testConfig,
 } from "../../test/renderWithProviders";
-// The dialog flows type a message and drive three MUI dialogs; give them room.vi.setConfig({ testTimeout: 15_000 });
+
+// The dialog flows type a message and drive three MUI dialogs; give them room.
+vi.setConfig({ testTimeout: 15_000 });
 
 function Harness({ id }: { id: number }) {
   const client = new QueryClient({
