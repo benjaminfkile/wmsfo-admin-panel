@@ -6,6 +6,7 @@ function envFrom(overrides: Partial<Record<string, string>>): ImportMetaEnv {
     VITE_ENV: "dev",
     VITE_API_BASE_URL: "https://api.example.com/",
     VITE_CDN_BASE_URL: "https://cdn.example.com//",
+    VITE_SITE_BASE_URL: "https://site.example.com/",
     VITE_COGNITO_AUTHORITY: "https://cognito-idp.us-west-2.amazonaws.com/pool-id/",
     VITE_COGNITO_DOMAIN: "https://auth.example.com/",
     VITE_COGNITO_CLIENT_ID: "client-abc",
@@ -22,6 +23,7 @@ describe("loadConfig", () => {
       expect(result.config.env).toBe("dev");
       expect(result.config.apiBaseUrl).toBe("https://api.example.com");
       expect(result.config.cdnBaseUrl).toBe("https://cdn.example.com");
+      expect(result.config.siteBaseUrl).toBe("https://site.example.com");
       expect(result.config.cognitoAuthority).toBe(
         "https://cognito-idp.us-west-2.amazonaws.com/pool-id"
       );

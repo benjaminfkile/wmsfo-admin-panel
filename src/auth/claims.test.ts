@@ -21,6 +21,18 @@ describe("roleOf", () => {
     ).toBe("admin");
   });
 
+  it("returns canvasser when the user is only in the canvasser group", () => {
+    expect(roleOf(makeUser({ "cognito:groups": ["canvasser"] }))).toBe(
+      "canvasser"
+    );
+  });
+
+  it("prefers editor over canvasser when both groups are present", () => {
+    expect(
+      roleOf(makeUser({ "cognito:groups": ["canvasser", "editor"] }))
+    ).toBe("editor");
+  });
+
   it("returns null when the group claim is absent", () => {
     expect(roleOf(makeUser({}))).toBeNull();
   });

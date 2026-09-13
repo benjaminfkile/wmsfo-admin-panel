@@ -5,6 +5,9 @@ export type NavKey =
   | "events"
   | "routes"
   | "beacons"
+  | "qr-codes"
+  | "places"
+  | "scan"
   | "pages"
   | "media"
   | "site-settings"
@@ -20,11 +23,17 @@ export type NavKey =
   | "agents"
   | "audit";
 
+// Drawer order per admin.md 6.1: admin sees QR codes, Places, and Scan
+// after Beacons; editor gets them beside content; canvasser sees only
+// those three and lands on Scan.
 export const ADMIN_NAV: NavKey[] = [
   "dashboard",
   "events",
   "routes",
   "beacons",
+  "qr-codes",
+  "places",
+  "scan",
   "pages",
   "media",
   "site-settings",
@@ -48,11 +57,23 @@ export const EDITOR_NAV: NavKey[] = [
   "publish",
   "sponsors",
   "sponsors-order",
+  "qr-codes",
+  "places",
+  "scan",
   "audit",
 ];
 
+export const CANVASSER_NAV: NavKey[] = ["qr-codes", "places", "scan"];
+
 export function navFor(role: Role): NavKey[] {
-  return role === "admin" ? ADMIN_NAV : EDITOR_NAV;
+  switch (role) {
+    case "admin":
+      return ADMIN_NAV;
+    case "editor":
+      return EDITOR_NAV;
+    case "canvasser":
+      return CANVASSER_NAV;
+  }
 }
 
 export function canAccess(role: Role, key: NavKey): boolean {
@@ -60,5 +81,6 @@ export function canAccess(role: Role, key: NavKey): boolean {
 }
 
 export function landingFor(role: Role): string {
+  if (role === "canvasser") return "/scan";
   return role === "admin" ? "/" : "/pages";
 }

@@ -53,6 +53,7 @@ const ROUTE_FOR_ENTITY: Record<string, (id: string) => string> = {
   sponsors: (id) => `/sponsors/${id}`,
   page: (id) => `/pages/${id}`,
   pages: (id) => `/pages/${id}`,
+  qr_code: (id) => `/qr-codes/${id}`,
 };
 
 export default function AuditPage() {

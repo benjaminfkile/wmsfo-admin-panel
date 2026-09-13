@@ -3,6 +3,7 @@ export type Config = {
   env: AppEnv;
   apiBaseUrl: string;
   cdnBaseUrl: string;
+  siteBaseUrl: string;
   cognitoAuthority: string;
   cognitoDomain: string;
   cognitoClientId: string;
@@ -12,6 +13,7 @@ const NAMES = [
   "VITE_ENV",
   "VITE_API_BASE_URL",
   "VITE_CDN_BASE_URL",
+  "VITE_SITE_BASE_URL",
   "VITE_COGNITO_AUTHORITY",
   "VITE_COGNITO_DOMAIN",
   "VITE_COGNITO_CLIENT_ID",
@@ -34,6 +36,7 @@ export function loadConfig(env: ImportMetaEnv = import.meta.env): ConfigResult {
       env: env.VITE_ENV as AppEnv,
       apiBaseUrl: strip(env.VITE_API_BASE_URL),
       cdnBaseUrl: strip(env.VITE_CDN_BASE_URL),
+      siteBaseUrl: strip(env.VITE_SITE_BASE_URL),
       cognitoAuthority: strip(env.VITE_COGNITO_AUTHORITY),
       cognitoDomain: strip(env.VITE_COGNITO_DOMAIN),
       cognitoClientId: env.VITE_COGNITO_CLIENT_ID,

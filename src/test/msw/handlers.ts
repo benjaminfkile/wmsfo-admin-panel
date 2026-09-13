@@ -333,6 +333,32 @@ export const handlers: HttpHandler[] = [
     })
   ),
 
+  // QR codes
+  http.get("*/admin/qr-codes", () => HttpResponse.json({ items: f.qrCodes })),
+  http.post("*/admin/qr-codes", async ({ request }) => {
+    const body = (await request.json()) as { count?: number };
+    const count = Math.max(1, Math.min(100, Number(body?.count ?? 10)));
+    const items = Array.from({ length: count }, (_, i) => ({
+      ...(f.qrCodes[0] as (typeof f.qrCodes)[number]),
+      id: 200 + i,
+      tag: `qr-${200 + i}`,
+      batchNo: 2,
+      attachment: null,
+      scans: { people: 0, flagged: 0, lastScanAt: null },
+    }));
+    return HttpResponse.json({ items }, { status: 201 });
+  }),
+  http.get("*/admin/qr-codes/:id", () => HttpResponse.json(f.qrCodeDetail)),
+  http.patch("*/admin/qr-codes/:id", () => HttpResponse.json(f.qrCodes[0])),
+  http.post("*/admin/qr-codes/:id/attach", () => HttpResponse.json(f.qrCodes[0])),
+  http.post("*/admin/qr-codes/:id/detach", () =>
+    HttpResponse.json({ ...(f.qrCodes[0] as (typeof f.qrCodes)[number]), attachment: null })
+  ),
+  http.delete("*/admin/qr-codes/:id", () => new HttpResponse(null, { status: 204 })),
+
+  // Places
+  http.get("*/admin/places", () => HttpResponse.json({ items: f.places })),
+
   // CDN read (not an admin API path but the panel dashboard fetches it)
   http.get("*/live/location.json", () => HttpResponse.json(f.liveObject)),
 ];

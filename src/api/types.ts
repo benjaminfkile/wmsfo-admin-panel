@@ -116,3 +116,108 @@ export type LiveState = {
     live: LiveObject;
   };
 };
+
+// QR codes and places (contracts 4.5a). The vendored openapi.json does
+// not yet describe these endpoints, so the shapes below are hand-typed
+// from the doc's TypeScript block.
+export type Opens =
+  | { kind: "home" }
+  | { kind: "page"; pageId: number; slug: string }
+  | { kind: "url"; url: string };
+
+export type QrCodeAttachment = {
+  id: number;
+  placeId: number;
+  placePath: string[];
+  since: string;
+};
+
+export type QrCodeScansSummary = {
+  people: number;
+  flagged: number;
+  lastScanAt: string | null;
+};
+
+export type QrCode = {
+  id: number;
+  tag: string;
+  batchNo: number;
+  printedAt: string;
+  active: boolean;
+  note: string;
+  opensPageId: number | null;
+  forwardUrl: string | null;
+  opens: Opens;
+  opensSource: "code" | "place" | "home";
+  attachment: QrCodeAttachment | null;
+  scans: QrCodeScansSummary;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  audit: AuditStamp | null;
+};
+
+export type QrCodeHistoryRow = {
+  attachmentId: number;
+  placeId: number;
+  placePath: string[];
+  fromAt: string;
+  toAt: string | null;
+  people: number;
+  earlyScans: number;
+};
+
+export type QrDailyBucket = {
+  day: string;
+  people: number;
+};
+
+export type QrCodeDetail = QrCode & {
+  history: QrCodeHistoryRow[];
+  daily: QrDailyBucket[];
+};
+
+export type PlaceLocation = {
+  lat: number;
+  lng: number;
+  accuracyM: number | null;
+  source: "phone" | "search" | "drag";
+  pinnedBy: string;
+  pinnedAt: string;
+};
+
+export type PlacePinRef = {
+  lat: number;
+  lng: number;
+  fromPlaceId: number;
+};
+
+export type Place = {
+  id: number;
+  parentId: number | null;
+  name: string;
+  description: string;
+  path: string[];
+  opensPageId: number | null;
+  forwardUrl: string | null;
+  opens: Opens;
+  opensSource: "place" | "ancestor" | "home";
+  location: PlaceLocation | null;
+  pin: PlacePinRef | null;
+  codes: { id: number; tag: string }[];
+  scans: { people: number };
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  audit: AuditStamp | null;
+};
+
+export type PlacePin = {
+  placeId: number;
+  name: string;
+  path: string[];
+  lat: number;
+  lng: number;
+  people: number;
+  codes: { tag: string; placeName: string; people: number }[];
+};

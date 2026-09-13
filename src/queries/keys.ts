@@ -38,4 +38,7 @@ export const keys = {
   apiKeys: ["api-keys"] as const,
   audit: (q: AuditQuery) => ["audit", q] as const,
   auditEntities: ["audit", "entities"] as const,
+  qrCodes: ["qr-codes"] as const,
+  qrCode: (id: number) => ["qr-codes", id] as const,
+  places: ["places"] as const,
 };

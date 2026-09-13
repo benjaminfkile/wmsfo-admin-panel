@@ -26,9 +26,12 @@ import Publish from "./pages/publish/Publish";
 import ApiKeysList from "./pages/apiKeys/ApiKeysList";
 import AgentsPage from "./pages/agents/AgentsPage";
 import AuditPage from "./pages/audit/AuditPage";
+import QrCodesList from "./pages/qr/QrCodesList";
+import QrCodeDetail from "./pages/qr/QrCodeDetail";
+import ScanPlaceholder from "./pages/qr/ScanPlaceholder";
 import { NotifyProvider } from "./hooks/useNotify";
 import { ALL_ROUTES } from "./routesConfig";
-import { canAccess } from "./lib/roles";
+import { canAccess, landingFor } from "./lib/roles";
 import { useAuth } from "./auth/AuthProvider";
 import type { AppThemeMode } from "./theme/theme";
 import type { NavKey } from "./lib/roles";
@@ -75,6 +78,8 @@ const CUSTOM_ELEMENTS: Partial<Record<NavKey, ReactElement>> = {
   "api-keys": <ApiKeysList />,
   agents: <AgentsPage />,
   audit: <AuditPage />,
+  "qr-codes": <QrCodesList />,
+  scan: <ScanPlaceholder />,
 };
 
 function elementFor(role: Role, key: NavKey, label: string): ReactElement {
@@ -99,14 +104,22 @@ function AuthedShell({ themeMode, onToggleTheme }: Props) {
             />
           }
         >
-          {ALL_ROUTES.map((r) => (
-            <Route
-              key={r.path}
-              index={r.path === "/"}
-              path={r.path === "/" ? undefined : r.path.replace(/^\//, "")}
-              element={elementFor(role, r.key, r.label)}
-            />
-          ))}
+          {ALL_ROUTES.map((r) => {
+            const element =
+              r.path === "/" && !canAccess(role, r.key) ? (
+                <Navigate to={landingFor(role)} replace />
+              ) : (
+                elementFor(role, r.key, r.label)
+              );
+            return (
+              <Route
+                key={r.path}
+                index={r.path === "/"}
+                path={r.path === "/" ? undefined : r.path.replace(/^\//, "")}
+                element={element}
+              />
+            );
+          })}
           <Route
             path="events/:id"
             element={
@@ -147,7 +160,20 @@ function AuthedShell({ themeMode, onToggleTheme }: Props) {
               )
             }
           />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route
+            path="qr-codes/:id"
+            element={
+              canAccess(role, "qr-codes") ? (
+                <QrCodeDetail />
+              ) : (
+                <NotAvailable />
+              )
+            }
+          />
+          <Route
+            path="*"
+            element={<Navigate to={landingFor(role)} replace />}
+          />
         </Route>
       </Routes>
     </NotifyProvider>

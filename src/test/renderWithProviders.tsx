@@ -85,6 +85,7 @@ export const testConfig: Config = {
   env: "dev",
   apiBaseUrl: "https://api.test",
   cdnBaseUrl: "https://cdn.test",
+  siteBaseUrl: "https://site.test",
   cognitoAuthority: "https://cognito.test/pool",
   cognitoDomain: "https://auth.test",
   cognitoClientId: "client-test",

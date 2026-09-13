@@ -19,3 +19,10 @@ export { uploadToS3, UploadFailed } from "./upload";
 export { apiKeys } from "./apiKeys";
 export { audit, AUDIT_ACTIONS } from "./audit";
 export type { AuditAction, AuditQuery } from "./audit";
+export { qr } from "./qr";
+export type {
+  QrGenerateBody,
+  QrPatchBody,
+  QrAttachBody,
+} from "./qr";
+export { places } from "./places";
