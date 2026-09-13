@@ -78,7 +78,7 @@ describe("SponsorDetail: year upsert", () => {
     render(<Harness id={Number(f.sponsors[0]!.id)} />);
     // Wait for the details form to render.
     await screen.findByText(f.sponsors[0]!.name!);
-    await user.click(screen.getByRole("button", { name: /add year/i }));
+    await user.click(screen.getByRole("button", { name: /^add year$/i }));
     // Fill year and amount.
     const yearInput = await screen.findByLabelText(/event year/i);
     await user.clear(yearInput);
@@ -115,7 +115,7 @@ describe("SponsorDetail: year upsert", () => {
     );
     render(<Harness id={Number(f.sponsors[0]!.id)} />);
     await screen.findByText(f.sponsors[0]!.name!);
-    await user.click(screen.getByRole("button", { name: /add year/i }));
+    await user.click(screen.getByRole("button", { name: /^add year$/i }));
     const yearInput = await screen.findByLabelText(/event year/i);
     await user.clear(yearInput);
     await user.type(yearInput, "2027");
@@ -127,6 +127,154 @@ describe("SponsorDetail: year upsert", () => {
       await screen.findByText(/whole number of seconds between 0 and 600/i)
     ).toBeInTheDocument();
     expect(captured).toEqual([]);
+  });
+});
+
+describe("SponsorDetail: add year from…", () => {
+  it("POSTs copy-from for the source year picked and the target-year prompt, then opens SponsorYearDialog on the new row", async () => {
+    const user = userEvent.setup();
+    const copyCalls: Array<{ url: string }> = [];
+    // Start with a sponsor that has 2025 and 2026 to give two source
+    // year options. The mock GET returns the "after copy" state (with
+    // 2027 present) so the dialog can render the new row when it opens.
+    const before = {
+      ...f.sponsors[0]!,
+      years: [
+        {
+          eventYear: 2025,
+          amountDonated: 300,
+          active: true,
+          canAdvertise: true,
+          anonymous: false,
+          pinnedPosition: null,
+          lingerMsOverride: null,
+          lingerMs: 12000,
+          registeredAt: "2025-12-22T01:31:07.412Z",
+        },
+        f.sponsors[0]!.years![0]!,
+      ],
+    };
+    const after = {
+      ...before,
+      years: [
+        ...before.years,
+        {
+          eventYear: 2027,
+          amountDonated: 300,
+          active: true,
+          canAdvertise: true,
+          anonymous: false,
+          pinnedPosition: null,
+          lingerMsOverride: null,
+          lingerMs: 12000,
+          registeredAt: "2027-01-01T00:00:00.000Z",
+        },
+      ],
+    };
+    let served = 0;
+    server.use(
+      http.get(
+        `${testConfig.apiBaseUrl}/admin/sponsors/:id`,
+        () => {
+          served += 1;
+          return HttpResponse.json(served > copyCalls.length ? after : before);
+        }
+      ),
+      http.post(
+        `${testConfig.apiBaseUrl}/admin/sponsors/:id/years/:eventYear/copy-from/:sourceYear`,
+        ({ request, params }) => {
+          copyCalls.push({ url: request.url });
+          return HttpResponse.json(
+            {
+              eventYear: Number(params.eventYear),
+              amountDonated: 300,
+              active: true,
+              canAdvertise: true,
+              anonymous: false,
+              pinnedPosition: null,
+              lingerMsOverride: null,
+              lingerMs: 12000,
+              registeredAt: "2027-01-01T00:00:00.000Z",
+            },
+            { status: 201 }
+          );
+        }
+      )
+    );
+    render(<Harness id={Number(f.sponsors[0]!.id)} />);
+    await screen.findByText(f.sponsors[0]!.name!);
+    // The current event's year is 2026 (fixture). We copy from 2025 to
+    // a target year of 2027 (the prompt default is 2026 but we edit it).
+    await user.click(screen.getByRole("button", { name: /add year from/i }));
+    // Menu of the sponsor's years; click 2025.
+    await user.click(await screen.findByRole("menuitem", { name: "2025" }));
+    // Prompt appears; the target year defaults to the current event's
+    // year (2026) but we override to 2027.
+    const target = await screen.findByLabelText(/target year/i);
+    await user.clear(target);
+    await user.type(target, "2027");
+    await user.click(screen.getByRole("button", { name: /^copy$/i }));
+    await waitFor(() => expect(copyCalls.length).toBeGreaterThan(0));
+    expect(copyCalls[0]!.url).toMatch(
+      /\/admin\/sponsors\/[^/]+\/years\/2027\/copy-from\/2025$/
+    );
+    // After the copy, SponsorYearDialog opens on the new row.
+    await waitFor(() =>
+      expect(
+        screen.getByRole("dialog", { name: /edit year/i })
+      ).toBeInTheDocument()
+    );
+  });
+
+  it("shows year_exists on the target year prompt (no dialog transition)", async () => {
+    const user = userEvent.setup();
+    const before = {
+      ...f.sponsors[0]!,
+      years: [
+        {
+          eventYear: 2025,
+          amountDonated: 300,
+          active: true,
+          canAdvertise: true,
+          anonymous: false,
+          pinnedPosition: null,
+          lingerMsOverride: null,
+          lingerMs: 12000,
+          registeredAt: "2025-12-22T01:31:07.412Z",
+        },
+      ],
+    };
+    server.use(
+      http.get(
+        `${testConfig.apiBaseUrl}/admin/sponsors/:id`,
+        () => HttpResponse.json(before)
+      ),
+      http.post(
+        `${testConfig.apiBaseUrl}/admin/sponsors/:id/years/:eventYear/copy-from/:sourceYear`,
+        () =>
+          HttpResponse.json(
+            {
+              code: "year_exists",
+              message: "year exists",
+              details: null,
+              requestId: "req-y",
+            },
+            { status: 409 }
+          )
+      )
+    );
+    render(<Harness id={Number(f.sponsors[0]!.id)} />);
+    await screen.findByText(f.sponsors[0]!.name!);
+    await user.click(screen.getByRole("button", { name: /add year from/i }));
+    await user.click(await screen.findByRole("menuitem", { name: "2025" }));
+    const target = await screen.findByLabelText(/target year/i);
+    await user.clear(target);
+    await user.type(target, "2026");
+    await user.click(screen.getByRole("button", { name: /^copy$/i }));
+    // The prompt itself explains the sponsor already has that year.
+    expect(
+      await screen.findByText(/sponsor already has this year/i)
+    ).toBeInTheDocument();
   });
 });
 

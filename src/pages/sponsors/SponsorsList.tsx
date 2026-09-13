@@ -35,6 +35,7 @@ import {
   type SponsorInput,
 } from "../../validation/sponsor";
 import type { Sponsor } from "../../api/types";
+import SponsorImportDialog from "./SponsorImportDialog";
 
 const EMPTY_INPUT: SponsorInput = {
   name: "",
@@ -62,6 +63,7 @@ export default function SponsorsList() {
   const navigate = useNavigate();
   const notify = useNotify();
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [input, setInput] = useState<SponsorInput>(EMPTY_INPUT);
   const [errors, setErrors] = useState<SponsorErrors>({});
 
@@ -87,6 +89,22 @@ export default function SponsorsList() {
     },
   });
 
+  const importMut = useMutation({
+    mutationFn: (opts: {
+      fromYear: number;
+      toYear: number;
+      sponsorIds: number[];
+    }) =>
+      sponsorsApi.importFromYear(opts.fromYear, opts.toYear, opts.sponsorIds),
+    onSuccess: (res) => {
+      const created = Number(res.created ?? 0);
+      const skipped = Number(res.skipped ?? 0);
+      notify(`Imported ${created}, skipped ${skipped}`);
+      void qc.invalidateQueries({ queryKey: keys.sponsors });
+      setImportOpen(false);
+    },
+  });
+
   const submit = () => {
     const errs = validateSponsor(input);
     setErrors(errs);
@@ -104,9 +122,14 @@ export default function SponsorsList() {
         sx={{ mb: 2 }}
       >
         <Typography variant="h4">Sponsors</Typography>
-        <Button variant="contained" onClick={() => setCreateOpen(true)}>
-          New sponsor
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" onClick={() => setImportOpen(true)}>
+            Import from year
+          </Button>
+          <Button variant="contained" onClick={() => setCreateOpen(true)}>
+            New sponsor
+          </Button>
+        </Stack>
       </Stack>
       {sponsorsQ.error ? (
         <ErrorAlert error={sponsorsQ.error} />
@@ -196,6 +219,18 @@ export default function SponsorsList() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <SponsorImportDialog
+        open={importOpen}
+        sponsors={sponsors}
+        submitting={importMut.isPending}
+        error={importMut.error}
+        onCancel={() => {
+          setImportOpen(false);
+          importMut.reset();
+        }}
+        onSubmit={(opts) => importMut.mutate(opts)}
+      />
     </>
   );
 }
