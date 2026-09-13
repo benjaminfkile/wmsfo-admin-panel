@@ -132,7 +132,12 @@ describe("ApiKeysList", () => {
     );
     render(<Harness />);
     const row = await screen.findByTestId(`api-key-row-${f.apiKeys[0]!.id}`);
-    await user.click(within(row).getByRole("button", { name: /revoke/i }));
+    await user.click(
+      within(row).getByRole("button", { name: /actions for/i })
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: /^revoke$/i })
+    );
     expect(
       await screen.findByText(/anything using it stops working immediately/i)
     ).toBeInTheDocument();

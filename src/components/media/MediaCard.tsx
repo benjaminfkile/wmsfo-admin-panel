@@ -5,9 +5,11 @@ import {
   CardContent,
   CardMedia,
   Chip,
+  IconButton,
   Stack,
   Typography,
 } from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
 import ImageIcon from "@mui/icons-material/Image";
 import type { MediaAsset } from "../../api/types";
 
@@ -22,6 +24,7 @@ interface Props {
 export default function MediaCard({ asset, onClick, selected = false }: Props) {
   const preview = previewUrlFor(asset);
   const stateChip = stateChipFor(asset);
+  const deepZoom = typeof asset.dziUrl === "string" && asset.dziUrl.length > 0;
   return (
     <Card
       variant="outlined"
@@ -29,6 +32,7 @@ export default function MediaCard({ asset, onClick, selected = false }: Props) {
         borderColor: selected ? "primary.main" : undefined,
         borderWidth: selected ? 2 : 1,
         height: "100%",
+        position: "relative",
       }}
       data-testid={`media-card-${asset.id}`}
     >
@@ -75,10 +79,35 @@ export default function MediaCard({ asset, onClick, selected = false }: Props) {
               label={asset.kind ?? "media"}
               data-testid={`media-kind-${asset.id}`}
             />
+            {deepZoom ? (
+              <Chip
+                size="small"
+                label="Deep zoom"
+                data-testid={`media-dzi-${asset.id}`}
+              />
+            ) : null}
             {stateChip}
           </Stack>
         </CardContent>
       </CardActionArea>
+      {onClick ? (
+        <IconButton
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick();
+          }}
+          aria-label={`Edit ${asset.filename ?? asset.id ?? "media"}`}
+          sx={{
+            position: "absolute",
+            top: 4,
+            right: 4,
+            bgcolor: "background.paper",
+          }}
+        >
+          <EditIcon fontSize="small" />
+        </IconButton>
+      ) : null}
     </Card>
   );
 }

@@ -178,7 +178,7 @@ describe("EventDetail: route poster and flight history blocks", () => {
     const card = await screen.findByTestId(
       `media-card-${f.mediaAssets[0]!.id}`
     );
-    await user.click(within(card).getByRole("button"));
+    await user.click(within(card).getAllByRole("button")[0]!);
     await user.click(screen.getByRole("button", { name: /^choose$/i }));
     // After the 409, the picker re-opens.
     await waitFor(() =>

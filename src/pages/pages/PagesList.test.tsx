@@ -71,17 +71,28 @@ afterEach(() => {
 
 describe("PagesList", () => {
   it("role pages render no delete action", async () => {
+    const user = userEvent.setup();
     render(<Harness />);
-    // The No event status page is a role page.
+    // The No event status page is a role page: no actions menu, only a pencil.
     const statusRow = await screen.findByTestId(`page-row-${1}`);
-    expect(within(statusRow).queryByRole("button", { name: /delete/i })).toBeNull();
     expect(
-      within(statusRow).queryByLabelText(/delete page/i)
+      within(statusRow).queryByRole("button", { name: /actions for/i })
     ).toBeNull();
+    expect(within(statusRow).queryByLabelText(/^delete/i)).toBeNull();
+    // The pencil is present.
+    expect(
+      within(statusRow).getByRole("link", { name: /edit no event/i })
+    ).toBeInTheDocument();
 
-    // The About page (role "none") does render a delete button.
+    // The About page (role "none") has an actions menu with Delete.
     const nonRoleRow = await screen.findByTestId(`page-row-${3}`);
-    expect(within(nonRoleRow).getByLabelText(/delete page/i)).toBeInTheDocument();
+    const menuBtn = within(nonRoleRow).getByRole("button", {
+      name: /actions for/i,
+    });
+    await user.click(menuBtn);
+    expect(
+      await screen.findByRole("menuitem", { name: /^delete$/i })
+    ).toBeInTheDocument();
   });
 
   it("drag reorder sends PUT /admin/pages/order with every `none` id in the new order", async () => {
@@ -142,7 +153,12 @@ describe("PagesList", () => {
     render(<Harness />);
 
     const nonRoleRow = await screen.findByTestId(`page-row-${3}`);
-    await user.click(within(nonRoleRow).getByLabelText(/delete page/i));
+    await user.click(
+      within(nonRoleRow).getByRole("button", { name: /actions for/i })
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: /^delete$/i })
+    );
 
     const dialog = await screen.findByRole("dialog");
     // Fixture About page has sectionCount = 2.

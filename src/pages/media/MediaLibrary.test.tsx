@@ -281,7 +281,7 @@ describe("MediaLibrary", () => {
     const card = await screen.findByTestId(
       `media-card-${f.mediaAssets[0]!.id}`
     );
-    await user.click(within(card).getByRole("button"));
+    await user.click(within(card).getAllByRole("button")[0]!);
     const deleteButton = await screen.findByRole("button", { name: /delete/i });
     await user.click(deleteButton);
     const confirmButtons = await screen.findAllByRole("button", {
@@ -290,5 +290,32 @@ describe("MediaLibrary", () => {
     await user.click(confirmButtons[confirmButtons.length - 1]!);
     // The 409 renders "In use by:" and the usage list.
     expect(await screen.findByText(/in use by/i)).toBeInTheDocument();
+  });
+
+  it("shows the Deep zoom chip on the card when dziUrl is set", async () => {
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/media`, () =>
+        HttpResponse.json({
+          items: [
+            {
+              ...f.mediaAssets[0],
+              id: "with-dzi",
+              dziUrl: "https://cdn.example/dzi/x.dzi",
+            },
+            {
+              ...f.mediaAssets[0],
+              id: "no-dzi",
+              dziUrl: null,
+            },
+          ],
+          nextCursor: null,
+        })
+      )
+    );
+    render(<Harness />);
+    await screen.findByTestId("media-card-with-dzi");
+    // The card with dziUrl shows the chip; the other does not.
+    expect(screen.getByTestId("media-dzi-with-dzi")).toBeInTheDocument();
+    expect(screen.queryByTestId("media-dzi-no-dzi")).toBeNull();
   });
 });

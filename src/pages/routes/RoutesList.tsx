@@ -11,6 +11,7 @@ import {
   DialogTitle,
   IconButton,
   Link,
+  Menu,
   MenuItem,
   Paper,
   Select,
@@ -24,7 +25,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { events as eventsApi } from "../../api/resources/events";
 import { routes as routesApi } from "../../api/resources/routes";
@@ -45,6 +46,10 @@ export default function RoutesList() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [fromEventOpen, setFromEventOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Route | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{
+    el: HTMLElement;
+    route: Route;
+  } | null>(null);
 
   const routesQ = useQuery({
     queryKey: keys.routes,
@@ -160,7 +165,10 @@ export default function RoutesList() {
                     (e) => e.routeId !== null && Number(e.routeId) === Number(r.id)
                   );
                   return (
-                    <TableRow key={String(r.id)}>
+                    <TableRow
+                      key={String(r.id)}
+                      data-testid={`route-row-${r.id}`}
+                    >
                       <TableCell>{r.name}</TableCell>
                       <TableCell align="right">{String(r.pointCount)}</TableCell>
                       <TableCell>{formatMt(r.createdAt)}</TableCell>
@@ -186,11 +194,12 @@ export default function RoutesList() {
                       <TableCell align="right">
                         <IconButton
                           size="small"
-                          color="error"
-                          aria-label="Delete"
-                          onClick={() => setConfirmDelete(r)}
+                          aria-label={`Actions for ${r.name ?? "route"}`}
+                          onClick={(ev) =>
+                            setMenuAnchor({ el: ev.currentTarget, route: r })
+                          }
                         >
-                          <DeleteIcon fontSize="small" />
+                          <MoreVertIcon fontSize="small" />
                         </IconButton>
                       </TableCell>
                     </TableRow>
@@ -201,6 +210,23 @@ export default function RoutesList() {
           </Table>
         </TableContainer>
       )}
+
+      {menuAnchor ? (
+        <Menu
+          open
+          anchorEl={menuAnchor.el}
+          onClose={() => setMenuAnchor(null)}
+        >
+          <MenuItem
+            onClick={() => {
+              setConfirmDelete(menuAnchor.route);
+              setMenuAnchor(null);
+            }}
+          >
+            Delete
+          </MenuItem>
+        </Menu>
+      ) : null}
 
       <RouteUploadDialog
         open={uploadOpen}

@@ -7,6 +7,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   Link,
   Paper,
   Stack,
@@ -19,6 +20,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { sponsors as sponsorsApi } from "../../api/resources/sponsors";
@@ -118,12 +120,13 @@ export default function SponsorsList() {
                 <TableCell>Latest year</TableCell>
                 <TableCell align="right">Years</TableCell>
                 <TableCell>Website</TableCell>
+                <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {sponsors.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5}>
+                  <TableCell colSpan={6}>
                     <Typography variant="body2" color="text.secondary">
                       No sponsors yet.
                     </Typography>
@@ -235,6 +238,16 @@ function SponsorRow({ sponsor }: { sponsor: Sponsor }) {
         ) : (
           "none"
         )}
+      </TableCell>
+      <TableCell align="right">
+        <IconButton
+          size="small"
+          component={RouterLink}
+          to={`/sponsors/${sponsor.id}`}
+          aria-label={`Edit ${sponsor.name ?? "sponsor"}`}
+        >
+          <EditIcon fontSize="small" />
+        </IconButton>
       </TableCell>
     </TableRow>
   );
