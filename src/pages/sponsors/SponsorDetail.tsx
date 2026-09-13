@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
   Card,
   CardContent,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   Menu,
   MenuItem,
@@ -23,6 +27,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { sponsors as sponsorsApi } from "../../api/resources/sponsors";
+import { events as eventsApi } from "../../api/resources/events";
 import { keys } from "../../queries/keys";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
@@ -96,12 +101,34 @@ export default function SponsorDetail() {
     el: HTMLElement;
     year: SponsorYear;
   } | null>(null);
+  const [copyFromAnchor, setCopyFromAnchor] = useState<HTMLElement | null>(
+    null
+  );
+  const [copyPrompt, setCopyPrompt] = useState<{
+    sourceYear: number;
+    targetYear: string;
+  } | null>(null);
 
   const sponsorQ = useQuery({
     queryKey: keys.sponsor(sponsorId),
     queryFn: () => sponsorsApi.get(sponsorId),
     enabled: Number.isFinite(sponsorId),
   });
+
+  const eventsQ = useQuery({
+    queryKey: keys.events,
+    queryFn: () => eventsApi.list(),
+  });
+
+  const currentEventYear = useMemo(() => {
+    const items = eventsQ.data?.items ?? [];
+    const cur = items.find((e) => e.isCurrent);
+    if (cur && cur.year !== null && cur.year !== undefined) {
+      const y = Number(cur.year);
+      if (Number.isFinite(y)) return y;
+    }
+    return new Date().getFullYear();
+  }, [eventsQ.data]);
 
   useEffect(() => {
     if (sponsorQ.data) setInput(fromSponsor(sponsorQ.data));
@@ -185,6 +212,21 @@ export default function SponsorDetail() {
     },
     onError: (e) =>
       notify(e instanceof Error ? e.message : "Delete failed", "error"),
+  });
+
+  const copyYearMut = useMutation({
+    mutationFn: (opts: { sourceYear: number; targetYear: number }) =>
+      sponsorsApi.copyYearFrom(sponsorId, opts.targetYear, opts.sourceYear),
+    onSuccess: (created) => {
+      notify("Year added");
+      setCopyPrompt(null);
+      // Refetch so the years table shows the new row before we open
+      // its edit dialog.
+      void qc.invalidateQueries({ queryKey: keys.sponsors });
+      void qc
+        .invalidateQueries({ queryKey: keys.sponsor(sponsorId) })
+        .then(() => setYearDialogFor(created));
+    },
   });
 
   const deleteMut = useMutation({
@@ -298,9 +340,18 @@ export default function SponsorDetail() {
             sx={{ mb: 1 }}
           >
             <Typography variant="h6">Years</Typography>
-            <Button variant="contained" onClick={() => setYearDialogFor("new")}>
-              Add year
-            </Button>
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant="outlined"
+                disabled={years.length === 0}
+                onClick={(e) => setCopyFromAnchor(e.currentTarget)}
+              >
+                Add year from…
+              </Button>
+              <Button variant="contained" onClick={() => setYearDialogFor("new")}>
+                Add year
+              </Button>
+            </Stack>
           </Stack>
           <TableContainer component={Paper} variant="outlined">
             <Table size="small">
@@ -410,6 +461,57 @@ export default function SponsorDetail() {
         </Menu>
       ) : null}
 
+      {copyFromAnchor ? (
+        <Menu
+          open
+          anchorEl={copyFromAnchor}
+          onClose={() => setCopyFromAnchor(null)}
+        >
+          {years
+            .slice()
+            .sort((a, b) => Number(b.eventYear) - Number(a.eventYear))
+            .map((y) => (
+              <MenuItem
+                key={String(y.eventYear)}
+                onClick={() => {
+                  setCopyFromAnchor(null);
+                  copyYearMut.reset();
+                  setCopyPrompt({
+                    sourceYear: Number(y.eventYear),
+                    targetYear: String(currentEventYear),
+                  });
+                }}
+              >
+                {String(y.eventYear)}
+              </MenuItem>
+            ))}
+        </Menu>
+      ) : null}
+
+      <CopyYearPrompt
+        prompt={copyPrompt}
+        submitting={copyYearMut.isPending}
+        error={copyYearMut.error}
+        onCancel={() => {
+          setCopyPrompt(null);
+          copyYearMut.reset();
+        }}
+        onChange={(targetYear) =>
+          copyPrompt && setCopyPrompt({ ...copyPrompt, targetYear })
+        }
+        onSubmit={() => {
+          if (!copyPrompt) return;
+          const target = Number(copyPrompt.targetYear);
+          if (!Number.isInteger(target) || target < 2000 || target > 2100) {
+            return;
+          }
+          copyYearMut.mutate({
+            sourceYear: copyPrompt.sourceYear,
+            targetYear: target,
+          });
+        }}
+      />
+
       <ConfirmDialog
         open={confirmDeleteYear !== null}
         title="Delete year?"
@@ -439,5 +541,70 @@ export default function SponsorDetail() {
         onConfirm={() => deleteMut.mutate()}
       />
     </Stack>
+  );
+}
+
+interface CopyPromptProps {
+  prompt: { sourceYear: number; targetYear: string } | null;
+  submitting: boolean;
+  error: unknown;
+  onCancel: () => void;
+  onChange: (targetYear: string) => void;
+  onSubmit: () => void;
+}
+
+function CopyYearPrompt({
+  prompt,
+  submitting,
+  error,
+  onCancel,
+  onChange,
+  onSubmit,
+}: CopyPromptProps) {
+  const yearExists =
+    error instanceof ApiError && error.code === "year_exists";
+  const raw = prompt?.targetYear ?? "";
+  const parsed = raw.trim() === "" ? NaN : Number(raw);
+  const rangeError =
+    raw.trim() !== "" &&
+    (!Number.isInteger(parsed) || parsed < 2000 || parsed > 2100)
+      ? "Year must be between 2000 and 2100"
+      : null;
+  const helper = yearExists
+    ? "The sponsor already has this year."
+    : (rangeError ?? " ");
+  return (
+    <Dialog open={prompt !== null} onClose={onCancel} maxWidth="xs" fullWidth>
+      <DialogTitle>Copy year</DialogTitle>
+      <DialogContent>
+        {error && !yearExists ? <ErrorAlert error={error} /> : null}
+        <Typography variant="body2" sx={{ mb: 2, mt: 1 }}>
+          {prompt
+            ? `Copy from ${String(prompt.sourceYear)} to a new year:`
+            : ""}
+        </Typography>
+        <TextField
+          label="Target year"
+          type="number"
+          value={raw}
+          onChange={(e) => onChange(e.target.value)}
+          error={yearExists || rangeError !== null}
+          helperText={helper}
+          inputProps={{ min: 2000, max: 2100, step: 1 }}
+          autoFocus
+          fullWidth
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button
+          variant="contained"
+          onClick={onSubmit}
+          disabled={submitting || rangeError !== null || raw.trim() === ""}
+        >
+          Copy
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }

@@ -130,6 +130,27 @@ export const handlers: HttpHandler[] = [
     HttpResponse.json(f.sponsors[0])
   ),
   http.delete("*/admin/sponsors/:id/years/:eventYear", () => new HttpResponse(null, { status: 204 })),
+  http.post(
+    "*/admin/sponsors/:id/years/:eventYear/copy-from/:sourceYear",
+    ({ params }) =>
+      HttpResponse.json(
+        {
+          eventYear: Number(params.eventYear),
+          amountDonated: 500,
+          active: true,
+          canAdvertise: true,
+          anonymous: false,
+          pinnedPosition: null,
+          lingerMsOverride: null,
+          lingerMs: 20000,
+          registeredAt: "2026-12-22T01:31:07.412Z",
+        },
+        { status: 201 }
+      )
+  ),
+  http.post("*/admin/sponsors/import", () =>
+    HttpResponse.json({ created: 1, skipped: 0 })
+  ),
 
   // Cookie types
   http.get("*/admin/cookie-types", () => HttpResponse.json({ items: f.cookieTypes })),
