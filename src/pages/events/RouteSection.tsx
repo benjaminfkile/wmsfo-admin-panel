@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Button,
   Card,
   CardContent,
+  FormControl,
+  InputLabel,
   Link,
   MenuItem,
   Select,
@@ -30,7 +32,13 @@ export default function RouteSection({ event }: Props) {
   const qc = useQueryClient();
   const notify = useNotify();
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [chooseId, setChooseId] = useState<number | "">("");
+  const [chooseId, setChooseId] = useState<number | "">(
+    event.routeId === null ? "" : Number(event.routeId)
+  );
+
+  useEffect(() => {
+    setChooseId(event.routeId === null ? "" : Number(event.routeId));
+  }, [event.routeId]);
 
   const routesQ = useQuery({
     queryKey: keys.routes,
@@ -104,16 +112,33 @@ export default function RouteSection({ event }: Props) {
   });
 
   const routes = routesQ.data?.items ?? [];
+  const eventsList = eventsQ.data?.items ?? [];
   const currentRoute = routes.find(
     (r) => event.routeId !== null && Number(r.id) === Number(event.routeId)
   );
-  const sharedWith = (eventsQ.data?.items ?? []).filter(
+  const sharedWith = eventsList.filter(
     (e) =>
       e.routeId !== null &&
       event.routeId !== null &&
       Number(e.routeId) === Number(event.routeId) &&
       Number(e.id) !== Number(event.id)
   );
+
+  // Options for "Choose existing", newest first, each label:
+  // "<name> · <pointCount> points · <createdAt> · used by <event years, or 'no event'>"
+  const sortedRoutes = [...routes].sort((a, b) => {
+    const ac = a.createdAt ?? "";
+    const bc = b.createdAt ?? "";
+    return ac < bc ? 1 : ac > bc ? -1 : 0;
+  });
+  const routeOptionLabel = (r: Route): string => {
+    const years = eventsList
+      .filter((e) => e.routeId !== null && Number(e.routeId) === Number(r.id))
+      .map((e) => Number(e.year))
+      .sort((a, b) => b - a);
+    const usedBy = years.length === 0 ? "no event" : years.join(", ");
+    return `${r.name ?? `Recording #${r.id}`} · ${String(r.pointCount)} points · ${formatMt(r.createdAt)} · used by ${usedBy}`;
+  };
 
   return (
     <Card>
@@ -162,38 +187,9 @@ export default function RouteSection({ event }: Props) {
         ) : null}
 
         {event.routeId === null ? (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              No recording linked.
-            </Typography>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <Select
-                displayEmpty
-                size="small"
-                value={chooseId === "" ? "" : String(chooseId)}
-                onChange={(e) =>
-                  setChooseId(e.target.value === "" ? "" : Number(e.target.value))
-                }
-                sx={{ minWidth: 240 }}
-              >
-                <MenuItem value="">
-                  <em>Choose existing recording…</em>
-                </MenuItem>
-                {routes.map((r: Route) => (
-                  <MenuItem key={String(r.id)} value={String(r.id)}>
-                    {r.name}
-                  </MenuItem>
-                ))}
-              </Select>
-              <Button
-                variant="outlined"
-                disabled={chooseId === ""}
-                onClick={() => chooseId !== "" && patchMut.mutate(Number(chooseId))}
-              >
-                Link
-              </Button>
-            </Stack>
-          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            No recording linked.
+          </Typography>
         ) : (
           <Stack spacing={0.5} sx={{ mt: 2 }}>
             <Typography variant="subtitle1">
@@ -239,6 +235,55 @@ export default function RouteSection({ event }: Props) {
             ) : null}
           </Stack>
         )}
+
+        <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }}>
+          <FormControl size="small" sx={{ minWidth: 320, flexGrow: 1 }}>
+            <InputLabel id="flight-history-choose-label">
+              Choose existing
+            </InputLabel>
+            <Select
+              labelId="flight-history-choose-label"
+              label="Choose existing"
+              value={
+                chooseId !== "" &&
+                sortedRoutes.some((r) => Number(r.id) === Number(chooseId))
+                  ? String(chooseId)
+                  : ""
+              }
+              onChange={(e) =>
+                setChooseId(e.target.value === "" ? "" : Number(e.target.value))
+              }
+              data-testid="flight-history-choose"
+              inputProps={{ "aria-label": "Choose existing recording" }}
+            >
+              {sortedRoutes.length === 0 ? (
+                <MenuItem value="" disabled>
+                  <em>No recordings</em>
+                </MenuItem>
+              ) : null}
+              {sortedRoutes.map((r: Route) => (
+                <MenuItem key={String(r.id)} value={String(r.id)}>
+                  {routeOptionLabel(r)}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Button
+            variant="outlined"
+            disabled={
+              chooseId === "" ||
+              patchMut.isPending ||
+              (event.routeId !== null &&
+                Number(chooseId) === Number(event.routeId))
+            }
+            onClick={() =>
+              chooseId !== "" && patchMut.mutate(Number(chooseId))
+            }
+            data-testid="flight-history-use"
+          >
+            Use this recording
+          </Button>
+        </Stack>
       </CardContent>
 
       <RouteUploadDialog

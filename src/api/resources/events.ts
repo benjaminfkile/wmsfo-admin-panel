@@ -28,6 +28,16 @@ export type PatchEventBody = Partial<{
   routeImageMediaId: string;
 }>;
 
+export type CloneEventBody = {
+  year: number;
+  name: string;
+  copy: {
+    sponsors: boolean;
+    route: boolean;
+    poster: boolean;
+  };
+};
+
 export type StatusBody = {
   statusId: StatusId;
   notify: boolean;
@@ -57,6 +67,8 @@ export const events = {
     patch<Event>(`/admin/events/${id}`, b),
   remove: (id: number) => del(`/admin/events/${id}`),
   setCurrent: (id: number) => post<Event>(`/admin/events/${id}/current`),
+  clone: (id: number, b: CloneEventBody) =>
+    post<Event>(`/admin/events/${id}/clone`, b),
   setStatus: (id: number, b: StatusBody) =>
     post<Event>(`/admin/events/${id}/status`, b),
   notify: (id: number, b: NotifyBody) =>

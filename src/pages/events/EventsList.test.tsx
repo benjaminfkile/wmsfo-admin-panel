@@ -126,6 +126,111 @@ describe("EventsList rows", () => {
     ).toBeInTheDocument();
   });
 
+  it("Clone opens the dialog with defaults (source year + 1, name with year replaced, all three flags on)", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    const row = await screen.findByTestId(`event-row-${f.events[0]!.id}`);
+    await user.click(
+      within(row).getByRole("button", { name: /actions for/i })
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: /^clone$/i })
+    );
+    const dialog = await screen.findByRole("dialog", { name: /clone event/i });
+    const yearField = within(dialog).getByLabelText(/^year$/i) as HTMLInputElement;
+    expect(yearField.value).toBe(String(Number(f.events[0]!.year) + 1));
+    const nameField = within(dialog).getByLabelText(/^name$/i) as HTMLInputElement;
+    // 2026 -> 2027 in the source name.
+    expect(nameField.value).toBe(
+      String(f.events[0]!.name).replace(
+        String(f.events[0]!.year),
+        String(Number(f.events[0]!.year) + 1)
+      )
+    );
+    for (const label of [
+      /sponsors for the year/i,
+      /flight history/i,
+      /route poster/i,
+    ]) {
+      const cb = within(dialog).getByRole("checkbox", { name: label });
+      expect(cb).toBeChecked();
+    }
+  });
+
+  it("Clone POSTs /admin/events/{id}/clone with { year, name, copy } and navigates on success", async () => {
+    const user = userEvent.setup();
+    const posts: Array<{ url: string; body: unknown }> = [];
+    server.use(
+      http.post(
+        `${testConfig.apiBaseUrl}/admin/events/:id/clone`,
+        async ({ request }) => {
+          posts.push({ url: request.url, body: await request.json() });
+          return HttpResponse.json(
+            { ...f.events[0]!, id: 99, year: 2027 },
+            { status: 201 }
+          );
+        }
+      )
+    );
+    render(<Harness />);
+    const row = await screen.findByTestId(`event-row-${f.events[0]!.id}`);
+    await user.click(
+      within(row).getByRole("button", { name: /actions for/i })
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: /^clone$/i })
+    );
+    const dialog = await screen.findByRole("dialog", { name: /clone event/i });
+    // Uncheck the poster flag so we can assert on partial copy.
+    await user.click(
+      within(dialog).getByRole("checkbox", { name: /route poster/i })
+    );
+    await user.click(within(dialog).getByRole("button", { name: /^clone$/i }));
+    await waitFor(() => expect(posts.length).toBe(1));
+    expect(posts[0]?.url).toMatch(
+      new RegExp(`/admin/events/${f.events[0]!.id}/clone$`)
+    );
+    expect(posts[0]?.body).toMatchObject({
+      year: Number(f.events[0]!.year) + 1,
+      copy: { sponsors: true, route: true, poster: false },
+    });
+  });
+
+  it("Clone marks the year field on 409 year_taken", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post(`${testConfig.apiBaseUrl}/admin/events/:id/clone`, () =>
+        HttpResponse.json(
+          {
+            code: "year_taken",
+            message: "Year is taken",
+            details: null,
+            requestId: "req-y",
+          },
+          { status: 409 }
+        )
+      )
+    );
+    render(<Harness />);
+    const row = await screen.findByTestId(`event-row-${f.events[0]!.id}`);
+    await user.click(
+      within(row).getByRole("button", { name: /actions for/i })
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: /^clone$/i })
+    );
+    const dialog = await screen.findByRole("dialog", { name: /clone event/i });
+    await user.click(within(dialog).getByRole("button", { name: /^clone$/i }));
+    // The year field carries the error helper text.
+    await waitFor(() => {
+      const yearInput = within(dialog).getByLabelText(/^year$/i);
+      expect(yearInput).toHaveAttribute("aria-invalid", "true");
+    });
+    expect(
+      within(dialog).getByText(/that year is already taken/i)
+    ).toBeInTheDocument();
+  });
+
   it("Create with No route sends the correct body", async () => {
     const user = userEvent.setup();
     const captured: Array<{ inheritRoute: boolean; routeId: number | null }> = [];

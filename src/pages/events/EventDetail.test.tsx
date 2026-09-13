@@ -317,6 +317,103 @@ describe("EventDetail: route poster and flight history blocks", () => {
     expect(captured[0]?.body).toEqual({ routeId: null });
   });
 
+  it("flight history select preselects the current recording; Use sends PATCH { routeId }", async () => {
+    const user = userEvent.setup();
+    const patches: Array<{ body: unknown }> = [];
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
+        HttpResponse.json({ ...f.events[0]!, routeId: 4 })
+      ),
+      http.get(`${testConfig.apiBaseUrl}/admin/routes`, () =>
+        HttpResponse.json({
+          items: [
+            {
+              ...f.routes[0]!,
+              id: 4,
+              name: "2026 draft",
+              pointCount: 42,
+              createdAt: "2026-11-01T00:00:00.000Z",
+            },
+            {
+              ...f.routes[0]!,
+              id: 3,
+              name: "2024 recording",
+              pointCount: 100,
+              createdAt: "2024-11-01T00:00:00.000Z",
+            },
+          ],
+        })
+      ),
+      http.get(`${testConfig.apiBaseUrl}/admin/events`, () =>
+        HttpResponse.json({
+          items: [
+            { ...f.events[0]!, routeId: 4, year: 2026 },
+            { ...f.events[1]!, routeId: 3, year: 2024 },
+          ],
+        })
+      ),
+      http.patch(
+        `${testConfig.apiBaseUrl}/admin/events/:id`,
+        async ({ request }) => {
+          patches.push({ body: await request.json() });
+          return HttpResponse.json(f.events[0]);
+        }
+      )
+    );
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    await screen.findByRole("heading", { name: /flight history/i });
+    // Wait for the select to be preselected with the current route (id 4)
+    const select = await screen.findByTestId("flight-history-choose");
+    await waitFor(() =>
+      expect(within(select).getByText(/2026 draft/i)).toBeInTheDocument()
+    );
+    // Use is disabled when the selected route is the current one.
+    const useBtn = screen.getByTestId("flight-history-use");
+    expect(useBtn).toBeDisabled();
+    // Open the select and pick the other option.
+    await user.click(within(select).getByRole("combobox"));
+    const option = await screen.findByRole("option", {
+      name: /2024 recording.*100 points.*used by 2024/i,
+    });
+    await user.click(option);
+    await waitFor(() => expect(useBtn).not.toBeDisabled());
+    await user.click(useBtn);
+    await waitFor(() => expect(patches.length).toBeGreaterThan(0));
+    expect(patches[0]?.body).toEqual({ routeId: 3 });
+  });
+
+  it("flight history select option 'used by' shows 'no event' when no event links the recording", async () => {
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
+        HttpResponse.json({ ...f.events[0]!, routeId: null })
+      ),
+      http.get(`${testConfig.apiBaseUrl}/admin/routes`, () =>
+        HttpResponse.json({
+          items: [
+            {
+              ...f.routes[0]!,
+              id: 99,
+              name: "Orphan route",
+              pointCount: 12,
+              createdAt: "2026-01-02T00:00:00.000Z",
+            },
+          ],
+        })
+      ),
+      http.get(`${testConfig.apiBaseUrl}/admin/events`, () =>
+        HttpResponse.json({ items: [{ ...f.events[0]!, routeId: null }] })
+      )
+    );
+    const user = userEvent.setup();
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    await screen.findByRole("heading", { name: /flight history/i });
+    const select = await screen.findByTestId("flight-history-choose");
+    await user.click(within(select).getByRole("combobox"));
+    expect(
+      await screen.findByRole("option", { name: /orphan route.*used by no event/i })
+    ).toBeInTheDocument();
+  });
+
   it("reopens the picker on 409 media_not_ready from the route poster PATCH", async () => {
     const user = userEvent.setup();
     server.use(

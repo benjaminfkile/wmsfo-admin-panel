@@ -21,7 +21,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { events as eventsApi } from "../../api/resources/events";
-import type { CreateEventBody } from "../../api/resources/events";
+import type { CreateEventBody, CloneEventBody } from "../../api/resources/events";
 import { routes as routesApi } from "../../api/resources/routes";
 import { keys } from "../../queries/keys";
 import StatusChip from "../../components/StatusChip";
@@ -30,6 +30,7 @@ import ErrorAlert from "../../components/ErrorAlert";
 import { formatMt } from "../../lib/time";
 import { useNotify } from "../../hooks/useNotify";
 import EventCreateDialog from "./EventCreateDialog";
+import EventCloneDialog from "./EventCloneDialog";
 import type { Event } from "../../api/types";
 
 export default function EventsList() {
@@ -37,6 +38,7 @@ export default function EventsList() {
   const navigate = useNavigate();
   const notify = useNotify();
   const [createOpen, setCreateOpen] = useState(false);
+  const [cloneSource, setCloneSource] = useState<Event | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Event | null>(null);
   const [confirmCurrent, setConfirmCurrent] = useState<Event | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{
@@ -72,6 +74,17 @@ export default function EventsList() {
     },
     onError: (e) =>
       notify(e instanceof Error ? e.message : "Failed to set current", "error"),
+  });
+
+  const cloneMut = useMutation({
+    mutationFn: ({ id, body }: { id: number; body: CloneEventBody }) =>
+      eventsApi.clone(id, body),
+    onSuccess: (created) => {
+      notify("Event cloned");
+      void qc.invalidateQueries({ queryKey: keys.events });
+      setCloneSource(null);
+      navigate(`/events/${created.id}`);
+    },
   });
 
   const deleteMut = useMutation({
@@ -210,6 +223,21 @@ export default function EventsList() {
         onSubmit={(b) => createMut.mutate(b)}
       />
 
+      <EventCloneDialog
+        open={cloneSource !== null}
+        source={cloneSource}
+        submitting={cloneMut.isPending}
+        error={cloneMut.error}
+        onCancel={() => {
+          setCloneSource(null);
+          cloneMut.reset();
+        }}
+        onSubmit={(b) => {
+          if (cloneSource !== null)
+            cloneMut.mutate({ id: Number(cloneSource.id), body: b });
+        }}
+      />
+
       {menuAnchor ? (
         <Menu
           open
@@ -226,6 +254,15 @@ export default function EventsList() {
               Set current
             </MenuItem>
           ) : null}
+          <MenuItem
+            onClick={() => {
+              cloneMut.reset();
+              setCloneSource(menuAnchor.event);
+              setMenuAnchor(null);
+            }}
+          >
+            Clone
+          </MenuItem>
           <MenuItem
             onClick={() => {
               setConfirmDelete(menuAnchor.event);
