@@ -1,5 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
-import { readDevCdnBase, readEditor, signIn, waitForCdnJson } from "./helpers";
+import {
+  fetchAdminAccessToken,
+  readDevCdnBase,
+  readEditor,
+  readPublishedContentVersionId,
+  signIn,
+  waitForCdnJson,
+} from "./helpers";
 
 // Spec 7 (docs/admin.md § 9.3): as an editor: the drawer shows five entries;
 // open the about page; add a rich_text section with a paragraph; upload a
@@ -49,6 +56,24 @@ function tinyPng(): Buffer {
 
 test.describe("editor authoring flow", () => {
   test.setTimeout(240_000);
+
+  // The version id that was published on the dev site when the spec
+  // started. The final restore-and-publish step puts this same version
+  // back so the run leaves the dev site's published content unchanged
+  // (only a fresh "Restored from version N" version is appended); the
+  // earlier hard-coded restore of version 1 replaced the site's content
+  // with the oldest seed on every run.
+  let publishedVersionIdAtStart: number | null = null;
+
+  test.beforeAll(async ({ browser }) => {
+    const adminToken = await fetchAdminAccessToken(browser);
+    publishedVersionIdAtStart = await readPublishedContentVersionId(adminToken);
+    if (publishedVersionIdAtStart === null) {
+      throw new Error(
+        "No published content version on the dev site; nothing to restore back to",
+      );
+    }
+  });
 
   test("five drawer entries; publish; snapshot; restore; delete with 409 then 204", async ({
     page,
@@ -163,10 +188,13 @@ test.describe("editor authoring flow", () => {
     expect(asset).toBeDefined();
     expect(asset?.variants?.srcset ?? "").toBe("");
 
-    // Restore and publish the starter version so the draft and the published
-    // content are back at their baseline; the live object moves again.
-    const starter = page.getByRole("row").filter({ hasText: /Starter content/ }).first();
-    await starter.getByRole("button", { name: /restore and publish/i }).click();
+    // Restore and publish the version that was published when the spec
+    // started, so the run leaves the dev site's published content at its
+    // baseline (a fresh "Restored from version N" version is appended);
+    // the live object moves again. VersionsList rows carry
+    // `data-testid="version-row-<id>"` per src/pages/publish/VersionsList.tsx.
+    const baseline = page.getByTestId(`version-row-${publishedVersionIdAtStart!}`);
+    await baseline.getByRole("button", { name: /restore and publish/i }).click();
     await page
       .getByRole("dialog", { name: /restore and publish/i })
       .getByRole("button", { name: /^restore and publish$/i })
