@@ -541,6 +541,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItemsResponseOfAlertItemDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/cookies": {
         parameters: {
             query?: never;
@@ -807,6 +842,84 @@ export interface paths {
             responses: {
                 /** @description OK */
                 200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EventDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/events/{id}/notify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["NotifyStatusRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EventDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/events/{id}/clone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CloneEventRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -1665,6 +1778,80 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/sponsors/{id}/years/{eventYear}/copy-from/{sourceYear}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SponsorYearDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/sponsors/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SponsorImportRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SponsorImportResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3358,6 +3545,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PageResponseOfAuditEntryDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/audit/entities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItemsResponseOfstring"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/realtime/authorize": {
         parameters: {
             query?: never;
@@ -3601,6 +3858,24 @@ export interface components {
             lastWriteNode?: null | string;
             node?: components["schemas"]["AdminLiveNode"];
         };
+        AlertItemDto: {
+            /** Format: int64 */
+            id?: number | string;
+            /** Format: int64 */
+            subscriptionId?: number | string;
+            address?: string;
+            kind?: string;
+            /** Format: int64 */
+            eventId?: number | string;
+            eventName?: string;
+            /** Format: int32 */
+            statusId?: null | number | string;
+            /** Format: int64 */
+            messageId?: null | number | string;
+            subject?: string;
+            /** Format: date-time */
+            sentAt?: string;
+        };
         ApiKeyDto: {
             /** Format: int64 */
             id?: number | string;
@@ -3617,6 +3892,7 @@ export interface components {
             lastUsedAt?: null | string;
             /** Format: date-time */
             revokedAt?: null | string;
+            audit?: null | components["schemas"]["AuditStampDto"];
         };
         ApiKeyMintedDto: {
             /** Format: int64 */
@@ -3634,7 +3910,27 @@ export interface components {
             lastUsedAt?: null | string;
             /** Format: date-time */
             revokedAt?: null | string;
+            audit?: null | components["schemas"]["AuditStampDto"];
             key?: string;
+        };
+        AuditEntryDto: {
+            /** Format: int64 */
+            id?: number | string;
+            /** Format: date-time */
+            at?: string;
+            actor?: string;
+            action?: string;
+            entity?: string;
+            entityId?: string;
+            before?: null | components["schemas"]["JsonElement"];
+            after?: null | components["schemas"]["JsonElement"];
+            requestId?: null | string;
+        };
+        AuditStampDto: {
+            action?: string;
+            by?: string;
+            /** Format: date-time */
+            at?: string;
         };
         BeaconDto: {
             /** Format: int64 */
@@ -3661,6 +3957,7 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
+            audit?: null | components["schemas"]["AuditStampDto"];
         };
         BeaconLogDto: {
             /** Format: int64 */
@@ -3708,6 +4005,18 @@ export interface components {
             /** Format: int32 */
             statusId?: number | string;
             notify?: boolean;
+            message?: null | string;
+        };
+        CloneEventCopy: {
+            sponsors?: boolean;
+            route?: boolean;
+            poster?: boolean;
+        };
+        CloneEventRequest: {
+            /** Format: int32 */
+            year?: number | string;
+            name?: string;
+            copy?: null | components["schemas"]["CloneEventCopy"];
         };
         ContactMessageDto: {
             /** Format: int64 */
@@ -3718,6 +4027,7 @@ export interface components {
             clientIp?: string;
             /** Format: date-time */
             createdAt?: string;
+            audit?: null | components["schemas"]["AuditStampDto"];
         };
         ContactRequest: {
             name?: string;
@@ -3773,6 +4083,7 @@ export interface components {
             pageCount?: number | string;
             /** Format: int32 */
             sectionCount?: number | string;
+            audit?: null | components["schemas"]["AuditStampDto"];
         };
         CookieLeft: {
             /** Format: int64 */
@@ -3802,6 +4113,7 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
+            audit?: null | components["schemas"]["AuditStampDto"];
         };
         CreateApiKeyRequest: {
             name?: null | string;
@@ -3922,6 +4234,8 @@ export interface components {
             wentLiveAt?: null | string;
             /** Format: date-time */
             endedAt?: null | string;
+            /** Format: date-time */
+            statusNotifiedAt?: null | string;
             /** Format: int32 */
             fundsPercent?: number | string;
             /** Format: int64 */
@@ -3934,6 +4248,7 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
+            audit?: null | components["schemas"]["AuditStampDto"];
         };
         EventMessageDto: {
             /** Format: int64 */
@@ -3948,6 +4263,7 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
+            audit?: null | components["schemas"]["AuditStampDto"];
         };
         HealthResponse: {
             status?: string;
@@ -3986,6 +4302,9 @@ export interface components {
         };
         ItemOrderRequest: {
             ids?: (number | string)[];
+        };
+        ItemsResponseOfAlertItemDto: {
+            items?: components["schemas"]["AlertItemDto"][];
         };
         ItemsResponseOfApiKeyDto: {
             items?: components["schemas"]["ApiKeyDto"][];
@@ -4028,6 +4347,9 @@ export interface components {
         };
         ItemsResponseOfStatusHistoryDto: {
             items?: components["schemas"]["StatusHistoryDto"][];
+        };
+        ItemsResponseOfstring: {
+            items?: string[];
         };
         ItemsResponseOfSubscriptionDto: {
             items?: components["schemas"]["SubscriptionDto"][];
@@ -4156,6 +4478,7 @@ export interface components {
             unreferencedSince?: null | string;
             /** Format: date-time */
             orphanedAt?: null | string;
+            audit?: null | components["schemas"]["AuditStampDto"];
         };
         MediaEntry: {
             url?: string;
@@ -4266,6 +4589,9 @@ export interface components {
             /** Format: int64 */
             messageValidationFailed?: number | string;
         };
+        NotifyStatusRequest: {
+            message?: null | string;
+        };
         PageAdminDto: {
             /** Format: int64 */
             id?: number | string;
@@ -4286,6 +4612,7 @@ export interface components {
             updatedBy?: string;
             /** Format: date-time */
             updatedAt?: string;
+            audit?: null | components["schemas"]["AuditStampDto"];
         };
         PageDetailDto: {
             /** Format: int64 */
@@ -4311,6 +4638,10 @@ export interface components {
         };
         PageOrderRequest: {
             ids?: (number | string)[];
+        };
+        PageResponseOfAuditEntryDto: {
+            items?: components["schemas"]["AuditEntryDto"][];
+            nextCursor?: null | string;
         };
         PageResponseOfContactMessageDto: {
             items?: components["schemas"]["ContactMessageDto"][];
@@ -4400,6 +4731,7 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             lastSeenAt?: string;
+            audit?: null | components["schemas"]["AuditStampDto"];
         };
         PersonWithCookieCountDto: {
             /** Format: int64 */
@@ -4411,6 +4743,7 @@ export interface components {
             lastSeenAt?: string;
             /** Format: int32 */
             cookieCount?: number | string;
+            audit?: null | components["schemas"]["AuditStampDto"];
         };
         PresentationDto: {
             width?: string;
@@ -4426,6 +4759,7 @@ export interface components {
             url?: string;
             /** Format: date-time */
             expiresAt?: string;
+            audit?: null | components["schemas"]["AuditStampDto"];
         };
         ProblemDto: {
             path?: string;
@@ -4472,6 +4806,7 @@ export interface components {
             uploadedBy?: string;
             /** Format: date-time */
             createdAt?: string;
+            audit?: null | components["schemas"]["AuditStampDto"];
         };
         RouteFromEventRequest: {
             name?: string;
@@ -4500,6 +4835,7 @@ export interface components {
             updatedBy?: string;
             /** Format: date-time */
             updatedAt?: string;
+            audit?: null | components["schemas"]["AuditStampDto"];
         };
         SectionItemAdminDto: {
             /** Format: int64 */
@@ -4514,6 +4850,7 @@ export interface components {
             updatedBy?: string;
             /** Format: date-time */
             updatedAt?: string;
+            audit?: null | components["schemas"]["AuditStampDto"];
         };
         SectionOrderRequest: {
             ids?: (number | string)[];
@@ -4524,6 +4861,7 @@ export interface components {
             updatedBy?: null | string;
             /** Format: date-time */
             updatedAt?: null | string;
+            audit?: null | components["schemas"]["AuditStampDto"];
         };
         SettingUpdateRequest: {
             value?: components["schemas"]["JsonElement"];
@@ -4564,6 +4902,20 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
+            audit?: null | components["schemas"]["AuditStampDto"];
+        };
+        SponsorImportRequest: {
+            /** Format: int32 */
+            fromYear?: number | string;
+            /** Format: int32 */
+            toYear?: number | string;
+            sponsorIds?: (number | string)[];
+        };
+        SponsorImportResponse: {
+            /** Format: int32 */
+            created?: number | string;
+            /** Format: int32 */
+            skipped?: number | string;
         };
         SponsorOrderRequest: {
             pinnedSponsorIds?: (number | string)[];
@@ -4611,6 +4963,10 @@ export interface components {
             changedBy?: string;
             /** Format: date-time */
             changedAt?: string;
+            notify?: boolean;
+            message?: null | string;
+            /** Format: int32 */
+            sentCount?: number | string;
         };
         SubscriberAdminDto: {
             /** Format: int64 */
@@ -4626,6 +4982,7 @@ export interface components {
             /** Format: int64 */
             personId?: number | string;
             personEmail?: string;
+            audit?: null | components["schemas"]["AuditStampDto"];
         };
         SubscribersSummaryResponse: {
             /** Format: int32 */

@@ -172,6 +172,7 @@ export async function setEventStatus(
   await adminApi(token, "POST", `/admin/events/${eventId}/status`, {
     statusId,
     notify: false,
+    message: null,
   });
 }
 
@@ -275,7 +276,7 @@ export async function setWalkEventStatus(
       token,
       "POST",
       `/admin/events/${walk.id}/status`,
-      { statusId, notify: false },
+      { statusId, notify: false, message: null },
     )) as EventRow;
   }
   return walk;

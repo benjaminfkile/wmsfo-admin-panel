@@ -28,7 +28,13 @@ export type PatchEventBody = Partial<{
   routeImageMediaId: string;
 }>;
 
-export type StatusBody = { statusId: StatusId; notify: boolean };
+export type StatusBody = {
+  statusId: StatusId;
+  notify: boolean;
+  message: string | null;
+};
+
+export type NotifyBody = { message: string | null };
 
 export type MessageBody = {
   body: string;
@@ -53,6 +59,8 @@ export const events = {
   setCurrent: (id: number) => post<Event>(`/admin/events/${id}/current`),
   setStatus: (id: number, b: StatusBody) =>
     post<Event>(`/admin/events/${id}/status`, b),
+  notify: (id: number, b: NotifyBody) =>
+    post<Event>(`/admin/events/${id}/notify`, b),
   statusHistory: (id: number) =>
     get<{ items: StatusHistory[] }>(`/admin/events/${id}/status-history`),
   messages: (id: number) =>

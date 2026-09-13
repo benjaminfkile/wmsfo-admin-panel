@@ -58,6 +58,174 @@ afterEach(() => {
   server.resetHandlers();
 });
 
+describe("EventDetail: status notified state and history", () => {
+  it("renders 'Nobody was notified' when statusNotifiedAt is null and the button opens NotifyDialog which POSTs", async () => {
+    const user = userEvent.setup();
+    const posts: Array<{ url: string; body: unknown }> = [];
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
+        HttpResponse.json({ ...f.events[0]!, statusNotifiedAt: null })
+      ),
+      http.post(
+        `${testConfig.apiBaseUrl}/admin/events/:id/notify`,
+        async ({ request }) => {
+          posts.push({ url: request.url, body: await request.json() });
+          return HttpResponse.json({
+            ...f.events[0]!,
+            statusNotifiedAt: "2026-12-22T02:00:00.000Z",
+          });
+        }
+      )
+    );
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    await screen.findByText(/nobody was notified/i);
+    await user.click(
+      screen.getByRole("button", { name: /notify subscribers/i })
+    );
+    // Dialog is open; type a custom message and Send now.
+    const field = await screen.findByLabelText(/message/i);
+    await user.type(field, "Bundled up? So is Santa.");
+    await user.click(screen.getByRole("button", { name: /^send now$/i }));
+    await waitFor(() => expect(posts.length).toBe(1));
+    expect(posts[0]?.url).toMatch(/\/admin\/events\/\d+\/notify$/);
+    expect(posts[0]?.body).toEqual({ message: "Bundled up? So is Santa." });
+  });
+
+  it("StatusDialog Change and notify posts { statusId, notify, message } to /status", async () => {
+    const user = userEvent.setup();
+    const posts: Array<{ url: string; body: unknown }> = [];
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
+        HttpResponse.json({ ...f.events[0]!, statusId: 3 })
+      ),
+      http.post(
+        `${testConfig.apiBaseUrl}/admin/events/:id/status`,
+        async ({ request }) => {
+          posts.push({ url: request.url, body: await request.json() });
+          return HttpResponse.json({ ...f.events[0]!, statusId: 4 });
+        }
+      )
+    );
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    // Open StatusDialog on target 4 (Ended is always allowed).
+    await user.click(await screen.findByRole("button", { name: /^ended$/i }));
+    const field = await screen.findByLabelText(/message/i);
+    await user.type(field, "Safe landing.");
+    await user.click(
+      screen.getByRole("button", { name: /^change and notify$/i })
+    );
+    await waitFor(() => expect(posts.length).toBe(1));
+    expect(posts[0]?.body).toEqual({
+      statusId: 4,
+      notify: true,
+      message: "Safe landing.",
+    });
+  });
+
+  it("StatusDialog Change without notifying uses the nested confirmation and sends notify: false", async () => {
+    const user = userEvent.setup();
+    const posts: Array<{ url: string; body: unknown }> = [];
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
+        HttpResponse.json({ ...f.events[0]!, statusId: 3 })
+      ),
+      http.post(
+        `${testConfig.apiBaseUrl}/admin/events/:id/status`,
+        async ({ request }) => {
+          posts.push({ url: request.url, body: await request.json() });
+          return HttpResponse.json({ ...f.events[0]!, statusId: 4 });
+        }
+      )
+    );
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    await user.click(await screen.findByRole("button", { name: /^ended$/i }));
+    await screen.findByLabelText(/message/i);
+    await user.click(
+      screen.getByRole("button", { name: /^change without notifying$/i })
+    );
+    // Nested confirm dialog: press the same-labelled button inside it.
+    expect(posts.length).toBe(0);
+    await user.click(
+      screen.getByRole("button", { name: /^change without notifying$/i })
+    );
+    await waitFor(() => expect(posts.length).toBe(1));
+    expect(posts[0]?.body).toEqual({
+      statusId: 4,
+      notify: false,
+      message: null,
+    });
+  });
+
+  it("history table renders the Notified column with the sent count and message excerpt", async () => {
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/events/:id/status-history`, () =>
+        HttpResponse.json({
+          items: [
+            {
+              id: 42,
+              eventId: 7,
+              fromStatusId: 2,
+              toStatusId: 3,
+              changedBy: "admin@example.com",
+              changedAt: "2026-12-22T01:02:11.000Z",
+              notify: true,
+              message: "Doors are open; Santa is on final approach.",
+              sentCount: 812,
+            },
+            {
+              id: 41,
+              eventId: 7,
+              fromStatusId: 1,
+              toStatusId: 2,
+              changedBy: "admin@example.com",
+              changedAt: "2026-12-22T00:50:00.000Z",
+              notify: false,
+              message: null,
+              sentCount: 0,
+            },
+          ],
+        })
+      )
+    );
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    const table = await screen.findByTestId("status-history");
+    await waitFor(() =>
+      expect(within(table).getByText(/812 sent/i)).toBeInTheDocument()
+    );
+    expect(within(table).getByText(/^No$/)).toBeInTheDocument();
+    expect(
+      within(table).getByText(/doors are open; santa is on final approach/i)
+    ).toBeInTheDocument();
+  });
+
+  it("history table shows 'announced again' when fromStatusId equals toStatusId", async () => {
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/events/:id/status-history`, () =>
+        HttpResponse.json({
+          items: [
+            {
+              id: 43,
+              eventId: 7,
+              fromStatusId: 3,
+              toStatusId: 3,
+              changedBy: "admin@example.com",
+              changedAt: "2026-12-22T01:15:00.000Z",
+              notify: true,
+              message: null,
+              sentCount: 100,
+            },
+          ],
+        })
+      )
+    );
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    const table = await screen.findByTestId("status-history");
+    await waitFor(() =>
+      expect(within(table).getByText(/announced again/i)).toBeInTheDocument()
+    );
+  });
+});
+
 describe("EventDetail: route poster and flight history blocks", () => {
   it("Remove poster sends PATCH { routeImageMediaId: '' }", async () => {
     const user = userEvent.setup();
