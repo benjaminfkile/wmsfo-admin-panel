@@ -7,7 +7,8 @@ import {
 } from "./helpers";
 
 // Spec 5 (docs/admin.md § 9.3): with the event live, cookie type controls
-// are disabled; after ended, a type can be edited.
+// are disabled; after ended, a type can be edited, a fresh type can be
+// created and deleted, and Delete is disabled on a type with cookies.
 //
 // Precondition: the dev walk event (year 2100, site.md § 22.2) is set live
 // through the API before the test runs and ended again after, so this spec
@@ -28,7 +29,7 @@ test.describe("cookie types are locked while an event is live", () => {
     await setWalkEventStatus(adminToken, 4).catch(() => undefined);
   });
 
-  test("disabled while live, editable after end", async ({ page }) => {
+  test("disabled while live, editable and deletable after end", async ({ page }) => {
     const admin = readAdmin();
     await signIn(page, admin);
 
@@ -43,7 +44,10 @@ test.describe("cookie types are locked while an event is live", () => {
     // controls): open the row carrying the Current chip, then the status
     // card's Ended button and its confirmation.
     await page.getByRole("navigation").locator('a[href="/events"]').click();
-    const currentRow = page.getByTestId(/^event-row-/).filter({ has: page.getByText("Current", { exact: true }) }).first();
+    const currentRow = page
+      .getByTestId(/^event-row-/)
+      .filter({ has: page.getByText("Current", { exact: true }) })
+      .first();
     await currentRow.getByRole("link", { name: /^open$/i }).click();
     await page.getByRole("button", { name: /^ended$/i }).click();
     await page
@@ -56,19 +60,49 @@ test.describe("cookie types are locked while an event is live", () => {
     await expect(page.getByText(/is live. Cookie types/i)).toBeHidden();
     await expect(page.getByRole("button", { name: /new type/i })).toBeEnabled();
 
-    // Editing a row must round-trip. Choose the first row's edit control.
-    const firstRow = page.getByRole("row").nth(1);
-    await firstRow.getByRole("button", { name: /edit/i }).click();
-    // The edit dialog's field is "Name"; toggle an "(edited)" suffix so
-    // repeated runs do not grow the name.
+    // Editing a row must round-trip. The row's pencil is the discoverable
+    // edit control (admin.md 1, edit-pencil convention).
+    const firstRow = page.getByTestId(/^cookie-type-row-/).first();
+    await firstRow.getByRole("button", { name: /^edit /i }).click();
     const dialog = page.getByRole("dialog");
-    // MUI renders the required label as "Name *".
     const nameField = dialog.getByLabel(/^name/i);
     const before = (await nameField.inputValue()) || "cookie";
-    const after = before.endsWith(" (edited)") ? before.slice(0, -" (edited)".length) : `${before} (edited)`;
+    const after = before.endsWith(" (edited)")
+      ? before.slice(0, -" (edited)".length)
+      : `${before} (edited)`;
     await nameField.fill(after);
     await dialog.getByRole("button", { name: /^save$/i }).click();
     await expect(dialog).toBeHidden();
     await expect(firstRow.getByText(after, { exact: true })).toBeVisible();
+
+    // Delete is disabled in the row menu when cookieCount > 0. The first
+    // row's cookieCount is nonzero on the seeded dev dataset.
+    await firstRow.getByRole("button", { name: /actions for/i }).click();
+    const deleteItem = page.getByRole("menuitem", { name: /^delete$/i });
+    await expect(deleteItem).toHaveAttribute("aria-disabled", "true");
+    await page.keyboard.press("Escape");
+
+    // A fresh type with cookieCount === 0 can be created and deleted round-trip.
+    const freshName = `e2e-delete-${Date.now()}`;
+    await page.getByRole("button", { name: /new type/i }).click();
+    await dialog.getByLabel(/^name/i).fill(freshName);
+    // The panel requires an icon; pick from the library through the picker.
+    await dialog.getByRole("button", { name: /choose/i }).click();
+    const iconPicker = page.getByRole("dialog", { name: /icon/i });
+    await iconPicker.locator("img").first().click();
+    await dialog.getByRole("button", { name: /^save$/i }).click();
+    await expect(dialog).toBeHidden();
+    const freshRow = page
+      .getByTestId(/^cookie-type-row-/)
+      .filter({ hasText: freshName })
+      .first();
+    await expect(freshRow).toBeVisible();
+    await freshRow.getByRole("button", { name: /actions for/i }).click();
+    await page.getByRole("menuitem", { name: /^delete$/i }).click();
+    await page
+      .getByRole("dialog", { name: /delete cookie type/i })
+      .getByRole("button", { name: /^delete$/i })
+      .click();
+    await expect(freshRow).toBeHidden();
   });
 });

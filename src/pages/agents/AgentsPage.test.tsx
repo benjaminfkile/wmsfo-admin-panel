@@ -85,7 +85,6 @@ describe("AgentsPage", () => {
       "events:",
       "routes:",
       "cookie_types:",
-      "cookies:",
       "settings:",
       "contact_messages, subscribers, people:",
       "beacons:",

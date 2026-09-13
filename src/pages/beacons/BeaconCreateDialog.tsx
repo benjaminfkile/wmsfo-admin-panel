@@ -5,11 +5,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControl,
-  FormControlLabel,
-  FormLabel,
-  Radio,
-  RadioGroup,
   Stack,
   TextField,
   Typography,
@@ -19,7 +14,6 @@ import ErrorAlert from "../../components/ErrorAlert";
 export type CreateBeaconBody = {
   name: string;
   notes: string;
-  role: "beacon" | "admin";
 };
 
 interface Props {
@@ -39,14 +33,12 @@ export default function BeaconCreateDialog({
 }: Props) {
   const [name, setName] = useState("");
   const [notes, setNotes] = useState("");
-  const [role, setRole] = useState<"beacon" | "admin">("beacon");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (open) {
       setName("");
       setNotes("");
-      setRole("beacon");
       setErrors({});
     }
   }, [open]);
@@ -60,10 +52,9 @@ export default function BeaconCreateDialog({
     const trimmedNotes = notes.trim();
     if (trimmedNotes.length > 2000)
       next.notes = "Notes must be 2000 characters or fewer";
-    if (role !== "beacon" && role !== "admin") next.role = "Choose a role";
     setErrors(next);
     if (Object.keys(next).length > 0) return null;
-    return { name: trimmedName, notes: trimmedNotes, role };
+    return { name: trimmedName, notes: trimmedNotes };
   };
 
   const handleSubmit = () => {
@@ -82,6 +73,10 @@ export default function BeaconCreateDialog({
               handledFields={Object.keys(errors)}
             />
           ) : null}
+          <Typography variant="body2" color="text.secondary">
+            A beacon is a key. Anything that holds it can post locations,
+            heartbeats, and logs; what runs behind it is up to you.
+          </Typography>
           <TextField
             label="Name"
             value={name}
@@ -101,30 +96,6 @@ export default function BeaconCreateDialog({
             multiline
             rows={3}
           />
-          <FormControl>
-            <FormLabel>Role</FormLabel>
-            <RadioGroup
-              value={role}
-              onChange={(e) =>
-                setRole(e.target.value === "admin" ? "admin" : "beacon")
-              }
-            >
-              <FormControlLabel
-                value="beacon"
-                control={<Radio />}
-                label="Beacon"
-              />
-              <FormControlLabel
-                value="admin"
-                control={<Radio />}
-                label="Admin"
-              />
-            </RadioGroup>
-            <Typography variant="caption" color="text.secondary">
-              Role cannot be changed later; admin unlocks Red-Nose's debug mode
-              and log upload.
-            </Typography>
-          </FormControl>
         </Stack>
       </DialogContent>
       <DialogActions>

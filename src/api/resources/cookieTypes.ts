@@ -1,4 +1,4 @@
-import { get, patch, post } from "../client";
+import { del, get, patch, post } from "../client";
 import type { CookieType, Icon } from "../types";
 
 export type CookieTypeBody = {
@@ -13,4 +13,5 @@ export const cookieTypes = {
   create: (b: CookieTypeBody) => post<CookieType>("/admin/cookie-types", b),
   patch: (id: number, b: Partial<CookieTypeBody>) =>
     patch<CookieType>(`/admin/cookie-types/${id}`, b),
+  remove: (id: number) => del(`/admin/cookie-types/${id}`),
 };

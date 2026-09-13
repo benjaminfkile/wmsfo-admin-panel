@@ -1,6 +1,5 @@
 import { del, get, patch, post, request } from "../client";
 import type {
-  CookieAdmin,
   Event,
   EventMessage,
   LocationRow,
@@ -77,8 +76,4 @@ export const events = {
       accept: "text/csv",
       parse: "blob",
     }),
-  cookies: (
-    id: number,
-    q: { cursor?: string; limit?: number; includeHidden?: boolean }
-  ) => get<Page<CookieAdmin>>(`/admin/events/${id}/cookies`, q),
 };

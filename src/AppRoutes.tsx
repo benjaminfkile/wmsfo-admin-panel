@@ -15,7 +15,6 @@ import SponsorsList from "./pages/sponsors/SponsorsList";
 import SponsorDetail from "./pages/sponsors/SponsorDetail";
 import SponsorOrder from "./pages/sponsors/SponsorOrder";
 import CookieTypesList from "./pages/cookieTypes/CookieTypesList";
-import CookiesModeration from "./pages/cookies/CookiesModeration";
 import Settings from "./pages/settings/Settings";
 import Subscribers from "./pages/subscribers/Subscribers";
 import People from "./pages/people/People";
@@ -65,7 +64,6 @@ const CUSTOM_ELEMENTS: Partial<Record<NavKey, ReactElement>> = {
   sponsors: <SponsorsList />,
   "sponsors-order": <SponsorOrder />,
   "cookie-types": <CookieTypesList />,
-  cookies: <CookiesModeration />,
   settings: <Settings />,
   subscribers: <Subscribers />,
   people: <People />,

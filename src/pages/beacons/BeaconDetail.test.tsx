@@ -60,59 +60,36 @@ function renderDetail({
 
 const NOW = "2026-12-22T01:31:07.412Z";
 
-const richHeartbeat: Heartbeat = {
+const heartbeatWithDebug: Heartbeat = {
   sentAt: NOW,
-  power: {
+  health: {
     batteryPercent: 5,
-    charging: false,
-    batteryTempC: 42,
-    thermalStatus: "moderate",
-    strangeExtra: "yes",
+    lastFixAgeS: 100,
+    socketState: "reconnecting",
   },
-  radio: {
-    networkType: "LTE",
-    signalDbm: -100,
-    signalLevel: 2,
-    airplaneMode: false,
-    connected: true,
+  debug: {
+    power: { charging: false, batteryTempC: 42, thermalStatus: "moderate" },
+    radio: { networkType: "LTE", signalDbm: -100 },
+    process: { deviceUptimeS: 90000 },
   },
-  gps: {
-    provider: "fused",
-    satellitesUsed: 5,
-    satellitesInView: 10,
-    lastFixAccuracyM: 15,
-    lastFixAgeS: 5,
-    fixesLastMinute: 30,
-    permission: { foreground: true, background: false, precise: true },
-  },
-  transport: {
-    socketState: "connected",
-    reconnectCount: 0,
-    httpFallbackSeconds: 0,
-    lastReceiptLatencyMs: 100,
-    sendsFailedSinceBoot: 0,
-  },
-  process: {
-    deviceUptimeS: 90000,
-    serviceUptimeS: 3600,
-    serviceRestartCount: 1,
-    memoryPressure: "normal",
-    batteryOptimizationExempt: true,
-    notificationPermission: true,
-    systemApp: false,
-    rootAvailable: false,
-  },
-  identity: {
-    deviceModel: "Pixel 7",
-    androidVersion: "14",
-    appVersion: "1.0.3",
-    clockSkewMs: 0,
-  },
+};
+
+const emptyDebugHeartbeat: Heartbeat = {
+  sentAt: NOW,
+  health: { batteryPercent: 87, lastFixAgeS: 1, socketState: "connected" },
+  debug: null,
 };
 
 const richBeacon: Beacon = {
   ...f.beacons[0]!,
-  telemetry: richHeartbeat as unknown as Beacon["telemetry"],
+  telemetry: heartbeatWithDebug as unknown as Beacon["telemetry"],
+  healthy: false,
+} as Beacon;
+
+const cleanBeacon: Beacon = {
+  ...f.beacons[0]!,
+  telemetry: emptyDebugHeartbeat as unknown as Beacon["telemetry"],
+  healthy: true,
 } as Beacon;
 
 beforeEach(() => {
@@ -128,74 +105,97 @@ afterEach(() => {
 });
 
 describe("BeaconDetail telemetry panel", () => {
-  it("colours battery_low on batteryPercent when it is under threshold", async () => {
+  it("renders the three Health leaves and colours only those flagged", async () => {
     renderDetail();
     await screen.findByRole("heading", { name: f.beacons[0]!.name!, level: 4 });
-    const row = document.querySelector(
+    const battery = document.querySelector(
       "[data-leaf='batteryPercent']"
     ) as HTMLElement | null;
-    expect(row).not.toBeNull();
-    expect(row!.textContent).toContain("5 %");
-  });
-
-  it("colours permission_missing on the false permission leaf", async () => {
-    renderDetail();
-    await screen.findByRole("heading", { name: f.beacons[0]!.name!, level: 4 });
-    const row = document.querySelector(
-      "[data-leaf='permission.background']"
+    expect(battery).not.toBeNull();
+    expect(battery!.textContent).toContain("5 %");
+    const fix = document.querySelector(
+      "[data-leaf='lastFixAgeS']"
     ) as HTMLElement | null;
-    expect(row).not.toBeNull();
-    expect(row!.textContent).toContain("no");
+    expect(fix).not.toBeNull();
+    expect(fix!.textContent).toContain("100 s");
+    const sock = document.querySelector(
+      "[data-leaf='socketState']"
+    ) as HTMLElement | null;
+    expect(sock).not.toBeNull();
+    expect(sock!.textContent).toContain("reconnecting");
   });
 
-  it("renders unknown nested keys under Other for the group", async () => {
+  it("shows \"not reported\" when a health leaf is absent", async () => {
+    const beacon: Beacon = {
+      ...f.beacons[0]!,
+      telemetry: {
+        sentAt: NOW,
+        health: { socketState: "connected" },
+        debug: null,
+      } as unknown as Beacon["telemetry"],
+      healthy: false,
+    } as Beacon;
+    server.use(
+      http.get("*/admin/beacons", () =>
+        HttpResponse.json({ items: [beacon], staleAfterS: 45 })
+      )
+    );
     renderDetail();
-    // The heartbeat has power.strangeExtra which is not in the leaf table.
     await screen.findByRole("heading", { name: f.beacons[0]!.name!, level: 4 });
-    expect(await screen.findByText(/^Other$/)).toBeInTheDocument();
+    const battery = document.querySelector(
+      "[data-leaf='batteryPercent']"
+    ) as HTMLElement | null;
+    expect(battery!.textContent).toContain("not reported");
+    const fix = document.querySelector(
+      "[data-leaf='lastFixAgeS']"
+    ) as HTMLElement | null;
+    expect(fix!.textContent).toContain("not reported");
   });
 
-  it("hides the logs card for role editor even when beacon role is admin", async () => {
-    server.use(
-      http.get("*/admin/beacons", () =>
-        HttpResponse.json(
-          {
-            items: [{ ...richBeacon, role: "admin" }],
-            staleAfterS: 45,
-          }
-        )
-      )
-    );
-    renderDetail({ role: "editor" });
+  it("renders the debug object as a tree keyed verbatim", async () => {
+    renderDetail();
     await screen.findByRole("heading", { name: f.beacons[0]!.name!, level: 4 });
-    expect(screen.queryByText(/^Logs$/)).toBeNull();
+    // The tree renders keys from debug directly.
+    await waitFor(() => {
+      expect(screen.getAllByText(/power/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/thermalStatus/).length).toBeGreaterThan(0);
+    });
   });
 
-  it("shows the logs card for admin when beacon role is admin", async () => {
+  it("renders \"This beacon sends no debug data\" when debug is null", async () => {
     server.use(
       http.get("*/admin/beacons", () =>
-        HttpResponse.json({
-          items: [{ ...richBeacon, role: "admin" }],
-          staleAfterS: 45,
-        })
+        HttpResponse.json({ items: [cleanBeacon], staleAfterS: 45 })
       )
     );
-    renderDetail({ role: "admin" });
-    expect(await screen.findByText(/^Logs$/)).toBeInTheDocument();
+    renderDetail();
+    await screen.findByRole("heading", { name: f.beacons[0]!.name!, level: 4 });
+    expect(
+      await screen.findByText(/This beacon sends no debug data/i)
+    ).toBeInTheDocument();
+  });
+
+  it("shows the Unhealthy chip when beacon.healthy is false", async () => {
+    renderDetail();
+    await screen.findByRole("heading", { name: f.beacons[0]!.name!, level: 4 });
+    expect(screen.getByText("Unhealthy")).toBeInTheDocument();
+  });
+
+  it("shows the Healthy chip when beacon.healthy is true", async () => {
+    server.use(
+      http.get("*/admin/beacons", () =>
+        HttpResponse.json({ items: [cleanBeacon], staleAfterS: 45 })
+      )
+    );
+    renderDetail();
+    await screen.findByRole("heading", { name: f.beacons[0]!.name!, level: 4 });
+    expect(screen.getByText("Healthy")).toBeInTheDocument();
   });
 });
 
-describe("BeaconDetail logs interactions", () => {
-  it("shows the log rows for an admin beacon", async () => {
+describe("BeaconDetail logs", () => {
+  it("shows the log rows for every beacon", async () => {
     const user = userEvent.setup();
-    server.use(
-      http.get("*/admin/beacons", () =>
-        HttpResponse.json({
-          items: [{ ...richBeacon, role: "admin" }],
-          staleAfterS: 45,
-        })
-      )
-    );
     renderDetail();
     const row = await screen.findByTestId(`beacon-log-row-${f.beaconLogs[0]!.id}`);
     expect(row).toBeInTheDocument();

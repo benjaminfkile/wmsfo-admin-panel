@@ -15,7 +15,6 @@ test.describe("beacons", () => {
     const name = `e2e-${Date.now()}`;
     await page.getByLabel(/name/i).fill(name);
     await page.getByLabel(/notes/i).fill("Created by end-to-end spec 2");
-    await page.getByRole("radio", { name: /beacon/i }).check();
     await page.getByRole("button", { name: /^create$/i }).click();
 
     const keyDialog = page.getByRole("dialog", { name: /key/i });
@@ -28,14 +27,17 @@ test.describe("beacons", () => {
     const row = page.getByRole("row", { name: new RegExp(name) });
     await expect(row).toBeVisible();
 
-    await row.getByRole("button", { name: /rotate/i }).click();
+    // Row menu drives Rotate and Revoke; the pencil opens the beacon page.
+    await row.getByRole("button", { name: new RegExp(`actions for ${name}`, "i") }).click();
+    await page.getByRole("menuitem", { name: /^rotate$/i }).click();
     await page.getByRole("button", { name: /^rotate$/i }).click();
     const rotated = page.getByRole("dialog", { name: /key/i });
     await expect(rotated).toBeVisible();
     await expect(rotated.getByLabel(/^key$/i)).toHaveValue(/^wbk_/);
     await rotated.getByRole("button", { name: /i have stored the key/i }).click();
 
-    await row.getByRole("button", { name: /revoke/i }).click();
+    await row.getByRole("button", { name: new RegExp(`actions for ${name}`, "i") }).click();
+    await page.getByRole("menuitem", { name: /^revoke$/i }).click();
     await page.getByRole("button", { name: /^revoke$/i }).click();
     await expect(row.getByText(/revoked/i)).toBeVisible();
   });

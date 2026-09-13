@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Alert,
   Button,
   Checkbox,
   Dialog,
@@ -15,8 +16,9 @@ import { useQuery } from "@tanstack/react-query";
 import type { Beacon, Event, StatusId } from "../../api/types";
 import { keys } from "../../queries/keys";
 import { subscribers as subsApi } from "../../api/resources/subscribers";
+import { ApiError } from "../../api/errors";
 import { statusName } from "../../lib/statusNames";
-import { ageS, formatAgeS } from "../../lib/time";
+import { ageS, formatAgeS, formatMt } from "../../lib/time";
 
 interface Props {
   open: boolean;
@@ -24,10 +26,34 @@ interface Props {
   target: StatusId;
   eventsList: Event[];
   activeBeacon: Beacon | null;
+  healthyReason: string | null;
   now: number;
   confirming: boolean;
+  error: unknown;
   onCancel: () => void;
   onConfirm: (notifyValue: boolean) => void;
+}
+
+type NoHealthyBeaconDetail = {
+  beacon?: {
+    name?: string | null;
+    lastSeenAt?: string | null;
+    lastHeartbeatAt?: string | null;
+    staleSince?: string | null;
+  } | null;
+};
+
+function noHealthyBeaconMessage(err: unknown): string | null {
+  if (!(err instanceof ApiError)) return null;
+  if (err.code !== "no_healthy_beacon") return null;
+  const details = err.body?.details as NoHealthyBeaconDetail | null | undefined;
+  const beacon = details?.beacon ?? null;
+  if (!beacon) return "No beacon is active";
+  const parts: string[] = [];
+  parts.push(beacon.name ?? "the active beacon");
+  if (beacon.lastSeenAt) parts.push(`last seen ${formatMt(beacon.lastSeenAt)}`);
+  if (beacon.staleSince) parts.push(`stale since ${formatMt(beacon.staleSince)}`);
+  return parts.join(", ");
 }
 
 // Shared status-change dialog for the events list and the dashboard
@@ -38,8 +64,10 @@ export default function StatusDialog({
   target,
   eventsList,
   activeBeacon,
+  healthyReason,
   now,
   confirming,
+  error,
   onCancel,
   onConfirm,
 }: Props) {
@@ -73,15 +101,26 @@ export default function StatusDialog({
   const beaconLine =
     target === 3
       ? activeBeacon
-        ? `Active beacon: ${activeBeacon.name}, heartbeat ${
+        ? `Active beacon: ${activeBeacon.name}, ${
+            activeBeacon.healthy === true ? "healthy" : "unhealthy"
+          }, heartbeat ${
             formatAgeS(ageS(activeBeacon.lastHeartbeatAt, now)) || "never"
-          }, stale: ${activeBeacon.staleSince ? "yes" : "no"}`
+          }, hub ${
+            activeBeacon.hubConnected === true
+              ? "connected"
+              : activeBeacon.hubConnected === false
+                ? "polling"
+                : "unknown"
+          }`
         : "Active beacon: none"
       : null;
 
   const anotherEventLive = eventsList.some(
     (e) => e.statusId === 3 && e.id !== event.id
   );
+
+  const gateBlocked = target === 3 && healthyReason !== null;
+  const beaconErrorText = noHealthyBeaconMessage(error);
 
   return (
     <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
@@ -101,7 +140,20 @@ export default function StatusDialog({
           />
           <DialogContentText>{consequence}</DialogContentText>
           {beaconLine ? (
-            <Typography variant="body2">{beaconLine}</Typography>
+            <Typography
+              variant="body2"
+              color={gateBlocked ? "error" : "text.primary"}
+            >
+              {beaconLine}
+            </Typography>
+          ) : null}
+          {gateBlocked ? (
+            <Typography variant="body2" color="error">
+              {healthyReason}
+            </Typography>
+          ) : null}
+          {beaconErrorText ? (
+            <Alert severity="error">{beaconErrorText}</Alert>
           ) : null}
           {target === 3 && anotherEventLive ? (
             <Typography variant="body2" color="error">
@@ -115,7 +167,7 @@ export default function StatusDialog({
         <Button
           variant="contained"
           onClick={() => onConfirm(notifyChecked)}
-          disabled={confirming}
+          disabled={confirming || gateBlocked}
         >
           {target === 3 ? "Set live" : "Change status"}
         </Button>
