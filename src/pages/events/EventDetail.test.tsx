@@ -10,15 +10,14 @@ import { ConfigProvider } from "../../ConfigContext";
 import { NotifyProvider } from "../../hooks/useNotify";
 import { installClient } from "../../api/client";
 import { buildTheme } from "../../theme/theme";
-
 import { server } from "../../test/msw/server";
 import * as f from "../../test/msw/fixtures";
 import {
-// The dialog flows type a message and drive three MUI dialogs; give them room.vi.setConfig({ testTimeout: 15_000 });
   makeFakeUserManager,
   makeUser,
   testConfig,
 } from "../../test/renderWithProviders";
+// The dialog flows type a message and drive three MUI dialogs; give them room.vi.setConfig({ testTimeout: 15_000 });
 
 function Harness({ id }: { id: number }) {
   const client = new QueryClient({
