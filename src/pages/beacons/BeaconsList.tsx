@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Box,
   Button,
   Chip,
@@ -17,6 +20,7 @@ import {
   Typography,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -143,8 +147,14 @@ export default function BeaconsList() {
     items: [],
     staleAfterS: 60,
   };
-  const beacons = [...response.items].sort((a, b) =>
+  const sorted = [...response.items].sort((a, b) =>
     (a.name ?? "").localeCompare(b.name ?? "")
+  );
+  const activeBeacons = sorted.filter(
+    (b) => b.revokedAt === null || b.revokedAt === undefined
+  );
+  const revokedBeacons = sorted.filter(
+    (b) => b.revokedAt !== null && b.revokedAt !== undefined
   );
   const events = eventsQ.data?.items ?? [];
   const anyEventLive = events.some((e) => Number(e.statusId) === 3);
@@ -192,85 +202,71 @@ export default function BeaconsList() {
       {beaconsQ.error ? (
         <ErrorAlert error={beaconsQ.error} />
       ) : (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Key prefix</TableCell>
-                <TableCell>Active</TableCell>
-                <TableCell>Healthy</TableCell>
-                <TableCell>Hub</TableCell>
-                <TableCell>Flags</TableCell>
-                <TableCell>Last seen</TableCell>
-                <TableCell>Last heartbeat</TableCell>
-                <TableCell>Last location</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {beacons.length === 0 ? (
+        <>
+          <TableContainer component={Paper}>
+            <Table size="small">
+              <TableHead>
                 <TableRow>
-                  <TableCell colSpan={10}>
-                    <Typography variant="body2" color="text.secondary">
-                      No beacons yet.
-                    </Typography>
-                  </TableCell>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Key prefix</TableCell>
+                  <TableCell>Active</TableCell>
+                  <TableCell>Healthy</TableCell>
+                  <TableCell>Hub</TableCell>
+                  <TableCell>Flags</TableCell>
+                  <TableCell>Last seen</TableCell>
+                  <TableCell>Last heartbeat</TableCell>
+                  <TableCell>Last location</TableCell>
+                  <TableCell align="right">Actions</TableCell>
                 </TableRow>
-              ) : (
-                beacons.map((b) => {
-                  const revoked = b.revokedAt !== null && b.revokedAt !== undefined;
-                  const flags = beaconFlags(
-                    b,
-                    Number(response.staleAfterS ?? 60),
-                    anyEventLive,
-                    now
-                  );
-                  const isHealthy = b.healthy === true;
-                  return (
-                    <TableRow
-                      key={String(b.id)}
-                      hover
-                      data-testid={`beacon-row-${b.id}`}
-                      sx={revoked ? { opacity: 0.5 } : undefined}
-                    >
-                      <TableCell>
-                        <RouterLink to={`/beacons/${b.id}`}>{b.name}</RouterLink>
-                      </TableCell>
-                      <TableCell>
-                        <code>{b.keyPrefix}</code>
-                      </TableCell>
-                      <TableCell>
-                        {revoked ? (
-                          <Chip size="small" label="Revoked" color="default" />
-                        ) : b.isActive ? (
-                          <Chip size="small" label="Active" color="success" />
-                        ) : (
-                          <Box component="span" sx={{ color: "text.secondary" }}>
-                            none
-                          </Box>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {revoked ? (
-                          <Box component="span" sx={{ color: "text.secondary" }}>
-                            none
-                          </Box>
-                        ) : (
+              </TableHead>
+              <TableBody>
+                {activeBeacons.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={10}>
+                      <Typography variant="body2" color="text.secondary">
+                        No beacons yet.
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  activeBeacons.map((b) => {
+                    const flags = beaconFlags(
+                      b,
+                      Number(response.staleAfterS ?? 60),
+                      anyEventLive,
+                      now
+                    );
+                    const isHealthy = b.healthy === true;
+                    return (
+                      <TableRow
+                        key={String(b.id)}
+                        hover
+                        data-testid={`beacon-row-${b.id}`}
+                      >
+                        <TableCell>
+                          <RouterLink to={`/beacons/${b.id}`}>{b.name}</RouterLink>
+                        </TableCell>
+                        <TableCell>
+                          <code>{b.keyPrefix}</code>
+                        </TableCell>
+                        <TableCell>
+                          {b.isActive ? (
+                            <Chip size="small" label="Active" color="success" />
+                          ) : (
+                            <Box component="span" sx={{ color: "text.secondary" }}>
+                              none
+                            </Box>
+                          )}
+                        </TableCell>
+                        <TableCell>
                           <Chip
                             size="small"
                             label={isHealthy ? "Healthy" : "Unhealthy"}
                             color={isHealthy ? "success" : "error"}
                           />
-                        )}
-                      </TableCell>
-                      <TableCell>{hubStateLabel(b)}</TableCell>
-                      <TableCell>
-                        {revoked ? (
-                          <Box component="span" sx={{ color: "text.secondary" }}>
-                            none
-                          </Box>
-                        ) : (
+                        </TableCell>
+                        <TableCell>{hubStateLabel(b)}</TableCell>
+                        <TableCell>
                           <Stack
                             direction="row"
                             spacing={0.5}
@@ -281,40 +277,38 @@ export default function BeaconsList() {
                               <FlagChip key={f} flag={f} />
                             ))}
                           </Stack>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span title={formatMt(b.lastSeenAt) || undefined}>
-                          {formatAgeS(ageS(b.lastSeenAt ?? null, now)) || "never"}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span title={formatMt(b.lastHeartbeatAt) || undefined}>
-                          {formatAgeS(ageS(b.lastHeartbeatAt ?? null, now)) ||
-                            "never"}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span title={formatMt(b.lastLocationAt) || undefined}>
-                          {formatAgeS(ageS(b.lastLocationAt ?? null, now)) ||
-                            "never"}
-                        </span>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Stack
-                          direction="row"
-                          spacing={0.5}
-                          justifyContent="flex-end"
-                        >
-                          <IconButton
-                            size="small"
-                            component={RouterLink}
-                            to={`/beacons/${b.id}`}
-                            aria-label={`Edit ${b.name ?? "beacon"}`}
+                        </TableCell>
+                        <TableCell>
+                          <span title={formatMt(b.lastSeenAt) || undefined}>
+                            {formatAgeS(ageS(b.lastSeenAt ?? null, now)) || "never"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span title={formatMt(b.lastHeartbeatAt) || undefined}>
+                            {formatAgeS(ageS(b.lastHeartbeatAt ?? null, now)) ||
+                              "never"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span title={formatMt(b.lastLocationAt) || undefined}>
+                            {formatAgeS(ageS(b.lastLocationAt ?? null, now)) ||
+                              "never"}
+                          </span>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Stack
+                            direction="row"
+                            spacing={0.5}
+                            justifyContent="flex-end"
                           >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          {!revoked ? (
+                            <IconButton
+                              size="small"
+                              component={RouterLink}
+                              to={`/beacons/${b.id}`}
+                              aria-label={`Edit ${b.name ?? "beacon"}`}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
                             <IconButton
                               size="small"
                               aria-label={`Actions for ${b.name ?? "beacon"}`}
@@ -324,16 +318,125 @@ export default function BeaconsList() {
                             >
                               <MoreVertIcon fontSize="small" />
                             </IconButton>
-                          ) : null}
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          {revokedBeacons.length > 0 ? (
+            <Accordion
+              disableGutters
+              sx={{ mt: 2 }}
+              data-testid="revoked-beacons-accordion"
+            >
+              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                <Typography>Revoked ({revokedBeacons.length})</Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 0 }}>
+                <TableContainer component={Paper} elevation={0}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Name</TableCell>
+                        <TableCell>Key prefix</TableCell>
+                        <TableCell>Active</TableCell>
+                        <TableCell>Healthy</TableCell>
+                        <TableCell>Hub</TableCell>
+                        <TableCell>Flags</TableCell>
+                        <TableCell>Last seen</TableCell>
+                        <TableCell>Last heartbeat</TableCell>
+                        <TableCell>Last location</TableCell>
+                        <TableCell align="right">Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {revokedBeacons.map((b) => (
+                        <TableRow
+                          key={String(b.id)}
+                          hover
+                          data-testid={`beacon-row-${b.id}`}
+                          sx={{ opacity: 0.5 }}
+                        >
+                          <TableCell>
+                            <RouterLink to={`/beacons/${b.id}`}>
+                              {b.name}
+                            </RouterLink>
+                          </TableCell>
+                          <TableCell>
+                            <code>{b.keyPrefix}</code>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              size="small"
+                              label="Revoked"
+                              color="default"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Box
+                              component="span"
+                              sx={{ color: "text.secondary" }}
+                            >
+                              none
+                            </Box>
+                          </TableCell>
+                          <TableCell>{hubStateLabel(b)}</TableCell>
+                          <TableCell>
+                            <Box
+                              component="span"
+                              sx={{ color: "text.secondary" }}
+                            >
+                              none
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <span title={formatMt(b.lastSeenAt) || undefined}>
+                              {formatAgeS(ageS(b.lastSeenAt ?? null, now)) ||
+                                "never"}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              title={formatMt(b.lastHeartbeatAt) || undefined}
+                            >
+                              {formatAgeS(
+                                ageS(b.lastHeartbeatAt ?? null, now)
+                              ) || "never"}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              title={formatMt(b.lastLocationAt) || undefined}
+                            >
+                              {formatAgeS(
+                                ageS(b.lastLocationAt ?? null, now)
+                              ) || "never"}
+                            </span>
+                          </TableCell>
+                          <TableCell align="right">
+                            <IconButton
+                              size="small"
+                              component={RouterLink}
+                              to={`/beacons/${b.id}`}
+                              aria-label={`Edit ${b.name ?? "beacon"}`}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </AccordionDetails>
+            </Accordion>
+          ) : null}
+        </>
       )}
 
       <BeaconCreateDialog

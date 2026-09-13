@@ -12,6 +12,7 @@ import { installClient } from "../../api/client";
 import { buildTheme } from "../../theme/theme";
 import { server } from "../../test/msw/server";
 import * as f from "../../test/msw/fixtures";
+import type { Beacon } from "../../api/types";
 import {
   makeFakeUserManager,
   makeUser,
@@ -178,5 +179,109 @@ describe("BeaconsList", () => {
       name: new RegExp(`edit ${f.beacons[0]!.name}`, "i"),
     });
     expect(pencil).toHaveAttribute("href", `/beacons/${f.beacons[0]!.id}`);
+  });
+
+  describe("revoked beacons (admin.md 6.5)", () => {
+    const makeRevoked = (
+      id: number,
+      name: string,
+      keyPrefix: string
+    ): Beacon => ({
+      id,
+      name,
+      keyPrefix,
+      isActive: false,
+      revokedAt: "2026-12-20T00:00:00.000Z",
+      lastSeenAt: null,
+      lastLocationAt: null,
+      lastHeartbeatAt: null,
+      staleSince: null,
+      telemetry: null,
+      hubConnected: null,
+      healthy: false,
+      createdBy: "editor@example.com",
+      createdAt: "2026-11-01T00:00:00.000Z",
+      updatedAt: "2026-12-20T00:00:00.000Z",
+    });
+
+    const useSplitFixture = (): {
+      active: Beacon[];
+      revoked: Beacon[];
+    } => {
+      const active = [f.beacons[0]!];
+      const revoked = [
+        makeRevoked(101, "e2e-A", "wbk_e2eaaaaaa"),
+        makeRevoked(102, "e2e-B", "wbk_e2ebbbbbb"),
+        makeRevoked(103, "e2e-C", "wbk_e2eccccc0"),
+        makeRevoked(104, "e2e-D", "wbk_e2edddddd"),
+      ];
+      server.use(
+        http.get(`${testConfig.apiBaseUrl}/admin/beacons`, () =>
+          HttpResponse.json({
+            items: [...active, ...revoked],
+            staleAfterS: 45,
+          })
+        )
+      );
+      return { active, revoked };
+    };
+
+    it("splits revoked rows out of the main table", async () => {
+      const { active, revoked } = useSplitFixture();
+      render(<Harness />);
+      // Main table only has the one active beacon.
+      await screen.findByTestId(`beacon-row-${active[0]!.id}`);
+      // Revoked beacon rows are not visible in the main body (accordion is
+      // collapsed by default, so their contents are hidden).
+      const table = screen.getAllByRole("table")[0]!;
+      const activeRows = within(table).getAllByRole("row");
+      // 1 header row + 1 active row = 2 rows visible in the main table.
+      expect(activeRows).toHaveLength(2);
+      for (const r of revoked) {
+        // Even if the DOM node exists (Collapse keeps it), it must not be
+        // inside the main table.
+        expect(within(table).queryByText(r.name!)).toBeNull();
+      }
+    });
+
+    it("shows the count in the accordion header", async () => {
+      useSplitFixture();
+      render(<Harness />);
+      await screen.findByTestId(`beacon-row-${f.beacons[0]!.id}`);
+      const header = await screen.findByText(/^revoked \(4\)$/i);
+      expect(header).toBeInTheDocument();
+    });
+
+    it("lists every revoked beacon inside the accordion, greyed, pencil-only", async () => {
+      const user = userEvent.setup();
+      const { revoked } = useSplitFixture();
+      render(<Harness />);
+      const accordion = await screen.findByTestId("revoked-beacons-accordion");
+      // Expand.
+      await user.click(within(accordion).getByRole("button", { name: /revoked/i }));
+      for (const b of revoked) {
+        const row = await within(accordion).findByTestId(`beacon-row-${b.id}`);
+        expect(within(row).getByText(b.name!)).toBeInTheDocument();
+        expect(within(row).getByText("Revoked")).toBeInTheDocument();
+        // Greyed: the row's sx sets opacity 0.5.
+        expect(row).toHaveStyle({ opacity: "0.5" });
+        // Only the pencil: an edit link, no "Actions for" menu button.
+        expect(
+          within(row).getByRole("link", {
+            name: new RegExp(`edit ${b.name!}`, "i"),
+          })
+        ).toBeInTheDocument();
+        expect(
+          within(row).queryByRole("button", { name: /actions for/i })
+        ).toBeNull();
+      }
+    });
+
+    it("does not render the accordion when there are no revoked beacons", async () => {
+      render(<Harness />);
+      await screen.findByTestId(`beacon-row-${f.beacons[0]!.id}`);
+      expect(screen.queryByTestId("revoked-beacons-accordion")).toBeNull();
+      expect(screen.queryByText(/^revoked \(/i)).toBeNull();
+    });
   });
 });
