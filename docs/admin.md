@@ -182,6 +182,7 @@ The prefix changes from `REACT_APP_` to `VITE_` and access changes from `process
 | `VITE_COGNITO_AUTHORITY` | `https://cognito-idp.<region>.amazonaws.com/<admin-pool-id>` (the prod admin pool; the panel never talks to the people pool) | same shape, the dev admin pool |
 | `VITE_COGNITO_DOMAIN` | `https://<cognito-domain>` (the admin pool's managed login domain) | the dev admin pool's domain |
 | `VITE_COGNITO_CLIENT_ID` | `<admin-client-id>` | dev `<admin-client-id>` |
+| `VITE_GOOGLE_MAPS_KEY` | the site's browser key with the Places API enabled and the panel's origins in its referrers (platform.md 4.4) | the same key |
 
 `.env.example` lists the six names with empty values and is committed; `.env.local` is ignored. The legacy variables `REACT_APP_API_URL`, `REACT_APP_ENVIRONMENT`, `REACT_APP_IFRAME_SOURCE`, `REACT_APP_FORCED_TIMEZONE`, `REACT_APP_FORCED_TIME_ABBR` are removed.
 
@@ -386,13 +387,15 @@ import type { User } from "oidc-client-ts";
 
 export const ADMIN_GROUP = "admin";
 export const EDITOR_GROUP = "editor";
-export type Role = "admin" | "editor";
+export const CANVASSER_GROUP = "canvasser";
+export type Role = "admin" | "editor" | "canvasser";
 
 export function roleOf(user: User): Role | null {
   const groups = user.profile["cognito:groups"];
   if (!Array.isArray(groups)) return null;
   if (groups.includes(ADMIN_GROUP)) return "admin";
   if (groups.includes(EDITOR_GROUP)) return "editor";
+  if (groups.includes(CANVASSER_GROUP)) return "canvasser";
   return null;
 }
 
@@ -982,7 +985,7 @@ export function beaconFlags(b: Beacon, staleAfterS: number, anyEventLive: boolea
 
 `MainLayout` keeps the legacy structure: fixed `AppBar`, permanent `Drawer` at 220 px on `md` and up, temporary drawer below, theme toggle stored under `localStorage` key `appThemeMode` (dark default). New in the bar: `EnvBadge`, the signed-in email, and a sign-out button.
 
-Drawer entries for `admin`: Dashboard, Events, Flight recordings, Beacons, then a Content group (Pages, Media, Site settings, Publish), then Sponsors, Sponsor order, Cookie types, Subscribers, People, Contact messages, Settings, API keys, Agents. There is no cookie view: the tally on the dashboard's live object is all the panel shows about cookies. For `editor`: Pages, Media, Site settings, Publish, Sponsors, and the editor lands on Pages. A small "Unpublished changes" dot on the Publish entry reflects `keys.contentStatus.hasUnpublishedChanges` (fetched on layout mount and after every working-set write).
+Drawer entries for `admin`: Dashboard, Events, Flight recordings, Beacons, then a Content group (Pages, Media, Site settings, Publish), then Sponsors, Sponsor order, Cookie types, Subscribers, People, Contact messages, Settings, API keys, Agents. There is no cookie view: the tally on the dashboard's live object is all the panel shows about cookies. For `editor`: Pages, Media, Site settings, Publish, Sponsors, QR codes, Places, Scan, and the editor lands on Pages. For `canvasser`: QR codes, Places, Scan only, landing on Scan. `admin` sees QR codes, Places, and Scan after Beacons. A small "Unpublished changes" dot on the Publish entry reflects `keys.contentStatus.hasUnpublishedChanges` (fetched on layout mount and after every working-set write).
 
 `EnvBadge`: an MUI `Chip` with `config.env.toUpperCase()`; colour `error` for `prod`, `success` for `dev`, `info` for `local`; tooltip shows `config.apiBaseUrl`. On `dev` and `local` the document title is prefixed `[DEV]` or `[LOCAL]`. The badge also appears on `SignIn`, `NotAdmin`, and `MfaSetup`.
 
@@ -1163,6 +1166,24 @@ Below it the page mounts `ApiKeysList` unchanged (the same component as `/api-ke
 ### 6.22 Audit
 
 `/audit`, its own drawer entry (admin and editor): filters `entity` (from `GET /admin/audit/entities`), `action` (the known verbs), `actor` (text), and a quick chip "Deletes" that sets `action=delete`; a table newest first paged with a cursor (Load more): time, actor, action, entity and id (a link to the row when it still exists, plain text otherwise), and the same changed-fields summary the history dialog uses, expandable to the raw JSON. Deleted rows are readable here and nowhere else.
+
+### 6.23 QR codes
+
+`/qr-codes` (admin, editor, canvasser): the table of `QrCode` rows by tag: tag (link to the detail), attached to (the place path joined by " › ", or an "Unattached" chip: warning when it has scans, muted otherwise), opens (the resolved target with "(from <place>)" or "(own)" or "(default)"), people (unflagged scans), last scan, printed ("Batch n · <date>"), then the pencil, the row menu (Attach…, Detach, Disable or Enable, Delete for admins), and the Audit cell. Toolbar: "Generate n more" (a small number field, default 10, `POST /admin/qr-codes { count }`) and "Print sheet", which opens `PrintSheetDialog`: a batch select (default the newest), a size select (50 mm, six per row; 100 mm, three per row; 200 mm, one per row; 300 mm, one per page) with the note "a phone reads a code from about ten times its width", and a print button that renders the codes at the chosen size with the tag under each into a print-only stylesheet (`@page` margins, `break-inside: avoid`) and calls `window.print()`. Codes are drawn in the browser with the `qrcode` package the panel already uses for TOTP enrolment, encoding `https://<site-domain>/q/<tag>` (the site domain from `VITE_SITE_BASE_URL`), error correction M, quiet zone four modules.
+
+**Detail** (`/qr-codes/:id`): the code drawn large with SVG and PNG downloads at a chosen size in millimetres (default 50; the PNG at 300 dpi for that size), the tag and address under it; a form: attached to (a picker over the places tree, typeahead over the flattened paths), opens (a radio: same as the place, a site page select, a forward URL field), note, active switch, printed (read only); Detach and "Move to another place" (the same picker); the history card ("Where it has been": each stay with its place path, dates, people, and "includes n scans from the hour before it was attached" when `earlyScans` is above zero); the three stats (people over all attachments, flagged hits, people per day over the last 14 days) and the daily bar chart of the last 14 days (an inline SVG, no chart library).
+
+### 6.24 Places
+
+`/places` (admin, editor, canvasser): the tree as an indented table (a caret per row with children, expanded by default): name (link), description, codes (the tags attached now), people (the subtree), location ("Pinned" chip when the row has its own pin, "Uses <ancestor>" when it resolves to one, "Not pinned yet" warning when nothing resolves and the subtree has scans, "No pin" muted otherwise), then the pencil, the row menu (New place inside, Move…, Delete for admins), and the Audit cell. Toolbar: "New place" (`PlaceDialog`: parent picker, name, description, opens) and "Map".
+
+**Detail** (`/places/:id`): the form (name, description, parent picker, opens), the codes attached now with Attach here (a code picker over unattached codes), the location card: the pin on a Google map (the site's key, `@googlemaps/js-api-loader`), draggable when set, with "Use my location" (the Geolocation API; the accuracy shown; refused fixes worse than 500 m with a hint to search or drag), a Places Autocomplete search box (the Places API on the same key), "Use the parent's pin" (deletes the own location), and the source and who pinned it when set. Every pin write is `PUT /admin/places/{id}/location` with its `source`.
+
+**Map** (`/places/map`): an event select (default the current event) and a window select (this event, last 14 days, all time); a Google map centred on the pins' bounds with one marker per pinned place sized by its people count (a circle with the count inside), a tooltip listing the codes under it with their counts; a side list of every place with scans in the window, the unpinned ones and the unattached codes' count at the bottom. Pins are read from `GET /admin/places/map`.
+
+### 6.25 Scan
+
+`/scan` (admin, editor, canvasser; the canvasser's landing page): a camera view through the `BarcodeDetector` API where present, else the `@zxing/browser` reader (a new pinned dependency; the panel's `qrcode` package only draws codes) reading QR codes from the rear camera; a manual tag field under it for when the camera will not cooperate. A read tag that is unattached opens `AttachSheet`: a place picker with "New place" inline (name, parent defaulting to the place chosen), then the pin step: the phone's fix with its accuracy (offered as "Pin <place> here?", own pin or the parent's), a Places search, or "skip" (the place stays unpinned); Attach then pin, two calls. A read tag that is attached shows where it is and offers Move (the same sheet) or Done. Works on a phone-width viewport; every control reachable with the thumb (the sheet at the bottom).
 
 ## 7. Forms and validation
 
@@ -1385,6 +1406,7 @@ MSW handlers in `src/test/msw/handlers.ts` serve every endpoint in 4.4 from fixt
 |---|---|
 | Auth guard | spinner while loading; `SignIn` when no user; `NoRole` for a user without a group; layout for an admin and the reduced layout for an editor; a `userLoaded` event without a group switches to `NoRole`; `403 mfa_required` switches state; `403 forbidden` shows the alert and keeps the layout |
 | Dashboard | cards render from fixtures; with fake timers, two mismatched polls render "CDN behind" and one does not; Republish calls the endpoint and invalidates; `lastWriteError` renders red |
+| QR codes, Places, Scan | the codes table's attachment and opens cells; generate and the print sheet's sizes; the detail's history and chart from fixtures; the places tree's indentation and location cells; the map's pin sizing; the scan flow with a fake detector: unattached to attach sheet, attached to move; the canvasser drawer |
 | Events | clone dialog defaults and the three copy flags; the status card's "Nobody was notified" state and `NotifyDialog`; `StatusDialog`'s two confirms, the nested confirmation, and the message placeholder per status; the history table's Notified column; the flight history select and its Use button; create dialog inherit preview names the right route; disabled reasons on status buttons including the healthy-beacon reasons; `StatusDialog` for target 3 shows the active beacon line and disables confirm when no active beacon is healthy; `409 no_healthy_beacon` renders `details.beacon`; `409` codes map per 8.2; route upload posts then patches; the upload dialog shows the expected shape and its Copy and Download example work; every row has an edit pencil |
 | Beacons | create has no role field and shows `KeyRevealDialog` with the key and the QR `data:` URL, and only "I have stored the key" closes it; rotate on the active beacon while live shows the fan-out sentence; health colouring per flag; the debug object renders as a tree with its keys verbatim and the Health block shows "not reported" for absent leaves; logs render for any beacon |
 | Sponsors | year upsert sends the four fields; choosing a logo sends `PATCH { logoMediaId }`; `409 media_not_ready` reopens the picker |
@@ -1470,6 +1492,7 @@ Vercel builds `main` into production with the prod variables. A second Vercel pr
 - A status change asks for an explicit notify or not, with a nested confirmation when not; the event page says when nobody was told and lets the admin notify later with a custom message.
 - Revoked beacons live in a collapsed section under the list.
 - Sponsors copy forward per sponsor ("Add year from…") and in bulk ("Import from year"); events clone with their sponsors, recording, and poster.
+- QR codes, places, and scan are three pages; a canvasser sees only those; codes are drawn and printed in the browser at any size; pins come from the phone, a Places search, or a drag, never from a visitor.
 
 ## 12. Needs a decision
 
