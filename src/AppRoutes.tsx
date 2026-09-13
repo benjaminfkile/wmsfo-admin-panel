@@ -28,7 +28,7 @@ import AgentsPage from "./pages/agents/AgentsPage";
 import AuditPage from "./pages/audit/AuditPage";
 import QrCodesList from "./pages/qr/QrCodesList";
 import QrCodeDetail from "./pages/qr/QrCodeDetail";
-import ScanPlaceholder from "./pages/qr/ScanPlaceholder";
+import Scan from "./pages/qr/Scan";
 import PlacesList from "./pages/places/PlacesList";
 import PlaceDetail from "./pages/places/PlaceDetail";
 import PlacesMap from "./pages/places/PlacesMap";
@@ -82,7 +82,7 @@ const CUSTOM_ELEMENTS: Partial<Record<NavKey, ReactElement>> = {
   agents: <AgentsPage />,
   audit: <AuditPage />,
   "qr-codes": <QrCodesList />,
-  scan: <ScanPlaceholder />,
+  scan: <Scan />,
   places: <PlacesList />,
 };
 
