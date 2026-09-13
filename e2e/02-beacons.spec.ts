@@ -40,5 +40,10 @@ test.describe("beacons", () => {
     await page.getByRole("menuitem", { name: /^revoke$/i }).click();
     await page.getByRole("button", { name: /^revoke$/i }).click();
     await expect(row.getByText(/revoked/i)).toBeVisible();
+
+    // The API has no DELETE for a beacon (contracts 4.5 Beacons; revoke
+    // is permanent and the row stays for history and export). The spec
+    // leaves this run's beacon revoked; the beacons list on the dev
+    // stack accumulates one revoked row per run.
   });
 });

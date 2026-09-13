@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test";
 import {
   fetchAdminAccessToken,
+  listEvents,
   readAdmin,
+  setEventCurrent,
   setWalkEventStatus,
   signIn,
 } from "./helpers";
@@ -13,13 +15,17 @@ import {
 // Precondition: the dev walk event (year 2100, site.md § 22.2) is set live
 // through the API before the test runs and ended again after, so this spec
 // carries its own environment and does not require any other spec to have
-// run first.
+// run first. The event that was current when the spec started is restored
+// in `afterAll` so the dev stack ends where it began.
 
 test.describe("cookie types are locked while an event is live", () => {
   let adminToken: string | null = null;
+  let prevCurrentEventId: number | null = null;
 
   test.beforeAll(async ({ browser }) => {
     adminToken = await fetchAdminAccessToken(browser);
+    const events = await listEvents(adminToken);
+    prevCurrentEventId = events.find((e) => e.isCurrent)?.id ?? null;
     await setWalkEventStatus(adminToken, 3);
   });
 
@@ -27,6 +33,9 @@ test.describe("cookie types are locked while an event is live", () => {
     if (adminToken === null) return;
     // Idempotent: on 409 event_status_unchanged the event is already ended.
     await setWalkEventStatus(adminToken, 4).catch(() => undefined);
+    if (prevCurrentEventId !== null) {
+      await setEventCurrent(adminToken, prevCurrentEventId).catch(() => undefined);
+    }
   });
 
   test("disabled while live, editable and deletable after end", async ({ page }) => {

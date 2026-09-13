@@ -1,15 +1,40 @@
 import { expect, test, type Page } from "@playwright/test";
-import { readAdmin, readDevCdnBase, signIn, waitForCdnJson } from "./helpers";
+import {
+  fetchAdminAccessToken,
+  listEvents,
+  readAdmin,
+  readDevCdnBase,
+  setEventCurrent,
+  signIn,
+  waitForCdnJson,
+} from "./helpers";
 
 // Spec 3 (docs/admin.md § 9.3): create an event with inherit; set it
 // current; walk planned → scheduled → live → ended through the
 // confirmations; after each change `GET <dev cdn>/live/location.json`
 // reports the new eventStatusId within 10 s.
+//
+// Restores the event that was current when the spec started in
+// `afterAll`, so the dev stack is unchanged for the reviewer.
 
 type Live = { eventId: number | null; eventStatusId: number | null; publishedAt: string };
 
 test.describe("events lifecycle", () => {
   test.setTimeout(180_000);
+
+  let adminToken: string | null = null;
+  let prevCurrentEventId: number | null = null;
+
+  test.beforeAll(async ({ browser }) => {
+    adminToken = await fetchAdminAccessToken(browser);
+    const events = await listEvents(adminToken);
+    prevCurrentEventId = events.find((e) => e.isCurrent)?.id ?? null;
+  });
+
+  test.afterAll(async () => {
+    if (adminToken === null || prevCurrentEventId === null) return;
+    await setEventCurrent(adminToken, prevCurrentEventId).catch(() => undefined);
+  });
 
   test("create → current → planned → scheduled → live → ended, CDN follows", async ({ page }) => {
     const admin = readAdmin();
@@ -87,32 +112,29 @@ test.describe("events lifecycle", () => {
 
       await expect(page.getByText(/ended/i).first()).toBeVisible();
     } finally {
-      // Hand "current" back to the standing walk event (the site suite and
-      // spec 5 expect it current at status 4) and remove this run's event.
-      await page.getByRole("navigation").locator('a[href="/events"]').click();
-      const walkRow = page.getByTestId(/^event-row-/).filter({ hasText: /E2E walk/ }).first();
-      if ((await walkRow.getByRole("button", { name: /^set current$/i }).count()) > 0) {
-        await walkRow.getByRole("button", { name: /^set current$/i }).click();
-        await page
-          .getByRole("dialog", { name: /set current event/i })
-          .getByRole("button", { name: /^set current$/i })
-          .click();
-        await expect(walkRow.getByText("Current", { exact: true })).toBeVisible();
+      // The created event is still current here; detach "current" from
+      // it through the API so it can be deleted. `afterAll` puts current
+      // back on whichever event was current when the spec started.
+      if (adminToken !== null && prevCurrentEventId !== null) {
+        await setEventCurrent(adminToken, prevCurrentEventId).catch(() => undefined);
       }
+      await page.getByRole("navigation").locator('a[href="/events"]').click();
       await deleteEventsNamed(page, new RegExp(title));
     }
   });
 });
 
-// Delete every event row whose name matches, through the row's Delete
-// control and its confirmation. Rows that are current cannot be deleted;
-// callers hand "current" elsewhere first.
+// Delete every event row whose name matches, through the row's actions
+// menu (Delete lives in the row menu per M19, admin.md 1) and its
+// confirmation. Rows that are current cannot be deleted; callers hand
+// "current" elsewhere first.
 async function deleteEventsNamed(page: Page, name: RegExp): Promise<void> {
   for (;;) {
     const row = page.getByTestId(/^event-row-/).filter({ hasText: name }).first();
     if ((await row.count()) === 0) return;
     const before = await page.getByTestId(/^event-row-/).count();
-    await row.getByRole("button", { name: /^delete$/i }).click();
+    await row.getByRole("button", { name: /^actions for/i }).click();
+    await page.getByRole("menuitem", { name: /^delete$/i }).click();
     await page
       .getByRole("dialog", { name: /delete event/i })
       .getByRole("button", { name: /^delete$/i })

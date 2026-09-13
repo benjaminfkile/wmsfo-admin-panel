@@ -131,16 +131,77 @@ export async function readCurrentEventName(token: string): Promise<string> {
   return current.name;
 }
 
+// Return every event row from `/admin/events`, in the order the API
+// serves them. Specs use this to record the current event before a run
+// and to find the walk event.
+export async function listEvents(token: string): Promise<EventRow[]> {
+  const list = (await adminApi(token, "GET", "/admin/events")) as {
+    items: EventRow[];
+  };
+  return list.items ?? [];
+}
+
+// Set the given event current through the API. Idempotent for an event
+// that is already current.
+export async function setEventCurrent(
+  token: string,
+  eventId: number,
+): Promise<void> {
+  await adminApi(token, "POST", `/admin/events/${eventId}/current`);
+}
+
+// Change an event's status without sending a notification. Used to bring
+// the walk back to status 4 after a spec pushes it forward.
+export async function setEventStatus(
+  token: string,
+  eventId: number,
+  statusId: number,
+): Promise<void> {
+  await adminApi(token, "POST", `/admin/events/${eventId}/status`, {
+    statusId,
+    notify: false,
+  });
+}
+
+type BeaconRow = {
+  id: number;
+  keyPrefix: string;
+  isActive: boolean;
+  healthy: boolean;
+};
+
+type BeaconsListResponse = { items: BeaconRow[]; staleAfterS: number };
+
+// Read the beacons list through `/admin/beacons`. Specs use this to
+// record the currently active beacon, find the e2e beacon by its
+// `keyPrefix`, and inspect the `healthy` flag the go-live gate reads.
+export async function listBeacons(
+  token: string,
+): Promise<BeaconsListResponse> {
+  return (await adminApi(token, "GET", "/admin/beacons")) as BeaconsListResponse;
+}
+
+// Activate the given beacon (`POST /admin/beacons/{id}/activate`). The
+// API clears `is_active` on every other row in the same transaction, so
+// this is enough to swap the active beacon.
+export async function activateBeacon(
+  token: string,
+  beaconId: number,
+): Promise<void> {
+  await adminApi(token, "POST", `/admin/beacons/${beaconId}/activate`);
+}
+
 // Post a heartbeat as the e2e walk beacon so the API's go-live gate
 // (admin.md 6.3, 8.2 no_healthy_beacon) admits status 3. `E2E_BEACON_KEY`
-// carries the walk beacon's key; the endpoint accepts a bearer token.
+// carries the walk beacon's key; the beacon endpoints require the
+// `X-Beacon-Key` header (contracts 4.2) and refuse a bearer key with 401.
 export async function postWalkBeaconHeartbeat(): Promise<void> {
   const key = required("E2E_BEACON_KEY");
   const res = await fetch(`${readDevApiBase()}/beacons/heartbeat`, {
     method: "POST",
     cache: "no-store",
     headers: {
-      Authorization: `Bearer ${key}`,
+      "X-Beacon-Key": key,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
