@@ -5,16 +5,22 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
+  Link,
   Stack,
   TextField,
   Typography,
   Box,
   Alert,
 } from "@mui/material";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import type { RouteUploadBody } from "../../api/resources/routes";
 import { checkRouteFile, type RouteCheck } from "../../validation/routeFile";
 import ErrorAlert from "../../components/ErrorAlert";
 import { formatMt } from "../../lib/time";
+import { downloadText } from "../../lib/download";
+import routeFixture from "../../../contracts/fixtures/route.json";
+import { useNotify } from "../../hooks/useNotify";
 
 interface Props {
   open: boolean;
@@ -24,6 +30,29 @@ interface Props {
   onSubmit: (body: RouteUploadBody) => void;
 }
 
+const RULE_LINES = [
+  "name: 1 to 200 characters",
+  "points: 2 to 50,000 in flight order",
+  "lat -90 to 90, lng -180 to 180",
+  "recordedAt: an RFC 3339 time or null",
+  "no other keys; at most 5 MB",
+];
+
+// The Expected shape panel builds its example from the vendored
+// contracts fixture with schemaVersion stripped, so the panel never
+// drifts from the contract.
+function buildExampleJson(): string {
+  const source = routeFixture as Record<string, unknown>;
+  const example: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(source)) {
+    if (k === "schemaVersion") continue;
+    example[k] = v;
+  }
+  return JSON.stringify(example, null, 2);
+}
+
+export const ROUTE_EXAMPLE_JSON = buildExampleJson();
+
 export default function RouteUploadDialog({
   open,
   submitting,
@@ -31,6 +60,7 @@ export default function RouteUploadDialog({
   onCancel,
   onSubmit,
 }: Props) {
+  const notify = useNotify();
   const [check, setCheck] = useState<RouteCheck | null>(null);
   const [name, setName] = useState("");
 
@@ -52,6 +82,20 @@ export default function RouteUploadDialog({
     }
   };
 
+  const handleCopy = () => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      void navigator.clipboard.writeText(ROUTE_EXAMPLE_JSON).then(
+        () => notify("Example copied"),
+        () => notify("Copy failed", "error")
+      );
+    }
+  };
+
+  const handleDownload = (e: React.MouseEvent) => {
+    e.preventDefault();
+    downloadText(ROUTE_EXAMPLE_JSON, "route-example.json", "application/json");
+  };
+
   return (
     <Dialog
       open={open}
@@ -66,6 +110,63 @@ export default function RouteUploadDialog({
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {error ? <ErrorAlert error={error} /> : null}
+          <Box
+            sx={{
+              border: 1,
+              borderColor: "divider",
+              borderRadius: 1,
+              p: 2,
+            }}
+            data-testid="route-shape-panel"
+          >
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+              sx={{ mb: 1 }}
+            >
+              <Typography variant="subtitle2">Expected shape</Typography>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <IconButton
+                  size="small"
+                  onClick={handleCopy}
+                  aria-label="Copy example"
+                >
+                  <ContentCopyIcon fontSize="small" />
+                </IconButton>
+                <Link
+                  component="a"
+                  href="#"
+                  onClick={handleDownload}
+                  variant="body2"
+                >
+                  Download example
+                </Link>
+              </Stack>
+            </Stack>
+            <Box
+              component="pre"
+              data-testid="route-shape-example"
+              sx={{
+                m: 0,
+                p: 1,
+                fontFamily: "monospace",
+                fontSize: "0.8125rem",
+                bgcolor: "action.hover",
+                borderRadius: 1,
+                overflow: "auto",
+              }}
+            >
+              {ROUTE_EXAMPLE_JSON}
+            </Box>
+            <Box component="ul" sx={{ m: 0, mt: 1, pl: 3 }}>
+              {RULE_LINES.map((r) => (
+                <li key={r}>
+                  <Typography variant="body2">{r}</Typography>
+                </li>
+              ))}
+            </Box>
+          </Box>
           <input
             type="file"
             accept="application/json,.json"

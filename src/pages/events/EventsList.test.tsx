@@ -69,15 +69,25 @@ describe("EventsList rows", () => {
   });
 
   it("shows the Current chip on the current event and hides Set current", async () => {
+    const user = userEvent.setup();
     render(<Harness />);
     const currentRow = await screen.findByTestId(`event-row-${f.events[0]!.id}`);
     expect(within(currentRow).getByText("Current")).toBeInTheDocument();
+    // Row menu on the current row has no Set current item.
+    await user.click(
+      within(currentRow).getByRole("button", { name: /actions for/i })
+    );
     expect(
-      within(currentRow).queryByRole("button", { name: /set current/i })
+      screen.queryByRole("menuitem", { name: /set current/i })
     ).toBeNull();
+    // Close and open the non-current row's menu.
+    await user.keyboard("{Escape}");
     const otherRow = screen.getByTestId(`event-row-${f.events[1]!.id}`);
+    await user.click(
+      within(otherRow).getByRole("button", { name: /actions for/i })
+    );
     expect(
-      within(otherRow).getByRole("button", { name: /set current/i })
+      await screen.findByRole("menuitem", { name: /set current/i })
     ).toBeInTheDocument();
   });
 
@@ -91,8 +101,12 @@ describe("EventsList rows", () => {
     const user = userEvent.setup();
     render(<Harness />);
     const row = await screen.findByTestId(`event-row-${f.events[0]!.id}`);
-    const del = within(row).getByRole("button", { name: /delete/i });
-    await user.click(del);
+    await user.click(
+      within(row).getByRole("button", { name: /actions for/i })
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: /^delete$/i })
+    );
     expect(
       await screen.findByText(new RegExp(`delete ${f.events[0]!.name}`, "i"))
     ).toBeInTheDocument();

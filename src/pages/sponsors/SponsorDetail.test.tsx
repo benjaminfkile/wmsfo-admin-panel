@@ -152,7 +152,7 @@ describe("SponsorDetail: logo", () => {
     const card = await screen.findByTestId(
       `media-card-${f.mediaAssets[0]!.id}`
     );
-    await user.click(within(card).getByRole("button"));
+    await user.click(within(card).getAllByRole("button")[0]!);
     // Confirm with the dialog's Choose button.
     await user.click(screen.getByRole("button", { name: /^choose$/i }));
     await waitFor(() => expect(captured.length).toBeGreaterThan(0));
@@ -182,7 +182,7 @@ describe("SponsorDetail: logo", () => {
     const card = await screen.findByTestId(
       `media-card-${f.mediaAssets[0]!.id}`
     );
-    await user.click(within(card).getByRole("button"));
+    await user.click(within(card).getAllByRole("button")[0]!);
     await user.click(screen.getByRole("button", { name: /^choose$/i }));
     // After the 409, the picker reopens: the Choose Media dialog stays open.
     await waitFor(() =>

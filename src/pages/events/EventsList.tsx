@@ -4,6 +4,8 @@ import {
   Button,
   Chip,
   IconButton,
+  Menu,
+  MenuItem,
   Stack,
   Table,
   TableBody,
@@ -14,7 +16,8 @@ import {
   Paper,
   Typography,
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { events as eventsApi } from "../../api/resources/events";
@@ -36,6 +39,10 @@ export default function EventsList() {
   const [createOpen, setCreateOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Event | null>(null);
   const [confirmCurrent, setConfirmCurrent] = useState<Event | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{
+    el: HTMLElement;
+    event: Event;
+  } | null>(null);
 
   const eventsQ = useQuery({
     queryKey: keys.events,
@@ -159,32 +166,25 @@ export default function EventsList() {
                       <TableCell align="right">
                         <Stack
                           direction="row"
-                          spacing={1}
+                          spacing={0.5}
                           justifyContent="flex-end"
                         >
-                          <Button
+                          <IconButton
                             size="small"
                             component={RouterLink}
                             to={`/events/${e.id}`}
+                            aria-label={`Edit ${e.name ?? "event"}`}
                           >
-                            Open
-                          </Button>
-                          {!e.isCurrent ? (
-                            <Button
-                              size="small"
-                              onClick={() => setConfirmCurrent(e)}
-                              disabled={setCurrentMut.isPending}
-                            >
-                              Set current
-                            </Button>
-                          ) : null}
+                            <EditIcon fontSize="small" />
+                          </IconButton>
                           <IconButton
                             size="small"
-                            color="error"
-                            aria-label="Delete"
-                            onClick={() => setConfirmDelete(e)}
+                            aria-label={`Actions for ${e.name ?? "event"}`}
+                            onClick={(ev) =>
+                              setMenuAnchor({ el: ev.currentTarget, event: e })
+                            }
                           >
-                            <DeleteIcon fontSize="small" />
+                            <MoreVertIcon fontSize="small" />
                           </IconButton>
                         </Stack>
                       </TableCell>
@@ -209,6 +209,33 @@ export default function EventsList() {
         }}
         onSubmit={(b) => createMut.mutate(b)}
       />
+
+      {menuAnchor ? (
+        <Menu
+          open
+          anchorEl={menuAnchor.el}
+          onClose={() => setMenuAnchor(null)}
+        >
+          {!menuAnchor.event.isCurrent ? (
+            <MenuItem
+              onClick={() => {
+                setConfirmCurrent(menuAnchor.event);
+                setMenuAnchor(null);
+              }}
+            >
+              Set current
+            </MenuItem>
+          ) : null}
+          <MenuItem
+            onClick={() => {
+              setConfirmDelete(menuAnchor.event);
+              setMenuAnchor(null);
+            }}
+          >
+            Delete
+          </MenuItem>
+        </Menu>
+      ) : null}
 
       <ConfirmDialog
         open={confirmDelete !== null}

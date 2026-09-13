@@ -1,14 +1,19 @@
 import { Box, Link, Stack, Typography } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
-import type { MediaUsage } from "../../api/types";
+import type { Event, MediaUsage } from "../../api/types";
 
 interface Props {
   usage: MediaUsage;
+  // The API's MediaUsage does not carry events; derive an event entry
+  // from the events list when this asset is a route poster
+  // (admin.md 6.15).
+  posterEvents?: Event[];
 }
 
 // Renders the media usage document: draft pages as links to their
-// editors, version count, sponsors, cookie types, and site settings.
-export default function UsageList({ usage }: Props) {
+// editors, version count, sponsors, cookie types, site settings, and
+// (derived) the event whose route poster this asset is.
+export default function UsageList({ usage, posterEvents = [] }: Props) {
   const pages = usage.draftPages ?? [];
   const sponsors = usage.sponsors ?? [];
   const cookieTypes = usage.cookieTypes ?? [];
@@ -20,7 +25,8 @@ export default function UsageList({ usage }: Props) {
     sponsors.length === 0 &&
     cookieTypes.length === 0 &&
     versionCount === 0 &&
-    !inSiteSettings;
+    !inSiteSettings &&
+    posterEvents.length === 0;
   if (empty) {
     return (
       <Typography variant="body2" color="text.secondary">
@@ -89,6 +95,26 @@ export default function UsageList({ usage }: Props) {
       ) : null}
       {inSiteSettings ? (
         <Typography variant="body2">Referenced by site settings</Typography>
+      ) : null}
+      {posterEvents.length > 0 ? (
+        <Box>
+          <Typography variant="body2" fontWeight="medium">
+            Event route poster
+          </Typography>
+          <Box component="ul" sx={{ m: 0, pl: 3 }}>
+            {posterEvents.map((e) => (
+              <li key={String(e.id)}>
+                <Link
+                  component={RouterLink}
+                  to={`/events/${e.id}`}
+                  variant="body2"
+                >
+                  {e.name ?? `#${e.id}`}
+                </Link>
+              </li>
+            ))}
+          </Box>
+        </Box>
       ) : null}
     </Stack>
   );

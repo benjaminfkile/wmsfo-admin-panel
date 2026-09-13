@@ -4,6 +4,8 @@ import {
   Button,
   Chip,
   IconButton,
+  Menu,
+  MenuItem,
   Paper,
   Stack,
   Table,
@@ -14,7 +16,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiKeys as apiKeysApi } from "../../api/resources/apiKeys";
 import type { ApiKeyCreateBody } from "../../api/resources/apiKeys";
@@ -56,6 +58,10 @@ export default function ApiKeysList() {
   const [createOpen, setCreateOpen] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState<ApiKey | null>(null);
   const [minted, setMinted] = useState<ApiKeyMinted | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{
+    el: HTMLElement;
+    key: ApiKey;
+  } | null>(null);
 
   const invalidate = () =>
     void qc.invalidateQueries({ queryKey: keys.apiKeys });
@@ -209,11 +215,12 @@ export default function ApiKeysList() {
                         {!revoked ? (
                           <IconButton
                             size="small"
-                            color="error"
-                            aria-label="Revoke"
-                            onClick={() => setConfirmRevoke(k)}
+                            aria-label={`Actions for ${k.name ?? "key"}`}
+                            onClick={(ev) =>
+                              setMenuAnchor({ el: ev.currentTarget, key: k })
+                            }
                           >
-                            <DeleteForeverIcon fontSize="small" />
+                            <MoreVertIcon fontSize="small" />
                           </IconButton>
                         ) : null}
                       </TableCell>
@@ -225,6 +232,23 @@ export default function ApiKeysList() {
           </Table>
         </TableContainer>
       )}
+
+      {menuAnchor ? (
+        <Menu
+          open
+          anchorEl={menuAnchor.el}
+          onClose={() => setMenuAnchor(null)}
+        >
+          <MenuItem
+            onClick={() => {
+              setConfirmRevoke(menuAnchor.key);
+              setMenuAnchor(null);
+            }}
+          >
+            Revoke
+          </MenuItem>
+        </Menu>
+      ) : null}
 
       <ApiKeyCreateDialog
         open={createOpen}

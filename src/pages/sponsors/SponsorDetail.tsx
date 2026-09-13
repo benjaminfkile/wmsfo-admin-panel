@@ -5,6 +5,8 @@ import {
   Card,
   CardContent,
   IconButton,
+  Menu,
+  MenuItem,
   Paper,
   Stack,
   Table,
@@ -16,8 +18,8 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { sponsors as sponsorsApi } from "../../api/resources/sponsors";
@@ -90,6 +92,10 @@ export default function SponsorDetail() {
   const [confirmDeleteYear, setConfirmDeleteYear] =
     useState<SponsorYear | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [yearMenuAnchor, setYearMenuAnchor] = useState<{
+    el: HTMLElement;
+    year: SponsorYear;
+  } | null>(null);
 
   const sponsorQ = useQuery({
     queryKey: keys.sponsor(sponsorId),
@@ -348,18 +354,22 @@ export default function SponsorDetail() {
                       <TableCell align="right">
                         <IconButton
                           size="small"
-                          aria-label="Edit year"
+                          aria-label={`Edit ${String(y.eventYear)}`}
                           onClick={() => setYearDialogFor(y)}
                         >
                           <EditIcon fontSize="small" />
                         </IconButton>
                         <IconButton
                           size="small"
-                          color="error"
-                          aria-label="Delete year"
-                          onClick={() => setConfirmDeleteYear(y)}
+                          aria-label={`Actions for ${String(y.eventYear)}`}
+                          onClick={(ev) =>
+                            setYearMenuAnchor({
+                              el: ev.currentTarget,
+                              year: y,
+                            })
+                          }
                         >
-                          <DeleteIcon fontSize="small" />
+                          <MoreVertIcon fontSize="small" />
                         </IconButton>
                       </TableCell>
                     </TableRow>
@@ -382,6 +392,23 @@ export default function SponsorDetail() {
         }}
         onSubmit={(eventYear, body) => yearMut.mutate({ eventYear, body })}
       />
+
+      {yearMenuAnchor ? (
+        <Menu
+          open
+          anchorEl={yearMenuAnchor.el}
+          onClose={() => setYearMenuAnchor(null)}
+        >
+          <MenuItem
+            onClick={() => {
+              setConfirmDeleteYear(yearMenuAnchor.year);
+              setYearMenuAnchor(null);
+            }}
+          >
+            Delete
+          </MenuItem>
+        </Menu>
+      ) : null}
 
       <ConfirmDialog
         open={confirmDeleteYear !== null}

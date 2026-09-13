@@ -16,7 +16,8 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { media as mediaApi } from "../../api/resources/media";
-import type { MediaAsset, MediaUsage } from "../../api/types";
+import { events as eventsApi } from "../../api/resources/events";
+import type { Event, MediaAsset, MediaUsage } from "../../api/types";
 import { ApiError } from "../../api/errors";
 import { keys } from "../../queries/keys";
 import ConfirmDialog from "../ConfirmDialog";
@@ -57,6 +58,18 @@ export default function MediaDetailDrawer({
     queryFn: () => mediaApi.usage(asset!.id!),
     enabled: !!asset?.id && open,
   });
+
+  const eventsQ = useQuery({
+    queryKey: keys.events,
+    queryFn: () => eventsApi.list(),
+    enabled: open,
+  });
+
+  const posterEvents: Event[] = asset?.id
+    ? (eventsQ.data?.items ?? []).filter(
+        (e) => e.routeImageMediaId === asset.id
+      )
+    : [];
 
   const saveMut = useMutation({
     mutationFn: (b: { alt: string; title: string }) =>
@@ -190,6 +203,13 @@ export default function MediaDetailDrawer({
                   onCopy={handleCopy}
                 />
               ))}
+              {typeof asset.dziUrl === "string" && asset.dziUrl.length > 0 ? (
+                <VariantRow
+                  label="deep zoom"
+                  url={asset.dziUrl}
+                  onCopy={handleCopy}
+                />
+              ) : null}
             </Stack>
             <Divider />
             <Typography variant="subtitle2">Usage</Typography>
@@ -198,12 +218,12 @@ export default function MediaDetailDrawer({
                 Loading…
               </Typography>
             ) : usageQ.data ? (
-              <UsageList usage={usageQ.data} />
+              <UsageList usage={usageQ.data} posterEvents={posterEvents} />
             ) : null}
             {inUse ? (
               <Alert severity="warning">
                 In use by:
-                <UsageList usage={inUse} />
+                <UsageList usage={inUse} posterEvents={posterEvents} />
               </Alert>
             ) : null}
             <Divider />

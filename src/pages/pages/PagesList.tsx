@@ -5,6 +5,8 @@ import {
   Button,
   Chip,
   IconButton,
+  Menu,
+  MenuItem,
   Paper,
   Stack,
   Table,
@@ -15,7 +17,8 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import SettingsIcon from "@mui/icons-material/Settings";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
@@ -67,6 +70,10 @@ export default function PagesList() {
   const [createOpen, setCreateOpen] = useState(false);
   const [settingsFor, setSettingsFor] = useState<PageAdmin | null>(null);
   const [deleteFor, setDeleteFor] = useState<PageAdmin | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{
+    el: HTMLElement;
+    page: PageAdmin;
+  } | null>(null);
 
   const listQ = useQuery({
     queryKey: keys.pages,
@@ -234,12 +241,14 @@ export default function PagesList() {
                           )}
                         </TableCell>
                         <TableCell align="right">
-                          <Button
+                          <IconButton
                             size="small"
-                            onClick={() => navigate(`/pages/${p.id}`)}
+                            component={RouterLink}
+                            to={`/pages/${p.id}`}
+                            aria-label={`Edit ${p.title ?? "page"}`}
                           >
-                            Open
-                          </Button>
+                            <EditIcon fontSize="small" />
+                          </IconButton>
                         </TableCell>
                       </TableRow>
                     ))
@@ -323,26 +332,29 @@ export default function PagesList() {
                         </TableCell>
                         <TableCell align="right">
                           <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                            <Button
+                            <IconButton
                               size="small"
-                              onClick={() => navigate(`/pages/${p.id}`)}
+                              component={RouterLink}
+                              to={`/pages/${p.id}`}
+                              aria-label={`Edit ${p.title ?? "page"}`}
                             >
-                              Open
-                            </Button>
+                              <EditIcon fontSize="small" />
+                            </IconButton>
                             <IconButton
                               size="small"
                               onClick={() => setSettingsFor(p)}
-                              aria-label="Page settings"
+                              aria-label={`Settings for ${p.title ?? "page"}`}
                             >
                               <SettingsIcon fontSize="small" />
                             </IconButton>
                             <IconButton
                               size="small"
-                              color="error"
-                              onClick={() => setDeleteFor(p)}
-                              aria-label="Delete page"
+                              aria-label={`Actions for ${p.title ?? "page"}`}
+                              onClick={(ev) =>
+                                setMenuAnchor({ el: ev.currentTarget, page: p })
+                              }
                             >
-                              <DeleteIcon fontSize="small" />
+                              <MoreVertIcon fontSize="small" />
                             </IconButton>
                           </Stack>
                         </TableCell>
@@ -355,6 +367,23 @@ export default function PagesList() {
           </Box>
         </Stack>
       )}
+
+      {menuAnchor ? (
+        <Menu
+          open
+          anchorEl={menuAnchor.el}
+          onClose={() => setMenuAnchor(null)}
+        >
+          <MenuItem
+            onClick={() => {
+              setDeleteFor(menuAnchor.page);
+              setMenuAnchor(null);
+            }}
+          >
+            Delete
+          </MenuItem>
+        </Menu>
+      ) : null}
 
       <PageCreateDialog
         open={createOpen}
