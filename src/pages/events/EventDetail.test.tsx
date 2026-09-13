@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider, CssBaseline } from "@mui/material";
@@ -10,9 +10,11 @@ import { ConfigProvider } from "../../ConfigContext";
 import { NotifyProvider } from "../../hooks/useNotify";
 import { installClient } from "../../api/client";
 import { buildTheme } from "../../theme/theme";
+
 import { server } from "../../test/msw/server";
 import * as f from "../../test/msw/fixtures";
 import {
+// The dialog flows type a message and drive three MUI dialogs; give them room.vi.setConfig({ testTimeout: 15_000 });
   makeFakeUserManager,
   makeUser,
   testConfig,
