@@ -27,6 +27,7 @@ import { keys } from "../../queries/keys";
 import StatusChip from "../../components/StatusChip";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
+import AuditCell from "../../components/audit/AuditCell";
 import { formatMt } from "../../lib/time";
 import { useNotify } from "../../hooks/useNotify";
 import EventCreateDialog from "./EventCreateDialog";
@@ -131,12 +132,13 @@ export default function EventsList() {
                 <TableCell>Route</TableCell>
                 <TableCell align="right">Funds %</TableCell>
                 <TableCell align="right">Actions</TableCell>
+                <TableCell align="right">Audit</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {events.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8}>
+                  <TableCell colSpan={9}>
                     <Typography variant="body2" color="text.secondary">
                       No events yet.
                     </Typography>
@@ -201,6 +203,13 @@ export default function EventsList() {
                           </IconButton>
                         </Stack>
                       </TableCell>
+                      <AuditCell
+                        entity="event"
+                        entityId={e.id ?? ""}
+                        name={e.name ?? "event"}
+                        audit={e.audit}
+                        align="right"
+                      />
                     </TableRow>
                   );
                 })

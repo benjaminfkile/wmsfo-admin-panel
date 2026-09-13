@@ -30,7 +30,8 @@ export type ApiKeyCapability =
   | "contact_messages"
   | "subscribers"
   | "people"
-  | "diagnostics";
+  | "diagnostics"
+  | "audit";
 export type CookieType = S["CookieTypeDto"];
 export type Subscription = S["SubscriptionDto"];
 export type SubscriberAdmin = S["SubscriberAdminDto"];
@@ -58,6 +59,8 @@ export type ProblemRef = S["ProblemRefDto"];
 export type Icon = S["IconValue"];
 export type MediaRef = { mediaId: string; alt: string | null };
 export type Presentation = S["PresentationDto"];
+export type AuditStamp = S["AuditStampDto"];
+export type AuditEntry = S["AuditEntryDto"];
 
 export type Page<T> = { items: T[]; nextCursor: string | null };
 export type StatusId = 1 | 2 | 3 | 4 | 5;

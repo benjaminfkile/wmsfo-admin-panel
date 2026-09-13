@@ -30,6 +30,7 @@ import { keys } from "../../queries/keys";
 import ErrorAlert from "../../components/ErrorAlert";
 import CommentBox from "../../components/CommentBox";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import AuditCell from "../../components/audit/AuditCell";
 import { useNotify } from "../../hooks/useNotify";
 import PageCreateDialog, {
   type PageCreateSubmit,
@@ -207,12 +208,13 @@ export default function PagesList() {
                     <TableCell align="right">Sections</TableCell>
                     <TableCell align="right">Problems</TableCell>
                     <TableCell align="right">Actions</TableCell>
+                    <TableCell align="right">Audit</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {statusPages.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5}>
+                      <TableCell colSpan={6}>
                         <Typography variant="body2" color="text.secondary">
                           No status pages.
                         </Typography>
@@ -250,6 +252,13 @@ export default function PagesList() {
                             <EditIcon fontSize="small" />
                           </IconButton>
                         </TableCell>
+                        <AuditCell
+                          entity="page"
+                          entityId={p.id ?? ""}
+                          name={p.title ?? "page"}
+                          audit={p.audit}
+                          align="right"
+                        />
                       </TableRow>
                     ))
                   )}
@@ -274,12 +283,13 @@ export default function PagesList() {
                     <TableCell align="right">Sections</TableCell>
                     <TableCell align="right">Problems</TableCell>
                     <TableCell align="right">Actions</TableCell>
+                    <TableCell align="right">Audit</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {nonePages.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8}>
+                      <TableCell colSpan={9}>
                         <Alert severity="info">No content pages yet.</Alert>
                       </TableCell>
                     </TableRow>
@@ -358,6 +368,13 @@ export default function PagesList() {
                             </IconButton>
                           </Stack>
                         </TableCell>
+                        <AuditCell
+                          entity="page"
+                          entityId={p.id ?? ""}
+                          name={p.title ?? "page"}
+                          audit={p.audit}
+                          align="right"
+                        />
                       </TableRow>
                     ))
                   )}

@@ -1,3 +1,4 @@
+import type { AuditQuery } from "../api/resources/audit";
 import type { LocationsQuery } from "../api/resources/events";
 import type { MediaQuery } from "../api/resources/media";
 import type { SubscriberStatus } from "../api/resources/subscribers";
@@ -35,4 +36,6 @@ export const keys = {
   mediaOne: (id: string) => ["media", "one", id] as const,
   mediaUsage: (id: string) => ["media", "usage", id] as const,
   apiKeys: ["api-keys"] as const,
+  audit: (q: AuditQuery) => ["audit", q] as const,
+  auditEntities: ["audit", "entities"] as const,
 };

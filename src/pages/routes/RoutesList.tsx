@@ -35,6 +35,7 @@ import { ApiError } from "../../api/errors";
 import CommentBox from "../../components/CommentBox";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
+import AuditCell from "../../components/audit/AuditCell";
 import { formatMt } from "../../lib/time";
 import { useNotify } from "../../hooks/useNotify";
 import RouteUploadDialog from "../events/RouteUploadDialog";
@@ -148,12 +149,13 @@ export default function RoutesList() {
                 <TableCell>Link</TableCell>
                 <TableCell>Used by</TableCell>
                 <TableCell align="right">Actions</TableCell>
+                <TableCell align="right">Audit</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {routes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7}>
+                  <TableCell colSpan={8}>
                     <Typography variant="body2" color="text.secondary">
                       No routes yet.
                     </Typography>
@@ -202,6 +204,13 @@ export default function RoutesList() {
                           <MoreVertIcon fontSize="small" />
                         </IconButton>
                       </TableCell>
+                      <AuditCell
+                        entity="route"
+                        entityId={r.id ?? ""}
+                        name={r.name ?? "route"}
+                        audit={r.audit}
+                        align="right"
+                      />
                     </TableRow>
                   );
                 })

@@ -17,3 +17,5 @@ export { icons } from "./icons";
 export { media } from "./media";
 export { uploadToS3, UploadFailed } from "./upload";
 export { apiKeys } from "./apiKeys";
+export { audit, AUDIT_ACTIONS } from "./audit";
+export type { AuditAction, AuditQuery } from "./audit";
