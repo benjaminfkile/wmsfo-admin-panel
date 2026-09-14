@@ -212,6 +212,10 @@ export default function BeaconsList() {
             none
           </Box>
         ),
+      renderCompact: (b) =>
+        b.isActive ? (
+          <Chip size="small" label="Active" color="success" />
+        ) : null,
     },
     {
       key: "healthy",
