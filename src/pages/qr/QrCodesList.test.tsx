@@ -35,6 +35,38 @@ vi.mock("./qrRender", () => ({
 
 let userManager: UserManager;
 
+// jsdom does not implement `window.matchMedia`; stubbing it to match
+// lets `useCompact` return true and `QrCodesList` render its cards.
+function stubMatchMedia(matches: boolean): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+  return () => {
+    if (original === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).matchMedia;
+    } else {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: original,
+      });
+    }
+  };
+}
+
 function Harness({ children }: { children: React.ReactNode }) {
   const client = new QueryClient({
     defaultOptions: {
@@ -132,6 +164,31 @@ describe("QrCodesList (admin.md 6.23)", () => {
     await waitFor(() =>
       expect(sawBody[0]).toEqual({ count: 10 })
     );
+  });
+
+  it("renders a card per code on compact with the pencil and the menu, no desktop table", async () => {
+    const restore = stubMatchMedia(true);
+    try {
+      render(
+        <Harness>
+          <QrCodesList />
+        </Harness>
+      );
+      const attachedCard = await screen.findByTestId("qr-code-row-100");
+      const unattachedCard = await screen.findByTestId("qr-code-row-101");
+      expect(
+        within(attachedCard).getByRole("link", { name: /edit qr-001/i })
+      ).toBeInTheDocument();
+      expect(
+        within(attachedCard).getByRole("button", { name: /actions for qr-001/i })
+      ).toBeInTheDocument();
+      expect(
+        within(unattachedCard).getByText(/unattached/i)
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("table")).toBeNull();
+    } finally {
+      restore();
+    }
   });
 
   it("PrintSheetDialog lists the four sizes", async () => {

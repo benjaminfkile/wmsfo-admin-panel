@@ -25,6 +25,38 @@ import type { UserManager } from "oidc-client-ts";
 
 let userManager: UserManager;
 
+// jsdom does not implement `window.matchMedia`; stubbing it to match
+// lets `useCompact` return true and `PlacesList` render its cards.
+function stubMatchMedia(matches: boolean): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+  return () => {
+    if (original === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).matchMedia;
+    } else {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: original,
+      });
+    }
+  };
+}
+
 function Harness({ children }: { children: React.ReactNode }) {
   const client = new QueryClient({
     defaultOptions: {
@@ -125,6 +157,33 @@ describe("PlacesList (admin.md 6.24)", () => {
     await waitFor(() => expect(seen).toHaveLength(1));
     expect(seen[0]?.name).toBe("Farmers' market");
     expect(seen[0]?.parentId).toBeNull();
+  });
+
+  it("renders a card per place on compact with the depth indentation and no desktop table", async () => {
+    const restore = stubMatchMedia(true);
+    try {
+      render(
+        <Harness>
+          <PlacesList />
+        </Harness>,
+      );
+      const parentCard = await screen.findByTestId("place-row-1");
+      const childCard = await screen.findByTestId("place-row-2");
+      // Parent depth 0 (pl 0), child depth 1 (pl 2 * 8 = 16px).
+      expect(parentCard).toHaveStyle({ paddingLeft: "0px" });
+      expect(childCard).toHaveStyle({ paddingLeft: "16px" });
+      // Both cards carry their edit pencil.
+      expect(
+        within(parentCard).getByRole("link", { name: /edit southgate mall/i }),
+      ).toBeInTheDocument();
+      expect(
+        within(childCard).getByRole("link", { name: /edit west wing/i }),
+      ).toBeInTheDocument();
+      // The desktop table does not render on compact.
+      expect(screen.queryByRole("table")).toBeNull();
+    } finally {
+      restore();
+    }
   });
 });
 

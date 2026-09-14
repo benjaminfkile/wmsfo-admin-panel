@@ -244,46 +244,56 @@ export default function PlaceDetail() {
                   control={<Radio size="small" />}
                   label="Inherit"
                 />
-                <FormControlLabel
-                  value="page"
-                  control={<Radio size="small" />}
-                  label={
-                    <Autocomplete
-                      size="small"
-                      options={pageOptions}
-                      getOptionLabel={(p) => `${p.title} (/${p.slug})`}
-                      value={
-                        pageOptions.find((p) => Number(p.id) === opensPageId) ??
-                        null
-                      }
-                      onChange={(_, v) => {
-                        setOpensPageId(v ? Number(v.id) : "");
-                        setOpensChoice("page");
-                      }}
-                      sx={{ width: { xs: "100%", sm: 260 } }}
-                      renderInput={(p) => (
-                        <TextField {...p} label="Site page" placeholder="Choose" />
-                      )}
-                    />
-                  }
-                />
-                <FormControlLabel
-                  value="url"
-                  control={<Radio size="small" />}
-                  label={
-                    <TextField
-                      size="small"
-                      label="Forward URL"
-                      value={forwardUrl}
-                      onChange={(e) => {
-                        setForwardUrl(e.target.value);
-                        setOpensChoice("url");
-                      }}
-                      placeholder="https://…"
-                      sx={{ minWidth: { xs: "100%", sm: 320 } }}
-                    />
-                  }
-                />
+                <Stack
+                  direction={{ xs: "column", md: "row" }}
+                  alignItems={{ xs: "stretch", md: "center" }}
+                  spacing={1}
+                >
+                  <FormControlLabel
+                    value="page"
+                    control={<Radio size="small" />}
+                    label="A site page"
+                  />
+                  <Autocomplete
+                    size="small"
+                    options={pageOptions}
+                    getOptionLabel={(p) => `${p.title} (/${p.slug})`}
+                    value={
+                      pageOptions.find((p) => Number(p.id) === opensPageId) ??
+                      null
+                    }
+                    onChange={(_, v) => {
+                      setOpensPageId(v ? Number(v.id) : "");
+                      setOpensChoice("page");
+                    }}
+                    sx={{ width: { xs: "100%", md: 260 } }}
+                    renderInput={(p) => (
+                      <TextField {...p} label="Site page" placeholder="Choose" />
+                    )}
+                  />
+                </Stack>
+                <Stack
+                  direction={{ xs: "column", md: "row" }}
+                  alignItems={{ xs: "stretch", md: "center" }}
+                  spacing={1}
+                >
+                  <FormControlLabel
+                    value="url"
+                    control={<Radio size="small" />}
+                    label="A forward URL"
+                  />
+                  <TextField
+                    size="small"
+                    label="Forward URL"
+                    value={forwardUrl}
+                    onChange={(e) => {
+                      setForwardUrl(e.target.value);
+                      setOpensChoice("url");
+                    }}
+                    placeholder="https://…"
+                    sx={{ width: { xs: "100%", md: 320 } }}
+                  />
+                </Stack>
               </RadioGroup>
             </Box>
             <Stack direction="row" spacing={1}>
@@ -331,10 +341,15 @@ export default function PlaceDetail() {
               ))}
             </Stack>
           )}
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 2 }}>
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={1}
+            alignItems={{ xs: "stretch", md: "center" }}
+            sx={{ mt: 2 }}
+          >
             <Autocomplete
               size="small"
-              sx={{ width: { xs: "100%", sm: 260 } }}
+              sx={{ width: { xs: "100%", md: 260 } }}
               options={unattachedCodes.map((c) => ({ id: c.id, tag: c.tag }))}
               value={
                 unattachedCodes.find((c) => c.id === attachCodeId)
