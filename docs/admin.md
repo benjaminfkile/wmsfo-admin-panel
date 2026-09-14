@@ -1359,12 +1359,14 @@ Every datetime input shows `formatMt(fromLocalInput(value))` as helper text so t
 
 `ConfirmDialog` takes a title, body, confirm label, and a `danger` flag (red confirm button). Every entry below opens one; nothing else does.
 
+**Deletes** open `DeleteDialog` instead (`components/DeleteDialog.tsx`): it takes the resource path and id, calls `GET /admin/<resource>/{id}/impact` on open, and renders, above the confirm button: the warnings as an alert (error severity), then "Also deleted" with one line per group ("12 cookies", "3 messages: Doors open, Lift-off, …", names joined, the count when there are more than ten), then "Unlinked" the same way ("2 events lose their recording: 2024 flight, 2025 flight"), or "Nothing else is affected" when both are empty. The confirm button stays disabled until the impact has loaded; a failed impact call shows its message and keeps the button disabled. For a page holding a role, the dialog adds a required select "Page that takes the <role> role" over the other pages and sends it as `roleTo`. The list and detail pages pass their `onDeleted` so the row leaves or the page navigates back.
+
 | Action | Body | Confirm |
 |---|---|---|
 | Status change (any target) | `StatusDialog` (6.3); for target 3 it includes the active beacon's name or "none", heartbeat age, and stale flag | "Change status" / "Set live" |
 | Set current | "Make <name> the current event? The public site switches to it on its next poll." | "Set current" |
-| Delete event | "Delete <name>? Its messages, cookies, and status history are deleted with it." | "Delete" |
-| Delete message, flight recording, sponsor, sponsor year, cookie type, subscriber, person, contact message, page, section, item, media asset | "Delete <thing>? This cannot be undone." plus the specific note in 6.x where one exists | "Delete" |
+| Delete event, flight recording, sponsor, cookie type, page, media asset, place, QR code, beacon, API key, subscriber, person, contact message | `DeleteDialog`: "Delete <name>?" with the impact preview (above) | "Delete" |
+| Delete message, sponsor year, section, item | "Delete <thing>? This cannot be undone." plus the specific note in 6.x where one exists (these have no dependents) | "Delete" |
 | Revoke API key | "Revoke <name>? Anything using it stops working immediately." | "Revoke" |
 | Restore a version | "Replace the current draft with version <id>? Unpublished changes are lost. Nothing is published until you publish." | "Restore" |
 | Restore and publish | the same plus "The public site updates within its next poll." | "Restore and publish" |
