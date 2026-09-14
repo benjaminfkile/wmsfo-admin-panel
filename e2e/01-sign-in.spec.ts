@@ -12,7 +12,9 @@ test.describe("sign in and out", () => {
     await signIn(page, admin);
 
     await expect(page).toHaveURL(/localhost:5174\//);
-    await expect(page.getByText("DEV", { exact: true })).toBeVisible();
+    // The temporary drawer stays mounted and carries a second badge, so
+    // read the one in the app bar.
+    await expect(page.getByRole("banner").getByText("DEV", { exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Dashboard", exact: true })).toBeVisible();
 
     await signOut(page);
