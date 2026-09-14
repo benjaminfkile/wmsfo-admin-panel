@@ -2,7 +2,7 @@
 
 The WMSFO admin panel: the only surface for admin and editor actions. Events, beacons, routes, sponsors, cookie types and moderation, settings, subscribers, people, contact messages, and the content system (pages, sections, media, site settings, publish and versions, preview).
 
-Vite 6 + React 19 + MUI v7 + TanStack Query v5 + `react-router-dom` v7 + `oidc-client-ts`. Tests: Vitest, Testing Library, MSW. Hosted on Vercel from `main`; the six `VITE_` variables live on the project.
+Vite 6 + React 19 + MUI v7 + TanStack Query v5 + `react-router-dom` v7 + `oidc-client-ts`. Tests: Vitest, Testing Library, MSW. Hosted on Vercel from `main`; the eight `VITE_` variables live on the project.
 
 Design and contracts under `docs/`:
 
@@ -14,7 +14,7 @@ Design and contracts under `docs/`:
 
 ```
 npm install
-cp .env.example .env.local     # fill in the six VITE_ variables
+cp .env.example .env.local     # fill in the eight VITE_ variables
 npm run dev                    # http://localhost:5174
 ```
 
