@@ -7,13 +7,7 @@ import {
   IconButton,
   Menu,
   MenuItem,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
+  Stack,
   TextField,
   Tooltip,
 } from "@mui/material";
@@ -23,10 +17,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qr as qrApi } from "../../api/resources/qr";
 import { places as placesApi } from "../../api/resources/places";
 import { keys } from "../../queries/keys";
-import AuditCell from "../../components/audit/AuditCell";
 import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import PageHeader from "../../components/layout/PageHeader";
+import ResponsiveTable, {
+  type Column,
+} from "../../components/list/ResponsiveTable";
 import { useNotify } from "../../hooks/useNotify";
 import { useAuth } from "../../auth/AuthProvider";
 import { formatMt, formatMtDate } from "../../lib/time";
@@ -125,6 +121,72 @@ export default function QrCodesList() {
 
   const placeItems: Place[] = placesQ.data?.items ?? [];
 
+  const columns: Column<QrCode>[] = [
+    {
+      key: "tag",
+      header: "Tag",
+      role: "title",
+      render: (row) => (
+        <RouterLink to={`/qr-codes/${row.id}`}>{row.tag}</RouterLink>
+      ),
+    },
+    {
+      key: "attachedTo",
+      header: "Attached to",
+      role: "chip",
+      render: (row) => {
+        const hasScans = row.scans.people > 0;
+        return row.attachment ? (
+          row.attachment.placePath.join(" › ")
+        ) : (
+          <Chip
+            size="small"
+            label="Unattached"
+            color={hasScans ? "warning" : "default"}
+            variant={hasScans ? "filled" : "outlined"}
+          />
+        );
+      },
+    },
+    {
+      key: "opens",
+      header: "Opens",
+      role: "line",
+      label: "Opens",
+      render: (row) => formatOpens(row.opens, row.opensSource),
+    },
+    {
+      key: "people",
+      header: "People",
+      role: "line",
+      label: "People",
+      align: "right",
+      render: (row) => row.scans.people,
+    },
+    {
+      key: "lastScan",
+      header: "Last scan",
+      role: "line",
+      label: "Last scan",
+      render: (row) => (
+        <Tooltip title={formatMt(row.scans.lastScanAt) || ""}>
+          <span>
+            {row.scans.lastScanAt
+              ? formatMtDate(row.scans.lastScanAt)
+              : "never"}
+          </span>
+        </Tooltip>
+      ),
+    },
+    {
+      key: "printed",
+      header: "Printed",
+      role: "line",
+      label: "Printed",
+      render: (row) => `Batch ${row.batchNo} · ${formatMtDate(row.printedAt)}`,
+    },
+  ];
+
   return (
     <>
       <PageHeader
@@ -165,94 +227,41 @@ export default function QrCodesList() {
           No codes yet. Generate a batch above to get started.
         </Alert>
       ) : (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Tag</TableCell>
-                <TableCell>Attached to</TableCell>
-                <TableCell>Opens</TableCell>
-                <TableCell align="right">People</TableCell>
-                <TableCell>Last scan</TableCell>
-                <TableCell>Printed</TableCell>
-                <TableCell align="right">Edit</TableCell>
-                <TableCell align="right">Actions</TableCell>
-                <TableCell align="right">Audit</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows.map((row) => {
-                const hasScans = row.scans.people > 0;
-                return (
-                  <TableRow
-                    key={String(row.id)}
-                    hover
-                    data-testid={`qr-code-row-${row.id}`}
-                    sx={!row.active ? { opacity: 0.6 } : undefined}
-                  >
-                    <TableCell>
-                      <RouterLink to={`/qr-codes/${row.id}`}>{row.tag}</RouterLink>
-                    </TableCell>
-                    <TableCell>
-                      {row.attachment ? (
-                        row.attachment.placePath.join(" › ")
-                      ) : (
-                        <Chip
-                          size="small"
-                          label="Unattached"
-                          color={hasScans ? "warning" : "default"}
-                          variant={hasScans ? "filled" : "outlined"}
-                        />
-                      )}
-                    </TableCell>
-                    <TableCell>{formatOpens(row.opens, row.opensSource)}</TableCell>
-                    <TableCell align="right">{row.scans.people}</TableCell>
-                    <TableCell>
-                      <Tooltip title={formatMt(row.scans.lastScanAt) || ""}>
-                        <span>
-                          {row.scans.lastScanAt
-                            ? formatMtDate(row.scans.lastScanAt)
-                            : "never"}
-                        </span>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell>
-                      Batch {row.batchNo} · {formatMtDate(row.printedAt)}
-                    </TableCell>
-                    <TableCell align="right">
-                      <IconButton
-                        component={RouterLink}
-                        to={`/qr-codes/${row.id}`}
-                        size="small"
-                        aria-label={`Edit ${row.tag}`}
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                    <TableCell align="right">
-                      <IconButton
-                        size="small"
-                        aria-label={`Actions for ${row.tag}`}
-                        onClick={(ev) =>
-                          setMenuAnchor({ el: ev.currentTarget, row })
-                        }
-                      >
-                        <MoreVertIcon fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                    <AuditCell
-                      entity="qr_code"
-                      entityId={row.id}
-                      name={row.tag}
-                      audit={row.audit}
-                      align="right"
-                    />
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <ResponsiveTable<QrCode>
+          rows={rows}
+          columns={columns}
+          rowKey={(row) => String(row.id)}
+          rowTestId={(row) => `qr-code-row-${row.id}`}
+          rowSx={(row) => (!row.active ? { opacity: 0.6 } : {})}
+          emptyText="No codes yet."
+          actions={(row) => (
+            <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+              <IconButton
+                component={RouterLink}
+                to={`/qr-codes/${row.id}`}
+                size="small"
+                aria-label={`Edit ${row.tag}`}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                aria-label={`Actions for ${row.tag}`}
+                onClick={(ev) =>
+                  setMenuAnchor({ el: ev.currentTarget, row })
+                }
+              >
+                <MoreVertIcon fontSize="small" />
+              </IconButton>
+            </Stack>
+          )}
+          audit={(row) => ({
+            entity: "qr_code",
+            entityId: row.id,
+            name: row.tag,
+            audit: row.audit,
+          })}
+        />
       )}
 
       {menuAnchor ? (

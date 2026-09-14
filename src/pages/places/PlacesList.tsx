@@ -8,13 +8,7 @@ import {
   IconButton,
   Menu,
   MenuItem,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
+  Stack,
   Typography,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
@@ -25,15 +19,24 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { places as placesApi } from "../../api/resources/places";
 import { pages as pagesApi } from "../../api/resources/pages";
 import { keys } from "../../queries/keys";
-import AuditCell from "../../components/audit/AuditCell";
 import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import PageHeader from "../../components/layout/PageHeader";
+import ResponsiveTable, {
+  type Column,
+} from "../../components/list/ResponsiveTable";
 import { useNotify } from "../../hooks/useNotify";
 import { useAuth } from "../../auth/AuthProvider";
 import type { Place } from "../../api/types";
 import PlaceDialog, { type PlaceDialogValues } from "./PlaceDialog";
 import { locationCellFor, toTree } from "./placeHelpers";
+
+type PlaceTreeRow = {
+  place: Place;
+  depth: number;
+  childCount: number;
+  isCollapsed: boolean;
+};
 
 export default function PlacesList() {
   const qc = useQueryClient();
@@ -64,8 +67,6 @@ export default function PlacesList() {
 
   // Every row starts expanded per admin.md 6.24.
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
-  const isHidden = (row: (typeof tree)[number]) =>
-    row.ancestors.some((id) => collapsed.has(id));
   const toggle = (id: number) =>
     setCollapsed((prev) => {
       const next = new Set(prev);
@@ -73,6 +74,19 @@ export default function PlacesList() {
       else next.add(id);
       return next;
     });
+
+  const visibleRows = useMemo<PlaceTreeRow[]>(
+    () =>
+      tree
+        .filter((r) => !r.ancestors.some((id) => collapsed.has(id)))
+        .map((r) => ({
+          place: r.place,
+          depth: r.depth,
+          childCount: r.childCount,
+          isCollapsed: collapsed.has(r.place.id),
+        })),
+    [tree, collapsed],
+  );
 
   const [createOpen, setCreateOpen] = useState<{ parentId: number | null } | null>(
     null,
@@ -118,6 +132,69 @@ export default function PlacesList() {
       notify(e instanceof Error ? e.message : "Delete failed", "error"),
   });
 
+  const columns: Column<PlaceTreeRow>[] = [
+    {
+      key: "name",
+      header: "Name",
+      role: "title",
+      render: (r) => (
+        <RouterLink to={`/places/${r.place.id}`}>{r.place.name}</RouterLink>
+      ),
+    },
+    {
+      key: "description",
+      header: "Description",
+      role: "subtitle",
+      render: (r) => r.place.description,
+    },
+    {
+      key: "location",
+      header: "Location",
+      role: "chip",
+      render: (r) => {
+        const loc = locationCellFor(r.place, byId);
+        if (loc.kind === "pinned") {
+          return <Chip size="small" label="Pinned" color="success" />;
+        }
+        if (loc.kind === "uses") {
+          return (
+            <Chip
+              size="small"
+              label={`Uses ${loc.fromName}`}
+              variant="outlined"
+            />
+          );
+        }
+        if (loc.kind === "warning") {
+          return <Chip size="small" label="Not pinned yet" color="warning" />;
+        }
+        return (
+          <Typography variant="caption" color="text.secondary">
+            No pin
+          </Typography>
+        );
+      },
+    },
+    {
+      key: "codes",
+      header: "Codes",
+      role: "line",
+      label: "Codes",
+      render: (r) =>
+        r.place.codes.length === 0
+          ? ""
+          : r.place.codes.map((c) => c.tag).join(", "),
+    },
+    {
+      key: "people",
+      header: "People",
+      role: "line",
+      label: "People",
+      align: "right",
+      render: (r) => r.place.scans.people,
+    },
+  ];
+
   return (
     <>
       <PageHeader
@@ -142,125 +219,62 @@ export default function PlacesList() {
       {rows.length === 0 && !listQ.isLoading ? (
         <Alert severity="info">No places yet. Start with a top-level place.</Alert>
       ) : (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Description</TableCell>
-                <TableCell>Codes</TableCell>
-                <TableCell align="right">People</TableCell>
-                <TableCell>Location</TableCell>
-                <TableCell align="right">Edit</TableCell>
-                <TableCell align="right">Actions</TableCell>
-                <TableCell align="right">Audit</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {tree.map((row) => {
-                if (isHidden(row)) return null;
-                const p = row.place;
-                const loc = locationCellFor(p, byId);
-                const hasChildren = row.childCount > 0;
-                const isCollapsed = collapsed.has(p.id);
-                return (
-                  <TableRow
-                    key={String(p.id)}
-                    hover
-                    data-testid={`place-row-${p.id}`}
-                  >
-                    <TableCell>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          pl: row.depth * 2,
-                        }}
-                      >
-                        {hasChildren ? (
-                          <IconButton
-                            size="small"
-                            onClick={() => toggle(p.id)}
-                            aria-label={
-                              isCollapsed
-                                ? `Expand ${p.name}`
-                                : `Collapse ${p.name}`
-                            }
-                          >
-                            {isCollapsed ? (
-                              <ChevronRightIcon fontSize="small" />
-                            ) : (
-                              <ExpandMoreIcon fontSize="small" />
-                            )}
-                          </IconButton>
-                        ) : (
-                          <Box sx={{ width: 34 }} />
-                        )}
-                        <RouterLink to={`/places/${p.id}`}>{p.name}</RouterLink>
-                      </Box>
-                    </TableCell>
-                    <TableCell>{p.description}</TableCell>
-                    <TableCell>
-                      {p.codes.length === 0
-                        ? ""
-                        : p.codes.map((c) => c.tag).join(", ")}
-                    </TableCell>
-                    <TableCell align="right">{p.scans.people}</TableCell>
-                    <TableCell>
-                      {loc.kind === "pinned" ? (
-                        <Chip size="small" label="Pinned" color="success" />
-                      ) : loc.kind === "uses" ? (
-                        <Chip
-                          size="small"
-                          label={`Uses ${loc.fromName}`}
-                          variant="outlined"
-                        />
-                      ) : loc.kind === "warning" ? (
-                        <Chip
-                          size="small"
-                          label="Not pinned yet"
-                          color="warning"
-                        />
-                      ) : (
-                        <Typography variant="caption" color="text.secondary">
-                          No pin
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell align="right">
-                      <IconButton
-                        component={RouterLink}
-                        to={`/places/${p.id}`}
-                        size="small"
-                        aria-label={`Edit ${p.name}`}
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                    <TableCell align="right">
-                      <IconButton
-                        size="small"
-                        aria-label={`Actions for ${p.name}`}
-                        onClick={(ev) =>
-                          setMenuAnchor({ el: ev.currentTarget, row: p })
-                        }
-                      >
-                        <MoreVertIcon fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                    <AuditCell
-                      entity="place"
-                      entityId={p.id}
-                      name={p.name}
-                      audit={p.audit}
-                      align="right"
-                    />
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <ResponsiveTable<PlaceTreeRow>
+          rows={visibleRows}
+          columns={columns}
+          rowKey={(r) => String(r.place.id)}
+          rowTestId={(r) => `place-row-${r.place.id}`}
+          rowSx={(r) => ({ pl: r.depth * 2 })}
+          emptyText="No places yet."
+          leading={(r) =>
+            r.childCount > 0 ? (
+              <IconButton
+                size="small"
+                onClick={() => toggle(r.place.id)}
+                aria-label={
+                  r.isCollapsed
+                    ? `Expand ${r.place.name}`
+                    : `Collapse ${r.place.name}`
+                }
+              >
+                {r.isCollapsed ? (
+                  <ChevronRightIcon fontSize="small" />
+                ) : (
+                  <ExpandMoreIcon fontSize="small" />
+                )}
+              </IconButton>
+            ) : (
+              <Box sx={{ width: 34 }} />
+            )
+          }
+          actions={(r) => (
+            <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+              <IconButton
+                component={RouterLink}
+                to={`/places/${r.place.id}`}
+                size="small"
+                aria-label={`Edit ${r.place.name}`}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                aria-label={`Actions for ${r.place.name}`}
+                onClick={(ev) =>
+                  setMenuAnchor({ el: ev.currentTarget, row: r.place })
+                }
+              >
+                <MoreVertIcon fontSize="small" />
+              </IconButton>
+            </Stack>
+          )}
+          audit={(r) => ({
+            entity: "place",
+            entityId: r.place.id,
+            name: r.place.name,
+            audit: r.place.audit,
+          })}
+        />
       )}
 
       {menuAnchor ? (

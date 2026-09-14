@@ -15,12 +15,6 @@ import {
   RadioGroup,
   Stack,
   Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
@@ -32,9 +26,16 @@ import { keys } from "../../queries/keys";
 import { useConfig } from "../../ConfigContext";
 import ErrorAlert from "../../components/ErrorAlert";
 import PageHeader from "../../components/layout/PageHeader";
+import ResponsiveTable, {
+  type Column,
+} from "../../components/list/ResponsiveTable";
 import { useNotify } from "../../hooks/useNotify";
 import { formatMt, formatMtDate } from "../../lib/time";
-import type { Place, QrCodeDetail } from "../../api/types";
+import type {
+  Place,
+  QrCodeDetail,
+  QrCodeHistoryRow,
+} from "../../api/types";
 import AttachDialog from "./AttachDialog";
 import DailyChart from "./DailyChart";
 import { qrTargetUrl, renderPngDataUrlMm, renderSvg } from "./qrRender";
@@ -203,6 +204,50 @@ export default function QrCodeDetail() {
 
   const d: QrCodeDetail = detailQ.data;
 
+  const historyColumns: Column<QrCodeHistoryRow>[] = [
+    {
+      key: "place",
+      header: "Place",
+      role: "title",
+      render: (row) =>
+        row.placePath.length > 0
+          ? row.placePath.join(" › ")
+          : "a place since deleted",
+    },
+    {
+      key: "from",
+      header: "From",
+      role: "line",
+      label: "From",
+      render: (row) => formatMt(row.fromAt),
+    },
+    {
+      key: "to",
+      header: "To",
+      role: "line",
+      label: "To",
+      render: (row) => (row.toAt ? formatMt(row.toAt) : "current"),
+    },
+    {
+      key: "people",
+      header: "People",
+      role: "line",
+      label: "People",
+      align: "right",
+      render: (row) => row.people,
+    },
+    {
+      key: "earlyScans",
+      header: "Early scans",
+      role: "line",
+      label: "Early scans",
+      render: (row) =>
+        row.earlyScans > 0
+          ? `includes ${row.earlyScans} scans from the hour before it was attached`
+          : "",
+    },
+  ];
+
   return (
     <>
       <PageHeader
@@ -225,7 +270,11 @@ export default function QrCodeDetail() {
           data-testid="qr-detail-code"
         >
           <Box
-            sx={{ width: 320, height: 320, mx: "auto" }}
+            sx={{
+              width: "min(320px, 100%)",
+              mx: "auto",
+              aspectRatio: "1 / 1",
+            }}
             aria-label={`QR for ${d.tag}`}
           >
             {previewSvg ? (
@@ -237,11 +286,22 @@ export default function QrCodeDetail() {
           <Typography variant="h6" sx={{ mt: 1, fontFamily: "monospace" }}>
             {d.tag}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ overflowWrap: "anywhere" }}
+          >
             {qrTargetUrl(config.siteBaseUrl, d.tag)}
           </Typography>
 
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 2 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            useFlexGap
+            flexWrap="wrap"
+            sx={{ mt: 2 }}
+          >
             <TextField
               size="small"
               label="Size (mm)"
@@ -263,7 +323,7 @@ export default function QrCodeDetail() {
           </Typography>
         </Paper>
 
-        <Paper sx={{ p: 2, flexGrow: 1 }}>
+        <Paper sx={{ p: 2, flexGrow: 1, minWidth: 0 }}>
           <Typography variant="h6" sx={{ mb: 2 }}>
             Settings
           </Typography>
@@ -272,7 +332,7 @@ export default function QrCodeDetail() {
             <Box>
               <Typography variant="subtitle2">Attached to</Typography>
               {d.attachment ? (
-                <Stack direction="row" spacing={1} alignItems="center">
+                <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
                   <Chip label={d.attachment.placePath.join(" › ")} />
                   <Button
                     size="small"
@@ -286,7 +346,7 @@ export default function QrCodeDetail() {
                   </Button>
                 </Stack>
               ) : (
-                <Stack direction="row" spacing={1} alignItems="center">
+                <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
                   <Chip label="Unattached" color="warning" variant="outlined" />
                   <Button size="small" onClick={() => setMovePickerOpen(true)}>
                     Attach…
@@ -388,46 +448,22 @@ export default function QrCodeDetail() {
           <Typography variant="h6" sx={{ mb: 1 }}>
             Where it has been
           </Typography>
-          {history.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              No attachments yet.
-            </Typography>
-          ) : (
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Place</TableCell>
-                    <TableCell>From</TableCell>
-                    <TableCell>To</TableCell>
-                    <TableCell align="right">People</TableCell>
-                    <TableCell>Early scans</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {history.map((row) => (
-                    <TableRow key={row.attachmentId}>
-                      <TableCell>{row.placePath.length > 0 ? row.placePath.join(" › ") : "a place since deleted"}</TableCell>
-                      <TableCell>{formatMt(row.fromAt)}</TableCell>
-                      <TableCell>
-                        {row.toAt ? formatMt(row.toAt) : "current"}
-                      </TableCell>
-                      <TableCell align="right">{row.people}</TableCell>
-                      <TableCell>
-                        {row.earlyScans > 0
-                          ? `includes ${row.earlyScans} scans from the hour before it was attached`
-                          : ""}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
+          <ResponsiveTable<QrCodeHistoryRow>
+            rows={history}
+            columns={historyColumns}
+            rowKey={(row) => String(row.attachmentId)}
+            emptyText="No attachments yet."
+          />
         </CardContent>
       </Card>
 
-      <Stack direction={{ xs: "column", md: "row" }} spacing={2} sx={{ mt: 2 }}>
+      <Stack
+        direction="row"
+        spacing={2}
+        useFlexGap
+        flexWrap="wrap"
+        sx={{ mt: 2 }}
+      >
         <StatCard label="People (all attachments)" value={scans?.people ?? 0} />
         <StatCard label="Flagged hits" value={scans?.flagged ?? 0} />
         <StatCard label="People per day (14 days)" value={perDay} />
@@ -459,7 +495,14 @@ export default function QrCodeDetail() {
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <Paper sx={{ p: 2, flex: 1, textAlign: "center" }}>
+    <Paper
+      sx={{
+        p: 2,
+        textAlign: "center",
+        flexGrow: 1,
+        flexBasis: { xs: "30%", md: 0 },
+      }}
+    >
       <Typography variant="h4">{value}</Typography>
       <Typography variant="body2" color="text.secondary">
         {label}

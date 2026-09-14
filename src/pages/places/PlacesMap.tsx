@@ -178,7 +178,7 @@ export default function PlacesMap() {
         }
       />
 
-      <Stack direction="row" spacing={2} sx={{ mb: 2 }} flexWrap="wrap">
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }} useFlexGap flexWrap="wrap">
         <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 220 } }}>
           <InputLabel id="places-map-event">Event</InputLabel>
           <Select
@@ -217,15 +217,15 @@ export default function PlacesMap() {
       {mapError ? <Alert severity="warning">{mapError}</Alert> : null}
 
       <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-        <Paper sx={{ flex: 2, p: 1, minHeight: 480 }}>
+        <Paper sx={{ flex: 2, p: 1, minWidth: 0 }}>
           <Box
             ref={mapDiv}
             data-testid="places-map-container"
-            sx={{ width: "100%", height: 480 }}
+            sx={{ width: "100%", height: { xs: 320, md: 480 } }}
           />
         </Paper>
 
-        <Card sx={{ flex: 1, minWidth: { xs: "100%", sm: 260 }, maxWidth: "100%" }}>
+        <Card sx={{ flex: 1, minWidth: 0, maxWidth: "100%" }}>
           <CardContent>
             <Typography variant="h6" sx={{ mb: 1 }}>
               Places in this window
