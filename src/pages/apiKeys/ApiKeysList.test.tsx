@@ -56,6 +56,55 @@ afterEach(() => {
   server.resetHandlers();
 });
 
+function stubMatchMedia(matches: boolean): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+  return () => {
+    if (original === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).matchMedia;
+    } else {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: original,
+      });
+    }
+  };
+}
+
+describe("ApiKeysList on compact", () => {
+  it("renders a card per key with the row menu", async () => {
+    const restore = stubMatchMedia(true);
+    try {
+      render(<Harness />);
+      const card = await screen.findByTestId(
+        `api-key-row-${f.apiKeys[0]!.id}`
+      );
+      expect(within(card).getByText(f.apiKeys[0]!.name!)).toBeInTheDocument();
+      expect(
+        within(card).getByRole("button", { name: /actions for/i })
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("table")).toBeNull();
+    } finally {
+      restore();
+    }
+  });
+});
+
 describe("ApiKeysList", () => {
   it("renders one row per key with name, prefix and status", async () => {
     render(<Harness />);

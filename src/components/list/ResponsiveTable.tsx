@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import {
   Box,
   Card,
@@ -28,6 +28,10 @@ export interface Column<T> {
   // Used instead of `render` on compact cards, for a cell whose table
   // placeholder ("none") has no place on a card.
   renderCompact?: (row: T) => ReactNode;
+  // Skip this column on the desktop table (useful for a compact-only
+  // combined subtitle when the desktop shows the same data across
+  // separate columns).
+  compactOnly?: boolean;
 }
 
 export interface RowAudit {
@@ -48,6 +52,10 @@ export interface ResponsiveTableProps<T> {
   emptyText: string;
   leading?: (row: T) => ReactNode;
   size?: "small" | "medium";
+  // Extra content rendered under a row (a second table row on desktop,
+  // an element under the card on compact). Return `null` to render
+  // nothing for that row.
+  expandedContent?: (row: T) => ReactNode;
 }
 
 export default function ResponsiveTable<T>(props: ResponsiveTableProps<T>) {
@@ -70,12 +78,14 @@ function DesktopTable<T>({
   emptyText,
   leading,
   size = "small",
+  expandedContent,
 }: ResponsiveTableProps<T>) {
+  const desktopColumns = columns.filter((c) => !c.compactOnly);
   const hasLeading = leading !== undefined;
   const hasActions = actions !== undefined;
   const hasAudit = audit !== undefined;
   const colSpan =
-    columns.length +
+    desktopColumns.length +
     (hasLeading ? 1 : 0) +
     (hasActions ? 1 : 0) +
     (hasAudit ? 1 : 0);
@@ -85,7 +95,7 @@ function DesktopTable<T>({
         <TableHead>
           <TableRow>
             {hasLeading ? <TableCell /> : null}
-            {columns.map((c) => (
+            {desktopColumns.map((c) => (
               <TableCell key={c.key} align={c.align}>
                 {c.header}
               </TableCell>
@@ -106,32 +116,41 @@ function DesktopTable<T>({
           ) : (
             rows.map((row) => {
               const info = hasAudit ? audit(row) : null;
+              const extra = expandedContent ? expandedContent(row) : null;
               return (
-                <TableRow
-                  key={rowKey(row)}
-                  hover
-                  {...(rowTestId ? { "data-testid": rowTestId(row) } : {})}
-                  {...(rowSx ? { sx: rowSx(row) } : {})}
-                >
-                  {hasLeading ? <TableCell>{leading(row)}</TableCell> : null}
-                  {columns.map((c) => (
-                    <TableCell key={c.key} align={c.align}>
-                      {c.render(row)}
-                    </TableCell>
-                  ))}
-                  {hasActions ? (
-                    <TableCell align="right">{actions(row)}</TableCell>
+                <Fragment key={rowKey(row)}>
+                  <TableRow
+                    hover
+                    {...(rowTestId ? { "data-testid": rowTestId(row) } : {})}
+                    {...(rowSx ? { sx: rowSx(row) } : {})}
+                  >
+                    {hasLeading ? <TableCell>{leading(row)}</TableCell> : null}
+                    {desktopColumns.map((c) => (
+                      <TableCell key={c.key} align={c.align}>
+                        {c.render(row)}
+                      </TableCell>
+                    ))}
+                    {hasActions ? (
+                      <TableCell align="right">{actions(row)}</TableCell>
+                    ) : null}
+                    {hasAudit && info ? (
+                      <AuditCell
+                        entity={info.entity}
+                        entityId={info.entityId}
+                        name={info.name}
+                        audit={info.audit}
+                        align="right"
+                      />
+                    ) : null}
+                  </TableRow>
+                  {extra ? (
+                    <TableRow>
+                      <TableCell colSpan={colSpan} sx={{ p: 0 }}>
+                        {extra}
+                      </TableCell>
+                    </TableRow>
                   ) : null}
-                  {hasAudit && info ? (
-                    <AuditCell
-                      entity={info.entity}
-                      entityId={info.entityId}
-                      name={info.name}
-                      audit={info.audit}
-                      align="right"
-                    />
-                  ) : null}
-                </TableRow>
+                </Fragment>
               );
             })
           )}
@@ -162,6 +181,7 @@ function CompactCards<T>({
   audit,
   emptyText,
   leading,
+  expandedContent,
 }: ResponsiveTableProps<T>) {
   if (rows.length === 0) {
     return (
@@ -178,9 +198,10 @@ function CompactCards<T>({
     <Stack spacing={1}>
       {rows.map((row) => {
         const info = audit ? audit(row) : null;
+        const extra = expandedContent ? expandedContent(row) : null;
         return (
+          <Fragment key={rowKey(row)}>
           <Card
-            key={rowKey(row)}
             variant="outlined"
             {...(rowTestId ? { "data-testid": rowTestId(row) } : {})}
             {...(rowSx ? { sx: rowSx(row) } : {})}
@@ -247,6 +268,8 @@ function CompactCards<T>({
               </Stack>
             </CardContent>
           </Card>
+          {extra ? <Box>{extra}</Box> : null}
+          </Fragment>
         );
       })}
     </Stack>

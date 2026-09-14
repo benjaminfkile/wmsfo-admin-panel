@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import { MemoryRouter } from "react-router-dom";
@@ -54,6 +54,54 @@ beforeEach(() => {
 
 afterEach(() => {
   server.resetHandlers();
+});
+
+function stubMatchMedia(matches: boolean): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+  return () => {
+    if (original === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).matchMedia;
+    } else {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: original,
+      });
+    }
+  };
+}
+
+describe("Subscribers on compact", () => {
+  it("renders a card per subscriber with the delete button", async () => {
+    const restore = stubMatchMedia(true);
+    try {
+      render(<Harness />);
+      const card = await screen.findByTestId(
+        `subscriber-row-${f.subscribers[0]!.id}`
+      );
+      expect(
+        within(card).getByRole("button", { name: /^delete$/i })
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("table")).toBeNull();
+    } finally {
+      restore();
+    }
+  });
 });
 
 describe("Subscribers", () => {

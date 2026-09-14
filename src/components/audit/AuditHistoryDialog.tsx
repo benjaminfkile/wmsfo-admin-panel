@@ -9,12 +9,6 @@ import {
   DialogTitle,
   IconButton,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Typography,
 } from "@mui/material";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
@@ -24,6 +18,7 @@ import { audit as auditApi } from "../../api/resources/audit";
 import { keys } from "../../queries/keys";
 import AppDialog from "../AppDialog";
 import ErrorAlert from "../ErrorAlert";
+import ResponsiveTable, { type Column } from "../list/ResponsiveTable";
 import { ThemedJsonView } from "../ThemedJsonView";
 import { formatMt } from "../../lib/time";
 import type { AuditEntry, Page } from "../../api/types";
@@ -44,6 +39,8 @@ export default function AuditHistoryDialog({
   title,
   onClose,
 }: Props) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
   const q = useInfiniteQuery<Page<AuditEntry>, Error>({
     enabled: open,
     queryKey: keys.audit({ entity, entityId }),
@@ -61,6 +58,55 @@ export default function AuditHistoryDialog({
     () => (q.data?.pages ?? []).flatMap((p) => p.items ?? []),
     [q.data]
   );
+
+  const toggle = (id: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const columns: Column<AuditEntry>[] = [
+    {
+      key: "time",
+      header: "Time",
+      role: "title",
+      render: (e) => formatMt(e.at),
+    },
+    {
+      key: "actorAction",
+      header: "Actor and action",
+      role: "subtitle",
+      compactOnly: true,
+      render: (e) => `${formatActor(e.actor)} - ${formatAction(e.action)}`,
+    },
+    {
+      key: "actor",
+      header: "Actor",
+      render: (e) => formatActor(e.actor),
+    },
+    {
+      key: "action",
+      header: "Action",
+      render: (e) => formatAction(e.action),
+    },
+    {
+      key: "changes",
+      header: "Changes",
+      role: "line",
+      render: (e) => (
+        <Typography
+          variant="body2"
+          component="span"
+          sx={{ whiteSpace: "pre-wrap" }}
+        >
+          {summariseEntry(e)}
+        </Typography>
+      ),
+    },
+  ];
 
   return (
     <AppDialog
@@ -80,24 +126,41 @@ export default function AuditHistoryDialog({
         ) : entries.length === 0 ? (
           <Alert severity="info">No changes recorded since the audit log began.</Alert>
         ) : (
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell />
-                  <TableCell>Time</TableCell>
-                  <TableCell>Actor</TableCell>
-                  <TableCell>Action</TableCell>
-                  <TableCell>Changes</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {entries.map((e) => (
-                  <EntryRow key={String(e.id)} entry={e} />
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <ResponsiveTable<AuditEntry>
+            rows={entries}
+            columns={columns}
+            rowKey={(e) => String(e.id)}
+            rowTestId={(e) => `audit-entry-${e.id}`}
+            emptyText="No changes recorded since the audit log began."
+            actions={(e) => {
+              const id = String(e.id);
+              const open = expanded.has(id);
+              return (
+                <IconButton
+                  size="small"
+                  onClick={() => toggle(id)}
+                  aria-label={open ? "Hide raw JSON" : "Show raw JSON"}
+                >
+                  {open ? (
+                    <ExpandLessIcon fontSize="small" />
+                  ) : (
+                    <ExpandMoreIcon fontSize="small" />
+                  )}
+                </IconButton>
+              );
+            }}
+            expandedContent={(e) => {
+              const id = String(e.id);
+              const open = expanded.has(id);
+              return (
+                <Collapse in={open} unmountOnExit>
+                  <Box sx={{ p: 2 }}>
+                    <BeforeAfter entry={e} />
+                  </Box>
+                </Collapse>
+              );
+            }}
+          />
         )}
         {q.hasNextPage ? (
           <Box sx={{ mt: 2 }}>
@@ -118,59 +181,29 @@ export default function AuditHistoryDialog({
   );
 }
 
-function EntryRow({ entry }: { entry: AuditEntry }) {
-  const [open, setOpen] = useState(false);
+function BeforeAfter({ entry }: { entry: AuditEntry }) {
   return (
-    <>
-      <TableRow hover data-testid={`audit-entry-${entry.id}`}>
-        <TableCell padding="none" sx={{ width: 40 }}>
-          <IconButton
-            size="small"
-            onClick={() => setOpen((p) => !p)}
-            aria-label={open ? "Hide raw JSON" : "Show raw JSON"}
-          >
-            {open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-          </IconButton>
-        </TableCell>
-        <TableCell>{formatMt(entry.at)}</TableCell>
-        <TableCell>{formatActor(entry.actor)}</TableCell>
-        <TableCell>{formatAction(entry.action)}</TableCell>
-        <TableCell>
-          <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
-            {summariseEntry(entry)}
+    <Stack spacing={2}>
+      <Box>
+        <Typography variant="overline">Before</Typography>
+        {entry.before === null || entry.before === undefined ? (
+          <Typography variant="body2" color="text.secondary">
+            (none)
           </Typography>
-        </TableCell>
-      </TableRow>
-      <TableRow>
-        <TableCell colSpan={5} sx={{ p: 0, borderBottom: open ? undefined : "none" }}>
-          <Collapse in={open} unmountOnExit>
-            <Box sx={{ p: 2 }}>
-              <Stack spacing={2}>
-                <Box>
-                  <Typography variant="overline">Before</Typography>
-                  {entry.before === null || entry.before === undefined ? (
-                    <Typography variant="body2" color="text.secondary">
-                      (none)
-                    </Typography>
-                  ) : (
-                    <ThemedJsonView value={entry.before} />
-                  )}
-                </Box>
-                <Box>
-                  <Typography variant="overline">After</Typography>
-                  {entry.after === null || entry.after === undefined ? (
-                    <Typography variant="body2" color="text.secondary">
-                      (none)
-                    </Typography>
-                  ) : (
-                    <ThemedJsonView value={entry.after} />
-                  )}
-                </Box>
-              </Stack>
-            </Box>
-          </Collapse>
-        </TableCell>
-      </TableRow>
-    </>
+        ) : (
+          <ThemedJsonView value={entry.before} />
+        )}
+      </Box>
+      <Box>
+        <Typography variant="overline">After</Typography>
+        {entry.after === null || entry.after === undefined ? (
+          <Typography variant="body2" color="text.secondary">
+            (none)
+          </Typography>
+        ) : (
+          <ThemedJsonView value={entry.after} />
+        )}
+      </Box>
+    </Stack>
   );
 }

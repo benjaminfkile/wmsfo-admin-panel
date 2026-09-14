@@ -12,15 +12,8 @@ import {
   Link,
   Menu,
   MenuItem,
-  Paper,
   Select,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
@@ -34,8 +27,10 @@ import AppDialog from "../../components/AppDialog";
 import CommentBox from "../../components/CommentBox";
 import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
-import AuditCell from "../../components/audit/AuditCell";
 import PageHeader from "../../components/layout/PageHeader";
+import ResponsiveTable, {
+  type Column,
+} from "../../components/list/ResponsiveTable";
 import { formatMt } from "../../lib/time";
 import { useNotify } from "../../hooks/useNotify";
 import RouteUploadDialog from "../events/RouteUploadDialog";
@@ -101,6 +96,66 @@ export default function RoutesList() {
   );
   const events = eventsQ.data?.items ?? [];
 
+  const usedByLabel = (r: Route): string => {
+    const usedBy = events.filter(
+      (e) => e.routeId !== null && Number(e.routeId) === Number(r.id)
+    );
+    return usedBy.length === 0 ? "none" : usedBy.map((e) => e.name).join(", ");
+  };
+
+  const columns: Column<Route>[] = [
+    {
+      key: "name",
+      header: "Name",
+      role: "title",
+      render: (r) => r.name,
+    },
+    {
+      key: "points",
+      header: "Points",
+      align: "right",
+      role: "line",
+      render: (r) => String(r.pointCount),
+    },
+    {
+      key: "created",
+      header: "Created",
+      role: "line",
+      render: (r) => formatMt(r.createdAt),
+    },
+    {
+      key: "uploadedBy",
+      header: "Uploaded by",
+      role: "line",
+      render: (r) => r.uploadedBy ?? "none",
+    },
+    {
+      key: "link",
+      header: "Link",
+      label: "CDN",
+      role: "line",
+      render: (r) =>
+        r.url ? (
+          <Link
+            href={r.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{ wordBreak: "break-all" }}
+          >
+            CDN
+          </Link>
+        ) : (
+          "none"
+        ),
+    },
+    {
+      key: "usedBy",
+      header: "Used by",
+      role: "line",
+      render: (r) => usedByLabel(r),
+    },
+  ];
+
   return (
     <>
       <PageHeader
@@ -125,87 +180,30 @@ export default function RoutesList() {
       {routesQ.error ? (
         <ErrorAlert error={routesQ.error} />
       ) : (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell align="right">Points</TableCell>
-                <TableCell>Created</TableCell>
-                <TableCell>Uploaded by</TableCell>
-                <TableCell>Link</TableCell>
-                <TableCell>Used by</TableCell>
-                <TableCell align="right">Actions</TableCell>
-                <TableCell align="right">Audit</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {routes.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8}>
-                    <Typography variant="body2" color="text.secondary">
-                      No routes yet.
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                routes.map((r) => {
-                  const usedBy = events.filter(
-                    (e) => e.routeId !== null && Number(e.routeId) === Number(r.id)
-                  );
-                  return (
-                    <TableRow
-                      key={String(r.id)}
-                      data-testid={`route-row-${r.id}`}
-                    >
-                      <TableCell>{r.name}</TableCell>
-                      <TableCell align="right">{String(r.pointCount)}</TableCell>
-                      <TableCell>{formatMt(r.createdAt)}</TableCell>
-                      <TableCell>{r.uploadedBy}</TableCell>
-                      <TableCell>
-                        {r.url ? (
-                          <Link
-                            href={r.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            sx={{ wordBreak: "break-all" }}
-                          >
-                            CDN
-                          </Link>
-                        ) : (
-                          "none"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {usedBy.length === 0
-                          ? "none"
-                          : usedBy.map((e) => e.name).join(", ")}
-                      </TableCell>
-                      <TableCell align="right">
-                        <IconButton
-                          size="small"
-                          aria-label={`Actions for ${r.name ?? "route"}`}
-                          onClick={(ev) =>
-                            setMenuAnchor({ el: ev.currentTarget, route: r })
-                          }
-                        >
-                          <MoreVertIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                      <AuditCell
-                        entity="route"
-                        entityId={r.id ?? ""}
-                        name={r.name ?? "route"}
-                        audit={r.audit}
-                        align="right"
-                      />
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <ResponsiveTable<Route>
+          rows={routes}
+          columns={columns}
+          rowKey={(r) => String(r.id)}
+          rowTestId={(r) => `route-row-${r.id}`}
+          emptyText="No routes yet."
+          actions={(r) => (
+            <IconButton
+              size="small"
+              aria-label={`Actions for ${r.name ?? "route"}`}
+              onClick={(ev) =>
+                setMenuAnchor({ el: ev.currentTarget, route: r })
+              }
+            >
+              <MoreVertIcon fontSize="small" />
+            </IconButton>
+          )}
+          audit={(r) => ({
+            entity: "route",
+            entityId: r.id ?? "",
+            name: r.name ?? "route",
+            audit: r.audit,
+          })}
+        />
       )}
 
       {menuAnchor ? (

@@ -4,20 +4,14 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
   DialogActions,
   DialogContent,
   DialogTitle,
   IconButton,
   Menu,
   MenuItem,
-  Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
@@ -32,8 +26,10 @@ import AppDialog from "../../components/AppDialog";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
-import AuditCell from "../../components/audit/AuditCell";
 import PageHeader from "../../components/layout/PageHeader";
+import ResponsiveTable, {
+  type Column,
+} from "../../components/list/ResponsiveTable";
 import { ApiError } from "../../api/errors";
 import { useNotify } from "../../hooks/useNotify";
 import { formatMt } from "../../lib/time";
@@ -338,10 +334,13 @@ export default function SponsorDetail() {
             direction="row"
             justifyContent="space-between"
             alignItems="center"
+            spacing={1}
+            useFlexGap
+            flexWrap="wrap"
             sx={{ mb: 1 }}
           >
             <Typography variant="h6">Years</Typography>
-            <Stack direction="row" spacing={1}>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
               <Button
                 variant="outlined"
                 disabled={years.length === 0}
@@ -354,90 +353,11 @@ export default function SponsorDetail() {
               </Button>
             </Stack>
           </Stack>
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Event year</TableCell>
-                  <TableCell align="right">Amount donated</TableCell>
-                  <TableCell>Active</TableCell>
-                  <TableCell>Can advertise</TableCell>
-                  <TableCell>Anonymous</TableCell>
-                  <TableCell>Tracker time</TableCell>
-                  <TableCell>Pinned</TableCell>
-                  <TableCell>Registered</TableCell>
-                  <TableCell align="right">Actions</TableCell>
-                  <TableCell align="right">Audit</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {years.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={10}>
-                      <Typography variant="body2" color="text.secondary">
-                        No years yet.
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  years.map((y) => (
-                    <TableRow
-                      key={String(y.eventYear)}
-                      data-testid={`sponsor-year-${y.eventYear}`}
-                    >
-                      <TableCell>{String(y.eventYear)}</TableCell>
-                      <TableCell align="right">
-                        {y.amountDonated === null || y.amountDonated === undefined
-                          ? "none"
-                          : String(y.amountDonated)}
-                      </TableCell>
-                      <TableCell>{y.active ? "yes" : "no"}</TableCell>
-                      <TableCell>{y.canAdvertise ? "yes" : "no"}</TableCell>
-                      <TableCell>{y.anonymous ? "yes" : "no"}</TableCell>
-                      <TableCell>
-                        {trackerTimeCell(y)}
-                      </TableCell>
-                      <TableCell>
-                        {y.pinnedPosition === null ||
-                        y.pinnedPosition === undefined
-                          ? "no"
-                          : `#${y.pinnedPosition}`}
-                      </TableCell>
-                      <TableCell>{formatMt(y.registeredAt) || "none"}</TableCell>
-                      <TableCell align="right">
-                        <IconButton
-                          size="small"
-                          aria-label={`Edit ${String(y.eventYear)}`}
-                          onClick={() => setYearDialogFor(y)}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          aria-label={`Actions for ${String(y.eventYear)}`}
-                          onClick={(ev) =>
-                            setYearMenuAnchor({
-                              el: ev.currentTarget,
-                              year: y,
-                            })
-                          }
-                        >
-                          <MoreVertIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                      <AuditCell
-                        entity="sponsor_year"
-                        entityId={String(y.eventYear)}
-                        name={`sponsor year ${y.eventYear ?? ""}`}
-                        audit={null}
-                        align="right"
-                      />
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <YearsTable
+            years={years}
+            onEdit={(y) => setYearDialogFor(y)}
+            onMenu={(y, el) => setYearMenuAnchor({ el, year: y })}
+          />
         </CardContent>
       </Card>
 
@@ -551,6 +471,140 @@ export default function SponsorDetail() {
         />
       ) : null}
     </Stack>
+  );
+}
+
+interface YearsTableProps {
+  years: SponsorYear[];
+  onEdit: (y: SponsorYear) => void;
+  onMenu: (y: SponsorYear, el: HTMLElement) => void;
+}
+
+function YearsTable({ years, onEdit, onMenu }: YearsTableProps) {
+  const columns: Column<SponsorYear>[] = [
+    {
+      key: "eventYear",
+      header: "Event year",
+      role: "title",
+      render: (y) => String(y.eventYear),
+    },
+    {
+      key: "active",
+      header: "Active",
+      role: "chip",
+      render: (y) => (
+        <Chip
+          size="small"
+          label="Active"
+          color={y.active ? "success" : "default"}
+          variant={y.active ? "filled" : "outlined"}
+        />
+      ),
+      renderCompact: (y) =>
+        y.active ? (
+          <Chip size="small" label="Active" color="success" />
+        ) : null,
+    },
+    {
+      key: "canAdvertise",
+      header: "Can advertise",
+      role: "chip",
+      render: (y) => (
+        <Chip
+          size="small"
+          label="Can advertise"
+          color={y.canAdvertise ? "primary" : "default"}
+          variant={y.canAdvertise ? "filled" : "outlined"}
+        />
+      ),
+      renderCompact: (y) =>
+        y.canAdvertise ? (
+          <Chip size="small" label="Can advertise" color="primary" />
+        ) : null,
+    },
+    {
+      key: "anonymous",
+      header: "Anonymous",
+      role: "chip",
+      render: (y) => (
+        <Chip
+          size="small"
+          label="Anonymous"
+          color={y.anonymous ? "warning" : "default"}
+          variant={y.anonymous ? "filled" : "outlined"}
+        />
+      ),
+      renderCompact: (y) =>
+        y.anonymous ? (
+          <Chip size="small" label="Anonymous" color="warning" />
+        ) : null,
+    },
+    {
+      key: "amountDonated",
+      header: "Amount donated",
+      align: "right",
+      label: "Amount",
+      role: "line",
+      render: (y) =>
+        y.amountDonated === null || y.amountDonated === undefined
+          ? "none"
+          : String(y.amountDonated),
+    },
+    {
+      key: "trackerTime",
+      header: "Tracker time",
+      role: "line",
+      render: (y) => trackerTimeCell(y),
+    },
+    {
+      key: "pinned",
+      header: "Pinned",
+      role: "line",
+      render: (y) =>
+        y.pinnedPosition === null || y.pinnedPosition === undefined
+          ? "no"
+          : `#${y.pinnedPosition}`,
+    },
+    {
+      key: "registered",
+      header: "Registered",
+      role: "line",
+      render: (y) => formatMt(y.registeredAt) || "none",
+    },
+  ];
+
+  return (
+    <ResponsiveTable<SponsorYear>
+      rows={years}
+      columns={columns}
+      rowKey={(y) => String(y.eventYear)}
+      rowTestId={(y) => `sponsor-year-${y.eventYear}`}
+      emptyText="No years yet."
+      actions={(y) => (
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+          <IconButton
+            size="small"
+            aria-label={`Edit ${String(y.eventYear)}`}
+            onClick={() => onEdit(y)}
+          >
+            <EditIcon fontSize="small" />
+          </IconButton>
+          <IconButton
+            size="small"
+            aria-label={`Actions for ${String(y.eventYear)}`}
+            onClick={(ev) => onMenu(y, ev.currentTarget)}
+          >
+            <MoreVertIcon fontSize="small" />
+          </IconButton>
+        </Stack>
+      )}
+      audit={(y) => ({
+        entity: "sponsor_year",
+        entityId: String(y.eventYear),
+        name: `sponsor year ${y.eventYear ?? ""}`,
+        audit: null,
+      })}
+    />
   );
 }
 

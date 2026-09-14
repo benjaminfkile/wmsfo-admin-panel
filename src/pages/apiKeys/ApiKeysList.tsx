@@ -6,14 +6,7 @@ import {
   IconButton,
   Menu,
   MenuItem,
-  Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Typography,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
@@ -23,9 +16,11 @@ import type { ApiKeyCreateBody } from "../../api/resources/apiKeys";
 import { keys } from "../../queries/keys";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
-import AuditCell from "../../components/audit/AuditCell";
 import KeyRevealDialog from "../../components/KeyRevealDialog";
 import PageHeader from "../../components/layout/PageHeader";
+import ResponsiveTable, {
+  type Column,
+} from "../../components/list/ResponsiveTable";
 import { useNotify } from "../../hooks/useNotify";
 import { useNow } from "../../hooks/useNow";
 import { ageS, formatAgeS, formatMt } from "../../lib/time";
@@ -98,6 +93,112 @@ export default function ApiKeysList() {
     });
   }, [listQ.data]);
 
+  const statusChip = (k: ApiKey): { status: Status; node: React.ReactNode } => {
+    const status = statusOf(k, now);
+    const node =
+      status === "active" ? (
+        <Chip size="small" label="Active" color="success" />
+      ) : status === "expired" ? (
+        <Chip size="small" label="Expired" color="warning" />
+      ) : (
+        <Chip size="small" label="Revoked" />
+      );
+    return { status, node };
+  };
+
+  const columns: Column<ApiKey>[] = [
+    {
+      key: "name",
+      header: "Name",
+      role: "title",
+      render: (k) => k.name ?? "",
+    },
+    {
+      key: "keyPrefix",
+      header: "Key prefix",
+      role: "subtitle",
+      render: (k) => (
+        <Box component="code" sx={{ overflowWrap: "anywhere" }}>
+          {k.keyPrefix}
+        </Box>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      role: "chip",
+      render: (k) => statusChip(k).node,
+    },
+    {
+      key: "capabilities",
+      header: "Capabilities",
+      role: "chip",
+      render: (k) =>
+        k.allCapabilities ? (
+          <Chip size="small" label="All" color="primary" />
+        ) : (
+          <Stack
+            direction="row"
+            spacing={0.5}
+            flexWrap="wrap"
+            useFlexGap
+          >
+            {(k.capabilities ?? []).map((c) => (
+              <Chip
+                key={c}
+                size="small"
+                label={LABEL_BY_VALUE.get(c as never) ?? c}
+              />
+            ))}
+          </Stack>
+        ),
+    },
+    {
+      key: "expires",
+      header: "Expires",
+      role: "line",
+      render: (k) => {
+        const s = statusOf(k, now);
+        return k.expiresAt ? (
+          <Box
+            component="span"
+            sx={{
+              color: s === "expired" ? "error.main" : "text.primary",
+            }}
+          >
+            {formatMt(k.expiresAt)}
+          </Box>
+        ) : (
+          <Box component="span" sx={{ color: "text.secondary" }}>
+            Never
+          </Box>
+        );
+      },
+    },
+    {
+      key: "lastUsed",
+      header: "Last used",
+      role: "line",
+      render: (k) => (
+        <span title={formatMt(k.lastUsedAt) || undefined}>
+          {formatAgeS(ageS(k.lastUsedAt ?? null, now)) || "never"}
+        </span>
+      ),
+    },
+    {
+      key: "createdBy",
+      header: "Created by",
+      role: "line",
+      render: (k) => k.createdBy ?? "",
+    },
+    {
+      key: "createdAt",
+      header: "Created",
+      role: "line",
+      render: (k) => formatMt(k.createdAt),
+    },
+  ];
+
   return (
     <>
       <PageHeader
@@ -117,129 +218,36 @@ export default function ApiKeysList() {
       {listQ.error ? (
         <ErrorAlert error={listQ.error} />
       ) : (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Key prefix</TableCell>
-                <TableCell>Capabilities</TableCell>
-                <TableCell>Expires</TableCell>
-                <TableCell>Last used</TableCell>
-                <TableCell>Created by</TableCell>
-                <TableCell>Created</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="right">Actions</TableCell>
-                <TableCell align="right">Audit</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={10}>
-                    <Typography variant="body2" color="text.secondary">
-                      No keys yet.
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                rows.map((k) => {
-                  const status = statusOf(k, now);
-                  const revoked = status === "revoked";
-                  const expired = status === "expired";
-                  return (
-                    <TableRow
-                      key={String(k.id)}
-                      hover
-                      data-testid={`api-key-row-${k.id}`}
-                      sx={revoked ? { opacity: 0.5 } : undefined}
-                    >
-                      <TableCell>{k.name}</TableCell>
-                      <TableCell>
-                        <Box component="code" sx={{ overflowWrap: "anywhere" }}>
-                          {k.keyPrefix}
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        {k.allCapabilities ? (
-                          <Chip size="small" label="All" color="primary" />
-                        ) : (
-                          <Stack
-                            direction="row"
-                            spacing={0.5}
-                            flexWrap="wrap"
-                            useFlexGap
-                          >
-                            {(k.capabilities ?? []).map((c) => (
-                              <Chip
-                                key={c}
-                                size="small"
-                                label={LABEL_BY_VALUE.get(c as never) ?? c}
-                              />
-                            ))}
-                          </Stack>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {k.expiresAt ? (
-                          <Box
-                            component="span"
-                            sx={{
-                              color: expired ? "error.main" : "text.primary",
-                            }}
-                          >
-                            {formatMt(k.expiresAt)}
-                          </Box>
-                        ) : (
-                          <Box component="span" sx={{ color: "text.secondary" }}>
-                            Never
-                          </Box>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span title={formatMt(k.lastUsedAt) || undefined}>
-                          {formatAgeS(ageS(k.lastUsedAt ?? null, now)) ||
-                            "never"}
-                        </span>
-                      </TableCell>
-                      <TableCell>{k.createdBy}</TableCell>
-                      <TableCell>{formatMt(k.createdAt)}</TableCell>
-                      <TableCell>
-                        {status === "active" ? (
-                          <Chip size="small" label="Active" color="success" />
-                        ) : status === "expired" ? (
-                          <Chip size="small" label="Expired" color="warning" />
-                        ) : (
-                          <Chip size="small" label="Revoked" />
-                        )}
-                      </TableCell>
-                      <TableCell align="right">
-                        {!revoked ? (
-                          <IconButton
-                            size="small"
-                            aria-label={`Actions for ${k.name ?? "key"}`}
-                            onClick={(ev) =>
-                              setMenuAnchor({ el: ev.currentTarget, key: k })
-                            }
-                          >
-                            <MoreVertIcon fontSize="small" />
-                          </IconButton>
-                        ) : null}
-                      </TableCell>
-                      <AuditCell
-                        entity="api_key"
-                        entityId={k.id ?? ""}
-                        name={`key ${k.name ?? "key"}`}
-                        audit={k.audit}
-                        align="right"
-                      />
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <ResponsiveTable<ApiKey>
+          rows={rows}
+          columns={columns}
+          rowKey={(k) => String(k.id)}
+          rowTestId={(k) => `api-key-row-${k.id}`}
+          rowSx={(k) =>
+            statusOf(k, now) === "revoked" ? { opacity: 0.5 } : {}
+          }
+          emptyText="No keys yet."
+          actions={(k) => {
+            const revoked = statusOf(k, now) === "revoked";
+            return revoked ? null : (
+              <IconButton
+                size="small"
+                aria-label={`Actions for ${k.name ?? "key"}`}
+                onClick={(ev) =>
+                  setMenuAnchor({ el: ev.currentTarget, key: k })
+                }
+              >
+                <MoreVertIcon fontSize="small" />
+              </IconButton>
+            );
+          }}
+          audit={(k) => ({
+            entity: "api_key",
+            entityId: k.id ?? "",
+            name: `key ${k.name ?? "key"}`,
+            audit: k.audit,
+          })}
+        />
       )}
 
       {menuAnchor ? (

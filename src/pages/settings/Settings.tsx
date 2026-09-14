@@ -2,14 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Box,
   Button,
-  Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
@@ -18,8 +11,10 @@ import { settings as settingsApi } from "../../api/resources/settings";
 import { keys } from "../../queries/keys";
 import CommentBox from "../../components/CommentBox";
 import ErrorAlert from "../../components/ErrorAlert";
-import AuditCell from "../../components/audit/AuditCell";
 import PageHeader from "../../components/layout/PageHeader";
+import ResponsiveTable, {
+  type Column,
+} from "../../components/list/ResponsiveTable";
 import { useNotify } from "../../hooks/useNotify";
 import { formatMt } from "../../lib/time";
 import {
@@ -30,7 +25,18 @@ import {
 } from "../../validation/settings";
 import type { Setting } from "../../api/types";
 
+interface RowState {
+  input: string;
+  error: string | null;
+  saving: boolean;
+}
+
+type SetRowState = (key: string, patch: Partial<RowState>) => void;
+
 export default function Settings() {
+  const qc = useQueryClient();
+  const notify = useNotify();
+
   const settingsQ = useQuery({
     queryKey: keys.settings,
     queryFn: () => settingsApi.list(),
@@ -47,6 +53,163 @@ export default function Settings() {
       (order.get(b.key ?? "") ?? SETTING_SPECS.length)
   );
 
+  const initialFor = (s: Setting): string =>
+    typeof s.value === "number"
+      ? String(s.value)
+      : typeof s.value === "string"
+        ? s.value
+        : "";
+
+  const [rowState, setRowState] = useState<Record<string, RowState>>({});
+
+  useEffect(() => {
+    setRowState((prev) => {
+      const next: Record<string, RowState> = { ...prev };
+      let changed = false;
+      for (const s of settings) {
+        const key = s.key ?? "";
+        if (!next[key]) {
+          next[key] = { input: initialFor(s), error: null, saving: false };
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsQ.data]);
+
+  const setRow: SetRowState = (key, patch) =>
+    setRowState((prev) => ({
+      ...prev,
+      [key]: { ...(prev[key] ?? { input: "", error: null, saving: false }), ...patch },
+    }));
+
+  const saveMut = useMutation({
+    mutationFn: ({ key, value }: { key: string; value: number }) =>
+      settingsApi.put(key, value),
+    onSuccess: (row) => {
+      notify(`${row.key} saved`);
+      qc.setQueryData(keys.settings, (prev: { items: Setting[] } | undefined) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.map((s) => (s.key === row.key ? row : s)),
+            }
+          : prev
+      );
+      void qc.invalidateQueries({ queryKey: keys.settings });
+      setRow(row.key ?? "", {
+        input: initialFor(row),
+        error: null,
+        saving: false,
+      });
+    },
+    onError: (e, vars) => {
+      notify(e instanceof Error ? e.message : "Save failed", "error");
+      setRow(vars.key, { saving: false });
+    },
+  });
+
+  const submit = (s: Setting) => {
+    const key = s.key ?? "";
+    const spec = specFor(key);
+    const state = rowState[key] ?? { input: "", error: null, saving: false };
+    if (!spec) return;
+    const check = validateSettingValue(spec, state.input);
+    if (!check.ok) {
+      setRow(key, { error: check.message });
+      return;
+    }
+    setRow(key, { error: null, saving: true });
+    saveMut.mutate({ key, value: check.value });
+  };
+
+  const renderValue = (s: Setting) => {
+    const key = s.key ?? "";
+    const spec = specFor(key);
+    const state = rowState[key] ?? {
+      input: initialFor(s),
+      error: null,
+      saving: false,
+    };
+    return (
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="flex-start"
+        justifyContent="flex-end"
+        useFlexGap
+        flexWrap="wrap"
+      >
+        <TextField
+          type="number"
+          size="small"
+          value={state.input}
+          onChange={(e) => setRow(key, { input: e.target.value })}
+          error={Boolean(state.error)}
+          helperText={state.error ?? (spec ? rangeHint(spec) : "")}
+          inputProps={
+            spec ? { min: spec.min, max: spec.max, step: 1 } : undefined
+          }
+          sx={{ maxWidth: "100%", width: { xs: "100%", sm: 200 } }}
+          aria-label={key || "value"}
+        />
+        <Box sx={{ pt: 0.5 }}>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={() => submit(s)}
+            disabled={state.saving}
+          >
+            Save
+          </Button>
+        </Box>
+      </Stack>
+    );
+  };
+
+  const columns: Column<Setting>[] = [
+    {
+      key: "key",
+      header: "Key",
+      role: "title",
+      render: (s) => (
+        <Box component="code" sx={{ overflowWrap: "anywhere" }}>
+          {s.key}
+        </Box>
+      ),
+    },
+    {
+      key: "description",
+      header: "Description",
+      role: "subtitle",
+      render: (s) => {
+        const spec = specFor(s.key ?? "");
+        return spec ? (
+          <Typography variant="body2">
+            {spec.description}
+            {spec.unit ? ` (${spec.unit})` : ""}
+          </Typography>
+        ) : (
+          <>none</>
+        );
+      },
+    },
+    {
+      key: "updatedBy",
+      header: "Updated by",
+      role: "line",
+      render: (s) => s.updatedBy ?? "default",
+    },
+    {
+      key: "updatedAt",
+      header: "Updated at",
+      role: "line",
+      render: (s) =>
+        s.updatedAt ? formatMt(s.updatedAt) : "default",
+    },
+  ];
+
   return (
     <>
       <PageHeader title="Settings" />
@@ -57,140 +220,22 @@ export default function Settings() {
       {settingsQ.error ? (
         <ErrorAlert error={settingsQ.error} />
       ) : (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Key</TableCell>
-                <TableCell>Description</TableCell>
-                <TableCell align="right">Value</TableCell>
-                <TableCell>Updated by</TableCell>
-                <TableCell>Updated at</TableCell>
-                <TableCell align="right">Save</TableCell>
-                <TableCell align="right">Audit</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {sorted.map((s) => (
-                <SettingRow key={s.key} setting={s} />
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <ResponsiveTable<Setting>
+          rows={sorted}
+          columns={columns}
+          rowKey={(s) => s.key ?? ""}
+          rowTestId={(s) => `setting-row-${s.key}`}
+          emptyText="No settings."
+          actions={renderValue}
+          audit={(s) => ({
+            entity: "setting",
+            entityId: s.key ?? "",
+            name: s.key ?? "setting",
+            audit: s.audit,
+          })}
+        />
       )}
     </>
-  );
-}
-
-function SettingRow({ setting }: { setting: Setting }) {
-  const qc = useQueryClient();
-  const notify = useNotify();
-  const spec = specFor(setting.key ?? "");
-  const initial =
-    typeof setting.value === "number"
-      ? String(setting.value)
-      : typeof setting.value === "string"
-      ? setting.value
-      : "";
-  const [input, setInput] = useState(initial);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setInput(initial);
-    setError(null);
-  }, [initial]);
-
-  const saveMut = useMutation({
-    mutationFn: (value: number) =>
-      settingsApi.put(setting.key ?? "", value),
-    onSuccess: (row) => {
-      notify(`${setting.key} saved`);
-      qc.setQueryData(keys.settings, (prev: { items: Setting[] } | undefined) =>
-        prev
-          ? {
-              ...prev,
-              items: prev.items.map((s) =>
-                s.key === row.key ? row : s
-              ),
-            }
-          : prev
-      );
-      void qc.invalidateQueries({ queryKey: keys.settings });
-    },
-    onError: (e) =>
-      notify(e instanceof Error ? e.message : "Save failed", "error"),
-  });
-
-  const submit = () => {
-    if (!spec) return;
-    const check = validateSettingValue(spec, input);
-    if (!check.ok) {
-      setError(check.message);
-      return;
-    }
-    setError(null);
-    saveMut.mutate(check.value);
-  };
-
-  const updatedBy = setting.updatedBy ?? "default";
-  const updatedAt = setting.updatedAt ? formatMt(setting.updatedAt) : "default";
-
-  return (
-    <TableRow data-testid={`setting-row-${setting.key}`}>
-      <TableCell>
-        <Box component="code" sx={{ overflowWrap: "anywhere" }}>
-          {setting.key}
-        </Box>
-      </TableCell>
-      <TableCell>
-        {spec ? (
-          <Typography variant="body2">
-            {spec.description}
-            {spec.unit ? ` (${spec.unit})` : ""}
-          </Typography>
-        ) : (
-          "none"
-        )}
-      </TableCell>
-      <TableCell align="right">
-        <Stack spacing={0.5} alignItems="flex-end">
-          <TextField
-            type="number"
-            size="small"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            error={Boolean(error)}
-            helperText={error ?? (spec ? rangeHint(spec) : "")}
-            inputProps={
-              spec ? { min: spec.min, max: spec.max, step: 1 } : undefined
-            }
-            sx={{ maxWidth: "100%", width: { xs: "100%", sm: 200 } }}
-            aria-label={setting.key ?? "value"}
-          />
-        </Stack>
-      </TableCell>
-      <TableCell>{updatedBy}</TableCell>
-      <TableCell>{updatedAt}</TableCell>
-      <TableCell align="right">
-        <Box>
-          <Button
-            variant="contained"
-            size="small"
-            onClick={submit}
-            disabled={saveMut.isPending}
-          >
-            Save
-          </Button>
-        </Box>
-      </TableCell>
-      <AuditCell
-        entity="setting"
-        entityId={setting.key ?? ""}
-        name={setting.key ?? "setting"}
-        audit={setting.audit}
-        align="right"
-      />
-    </TableRow>
   );
 }
 

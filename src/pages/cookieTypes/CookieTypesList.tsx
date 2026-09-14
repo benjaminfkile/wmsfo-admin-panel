@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
+  Chip,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -9,15 +10,8 @@ import {
   IconButton,
   Menu,
   MenuItem,
-  Paper,
   Stack,
   Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
@@ -38,9 +32,11 @@ import AppDialog from "../../components/AppDialog";
 import CommentBox from "../../components/CommentBox";
 import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
-import AuditCell from "../../components/audit/AuditCell";
 import IconPicker from "../../components/content/IconPicker";
 import PageHeader from "../../components/layout/PageHeader";
+import ResponsiveTable, {
+  type Column,
+} from "../../components/list/ResponsiveTable";
 import { useNotify } from "../../hooks/useNotify";
 import type { CookieType, Icon, IconInfo } from "../../api/types";
 
@@ -150,6 +146,44 @@ export default function CookieTypesList() {
 
   const closeMenu = () => setMenuAnchor(null);
 
+  const columns: Column<CookieType>[] = [
+    {
+      key: "name",
+      header: "Name",
+      role: "title",
+      render: (t) => t.name ?? "",
+    },
+    {
+      key: "active",
+      header: "Active",
+      role: "chip",
+      render: (t) =>
+        t.active ? (
+          <Chip size="small" label="Active" color="success" />
+        ) : (
+          <Chip size="small" label="Inactive" variant="outlined" />
+        ),
+      renderCompact: (t) =>
+        t.active ? (
+          <Chip size="small" label="Active" color="success" />
+        ) : null,
+    },
+    {
+      key: "sort",
+      header: "Sort",
+      align: "right",
+      role: "line",
+      render: (t) => String(t.sort ?? 0),
+    },
+    {
+      key: "cookies",
+      header: "Cookies",
+      align: "right",
+      role: "line",
+      render: (t) => String(t.cookieCount ?? 0),
+    },
+  ];
+
   return (
     <>
       <PageHeader
@@ -176,82 +210,47 @@ export default function CookieTypesList() {
       {cookieTypesQ.error ? (
         <ErrorAlert error={cookieTypesQ.error} />
       ) : (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Icon</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell align="right">Sort</TableCell>
-                <TableCell>Active</TableCell>
-                <TableCell align="right">Cookies</TableCell>
-                <TableCell align="right">Actions</TableCell>
-                <TableCell align="right">Audit</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {cookieTypes.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7}>
-                    <Typography variant="body2" color="text.secondary">
-                      No cookie types yet.
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                cookieTypes.map((t) => {
-                  const count = Number(t.cookieCount ?? 0);
-                  return (
-                    <TableRow
-                      key={String(t.id)}
-                      data-testid={`cookie-type-row-${t.id}`}
-                    >
-                      <TableCell>
-                        <IconCell icon={t.icon as Icon | null} lib={iconsById} />
-                      </TableCell>
-                      <TableCell>{t.name}</TableCell>
-                      <TableCell align="right">{String(t.sort ?? 0)}</TableCell>
-                      <TableCell>{t.active ? "yes" : "no"}</TableCell>
-                      <TableCell align="right">{String(count)}</TableCell>
-                      <TableCell align="right">
-                        <Stack
-                          direction="row"
-                          spacing={0.5}
-                          justifyContent="flex-end"
-                        >
-                          <IconButton
-                            size="small"
-                            aria-label={`Edit ${t.name ?? "cookie type"}`}
-                            disabled={locked}
-                            onClick={() => setEditing({ mode: "edit", type: t })}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            aria-label={`Actions for ${t.name ?? "cookie type"}`}
-                            onClick={(ev) =>
-                              setMenuAnchor({ el: ev.currentTarget, type: t })
-                            }
-                          >
-                            <MoreVertIcon fontSize="small" />
-                          </IconButton>
-                        </Stack>
-                      </TableCell>
-                      <AuditCell
-                        entity="cookie_type"
-                        entityId={t.id ?? ""}
-                        name={t.name ?? "cookie type"}
-                        audit={t.audit}
-                        align="right"
-                      />
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <ResponsiveTable<CookieType>
+          rows={cookieTypes}
+          columns={columns}
+          rowKey={(t) => String(t.id)}
+          rowTestId={(t) => `cookie-type-row-${t.id}`}
+          emptyText="No cookie types yet."
+          leading={(t) => (
+            <IconCell icon={t.icon as Icon | null} lib={iconsById} />
+          )}
+          actions={(t) => (
+            <Stack
+              direction="row"
+              spacing={0.5}
+              justifyContent="flex-end"
+            >
+              <IconButton
+                size="small"
+                aria-label={`Edit ${t.name ?? "cookie type"}`}
+                disabled={locked}
+                onClick={() => setEditing({ mode: "edit", type: t })}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                aria-label={`Actions for ${t.name ?? "cookie type"}`}
+                onClick={(ev) =>
+                  setMenuAnchor({ el: ev.currentTarget, type: t })
+                }
+              >
+                <MoreVertIcon fontSize="small" />
+              </IconButton>
+            </Stack>
+          )}
+          audit={(t) => ({
+            entity: "cookie_type",
+            entityId: t.id ?? "",
+            name: t.name ?? "cookie type",
+            audit: t.audit,
+          })}
+        />
       )}
 
       <CookieTypeDialog

@@ -69,6 +69,36 @@ afterEach(() => {
   server.resetHandlers();
 });
 
+function stubMatchMedia(matches: boolean): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+  return () => {
+    if (original === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).matchMedia;
+    } else {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: original,
+      });
+    }
+  };
+}
+
 describe("PagesList", () => {
   it("role pages render no delete action", async () => {
     const user = userEvent.setup();
@@ -146,6 +176,29 @@ describe("PagesList", () => {
     });
     // Body must be { ids: [4, 3] } - every `none` id in the new order.
     expect(orderBody).toEqual({ ids: [4, 3] });
+  });
+
+  it("renders a card per page on compact with the pencil", async () => {
+    const restore = stubMatchMedia(true);
+    try {
+      render(<Harness />);
+      const statusCard = await screen.findByTestId(`page-row-${1}`);
+      expect(
+        within(statusCard).getByRole("link", { name: /edit no event/i })
+      ).toBeInTheDocument();
+      const nonRoleCard = await screen.findByTestId(`page-row-${3}`);
+      expect(
+        within(nonRoleCard).getByRole("link", { name: /edit about/i })
+      ).toBeInTheDocument();
+      expect(
+        within(nonRoleCard).getByRole("button", {
+          name: /actions for about/i,
+        })
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("table")).toBeNull();
+    } finally {
+      restore();
+    }
   });
 
   it("delete confirmation names the page's section count", async () => {
