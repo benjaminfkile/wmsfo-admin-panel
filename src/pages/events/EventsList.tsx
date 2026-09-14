@@ -7,14 +7,6 @@ import {
   Menu,
   MenuItem,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Typography,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
@@ -29,7 +21,9 @@ import StatusChip from "../../components/StatusChip";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
-import AuditCell from "../../components/audit/AuditCell";
+import ResponsiveTable, {
+  type Column,
+} from "../../components/list/ResponsiveTable";
 import { formatMt } from "../../lib/time";
 import { useNotify } from "../../hooks/useNotify";
 import PageHeader from "../../components/layout/PageHeader";
@@ -107,6 +101,65 @@ export default function EventsList() {
     (routesQ.data?.items ?? []).map((r) => [Number(r.id), r.name])
   );
 
+  const routeLabelFor = (e: Event): string => {
+    const rid = e.routeId === null ? null : Number(e.routeId);
+    if (rid === null) return "none";
+    return routesById.get(rid) ?? `#${rid}`;
+  };
+
+  const columns: Column<Event>[] = [
+    {
+      key: "year",
+      header: "Year",
+      role: "subtitle",
+      render: (e) => String(e.year),
+    },
+    {
+      key: "name",
+      header: "Name",
+      role: "title",
+      render: (e) => <RouterLink to={`/events/${e.id}`}>{e.name}</RouterLink>,
+    },
+    {
+      key: "status",
+      header: "Status",
+      role: "chip",
+      render: (e) => <StatusChip statusId={Number(e.statusId)} />,
+    },
+    {
+      key: "current",
+      header: "Current",
+      role: "chip",
+      render: (e) =>
+        e.isCurrent ? (
+          <Chip size="small" color="primary" label="Current" />
+        ) : (
+          <Box component="span" sx={{ color: "text.secondary" }}>
+            none
+          </Box>
+        ),
+    },
+    {
+      key: "scheduledAt",
+      header: "Scheduled at",
+      role: "line",
+      render: (e) => formatMt(e.scheduledAt) || "none",
+    },
+    {
+      key: "route",
+      header: "Route",
+      role: "line",
+      render: (e) => routeLabelFor(e),
+    },
+    {
+      key: "fundsPercent",
+      header: "Funds %",
+      align: "right",
+      role: "line",
+      render: (e) => String(e.fundsPercent),
+    },
+  ];
+
   return (
     <>
       <PageHeader
@@ -121,103 +174,44 @@ export default function EventsList() {
       {eventsQ.error ? (
         <ErrorAlert error={eventsQ.error} />
       ) : (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Year</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Current</TableCell>
-                <TableCell>Scheduled at</TableCell>
-                <TableCell>Route</TableCell>
-                <TableCell align="right">Funds %</TableCell>
-                <TableCell align="right">Actions</TableCell>
-                <TableCell align="right">Audit</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {events.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9}>
-                    <Typography variant="body2" color="text.secondary">
-                      No events yet.
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                events.map((e) => {
-                  const rid = e.routeId === null ? null : Number(e.routeId);
-                  const routeLabel =
-                    rid === null
-                      ? "none"
-                      : routesById.get(rid) ?? `#${rid}`;
-                  return (
-                    <TableRow
-                      key={String(e.id)}
-                      hover
-                      data-testid={`event-row-${e.id}`}
-                    >
-                      <TableCell>{String(e.year)}</TableCell>
-                      <TableCell>
-                        <RouterLink to={`/events/${e.id}`}>{e.name}</RouterLink>
-                      </TableCell>
-                      <TableCell>
-                        <StatusChip statusId={Number(e.statusId)} />
-                      </TableCell>
-                      <TableCell>
-                        {e.isCurrent ? (
-                          <Chip size="small" color="primary" label="Current" />
-                        ) : (
-                          <Box component="span" sx={{ color: "text.secondary" }}>
-                            none
-                          </Box>
-                        )}
-                      </TableCell>
-                      <TableCell>{formatMt(e.scheduledAt) || "none"}</TableCell>
-                      <TableCell>{routeLabel}</TableCell>
-                      <TableCell align="right">
-                        {String(e.fundsPercent)}
-                      </TableCell>
-                      <TableCell align="right">
-                        <Stack
-                          direction="row"
-                          spacing={0.5}
-                          justifyContent="flex-end"
-                        >
-                          <IconButton
-                            size="small"
-                            component={RouterLink}
-                            to={`/events/${e.id}`}
-                            aria-label={`Edit ${e.name ?? "event"}`}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            aria-label={`Actions for ${e.name ?? "event"}`}
-                            onClick={(ev) =>
-                              setMenuAnchor({ el: ev.currentTarget, event: e })
-                            }
-                          >
-                            <MoreVertIcon fontSize="small" />
-                          </IconButton>
-                        </Stack>
-                      </TableCell>
-                      <AuditCell
-                        entity="event"
-                        entityId={e.id ?? ""}
-                        name={e.name ?? "event"}
-                        audit={e.audit}
-                        align="right"
-                      />
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <ResponsiveTable<Event>
+          rows={events}
+          columns={columns}
+          rowKey={(e) => String(e.id)}
+          rowTestId={(e) => `event-row-${e.id}`}
+          emptyText="No events yet."
+          actions={(e) => (
+            <Stack
+              direction="row"
+              spacing={0.5}
+              justifyContent="flex-end"
+            >
+              <IconButton
+                size="small"
+                component={RouterLink}
+                to={`/events/${e.id}`}
+                aria-label={`Edit ${e.name ?? "event"}`}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                aria-label={`Actions for ${e.name ?? "event"}`}
+                onClick={(ev) =>
+                  setMenuAnchor({ el: ev.currentTarget, event: e })
+                }
+              >
+                <MoreVertIcon fontSize="small" />
+              </IconButton>
+            </Stack>
+          )}
+          audit={(e) => ({
+            entity: "event",
+            entityId: e.id ?? "",
+            name: e.name ?? "event",
+            audit: e.audit,
+          })}
+        />
       )}
 
       <EventCreateDialog

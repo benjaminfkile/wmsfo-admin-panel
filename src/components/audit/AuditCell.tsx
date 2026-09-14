@@ -11,6 +11,9 @@ interface Props {
   name: string;
   audit: AuditStamp | null | undefined;
   align?: "left" | "right";
+  // When rendering outside a table row (a compact card footer) pass
+  // `asCell={false}` so the button is not wrapped in a `TableCell`.
+  asCell?: boolean;
 }
 
 export default function AuditCell({
@@ -19,11 +22,12 @@ export default function AuditCell({
   name,
   audit,
   align,
+  asCell = true,
 }: Props) {
   const [open, setOpen] = useState(false);
   const tooltip = stampText(audit);
-  return (
-    <TableCell align={align} data-testid={`audit-cell-${entity}-${entityId}`}>
+  const button = (
+    <>
       <Tooltip title={tooltip}>
         <IconButton
           size="small"
@@ -42,6 +46,12 @@ export default function AuditCell({
           onClose={() => setOpen(false)}
         />
       ) : null}
+    </>
+  );
+  if (!asCell) return button;
+  return (
+    <TableCell align={align} data-testid={`audit-cell-${entity}-${entityId}`}>
+      {button}
     </TableCell>
   );
 }
