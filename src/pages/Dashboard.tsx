@@ -31,6 +31,7 @@ import { ThemedJsonView } from "../components/ThemedJsonView";
 import ErrorAlert from "../components/ErrorAlert";
 import ConfirmDialog from "../components/ConfirmDialog";
 import PageHeader from "../components/layout/PageHeader";
+import { useCompact } from "../hooks/useCompact";
 import { useNotify } from "../hooks/useNotify";
 import { useNow } from "../hooks/useNow";
 import {
@@ -287,13 +288,43 @@ export default function Dashboard() {
   );
 }
 
-function LabeledLine({ label, children }: { label: string; children: React.ReactNode }) {
+function LabeledLine({
+  label,
+  children,
+  wrap = false,
+}: {
+  label: string;
+  children: React.ReactNode;
+  wrap?: boolean;
+}) {
+  const compact = useCompact();
+  const wrapNow = wrap && compact;
   return (
-    <Typography variant="body2" component="div">
-      <Box component="span" sx={{ color: "text.secondary", mr: 1 }}>
+    <Typography
+      variant="body2"
+      component="div"
+      sx={
+        wrapNow
+          ? { display: "flex", flexWrap: "wrap", overflowWrap: "anywhere" }
+          : undefined
+      }
+    >
+      <Box
+        component="span"
+        sx={{
+          color: "text.secondary",
+          mr: 1,
+          ...(wrapNow ? { flexBasis: "100%" } : null),
+        }}
+      >
         {label}:
       </Box>
-      <Box component="span">{children}</Box>
+      <Box
+        component="span"
+        sx={wrapNow ? { overflowWrap: "anywhere", minWidth: 0 } : undefined}
+      >
+        {children}
+      </Box>
     </Typography>
   );
 }
@@ -359,7 +390,7 @@ function CurrentEventCard({
         )}
       </CardContent>
       {event ? (
-        <CardActions>
+        <CardActions sx={{ flexWrap: "wrap" }}>
           <Button
             size="small"
             variant="outlined"
@@ -438,7 +469,7 @@ function ActiveBeaconCard({
                 color={beacon.healthy === true ? "success" : "error"}
               />
             </Stack>
-            <LabeledLine label="keyPrefix">
+            <LabeledLine label="keyPrefix" wrap>
               <Box component="code" sx={{ overflowWrap: "anywhere" }}>
                 {beacon.keyPrefix}
               </Box>
@@ -608,17 +639,17 @@ function SnapshotCard({
           <Stack spacing={0.5}>
             <LabeledLine label="version">{String(snap.version)}</LabeledLine>
             <LabeledLine label="builtAt">{formatMt(snap.builtAt)}</LabeledLine>
-            <LabeledLine label="s3Key">
+            <LabeledLine label="s3Key" wrap>
               <Box component="code" sx={{ overflowWrap: "anywhere" }}>
                 {snap.s3Key}
               </Box>
             </LabeledLine>
-            <LabeledLine label="url">
+            <LabeledLine label="url" wrap>
               <Link
                 href={snap.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                sx={{ wordBreak: "break-all" }}
+                sx={{ wordBreak: "break-all", overflowWrap: "anywhere" }}
               >
                 {snap.url}
               </Link>
@@ -651,6 +682,7 @@ function LiveObjectCard({
   cookieNames: Record<string, string>;
   now: number;
 }) {
+  const compact = useCompact();
   if (cdn === null) {
     return (
       <Card>
@@ -718,12 +750,12 @@ function LiveObjectCard({
             <LabeledLine label="pollIntervalMs">
               {String(cdn.pollIntervalMs)}
             </LabeledLine>
-            <LabeledLine label="snapshotUrl">
+            <LabeledLine label="snapshotUrl" wrap>
               <Link
                 href={cdn.snapshotUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                sx={{ wordBreak: "break-all" }}
+                sx={{ wordBreak: "break-all", overflowWrap: "anywhere" }}
               >
                 {cdn.snapshotUrl}
               </Link>
@@ -748,14 +780,17 @@ function LiveObjectCard({
           <Typography variant="body2" gutterBottom>
             Raw CDN JSON
           </Typography>
-          <ThemedJsonView value={cdn} />
+          <ThemedJsonView value={cdn} collapsed={compact ? 1 : undefined} />
         </Box>
         {liveState ? (
           <Box sx={{ mt: 2 }}>
             <Typography variant="body2" gutterBottom>
               Node in-memory live
             </Typography>
-            <ThemedJsonView value={liveState.node.live} />
+            <ThemedJsonView
+              value={liveState.node.live}
+              collapsed={compact ? 1 : undefined}
+            />
           </Box>
         ) : null}
       </CardContent>
