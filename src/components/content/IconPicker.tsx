@@ -19,6 +19,7 @@ import AppDialog from "../AppDialog";
 import ErrorAlert from "../ErrorAlert";
 import MediaGrid, { type GridFilters } from "../media/MediaGrid";
 import Uploader from "../media/Uploader";
+import { useCompact } from "../../hooks/useCompact";
 
 interface Props {
   open: boolean;
@@ -35,6 +36,7 @@ export default function IconPicker({
   onPick,
   title = "Choose icon",
 }: Props) {
+  const compact = useCompact();
   const [tab, setTab] = useState<"library" | "svg" | "upload">("library");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Icon | null>(null);
@@ -78,7 +80,13 @@ export default function IconPicker({
   };
 
   return (
-    <AppDialog open={open} onClose={onCancel} maxWidth="md" fullWidth>
+    <AppDialog
+      open={open}
+      onClose={onCancel}
+      maxWidth="md"
+      fullWidth
+      fullScreen={compact}
+    >
       <DialogTitle>{title}</DialogTitle>
       <Tabs
         value={tab}
@@ -115,8 +123,8 @@ export default function IconPicker({
                   display: "grid",
                   gap: 1,
                   gridTemplateColumns: {
-                    xs: "repeat(4, 1fr)",
-                    sm: "repeat(6, 1fr)",
+                    xs: "repeat(2, 1fr)",
+                    sm: "repeat(2, 1fr)",
                     md: "repeat(8, 1fr)",
                   },
                 }}

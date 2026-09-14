@@ -12,6 +12,7 @@ import type { MediaQuery } from "../../api/resources/media";
 import AppDialog from "../AppDialog";
 import MediaGrid, { type GridFilters } from "../media/MediaGrid";
 import Uploader from "../media/Uploader";
+import { useCompact } from "../../hooks/useCompact";
 
 interface Props {
   open: boolean;
@@ -32,6 +33,7 @@ export default function MediaPicker({
   kind,
   title = "Choose media",
 }: Props) {
+  const compact = useCompact();
   const [tab, setTab] = useState<"library" | "upload">("library");
   const [filters, setFilters] = useState<GridFilters>({});
   const [selected, setSelected] = useState<MediaAsset | null>(null);
@@ -51,7 +53,13 @@ export default function MediaPicker({
   };
 
   return (
-    <AppDialog open={open} onClose={onCancel} maxWidth="md" fullWidth>
+    <AppDialog
+      open={open}
+      onClose={onCancel}
+      maxWidth="md"
+      fullWidth
+      fullScreen={compact}
+    >
       <DialogTitle>{title}</DialogTitle>
       <Tabs
         value={tab}

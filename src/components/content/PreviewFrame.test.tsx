@@ -64,6 +64,36 @@ afterEach(() => {
   server.resetHandlers();
 });
 
+function stubMatchMedia(matches: boolean): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+  return () => {
+    if (original === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).matchMedia;
+    } else {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: original,
+      });
+    }
+  };
+}
+
 describe("PreviewFrame", () => {
   it("mints a token when opened and sets the iframe src with the page slug", async () => {
     let tokens = 0;
@@ -188,6 +218,26 @@ describe("PreviewFrame", () => {
     });
     // Still only one mint call.
     expect(tokens).toBe(1);
+  });
+
+  it("hides the device select on compact", async () => {
+    const restore = stubMatchMedia(true);
+    try {
+      server.use(
+        http.post(
+          `${testConfig.apiBaseUrl}/admin/content/preview-token`,
+          () => HttpResponse.json(f.previewToken, { status: 201 })
+        )
+      );
+      render(<Harness slug="about" />);
+      // Wait for the mint to finish before checking the toolbar.
+      await screen.findByTestId("preview-iframe");
+      expect(screen.queryByTestId("preview-device-select")).toBeNull();
+      // The page select is still there.
+      expect(screen.getByTestId("preview-page-select")).toBeInTheDocument();
+    } finally {
+      restore();
+    }
   });
 
   it("countdown ticks toward zero", async () => {

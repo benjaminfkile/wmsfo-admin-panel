@@ -6,6 +6,8 @@
 //   - the problems badge shows the count from GET /admin/content/status
 //   - duplicate, move, hide, delete each call their endpoint
 //   - items reorder inside ItemsEditor sends the new order
+//   - on compact the section card header renders in two rows and the up/down
+//     arrows sit in the card header instead of above the card
 
 import {
   describe,
@@ -73,6 +75,36 @@ function Harness() {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function stubMatchMedia(matches: boolean): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+  return () => {
+    if (original === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).matchMedia;
+    } else {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: original,
+      });
+    }
+  };
+}
 
 beforeEach(() => {
   const um = makeFakeUserManager(
@@ -485,5 +517,50 @@ describe("PageEditor", () => {
     });
     expect(orderSectionId).toBe(String(f.sampleSection.id));
     expect(orderBody).toEqual({ ids: [102, 101] });
+  });
+
+  it("on compact the section header wraps to two rows and the arrows sit in the header", async () => {
+    const restore = stubMatchMedia(true);
+    try {
+      // Two sections so the arrows have meaning: at position 0, "Move up" is
+      // disabled and "Move down" is enabled.
+      const sectionA: SectionAdmin = {
+        ...f.sampleSection,
+        id: 9,
+      };
+      const sectionB: SectionAdmin = {
+        ...f.sampleSection,
+        id: 10,
+      };
+      const pageDetail: PageDetail = {
+        ...f.pageDetail,
+        sections: [sectionA, sectionB],
+      };
+      server.use(
+        http.get(`${testConfig.apiBaseUrl}/admin/pages/:id`, () =>
+          HttpResponse.json(pageDetail)
+        )
+      );
+
+      render(<Harness />);
+      const card = await screen.findByTestId(`section-card-${sectionA.id}`);
+      // The arrows above the card are gone on compact.
+      expect(screen.queryByLabelText(/^move up$/i)).toBeNull();
+      expect(screen.queryByLabelText(/^move down$/i)).toBeNull();
+      // The arrows now live inside the card header.
+      const upBtn = within(card).getByLabelText(/move section up/i);
+      const downBtn = within(card).getByLabelText(/move section down/i);
+      // First card: up disabled, down enabled.
+      expect(upBtn).toBeDisabled();
+      expect(downBtn).not.toBeDisabled();
+      // The header renders as two rows (title row + controls row): the two
+      // children of the header stack are separate DOM elements.
+      const header = within(card).getByTestId(
+        `section-header-${sectionA.id}`
+      );
+      expect(header.children.length).toBe(2);
+    } finally {
+      restore();
+    }
   });
 });

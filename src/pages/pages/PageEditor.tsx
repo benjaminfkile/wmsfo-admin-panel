@@ -10,6 +10,7 @@ import {
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import type { ErrorSchema } from "@rjsf/utils";
+import { useCompact } from "../../hooks/useCompact";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { pages as pagesApi } from "../../api/resources/pages";
@@ -43,6 +44,7 @@ export default function PageEditor() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const notify = useNotify();
+  const compact = useCompact();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [deleteFor, setDeleteFor] = useState<SectionAdmin | null>(null);
@@ -296,28 +298,31 @@ export default function PageEditor() {
                 />
               );
             }
+            const canUp = i > 0 && !reorderMut.isPending;
+            const canDown =
+              i < sectionsData.length - 1 && !reorderMut.isPending;
             return (
               <Box key={id}>
-                <Stack direction="row" spacing={0.5} alignItems="center">
-                  <IconButton
-                    size="small"
-                    onClick={() => move(i, -1)}
-                    disabled={i === 0 || reorderMut.isPending}
-                    aria-label="Move up"
-                  >
-                    <ArrowUpwardIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() => move(i, 1)}
-                    disabled={
-                      i === sectionsData.length - 1 || reorderMut.isPending
-                    }
-                    aria-label="Move down"
-                  >
-                    <ArrowDownwardIcon fontSize="small" />
-                  </IconButton>
-                </Stack>
+                {compact ? null : (
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    <IconButton
+                      size="small"
+                      onClick={() => move(i, -1)}
+                      disabled={!canUp}
+                      aria-label="Move up"
+                    >
+                      <ArrowUpwardIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => move(i, 1)}
+                      disabled={!canDown}
+                      aria-label="Move down"
+                    >
+                      <ArrowDownwardIcon fontSize="small" />
+                    </IconButton>
+                  </Stack>
+                )}
                 <SectionCard
                   section={s}
                   kind={kind}
@@ -337,6 +342,10 @@ export default function PageEditor() {
                   onReorderItems={(ids) =>
                     orderItemsMut.mutate({ sectionId: id, ids })
                   }
+                  onMoveUp={() => move(i, -1)}
+                  onMoveDown={() => move(i, 1)}
+                  canMoveUp={canUp}
+                  canMoveDown={canDown}
                 />
               </Box>
             );

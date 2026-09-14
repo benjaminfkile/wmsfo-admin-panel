@@ -10,6 +10,7 @@ import {
   Typography,
 } from "@mui/material";
 import AppDialog from "../AppDialog";
+import { useCompact } from "../../hooks/useCompact";
 import type { KindInfo, PageAdmin } from "../../api/types";
 
 interface Props {
@@ -40,6 +41,7 @@ export default function MoveSectionDialog({
   onCancel,
   onMove,
 }: Props) {
+  const compact = useCompact();
   const [selected, setSelected] = useState<number | null>(null);
   useEffect(() => {
     if (!open) setSelected(null);
@@ -48,7 +50,13 @@ export default function MoveSectionDialog({
   const options = pages.filter((p) => Number(p.id) !== currentPageId);
 
   return (
-    <AppDialog open={open} onClose={onCancel} fullWidth maxWidth="sm">
+    <AppDialog
+      open={open}
+      onClose={onCancel}
+      fullWidth
+      maxWidth="sm"
+      fullScreen={compact}
+    >
       <DialogTitle>Move to page</DialogTitle>
       <DialogContent dividers>
         {options.length === 0 ? (

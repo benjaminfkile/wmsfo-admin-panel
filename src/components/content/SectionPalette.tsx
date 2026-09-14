@@ -9,6 +9,7 @@ import {
   Typography,
 } from "@mui/material";
 import AppDialog from "../AppDialog";
+import { useCompact } from "../../hooks/useCompact";
 import type { KindInfo } from "../../api/types";
 
 interface Props {
@@ -28,8 +29,15 @@ export default function SectionPalette({
   kinds,
   pageRole,
 }: Props) {
+  const compact = useCompact();
   return (
-    <AppDialog open={open} onClose={onCancel} maxWidth="md" fullWidth>
+    <AppDialog
+      open={open}
+      onClose={onCancel}
+      maxWidth="md"
+      fullWidth
+      fullScreen={compact}
+    >
       <DialogTitle>Add a section</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={1}>
