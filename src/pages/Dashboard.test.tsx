@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import { MemoryRouter } from "react-router-dom";
@@ -40,6 +40,39 @@ function Harness() {
       </ConfigProvider>
     </ThemeProvider>
   );
+}
+
+// jsdom does not implement `window.matchMedia`; MUI's `useMediaQuery`
+// (and so `useCompact`) reads it. Stubbing lets the compact spec render
+// the phone layout with the collapsed JSON blocks.
+function stubMatchMedia(matches: boolean): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+  return () => {
+    if (original === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).matchMedia;
+    } else {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: original,
+      });
+    }
+  };
 }
 
 beforeEach(() => {
@@ -127,5 +160,46 @@ describe("Dashboard", () => {
     const nameEl = await screen.findByText(/santa flyover 2026/i);
     const currentCard = nameEl.closest(".MuiCard-root") as HTMLElement;
     expect(within(currentCard).getByText(/63%/)).toBeInTheDocument();
+  });
+
+  it("on compact renders the five cards with the JSON blocks collapsed to one level", async () => {
+    // Desktop render: full JSON tree.
+    const restoreDesktop = stubMatchMedia(false);
+    const desktop = render(<Harness />);
+    await screen.findByText(f.events[0]!.name!);
+    await screen.findByText("Live object (CDN)");
+    await waitFor(() => {
+      expect(
+        desktop.container.querySelectorAll(".w-rjv-line").length
+      ).toBeGreaterThan(0);
+    });
+    const desktopLines = desktop.container.querySelectorAll(".w-rjv-line")
+      .length;
+    desktop.unmount();
+    restoreDesktop();
+
+    // Compact render: the JSON views start collapsed at one level, so the
+    // rendered `.w-rjv-line` count drops below the desktop tree.
+    const restoreCompact = stubMatchMedia(true);
+    try {
+      const { container } = render(<Harness />);
+      expect(await screen.findByText("Current event")).toBeInTheDocument();
+      expect(screen.getByText("Active beacon")).toBeInTheDocument();
+      expect(screen.getByText("Published state")).toBeInTheDocument();
+      expect(screen.getByText("Snapshot")).toBeInTheDocument();
+      await screen.findByText("Live object (CDN)");
+      await waitFor(() => {
+        expect(
+          container.querySelectorAll(".w-rjv-line").length
+        ).toBeGreaterThan(0);
+      });
+      const compactLines = container.querySelectorAll(".w-rjv-line").length;
+      expect(compactLines).toBeLessThan(desktopLines);
+      // Settle any pending state updates before the media query restore
+      // to keep React from logging an act warning.
+      await act(async () => undefined);
+    } finally {
+      restoreCompact();
+    }
   });
 });
