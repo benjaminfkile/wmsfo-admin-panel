@@ -353,7 +353,13 @@ function SortableSponsorRow({
         opacity: grey ? 0.5 : 1,
       }}
     >
-      <Stack direction="row" alignItems="center" spacing={1}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1}
+        useFlexGap
+        flexWrap="wrap"
+      >
         <IconButton
           size="small"
           disabled={!isPinned || disabled}
@@ -396,7 +402,7 @@ function SortableSponsorRow({
           onBlur={saveSeconds}
           disabled={saving || grey}
           inputProps={{ min: 0, max: 600, step: 1 }}
-          sx={{ width: 110 }}
+          sx={{ minWidth: 0, flexBasis: "7rem", flexShrink: 1 }}
           data-testid={`sponsor-order-time-${row.sponsorId}`}
         />
         {grey ? (

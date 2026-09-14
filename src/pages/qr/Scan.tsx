@@ -18,6 +18,7 @@ import { places as placesApi } from "../../api/resources/places";
 import { keys } from "../../queries/keys";
 import { useConfig } from "../../ConfigContext";
 import ErrorAlert from "../../components/ErrorAlert";
+import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import type { QrCode } from "../../api/types";
 import { extractTag } from "./qrHelpers";
@@ -297,12 +298,14 @@ export default function Scan({ readerFactory }: Props = {}) {
 
   return (
     <Box sx={{ maxWidth: 480, mx: "auto", pb: 12 }}>
-      <Typography variant="h5" sx={{ mb: 1 }}>
-        Scan
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Point the camera at a printed code, or type the tag below.
-      </Typography>
+      <PageHeader
+        title="Scan"
+        subtitle={
+          <Typography variant="body2" color="text.secondary">
+            Point the camera at a printed code, or type the tag below.
+          </Typography>
+        }
+      />
 
       <Card sx={{ mb: 2 }}>
         <Box
