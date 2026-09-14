@@ -19,6 +19,7 @@ import { ApiError } from "../../api/errors";
 import { statusName } from "../../lib/statusNames";
 import { stockParagraph } from "../../lib/statusCopy";
 import { ageS, formatAgeS, formatMt } from "../../lib/time";
+import { useCompact } from "../../hooks/useCompact";
 
 interface Props {
   open: boolean;
@@ -75,6 +76,15 @@ export default function StatusDialog({
 }: Props) {
   const [message, setMessage] = useState("");
   const [askSilent, setAskSilent] = useState(false);
+  const compact = useCompact();
+  const stackedActionsSx = compact
+    ? {
+        flexDirection: "column" as const,
+        alignItems: "stretch" as const,
+        "& > :not(:first-of-type)": { ml: 0 },
+        "& > *": { width: "100%" },
+      }
+    : undefined;
 
   const summaryQ = useQuery({
     queryKey: keys.subscribersSummary,
@@ -167,7 +177,7 @@ export default function StatusDialog({
             ) : null}
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={stackedActionsSx} data-testid="status-dialog-actions">
           <Button onClick={onCancel}>Cancel</Button>
           <Button
             onClick={() => setAskSilent(true)}

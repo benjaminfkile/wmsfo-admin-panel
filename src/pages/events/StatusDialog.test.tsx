@@ -70,6 +70,38 @@ afterEach(() => {
   server.resetHandlers();
 });
 
+// jsdom does not implement `window.matchMedia`; stubbing it to true lets
+// `useCompact` see the compact viewport and stack the confirm buttons.
+function stubMatchMedia(matches: boolean): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+  return () => {
+    if (original === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).matchMedia;
+    } else {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: original,
+      });
+    }
+  };
+}
+
 describe("StatusDialog", () => {
   it("Change and notify sends notify: true with the typed message", async () => {
     const user = userEvent.setup();
@@ -130,5 +162,18 @@ describe("StatusDialog", () => {
         screen.getByText(/\d+ verified subscribers will be emailed/i)
       ).toBeInTheDocument()
     );
+  });
+
+  it("stacks the two confirm buttons on compact with full-width buttons", async () => {
+    const restore = stubMatchMedia(true);
+    try {
+      render(
+        <Harness event={f.events[0]!} target={2 as StatusId} onConfirm={vi.fn()} />
+      );
+      const actions = await screen.findByTestId("status-dialog-actions");
+      expect(actions).toHaveStyle({ "flex-direction": "column" });
+    } finally {
+      restore();
+    }
   });
 });
