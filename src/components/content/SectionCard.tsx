@@ -14,6 +14,8 @@ import {
   Typography,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import type { ErrorSchema, RJSFSchema } from "@rjsf/utils";
 import SchemaForm from "./SchemaForm";
 import PresentationPanel from "./PresentationPanel";
@@ -26,6 +28,7 @@ import type {
   SectionItemAdmin,
 } from "../../api/types";
 import { useDebouncedSave } from "../../hooks/useDebouncedSave";
+import { useCompact } from "../../hooks/useCompact";
 
 export type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -45,6 +48,10 @@ interface Props {
   onPatchItem?: (id: number, data: object) => void;
   onRemoveItem?: (id: number) => void;
   onReorderItems?: (ids: number[]) => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
   saveState?: SaveState;
   extraErrors?: ErrorSchema;
 }
@@ -65,9 +72,14 @@ export default function SectionCard({
   onPatchItem,
   onRemoveItem,
   onReorderItems,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp = false,
+  canMoveDown = false,
   saveState = "idle",
   extraErrors,
 }: Props) {
+  const compact = useCompact();
   const [tab, setTab] = useState<"content" | "presentation">("content");
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [data, setData] = useState<object>(
@@ -115,84 +127,145 @@ export default function SectionCard({
   const problemCount = problems.length;
   const schema = (kind.schema ?? null) as RJSFSchema | null;
 
+  const titleRow = (
+    <Stack
+      direction="row"
+      spacing={1}
+      alignItems="center"
+      sx={{ minWidth: 0, flex: 1 }}
+      useFlexGap
+      flexWrap="wrap"
+    >
+      <Typography variant="h6" sx={{ minWidth: 0, wordBreak: "break-word" }}>
+        {kind.title}
+      </Typography>
+      {kind.live ? <Chip size="small" label="Live" color="info" /> : null}
+    </Stack>
+  );
+  const controlsRow = (
+    <Stack
+      direction="row"
+      spacing={1}
+      alignItems="center"
+      useFlexGap
+      flexWrap="wrap"
+      sx={{ flexShrink: 0 }}
+    >
+      {saveState === "saving" ? (
+        <Typography variant="caption" color="text.secondary">
+          Saving…
+        </Typography>
+      ) : saveState === "saved" ? (
+        <Typography variant="caption" color="success.main">
+          Saved
+        </Typography>
+      ) : saveState === "error" ? (
+        <Typography variant="caption" color="error.main">
+          Not saved
+        </Typography>
+      ) : null}
+      <Badge
+        badgeContent={problemCount}
+        color="error"
+        overlap="rectangular"
+        data-testid={`section-problems-${section.id}`}
+      >
+        <span />
+      </Badge>
+      <Stack direction="row" alignItems="center">
+        <Typography variant="caption">Hidden</Typography>
+        <Switch
+          size="small"
+          checked={Boolean(section.isHidden)}
+          onChange={(e) => onPatch({ isHidden: e.target.checked })}
+          disabled={disabled}
+          inputProps={{ "aria-label": "Hidden" }}
+        />
+      </Stack>
+      <IconButton
+        onClick={(e) => setMenuAnchor(e.currentTarget)}
+        size="small"
+        aria-label="Section menu"
+      >
+        <MoreVertIcon />
+      </IconButton>
+      <Menu
+        anchorEl={menuAnchor}
+        open={Boolean(menuAnchor)}
+        onClose={() => setMenuAnchor(null)}
+      >
+        <MenuItem
+          onClick={() => {
+            setMenuAnchor(null);
+            onDuplicate?.();
+          }}
+        >
+          Duplicate
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setMenuAnchor(null);
+            onMove?.();
+          }}
+        >
+          Move to page
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setMenuAnchor(null);
+            onDelete?.();
+          }}
+        >
+          Delete
+        </MenuItem>
+      </Menu>
+    </Stack>
+  );
+  const compactArrows = compact && (onMoveUp || onMoveDown) ? (
+    <Stack direction="row" spacing={0.5} alignItems="center">
+      <IconButton
+        size="small"
+        onClick={onMoveUp}
+        disabled={!canMoveUp}
+        aria-label="Move section up"
+      >
+        <ArrowUpwardIcon fontSize="small" />
+      </IconButton>
+      <IconButton
+        size="small"
+        onClick={onMoveDown}
+        disabled={!canMoveDown}
+        aria-label="Move section down"
+      >
+        <ArrowDownwardIcon fontSize="small" />
+      </IconButton>
+    </Stack>
+  ) : null;
+
   return (
     <Box
       sx={{ border: "1px solid", borderColor: "divider", p: 2, mb: 2 }}
       data-testid={`section-card-${section.id}`}
     >
-      <Stack direction="row" spacing={1} alignItems="center">
-        <Typography variant="h6">{kind.title}</Typography>
-        {kind.live ? <Chip size="small" label="Live" color="info" /> : null}
-        <Box sx={{ flexGrow: 1 }} />
-        {saveState === "saving" ? (
-          <Typography variant="caption" color="text.secondary">
-            Saving…
-          </Typography>
-        ) : saveState === "saved" ? (
-          <Typography variant="caption" color="success.main">
-            Saved
-          </Typography>
-        ) : saveState === "error" ? (
-          <Typography variant="caption" color="error.main">
-            Not saved
-          </Typography>
-        ) : null}
-        <Badge
-          badgeContent={problemCount}
-          color="error"
-          overlap="rectangular"
-          data-testid={`section-problems-${section.id}`}
-        >
-          <span />
-        </Badge>
-        <Stack direction="row" alignItems="center">
-          <Typography variant="caption">Hidden</Typography>
-          <Switch
-            size="small"
-            checked={Boolean(section.isHidden)}
-            onChange={(e) => onPatch({ isHidden: e.target.checked })}
-            disabled={disabled}
-            inputProps={{ "aria-label": "Hidden" }}
-          />
+      {compact ? (
+        <Stack spacing={1} data-testid={`section-header-${section.id}`}>
+          <Stack direction="row" spacing={1} alignItems="center" useFlexGap>
+            {compactArrows}
+            {titleRow}
+          </Stack>
+          {controlsRow}
         </Stack>
-        <IconButton
-          onClick={(e) => setMenuAnchor(e.currentTarget)}
-          size="small"
-          aria-label="Section menu"
+      ) : (
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          data-testid={`section-header-${section.id}`}
         >
-          <MoreVertIcon />
-        </IconButton>
-        <Menu
-          anchorEl={menuAnchor}
-          open={Boolean(menuAnchor)}
-          onClose={() => setMenuAnchor(null)}
-        >
-          <MenuItem
-            onClick={() => {
-              setMenuAnchor(null);
-              onDuplicate?.();
-            }}
-          >
-            Duplicate
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              setMenuAnchor(null);
-              onMove?.();
-            }}
-          >
-            Move to page
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              setMenuAnchor(null);
-              onDelete?.();
-            }}
-          >
-            Delete
-          </MenuItem>
-        </Menu>
-      </Stack>
+          {titleRow}
+          {controlsRow}
+        </Stack>
+      )}
       <Tabs value={tab} onChange={(_, v: "content" | "presentation") => setTab(v)}>
         <Tab label="Content" value="content" />
         <Tab label="Presentation" value="presentation" />

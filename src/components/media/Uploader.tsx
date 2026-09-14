@@ -40,7 +40,7 @@ export default function Uploader({ onReady, compact = false }: Props) {
   return (
     <Stack spacing={2}>
       {compact ? null : (
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2} useFlexGap>
           <TextField
             label="Alt (optional)"
             value={alt}

@@ -5,7 +5,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  Grid,
   Tab,
   Tabs,
   TextField,
@@ -15,6 +14,7 @@ import { icons as iconsApi } from "../../../api/resources/icons";
 import { keys } from "../../../queries/keys";
 import AppDialog from "../../AppDialog";
 import MediaGrid, { type GridFilters } from "../../media/MediaGrid";
+import { useCompact } from "../../../hooks/useCompact";
 import type { Icon, IconInfo, MediaAsset } from "../../../api/types";
 
 interface Props {
@@ -26,6 +26,7 @@ interface Props {
 // The icon picker (admin.md 6.14 IconField). Library icons on the first
 // tab, uploaded svg assets on the second. Selecting emits an `Icon`.
 export default function IconPicker({ open, onCancel, onPick }: Props) {
+  const compact = useCompact();
   const [tab, setTab] = useState<"library" | "media">("library");
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<GridFilters>({});
@@ -46,7 +47,13 @@ export default function IconPicker({ open, onCancel, onPick }: Props) {
     : items;
 
   return (
-    <AppDialog open={open} onClose={onCancel} maxWidth="md" fullWidth>
+    <AppDialog
+      open={open}
+      onClose={onCancel}
+      maxWidth="md"
+      fullWidth
+      fullScreen={compact}
+    >
       <DialogTitle>Choose an icon</DialogTitle>
       <Tabs
         value={tab}
@@ -67,21 +74,30 @@ export default function IconPicker({ open, onCancel, onPick }: Props) {
               fullWidth
               sx={{ mb: 2 }}
             />
-            <Grid container spacing={1}>
+            <Box
+              sx={{
+                display: "grid",
+                gap: 1,
+                gridTemplateColumns: {
+                  xs: "repeat(2, 1fr)",
+                  sm: "repeat(2, 1fr)",
+                  md: "repeat(4, 1fr)",
+                },
+              }}
+            >
               {filtered.map((icon) => (
-                <Grid key={icon.id}>
-                  <Button
-                    variant="outlined"
-                    onClick={() =>
-                      onPick({ source: "library", id: icon.id ?? "" })
-                    }
-                    data-testid={`icon-library-${icon.id}`}
-                  >
-                    {icon.name}
-                  </Button>
-                </Grid>
+                <Button
+                  key={icon.id}
+                  variant="outlined"
+                  onClick={() =>
+                    onPick({ source: "library", id: icon.id ?? "" })
+                  }
+                  data-testid={`icon-library-${icon.id}`}
+                >
+                  {icon.name}
+                </Button>
               ))}
-            </Grid>
+            </Box>
           </Box>
         ) : (
           <MediaGrid

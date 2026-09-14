@@ -18,6 +18,7 @@ import { pages as pagesApi } from "../../api/resources/pages";
 import { keys } from "../../queries/keys";
 import AppDialog from "../AppDialog";
 import ErrorAlert from "../ErrorAlert";
+import { useCompact } from "../../hooks/useCompact";
 import type { PreviewToken } from "../../api/types";
 
 type Device = "phone" | "tablet" | "desktop";
@@ -48,6 +49,7 @@ export default function PreviewFrame({
   showPageSelector = true,
   title = "Preview",
 }: Props) {
+  const compact = useCompact();
   const [slug, setSlug] = useState<string | null>(initialSlug);
   const [device, setDevice] = useState<Device>("desktop");
   const [token, setToken] = useState<PreviewToken | null>(null);
@@ -144,7 +146,12 @@ export default function PreviewFrame({
       onClose={onClose}
       maxWidth={false}
       fullWidth
-      PaperProps={{ sx: { width: "min(1400px, 96vw)", height: "min(900px, 90vh)" } }}
+      fullScreen={compact}
+      PaperProps={{
+        sx: compact
+          ? { width: "100%", height: "100%" }
+          : { width: "min(1400px, 96vw)", height: "min(900px, 90vh)" },
+      }}
     >
       <DialogTitle>
         <Stack direction="row" alignItems="center" spacing={2}>
@@ -167,12 +174,21 @@ export default function PreviewFrame({
           </IconButton>
         </Stack>
       </DialogTitle>
-      <DialogContent dividers>
+      <DialogContent
+        dividers
+        sx={
+          compact
+            ? { display: "flex", flexDirection: "column", p: 1 }
+            : undefined
+        }
+      >
         <Stack
           direction="row"
-          spacing={2}
+          spacing={compact ? 1 : 2}
           alignItems="center"
-          sx={{ mb: 2 }}
+          useFlexGap
+          flexWrap="wrap"
+          sx={{ mb: compact ? 1 : 2 }}
         >
           {showPageSelector ? (
             <TextField
@@ -181,7 +197,7 @@ export default function PreviewFrame({
               label="Page"
               value={slug ?? ""}
               onChange={(e) => setSlug(e.target.value === "" ? null : e.target.value)}
-              sx={{ minWidth: { xs: "100%", sm: 200 } }}
+              sx={{ minWidth: { xs: "auto", sm: 200 }, flex: { xs: 1, sm: "0 0 auto" } }}
               data-testid="preview-page-select"
             >
               <MenuItem value="">Home</MenuItem>
@@ -195,20 +211,22 @@ export default function PreviewFrame({
               ))}
             </TextField>
           ) : null}
-          <TextField
-            select
-            size="small"
-            label="Device"
-            value={device}
-            onChange={(e) => setDevice(e.target.value as Device)}
-            sx={{ minWidth: { xs: "100%", sm: 140 } }}
-            data-testid="preview-device-select"
-          >
-            <MenuItem value="phone">Phone</MenuItem>
-            <MenuItem value="tablet">Tablet</MenuItem>
-            <MenuItem value="desktop">Desktop</MenuItem>
-          </TextField>
-          <Box sx={{ flexGrow: 1 }} />
+          {compact ? null : (
+            <TextField
+              select
+              size="small"
+              label="Device"
+              value={device}
+              onChange={(e) => setDevice(e.target.value as Device)}
+              sx={{ minWidth: { xs: "100%", sm: 140 } }}
+              data-testid="preview-device-select"
+            >
+              <MenuItem value="phone">Phone</MenuItem>
+              <MenuItem value="tablet">Tablet</MenuItem>
+              <MenuItem value="desktop">Desktop</MenuItem>
+            </TextField>
+          )}
+          {compact ? null : <Box sx={{ flexGrow: 1 }} />}
           {token ? (
             <Typography
               variant="caption"
@@ -231,7 +249,8 @@ export default function PreviewFrame({
             justifyContent: "center",
             alignItems: "flex-start",
             width: "100%",
-            height: "calc(100% - 80px)",
+            flexGrow: compact ? 1 : 0,
+            height: compact ? "auto" : "calc(100% - 80px)",
             backgroundColor: "background.default",
           }}
         >
@@ -242,10 +261,12 @@ export default function PreviewFrame({
           ) : (
             <Box
               sx={{
-                width: `min(${DEVICE_WIDTH[device]}px, 100%)`,
+                width: compact
+                  ? "100%"
+                  : `min(${DEVICE_WIDTH[device]}px, 100%)`,
                 maxWidth: "100%",
                 height: "100%",
-                border: "1px solid",
+                border: compact ? 0 : "1px solid",
                 borderColor: "divider",
                 backgroundColor: "background.paper",
               }}

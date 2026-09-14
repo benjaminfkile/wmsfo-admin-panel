@@ -70,6 +70,7 @@ export default function PresentationPanel({ value, onChange, disabled }: Props) 
           value={String(current.width ?? "wide")}
           onChange={(e) => patch({ width: e.target.value as Presentation["width"] })}
           disabled={disabled}
+          fullWidth
         >
           {WIDTHS.map((w) => (
             <MenuItem key={w} value={w}>
@@ -84,6 +85,7 @@ export default function PresentationPanel({ value, onChange, disabled }: Props) 
           value={String(current.align ?? "start")}
           onChange={(e) => patch({ align: e.target.value as Presentation["align"] })}
           disabled={disabled}
+          fullWidth
         >
           {ALIGNS.map((a) => (
             <MenuItem key={a} value={a}>
@@ -98,6 +100,7 @@ export default function PresentationPanel({ value, onChange, disabled }: Props) 
           value={String(current.spacing ?? "normal")}
           onChange={(e) => patch({ spacing: e.target.value as Presentation["spacing"] })}
           disabled={disabled}
+          fullWidth
         >
           {SPACINGS.map((s) => (
             <MenuItem key={s} value={s}>
@@ -112,6 +115,7 @@ export default function PresentationPanel({ value, onChange, disabled }: Props) 
           value={bg?.kind ?? "none"}
           onChange={(e) => setBgKind(e.target.value)}
           disabled={disabled}
+          fullWidth
         >
           <MenuItem value="none">None</MenuItem>
           <MenuItem value="token">Token</MenuItem>
@@ -129,6 +133,7 @@ export default function PresentationPanel({ value, onChange, disabled }: Props) 
               })
             }
             disabled={disabled}
+            fullWidth
           >
             {BG_TOKENS.map((t) => (
               <MenuItem key={t} value={t}>
@@ -143,6 +148,7 @@ export default function PresentationPanel({ value, onChange, disabled }: Props) 
           value={current.anchor ?? ""}
           onChange={(e) => patch({ anchor: e.target.value === "" ? null : e.target.value })}
           disabled={disabled}
+          fullWidth
         />
       </Stack>
     </Box>
