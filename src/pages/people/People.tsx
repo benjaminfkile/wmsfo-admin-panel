@@ -20,7 +20,7 @@ import {
 } from "@tanstack/react-query";
 import { people as peopleApi } from "../../api/resources/people";
 import { keys } from "../../queries/keys";
-import ConfirmDialog from "../../components/ConfirmDialog";
+import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import AuditCell from "../../components/audit/AuditCell";
 import { useNotify } from "../../hooks/useNotify";
@@ -134,22 +134,17 @@ export default function People() {
         </Box>
       ) : null}
 
-      <ConfirmDialog
-        open={confirmDelete !== null}
-        title="Delete person?"
-        body={
-          confirmDelete
-            ? `Delete ${confirmDelete.email ?? "this person"}? Deletes this person's subscriptions and cookies. The Cognito user is removed separately in the console.`
-            : ""
-        }
-        confirmLabel="Delete"
-        danger
-        disabled={deleteMut.isPending}
-        onCancel={() => setConfirmDelete(null)}
-        onConfirm={() =>
-          confirmDelete && deleteMut.mutate(Number(confirmDelete.id))
-        }
-      />
+      {confirmDelete ? (
+        <DeleteDialog
+          open
+          resource="people"
+          id={Number(confirmDelete.id)}
+          name={confirmDelete.email ?? "person"}
+          disabled={deleteMut.isPending}
+          onCancel={() => setConfirmDelete(null)}
+          onConfirm={() => deleteMut.mutate(Number(confirmDelete.id))}
+        />
+      ) : null}
     </>
   );
 }

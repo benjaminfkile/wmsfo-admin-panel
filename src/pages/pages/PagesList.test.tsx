@@ -161,10 +161,11 @@ describe("PagesList", () => {
     );
 
     const dialog = await screen.findByRole("dialog");
-    // Fixture About page has sectionCount = 2.
-    expect(dialog.textContent).toMatch(/and its 2 sections/i);
-    // The page title and slug are mentioned too.
-    expect(dialog.textContent).toMatch(/About/);
-    expect(dialog.textContent).toMatch(/\/about/);
+    // The new DeleteDialog (admin.md 8.3) titles with the page name and
+    // groups the cascade under "Also deleted" - from the impact fixture
+    // for pages/3, that is 2 sections.
+    expect(dialog.textContent).toMatch(/Delete About/i);
+    expect(dialog.textContent).toMatch(/also deleted/i);
+    expect(dialog.textContent).toMatch(/2 sections/i);
   });
 });

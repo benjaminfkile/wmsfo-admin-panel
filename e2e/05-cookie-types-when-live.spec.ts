@@ -86,14 +86,9 @@ test.describe("cookie types are locked while an event is live", () => {
     await expect(dialog).toBeHidden();
     await expect(firstRow.getByText(after, { exact: true })).toBeVisible();
 
-    // Delete is disabled in the row menu when cookieCount > 0. The first
-    // row's cookieCount is nonzero on the seeded dev dataset.
-    await firstRow.getByRole("button", { name: /actions for/i }).click();
-    const deleteItem = page.getByRole("menuitem", { name: /^delete$/i });
-    await expect(deleteItem).toHaveAttribute("aria-disabled", "true");
-    await page.keyboard.press("Escape");
-
-    // A fresh type with cookieCount === 0 can be created and deleted round-trip.
+    // A fresh type can be created and deleted round-trip (M32: deleting a
+    // cookie type no longer refuses when cookies exist - the impact
+    // preview names the cascade instead).
     const freshName = `e2e-delete-${Date.now()}`;
     await page.getByRole("button", { name: /new type/i }).click();
     // While the icon picker is open two dialogs coexist, so scope the create
@@ -119,10 +114,14 @@ test.describe("cookie types are locked while an event is live", () => {
     await expect(freshRow).toBeVisible();
     await freshRow.getByRole("button", { name: /actions for/i }).click();
     await page.getByRole("menuitem", { name: /^delete$/i }).click();
-    await page
-      .getByRole("dialog", { name: /delete cookie type/i })
-      .getByRole("button", { name: /^delete$/i })
-      .click();
+    const deleteDialog = page.getByRole("dialog", {
+      name: new RegExp(`delete ${freshName}`, "i"),
+    });
+    // Wait for the impact preview to load before the confirm button enables.
+    await expect(
+      deleteDialog.getByRole("button", { name: /^delete$/i }),
+    ).toBeEnabled();
+    await deleteDialog.getByRole("button", { name: /^delete$/i }).click();
     await expect(freshRow).toBeHidden();
   });
 });

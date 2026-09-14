@@ -28,7 +28,7 @@ import {
   type SubscriberStatus,
 } from "../../api/resources/subscribers";
 import { keys } from "../../queries/keys";
-import ConfirmDialog from "../../components/ConfirmDialog";
+import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import AuditCell from "../../components/audit/AuditCell";
 import { useNotify } from "../../hooks/useNotify";
@@ -263,22 +263,17 @@ export default function Subscribers() {
         </Box>
       ) : null}
 
-      <ConfirmDialog
-        open={confirmDelete !== null}
-        title="Delete subscriber?"
-        body={
-          confirmDelete
-            ? `Delete ${confirmDelete.personEmail ?? "this subscriber"}? The person may subscribe again.`
-            : ""
-        }
-        confirmLabel="Delete"
-        danger
-        disabled={deleteMut.isPending}
-        onCancel={() => setConfirmDelete(null)}
-        onConfirm={() =>
-          confirmDelete && deleteMut.mutate(Number(confirmDelete.id))
-        }
-      />
+      {confirmDelete ? (
+        <DeleteDialog
+          open
+          resource="subscribers"
+          id={Number(confirmDelete.id)}
+          name={confirmDelete.personEmail ?? "subscriber"}
+          disabled={deleteMut.isPending}
+          onCancel={() => setConfirmDelete(null)}
+          onConfirm={() => deleteMut.mutate(Number(confirmDelete.id))}
+        />
+      ) : null}
     </>
   );
 }

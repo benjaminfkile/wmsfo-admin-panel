@@ -131,7 +131,7 @@ test.describe("editor authoring flow", () => {
     await page.getByTestId(/^media-card-/).filter({ hasText: draftRe }).first().click();
     await page.getByRole("button", { name: /^delete$/i }).click();
     await page
-      .getByRole("dialog", { name: /delete media asset/i })
+      .getByRole("dialog", { name: /^delete /i })
       .getByRole("button", { name: /^delete$/i })
       .click();
     await expect(page.getByText(/media_in_use|in use/i)).toBeVisible();
@@ -269,7 +269,7 @@ async function deleteAssets(page: Page, name: RegExp): Promise<void> {
     await cards.first().click();
     await page.getByRole("button", { name: /^delete$/i }).click();
     await page
-      .getByRole("dialog", { name: /delete media asset/i })
+      .getByRole("dialog", { name: /^delete /i })
       .getByRole("button", { name: /^delete$/i })
       .click();
     if ((await page.getByText(/media_in_use|in use/i).count()) > 0) {

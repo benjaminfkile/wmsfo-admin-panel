@@ -421,6 +421,32 @@ export const handlers: HttpHandler[] = [
     HttpResponse.json({ items: f.placePins, unpinned: 1, unattached: 2 })
   ),
 
+  // Delete impact previews (admin.md 8.3 / contracts 4.5). Every
+  // impactable resource resolves the same way: look up the key in the
+  // fixture map, fall back to an empty `Nothing else is affected`.
+  ...(
+    [
+      "events",
+      "routes",
+      "sponsors",
+      "cookie-types",
+      "pages",
+      "media",
+      "places",
+      "qr-codes",
+      "beacons",
+      "api-keys",
+      "subscribers",
+      "people",
+      "contact-messages",
+    ] as const
+  ).map((resource) =>
+    http.get(`*/admin/${resource}/:id/impact`, ({ params }) => {
+      const key = `${resource}/${String(params.id)}`;
+      return HttpResponse.json(f.impactByResource[key] ?? f.emptyImpact);
+    })
+  ),
+
   // CDN read (not an admin API path but the panel dashboard fetches it)
   http.get("*/live/location.json", () => HttpResponse.json(f.liveObject)),
 ];

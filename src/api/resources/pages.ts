@@ -15,7 +15,12 @@ export const pages = {
   create: (b: PageBody) => post<PageAdmin>("/admin/pages", b),
   patch: (id: number, b: Partial<PageBody>) =>
     patch<PageAdmin>(`/admin/pages/${id}`, b),
-  remove: (id: number) => del(`/admin/pages/${id}`),
+  remove: (id: number, roleTo?: number | null) =>
+    del(
+      roleTo === undefined || roleTo === null
+        ? `/admin/pages/${id}`
+        : `/admin/pages/${id}?roleTo=${roleTo}`,
+    ),
   order: (ids: number[]) =>
     put<{ items: PageAdmin[] }>("/admin/pages/order", { ids }),
 };

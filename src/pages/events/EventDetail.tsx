@@ -25,6 +25,7 @@ import { keys } from "../../queries/keys";
 import type { StatusId } from "../../api/types";
 import StatusChip from "../../components/StatusChip";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import { STATUS_IDS, statusName } from "../../lib/statusNames";
 import { useNotify } from "../../hooks/useNotify";
@@ -374,13 +375,31 @@ export default function EventDetail() {
                     </Button>
                   ) : null}
                   <Box sx={{ flexGrow: 1 }} />
-                  <Button
-                    color="error"
-                    variant="outlined"
-                    onClick={() => setConfirmDelete(true)}
-                  >
-                    Delete
-                  </Button>
+                  {(() => {
+                    const blockReason =
+                      Number(event.statusId) === 3
+                        ? "This event is live. End it first."
+                        : event.isCurrent
+                          ? "This is the current event. Make another event current first."
+                          : null;
+                    const btn = (
+                      <Button
+                        color="error"
+                        variant="outlined"
+                        onClick={() => setConfirmDelete(true)}
+                        disabled={blockReason !== null}
+                      >
+                        Delete
+                      </Button>
+                    );
+                    return blockReason ? (
+                      <Tooltip title={blockReason}>
+                        <span>{btn}</span>
+                      </Tooltip>
+                    ) : (
+                      btn
+                    );
+                  })()}
                 </Stack>
               </Stack>
             </CardContent>
@@ -601,16 +620,17 @@ export default function EventDetail() {
         }}
       />
 
-      <ConfirmDialog
-        open={confirmDelete}
-        title="Delete event?"
-        body={`Delete ${event.name}? Its messages, cookies, and status history are deleted with it.`}
-        confirmLabel="Delete"
-        danger
-        disabled={deleteMut.isPending}
-        onCancel={() => setConfirmDelete(false)}
-        onConfirm={() => deleteMut.mutate()}
-      />
+      {confirmDelete ? (
+        <DeleteDialog
+          open
+          resource="events"
+          id={Number(event.id)}
+          name={event.name ?? "event"}
+          disabled={deleteMut.isPending}
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={() => deleteMut.mutate()}
+        />
+      ) : null}
     </>
   );
 }

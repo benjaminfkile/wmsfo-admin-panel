@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   Box,
   Button,
   Dialog,
@@ -21,7 +20,6 @@ import {
   TableHead,
   TableRow,
   TextField,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
@@ -33,8 +31,12 @@ import { events as eventsApi } from "../../api/resources/events";
 import { icons as iconsApi } from "../../api/resources/icons";
 import { keys } from "../../queries/keys";
 import { ApiError } from "../../api/errors";
+// Delete refusals for cookie types went away in the impact model
+// (admin.md 8.3, contracts 4.5): the delete cascades and the dialog's
+// warnings surface the "while live" note. Only 404 / event_live remain
+// possible from the API, both handled through the dialog's error path.
 import CommentBox from "../../components/CommentBox";
-import ConfirmDialog from "../../components/ConfirmDialog";
+import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import AuditCell from "../../components/audit/AuditCell";
 import IconPicker from "../../components/content/IconPicker";
@@ -61,10 +63,6 @@ function fromCookieType(t: CookieType): FormInput {
     active: Boolean(t.active),
     icon: (t.icon as Icon | null) ?? null,
   };
-}
-
-function inUseTooltip(count: number): string {
-  return `${count} cookies use this type; deactivate it instead`;
 }
 
 export default function CookieTypesList() {
@@ -99,7 +97,6 @@ export default function CookieTypesList() {
     { el: HTMLElement; type: CookieType } | null
   >(null);
   const [confirmDelete, setConfirmDelete] = useState<CookieType | null>(null);
-  const [deleteAlert, setDeleteAlert] = useState<string | null>(null);
 
   const setLive = () => {
     setLockedFromServer(true);
@@ -136,25 +133,8 @@ export default function CookieTypesList() {
       void qc.invalidateQueries({ queryKey: keys.cookieTypes });
       setConfirmDelete(null);
     },
-    onError: (e) => {
-      if (e instanceof ApiError) {
-        if (e.code === "event_live") {
-          setLive();
-          setConfirmDelete(null);
-          return;
-        }
-        if (e.code === "cookie_type_in_use") {
-          const count = Number(
-            (e.body?.details?.["cookieCount"] as number | undefined) ?? 0
-          );
-          setDeleteAlert(inUseTooltip(count));
-          void qc.invalidateQueries({ queryKey: keys.cookieTypes });
-          setConfirmDelete(null);
-          return;
-        }
-      }
-      notify(e instanceof Error ? e.message : "Delete failed", "error");
-    },
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Delete failed", "error"),
   });
 
   const iconsById = useMemo(() => {
@@ -181,16 +161,6 @@ export default function CookieTypesList() {
           } is live. Cookie types can be created, edited, and deactivated again after the event ends.`}
         </CommentBox>
       ) : null}
-      {deleteAlert ? (
-        <Alert
-          severity="warning"
-          sx={{ mb: 2 }}
-          onClose={() => setDeleteAlert(null)}
-        >
-          {deleteAlert}
-        </Alert>
-      ) : null}
-
       <Stack
         direction="row"
         justifyContent="flex-end"
@@ -264,7 +234,6 @@ export default function CookieTypesList() {
                           <IconButton
                             size="small"
                             aria-label={`Actions for ${t.name ?? "cookie type"}`}
-                            disabled={locked}
                             onClick={(ev) =>
                               setMenuAnchor({ el: ev.currentTarget, type: t })
                             }
@@ -312,38 +281,23 @@ export default function CookieTypesList() {
 
       {menuAnchor ? (
         <Menu open anchorEl={menuAnchor.el} onClose={closeMenu}>
-          {(() => {
-            const count = Number(menuAnchor.type.cookieCount ?? 0);
-            const disabled = count > 0;
-            const item = (
-              <MenuItem
-                disabled={disabled}
-                onClick={() => {
-                  setConfirmDelete(menuAnchor.type);
-                  closeMenu();
-                }}
-              >
-                Delete
-              </MenuItem>
-            );
-            return disabled ? (
-              <Tooltip title={inUseTooltip(count)} placement="left">
-                <span>{item}</span>
-              </Tooltip>
-            ) : (
-              item
-            );
-          })()}
+          <MenuItem
+            onClick={() => {
+              setConfirmDelete(menuAnchor.type);
+              closeMenu();
+            }}
+          >
+            Delete
+          </MenuItem>
         </Menu>
       ) : null}
 
       {confirmDelete ? (
-        <ConfirmDialog
+        <DeleteDialog
           open
-          title="Delete cookie type?"
-          body={`Delete ${confirmDelete.name}? This cannot be undone.`}
-          confirmLabel="Delete"
-          danger
+          resource="cookie-types"
+          id={Number(confirmDelete.id)}
+          name={confirmDelete.name ?? "cookie type"}
           disabled={deleteMut.isPending}
           onCancel={() => setConfirmDelete(null)}
           onConfirm={() => deleteMut.mutate(Number(confirmDelete.id))}
