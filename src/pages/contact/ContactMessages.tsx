@@ -22,7 +22,7 @@ import {
 } from "@tanstack/react-query";
 import { contactMessages as contactMessagesApi } from "../../api/resources/contactMessages";
 import { keys } from "../../queries/keys";
-import ConfirmDialog from "../../components/ConfirmDialog";
+import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import AuditCell from "../../components/audit/AuditCell";
 import { useNotify } from "../../hooks/useNotify";
@@ -151,22 +151,17 @@ export default function ContactMessages() {
         </Box>
       ) : null}
 
-      <ConfirmDialog
-        open={confirmDelete !== null}
-        title="Delete contact message?"
-        body={
-          confirmDelete
-            ? `Delete this message from ${confirmDelete.name ?? "unknown"}? This cannot be undone.`
-            : ""
-        }
-        confirmLabel="Delete"
-        danger
-        disabled={deleteMut.isPending}
-        onCancel={() => setConfirmDelete(null)}
-        onConfirm={() =>
-          confirmDelete && deleteMut.mutate(Number(confirmDelete.id))
-        }
-      />
+      {confirmDelete ? (
+        <DeleteDialog
+          open
+          resource="contact-messages"
+          id={Number(confirmDelete.id)}
+          name={`message from ${confirmDelete.name ?? "unknown"}`}
+          disabled={deleteMut.isPending}
+          onCancel={() => setConfirmDelete(null)}
+          onConfirm={() => deleteMut.mutate(Number(confirmDelete.id))}
+        />
+      ) : null}
     </>
   );
 }

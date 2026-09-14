@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import {
   Alert,
-  Box,
   Button,
   Chip,
   IconButton,
@@ -27,7 +26,7 @@ import { qr as qrApi } from "../../api/resources/qr";
 import { places as placesApi } from "../../api/resources/places";
 import { keys } from "../../queries/keys";
 import AuditCell from "../../components/audit/AuditCell";
-import ConfirmDialog from "../../components/ConfirmDialog";
+import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import { useNotify } from "../../hooks/useNotify";
 import { useAuth } from "../../auth/AuthProvider";
@@ -324,17 +323,11 @@ export default function QrCodesList() {
       ) : null}
 
       {confirmDelete ? (
-        <ConfirmDialog
+        <DeleteDialog
           open
-          title="Delete QR code?"
-          body={
-            <Box>
-              Delete <strong>{confirmDelete.tag}</strong>? Its scans and
-              attachment history go with it. This cannot be undone.
-            </Box>
-          }
-          confirmLabel="Delete"
-          danger
+          resource="qr-codes"
+          id={Number(confirmDelete.id)}
+          name={confirmDelete.tag}
           disabled={deleteMut.isPending}
           onCancel={() => setConfirmDelete(null)}
           onConfirm={() => deleteMut.mutate(Number(confirmDelete.id))}

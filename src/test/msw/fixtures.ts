@@ -704,6 +704,108 @@ export const placePins: PlacePin[] = [
   },
 ];
 
+// Delete impact fixtures per admin.md 8.3 / contracts 4.5. Keyed by
+// resource so handlers can return the appropriate shape without extra
+// bookkeeping. The default for anything not overridden is a `blocked:
+// null` empty impact ("Nothing else is affected").
+import type { DeleteImpact } from "../../api/impact";
+
+export const emptyImpact: DeleteImpact = {
+  blocked: null,
+  deletes: [],
+  unlinks: [],
+  warnings: [],
+};
+
+export const impactByResource: Record<string, DeleteImpact> = {
+  // events/7 is the live event in fixtures.
+  "events/7": {
+    blocked: null,
+    deletes: [
+      {
+        entity: "event_message",
+        count: 2,
+        names: ["Santa is airborne over the valley.", "Watch the roof to the west."],
+      },
+      { entity: "event_status_history", count: 3, names: [] },
+      { entity: "cookie", count: 41, names: [] },
+      { entity: "location", count: 1832, names: [] },
+    ],
+    unlinks: [],
+    warnings: [],
+  },
+  // places/1 has one QR code that becomes unattached.
+  "places/1": {
+    blocked: null,
+    deletes: [{ entity: "place", count: 1, names: ["West wing"] }],
+    unlinks: [
+      { entity: "qr_code", count: 1, names: ["qr-001"] },
+    ],
+    warnings: [],
+  },
+  "sponsors/4": {
+    blocked: null,
+    deletes: [{ entity: "sponsor_year", count: 1, names: ["2026"] }],
+    unlinks: [],
+    warnings: [],
+  },
+  "cookie-types/1": {
+    blocked: null,
+    deletes: [],
+    unlinks: [{ entity: "cookie", count: 412, names: [] }],
+    warnings: [
+      "The cookie tally drops by 412 while an event is live.",
+    ],
+  },
+  "pages/1": {
+    blocked: null,
+    deletes: [{ entity: "section", count: 1, names: ["Welcome"] }],
+    unlinks: [],
+    warnings: ["This page holds the no_event role. Choose another page for it."],
+  },
+  "pages/3": {
+    blocked: null,
+    deletes: [
+      { entity: "section", count: 2, names: ["Intro", "Details"] },
+    ],
+    unlinks: [],
+    warnings: [],
+  },
+  "media/8c1d5e2a-7b3f-4c9e-9a1d-2f6e8b4c0a11": {
+    blocked: null,
+    deletes: [],
+    unlinks: [{ entity: "sponsor", count: 1, names: ["Example Bakery"] }],
+    warnings: [],
+  },
+  "qr-codes/100": {
+    blocked: null,
+    deletes: [],
+    unlinks: [],
+    warnings: [],
+  },
+  "beacons/5": {
+    blocked: null,
+    deletes: [],
+    unlinks: [],
+    warnings: ["This beacon is active."],
+  },
+  "api-keys/11": emptyImpact,
+  "subscribers/1": emptyImpact,
+  "people/1": {
+    blocked: null,
+    deletes: [{ entity: "subscription", count: 1, names: ["person@example.com"] }],
+    unlinks: [],
+    warnings: [],
+  },
+  "contact-messages/12": emptyImpact,
+  "routes/4": {
+    blocked: null,
+    deletes: [],
+    unlinks: [],
+    warnings: [],
+  },
+};
+
 export const qrCodeDetail: QrCodeDetail = {
   ...(qrCodes[0] as QrCode),
   history: [

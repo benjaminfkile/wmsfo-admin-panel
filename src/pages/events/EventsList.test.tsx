@@ -97,19 +97,34 @@ describe("EventsList rows", () => {
     expect(within(row).getByText(f.routes[0]!.name!)).toBeInTheDocument();
   });
 
-  it("clicking Delete opens a confirmation with the event name", async () => {
+  it("clicking Delete on a deletable event opens the impact dialog with its name", async () => {
     const user = userEvent.setup();
     render(<Harness />);
-    const row = await screen.findByTestId(`event-row-${f.events[0]!.id}`);
+    // events[0] is the live current event: Delete is disabled with a
+    // tooltip (admin.md 8.3). Open the non-current, non-live row instead.
+    const otherRow = await screen.findByTestId(`event-row-${f.events[1]!.id}`);
     await user.click(
-      within(row).getByRole("button", { name: /actions for/i })
+      within(otherRow).getByRole("button", { name: /actions for/i })
     );
     await user.click(
       await screen.findByRole("menuitem", { name: /^delete$/i })
     );
     expect(
-      await screen.findByText(new RegExp(`delete ${f.events[0]!.name}`, "i"))
+      await screen.findByRole("dialog", {
+        name: new RegExp(`delete ${f.events[1]!.name}`, "i"),
+      })
     ).toBeInTheDocument();
+  });
+
+  it("Delete on the live/current event is disabled with the tooltip sentence", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    const currentRow = await screen.findByTestId(`event-row-${f.events[0]!.id}`);
+    await user.click(
+      within(currentRow).getByRole("button", { name: /actions for/i })
+    );
+    const item = await screen.findByRole("menuitem", { name: /^delete$/i });
+    expect(item).toHaveAttribute("aria-disabled", "true");
   });
 
   it("New event dialog shows the inherit preview naming the latest route", async () => {

@@ -27,7 +27,7 @@ import { places as placesApi } from "../../api/resources/places";
 import { pages as pagesApi } from "../../api/resources/pages";
 import { keys } from "../../queries/keys";
 import AuditCell from "../../components/audit/AuditCell";
-import ConfirmDialog from "../../components/ConfirmDialog";
+import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import { useNotify } from "../../hooks/useNotify";
 import { useAuth } from "../../auth/AuthProvider";
@@ -342,17 +342,11 @@ export default function PlacesList() {
       ) : null}
 
       {confirmDelete ? (
-        <ConfirmDialog
+        <DeleteDialog
           open
-          title="Delete place?"
-          body={
-            <Box>
-              Delete <strong>{confirmDelete.name}</strong>? Everything under it goes
-              too. Codes hanging in it become unattached and keep their history.
-            </Box>
-          }
-          confirmLabel="Delete"
-          danger
+          resource="places"
+          id={confirmDelete.id}
+          name={confirmDelete.name}
           disabled={deleteMut.isPending}
           onCancel={() => setConfirmDelete(null)}
           onConfirm={() => deleteMut.mutate(confirmDelete.id)}

@@ -20,7 +20,7 @@ import { events as eventsApi } from "../../api/resources/events";
 import type { Event, MediaAsset, MediaUsage } from "../../api/types";
 import { ApiError } from "../../api/errors";
 import { keys } from "../../queries/keys";
-import ConfirmDialog from "../ConfirmDialog";
+import DeleteDialog from "../DeleteDialog";
 import ErrorAlert from "../ErrorAlert";
 import { useNotify } from "../../hooks/useNotify";
 import UsageList from "./UsageList";
@@ -238,16 +238,17 @@ export default function MediaDetailDrawer({
               </Button>
             </Box>
           </Stack>
-          <ConfirmDialog
-            open={confirmOpen}
-            title="Delete media asset"
-            body={`Delete ${asset.filename ?? asset.id}? The file and its variants are removed from the CDN.`}
-            confirmLabel="Delete"
-            danger
-            disabled={deleteMut.isPending}
-            onConfirm={() => deleteMut.mutate()}
-            onCancel={() => setConfirmOpen(false)}
-          />
+          {confirmOpen && asset.id ? (
+            <DeleteDialog
+              open
+              resource="media"
+              id={asset.id}
+              name={asset.filename ?? asset.id}
+              disabled={deleteMut.isPending}
+              onConfirm={() => deleteMut.mutate()}
+              onCancel={() => setConfirmOpen(false)}
+            />
+          ) : null}
         </Box>
       ) : null}
     </Drawer>

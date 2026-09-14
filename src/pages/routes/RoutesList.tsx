@@ -31,9 +31,8 @@ import { events as eventsApi } from "../../api/resources/events";
 import { routes as routesApi } from "../../api/resources/routes";
 import type { RouteUploadBody } from "../../api/resources/routes";
 import { keys } from "../../queries/keys";
-import { ApiError } from "../../api/errors";
 import CommentBox from "../../components/CommentBox";
-import ConfirmDialog from "../../components/ConfirmDialog";
+import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import AuditCell from "../../components/audit/AuditCell";
 import { formatMt } from "../../lib/time";
@@ -89,21 +88,11 @@ export default function RoutesList() {
     onSuccess: () => {
       notify("Route deleted");
       void qc.invalidateQueries({ queryKey: keys.routes });
+      void qc.invalidateQueries({ queryKey: keys.events });
       setConfirmDelete(null);
     },
-    onError: (e) => {
-      if (e instanceof ApiError && e.code === "route_in_use") {
-        const usedBy = usedByFor(confirmDelete, events);
-        notify(
-          usedBy.length > 0
-            ? `Used by ${usedBy.join(", ")}; unlink it there first`
-            : "Route in use; unlink it there first",
-          "error"
-        );
-      } else {
-        notify(e instanceof Error ? e.message : "Delete failed", "error");
-      }
-    },
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Delete failed", "error"),
   });
 
   const routes = [...(routesQ.data?.items ?? [])].sort((a, b) =>
@@ -254,33 +243,19 @@ export default function RoutesList() {
         onSubmit={(eventId, name) => fromEventMut.mutate({ eventId, name })}
       />
 
-      <ConfirmDialog
-        open={confirmDelete !== null}
-        title="Delete route?"
-        body={
-          confirmDelete
-            ? `Delete ${confirmDelete.name}? This cannot be undone.`
-            : ""
-        }
-        confirmLabel="Delete"
-        danger
-        disabled={deleteMut.isPending}
-        onCancel={() => setConfirmDelete(null)}
-        onConfirm={() =>
-          confirmDelete && deleteMut.mutate(Number(confirmDelete.id))
-        }
-      />
+      {confirmDelete ? (
+        <DeleteDialog
+          open
+          resource="routes"
+          id={Number(confirmDelete.id)}
+          name={confirmDelete.name ?? "recording"}
+          disabled={deleteMut.isPending}
+          onCancel={() => setConfirmDelete(null)}
+          onConfirm={() => deleteMut.mutate(Number(confirmDelete.id))}
+        />
+      ) : null}
     </>
   );
-}
-
-function usedByFor(route: Route | null, events: Event[]): string[] {
-  if (!route) return [];
-  return events
-    .filter(
-      (e) => e.routeId !== null && Number(e.routeId) === Number(route.id)
-    )
-    .map((e) => e.name ?? `#${e.id ?? "?"}`);
 }
 
 interface BuildProps {

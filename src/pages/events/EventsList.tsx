@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import Tooltip from "@mui/material/Tooltip";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { events as eventsApi } from "../../api/resources/events";
@@ -26,6 +27,7 @@ import { routes as routesApi } from "../../api/resources/routes";
 import { keys } from "../../queries/keys";
 import StatusChip from "../../components/StatusChip";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import AuditCell from "../../components/audit/AuditCell";
 import { formatMt } from "../../lib/time";
@@ -272,33 +274,47 @@ export default function EventsList() {
           >
             Clone
           </MenuItem>
-          <MenuItem
-            onClick={() => {
-              setConfirmDelete(menuAnchor.event);
-              setMenuAnchor(null);
-            }}
-          >
-            Delete
-          </MenuItem>
+          {(() => {
+            const evt = menuAnchor.event;
+            const blockReason =
+              Number(evt.statusId) === 3
+                ? "This event is live. End it first."
+                : evt.isCurrent
+                  ? "This is the current event. Make another event current first."
+                  : null;
+            const item = (
+              <MenuItem
+                disabled={blockReason !== null}
+                onClick={() => {
+                  setConfirmDelete(menuAnchor.event);
+                  setMenuAnchor(null);
+                }}
+              >
+                Delete
+              </MenuItem>
+            );
+            return blockReason ? (
+              <Tooltip title={blockReason} placement="left">
+                <span>{item}</span>
+              </Tooltip>
+            ) : (
+              item
+            );
+          })()}
         </Menu>
       ) : null}
 
-      <ConfirmDialog
-        open={confirmDelete !== null}
-        title="Delete event?"
-        body={
-          confirmDelete
-            ? `Delete ${confirmDelete.name}? Its messages, cookies, and status history are deleted with it.`
-            : ""
-        }
-        confirmLabel="Delete"
-        danger
-        disabled={deleteMut.isPending}
-        onCancel={() => setConfirmDelete(null)}
-        onConfirm={() =>
-          confirmDelete && deleteMut.mutate(Number(confirmDelete.id))
-        }
-      />
+      {confirmDelete ? (
+        <DeleteDialog
+          open
+          resource="events"
+          id={Number(confirmDelete.id)}
+          name={confirmDelete.name ?? "event"}
+          disabled={deleteMut.isPending}
+          onCancel={() => setConfirmDelete(null)}
+          onConfirm={() => deleteMut.mutate(Number(confirmDelete.id))}
+        />
+      ) : null}
 
       <ConfirmDialog
         open={confirmCurrent !== null}

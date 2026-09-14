@@ -29,7 +29,7 @@ import { pages as pagesApi, type PageBody } from "../../api/resources/pages";
 import { keys } from "../../queries/keys";
 import ErrorAlert from "../../components/ErrorAlert";
 import CommentBox from "../../components/CommentBox";
-import ConfirmDialog from "../../components/ConfirmDialog";
+import DeleteDialog from "../../components/DeleteDialog";
 import AuditCell from "../../components/audit/AuditCell";
 import { useNotify } from "../../hooks/useNotify";
 import PageCreateDialog, {
@@ -147,12 +147,15 @@ export default function PagesList() {
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id: number) => pagesApi.remove(id),
+    mutationFn: ({ id, roleTo }: { id: number; roleTo: number | null }) =>
+      pagesApi.remove(id, roleTo),
     onSuccess: () => {
       notify("Page deleted");
       setDeleteFor(null);
       void qc.invalidateQueries({ queryKey: keys.pages });
     },
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Delete failed", "error"),
   });
 
   const orderMut = useMutation({
@@ -421,22 +424,22 @@ export default function PagesList() {
           error={settingsMut.error}
         />
       ) : null}
-      <ConfirmDialog
-        open={Boolean(deleteFor)}
-        title="Delete page"
-        body={
-          deleteFor
-            ? `Delete ${deleteFor.title} and its ${Number(deleteFor.sectionCount ?? 0)} sections? Links to /${deleteFor.slug} will stop working until you publish a page with that slug.`
-            : ""
-        }
-        confirmLabel="Delete"
-        danger
-        onCancel={() => setDeleteFor(null)}
-        onConfirm={() =>
-          deleteFor ? deleteMut.mutate(Number(deleteFor.id ?? 0)) : undefined
-        }
-        disabled={deleteMut.isPending}
-      />
+      {deleteFor ? (
+        <DeleteDialog
+          open
+          resource="pages"
+          id={Number(deleteFor.id ?? 0)}
+          name={deleteFor.title ?? "page"}
+          disabled={deleteMut.isPending}
+          onCancel={() => setDeleteFor(null)}
+          onConfirm={({ roleTo }) =>
+            deleteMut.mutate({
+              id: Number(deleteFor.id ?? 0),
+              roleTo,
+            })
+          }
+        />
+      ) : null}
       {patchMut.error ? <ErrorAlert error={patchMut.error} /> : null}
     </>
   );

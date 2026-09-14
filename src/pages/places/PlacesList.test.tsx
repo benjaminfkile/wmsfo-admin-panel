@@ -150,7 +150,13 @@ describe("PlacesList delete refusals", () => {
 
     await user.click(screen.getByRole("button", { name: /actions for southgate mall/i }));
     await user.click(await screen.findByRole("menuitem", { name: /^delete$/i }));
-    const dialog = await screen.findByRole("dialog", { name: /delete place/i });
+    const dialog = await screen.findByRole("dialog", {
+      name: /delete southgate mall/i,
+    });
+    // Wait for the impact preview to load before the confirm enables.
+    await waitFor(() =>
+      expect(within(dialog).getByRole("button", { name: /^delete$/i })).toBeEnabled(),
+    );
     await user.click(within(dialog).getByRole("button", { name: /^delete$/i }));
 
     await screen.findByText(/internal error/i);

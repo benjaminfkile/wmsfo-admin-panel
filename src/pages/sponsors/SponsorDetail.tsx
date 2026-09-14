@@ -30,6 +30,7 @@ import { sponsors as sponsorsApi } from "../../api/resources/sponsors";
 import { events as eventsApi } from "../../api/resources/events";
 import { keys } from "../../queries/keys";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import AuditCell from "../../components/audit/AuditCell";
 import { ApiError } from "../../api/errors";
@@ -539,16 +540,17 @@ export default function SponsorDetail() {
         }
       />
 
-      <ConfirmDialog
-        open={confirmDelete}
-        title="Delete sponsor?"
-        body={`Delete ${sponsor.name ?? "this sponsor"}? This cannot be undone.`}
-        confirmLabel="Delete"
-        danger
-        disabled={deleteMut.isPending}
-        onCancel={() => setConfirmDelete(false)}
-        onConfirm={() => deleteMut.mutate()}
-      />
+      {confirmDelete ? (
+        <DeleteDialog
+          open
+          resource="sponsors"
+          id={sponsorId}
+          name={sponsor.name ?? "sponsor"}
+          disabled={deleteMut.isPending}
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={() => deleteMut.mutate()}
+        />
+      ) : null}
     </Stack>
   );
 }

@@ -150,10 +150,11 @@ async function deleteEventsNamed(page: Page, name: RegExp): Promise<void> {
     const before = await page.getByTestId(/^event-row-/).count();
     await row.getByRole("button", { name: /^actions for/i }).click();
     await page.getByRole("menuitem", { name: /^delete$/i }).click();
-    await page
-      .getByRole("dialog", { name: /delete event/i })
-      .getByRole("button", { name: /^delete$/i })
-      .click();
+    // The DeleteDialog (admin.md 8.3) titles with the event name and
+    // keeps confirm disabled until the impact preview has loaded.
+    const dialog = page.getByRole("dialog", { name: /^delete /i });
+    await expect(dialog.getByRole("button", { name: /^delete$/i })).toBeEnabled();
+    await dialog.getByRole("button", { name: /^delete$/i }).click();
     await expect(page.getByTestId(/^event-row-/)).toHaveCount(before - 1);
   }
 }
