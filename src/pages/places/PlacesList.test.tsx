@@ -128,3 +128,32 @@ describe("PlacesList (admin.md 6.24)", () => {
   });
 });
 
+
+describe("PlacesList delete refusals", () => {
+  it("shows the API's message when a delete is refused and keeps the row", async () => {
+    server.use(
+      http.delete(`${testConfig.apiBaseUrl}/admin/places/:id`, () =>
+        HttpResponse.json(
+          { code: "place_has_children", message: "place has children", details: null },
+          { status: 409 },
+        ),
+      ),
+    );
+
+    const user = userEvent.setup();
+    render(
+      <Harness>
+        <PlacesList />
+      </Harness>,
+    );
+    await screen.findByRole("link", { name: "Southgate Mall" });
+
+    await user.click(screen.getByRole("button", { name: /actions for southgate mall/i }));
+    await user.click(await screen.findByRole("menuitem", { name: /^delete$/i }));
+    const dialog = await screen.findByRole("dialog", { name: /delete place/i });
+    await user.click(within(dialog).getByRole("button", { name: /^delete$/i }));
+
+    await screen.findByText(/place has children/i);
+    expect(screen.getByRole("link", { name: "Southgate Mall" })).toBeInTheDocument();
+  });
+});

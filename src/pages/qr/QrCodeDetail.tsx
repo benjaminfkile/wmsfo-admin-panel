@@ -125,6 +125,8 @@ export default function QrCodeDetail() {
       notify("Detached");
       invalidate();
     },
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Detach failed", "error"),
   });
 
   const attachMut = useMutation({
@@ -134,6 +136,8 @@ export default function QrCodeDetail() {
       invalidate();
       setMovePickerOpen(false);
     },
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Attach failed", "error"),
   });
 
   const daily = useMemo(() => detailQ.data?.daily ?? [], [detailQ.data]);

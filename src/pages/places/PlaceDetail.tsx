@@ -97,6 +97,8 @@ export default function PlaceDetail() {
       notify("Saved");
       invalidateAll();
     },
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Patch failed", "error"),
   });
 
   const attachMut = useMutation({
@@ -106,6 +108,8 @@ export default function PlaceDetail() {
       invalidateAll();
       setAttachCodeId("");
     },
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Attach failed", "error"),
   });
 
   const detachMut = useMutation({
@@ -114,6 +118,8 @@ export default function PlaceDetail() {
       notify("Detached");
       invalidateAll();
     },
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Detach failed", "error"),
   });
 
   const pinMut = useMutation({
@@ -133,6 +139,8 @@ export default function PlaceDetail() {
       notify("Cleared own pin");
       invalidateAll();
     },
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Clear pin failed", "error"),
   });
 
   if (listQ.isLoading || codesQ.isLoading) {

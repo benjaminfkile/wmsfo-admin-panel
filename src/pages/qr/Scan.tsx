@@ -183,11 +183,15 @@ export default function Scan({ readerFactory }: Props = {}) {
         opensPageId: null,
         forwardUrl: null,
       }),
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Create place failed", "error"),
   });
 
   const attachMut = useMutation({
     mutationFn: ({ id, placeId }: { id: number; placeId: number }) =>
       qrApi.attach(id, { placeId }),
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Attach failed", "error"),
   });
 
   const pinMut = useMutation({
@@ -198,6 +202,8 @@ export default function Scan({ readerFactory }: Props = {}) {
       placeId: number;
       body: Parameters<typeof placesApi.putLocation>[1];
     }) => placesApi.putLocation(placeId, body),
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Pin failed", "error"),
   });
 
   const handleAttach = async (choice: AttachChoice) => {

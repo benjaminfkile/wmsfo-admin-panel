@@ -91,6 +91,8 @@ export default function PlacesList() {
       invalidate();
       setCreateOpen(null);
     },
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Create failed", "error"),
   });
 
   const moveMut = useMutation({
@@ -101,6 +103,8 @@ export default function PlacesList() {
       invalidate();
       setMoveTarget(null);
     },
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Move failed", "error"),
   });
 
   const deleteMut = useMutation({
@@ -110,6 +114,8 @@ export default function PlacesList() {
       invalidate();
     },
     onSettled: () => setConfirmDelete(null),
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Delete failed", "error"),
   });
 
   return (

@@ -87,6 +87,8 @@ export default function QrCodesList() {
       notify("Detached");
       invalidate();
     },
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Detach failed", "error"),
   });
 
   const patchMut = useMutation({
@@ -96,6 +98,8 @@ export default function QrCodesList() {
       notify(row.active ? "Enabled" : "Disabled");
       invalidate();
     },
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Patch failed", "error"),
   });
 
   const deleteMut = useMutation({
@@ -105,6 +109,8 @@ export default function QrCodesList() {
       invalidate();
     },
     onSettled: () => setConfirmDelete(null),
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Delete failed", "error"),
   });
 
   const attachMut = useMutation({
@@ -115,6 +121,8 @@ export default function QrCodesList() {
       invalidate();
     },
     onSettled: () => setAttachTarget(null),
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Attach failed", "error"),
   });
 
   const placeItems: Place[] = placesQ.data?.items ?? [];
