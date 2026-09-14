@@ -205,4 +205,56 @@ describe("BeaconDetail logs", () => {
       expect(screen.getByText(/log body/i)).toBeInTheDocument()
     );
   });
+
+  it("renders logs as cards on compact with the View button (M36)", async () => {
+    const restore = stubMatchMedia(true);
+    try {
+      renderDetail();
+      const card = await screen.findByTestId(
+        `beacon-log-row-${f.beaconLogs[0]!.id}`
+      );
+      expect(
+        within(card).getByRole("button", { name: /^view$/i })
+      ).toBeInTheDocument();
+      // No log table on compact; only the ThemedJsonView keeps a table.
+      const tables = screen.queryAllByRole("table");
+      for (const t of tables) {
+        expect(within(t).queryByText(/^app version$/i)).toBeNull();
+      }
+    } finally {
+      restore();
+    }
+  });
 });
+
+// jsdom does not implement `window.matchMedia`; stubbing it to match
+// lets `useCompact` return true and the panel renders its cards.
+function stubMatchMedia(matches: boolean): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+  return () => {
+    if (original === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).matchMedia;
+    } else {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: original,
+      });
+    }
+  };
+}
