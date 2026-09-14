@@ -357,9 +357,10 @@ export async function signIn(page: Page, user: DevUser): Promise<void> {
     }
     return false;
   });
-  // The drawer only mounts once AuthProvider has evaluated the user, so this
-  // second wait is the panel's "signed in" signal for callers driving the UI.
-  await page.getByRole("navigation").first().waitFor();
+  // The app bar mounts once AuthProvider has evaluated the user, and its
+  // theme toggle is present at every viewport width (the permanent drawer
+  // is hidden below md), so that button is the panel's "signed in" signal.
+  await page.getByRole("button", { name: /toggle theme/i }).waitFor();
 }
 
 export async function signOut(page: Page): Promise<void> {

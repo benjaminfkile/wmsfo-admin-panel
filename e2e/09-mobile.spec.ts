@@ -137,6 +137,10 @@ async function checkRoute(
 }
 
 test.describe("mobile viewport: no horizontal scroll", () => {
+  // One test walks every route with a screenshot each; give it ten minutes
+  // rather than the one-minute default of the desktop specs.
+  test.describe.configure({ timeout: 600_000 });
+
   test("every admin route fits 390 px", async ({ browser, page }, info) => {
     const viewport = page.viewportSize();
     expect(viewport, "viewport should be set by the mobile project").not.toBeNull();
