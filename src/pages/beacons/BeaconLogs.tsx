@@ -4,12 +4,6 @@ import {
   Button,
   Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Typography,
 } from "@mui/material";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -19,6 +13,10 @@ import { downloadText } from "../../lib/download";
 import { useNotify } from "../../hooks/useNotify";
 import { formatMt } from "../../lib/time";
 import ErrorAlert from "../../components/ErrorAlert";
+import ResponsiveTable, {
+  type Column,
+} from "../../components/list/ResponsiveTable";
+import type { BeaconLog } from "../../api/types";
 
 interface Props {
   beaconId: number;
@@ -50,61 +48,56 @@ export default function BeaconLogs({ beaconId }: Props) {
     (a.receivedAt ?? "") < (b.receivedAt ?? "") ? 1 : -1
   );
 
+  const columns: Column<BeaconLog>[] = [
+    {
+      key: "received",
+      header: "Received",
+      role: "title",
+      render: (l) => formatMt(l.receivedAt),
+    },
+    {
+      key: "appVersion",
+      header: "App version",
+      role: "line",
+      label: "App version",
+      render: (l) => l.appVersion ?? "none",
+    },
+    {
+      key: "size",
+      header: "Size",
+      role: "line",
+      label: "Size",
+      align: "right",
+      render: (l) =>
+        typeof l.sizeBytes === "number"
+          ? `${l.sizeBytes} B`
+          : String(l.sizeBytes),
+    },
+  ];
+
   return (
     <Stack spacing={2}>
       <Typography variant="h6">Logs</Typography>
       {logsQ.error ? <ErrorAlert error={logsQ.error} /> : null}
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Received</TableCell>
-              <TableCell>App version</TableCell>
-              <TableCell align="right">Size</TableCell>
-              <TableCell align="right">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {sorted.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4}>
-                  <Typography variant="body2" color="text.secondary">
-                    No logs uploaded.
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            ) : (
-              sorted.map((l) => (
-                <TableRow
-                  key={String(l.id)}
-                  hover
-                  data-testid={`beacon-log-row-${l.id}`}
-                >
-                  <TableCell>{formatMt(l.receivedAt)}</TableCell>
-                  <TableCell>{l.appVersion ?? "none"}</TableCell>
-                  <TableCell align="right">
-                    {typeof l.sizeBytes === "number"
-                      ? `${l.sizeBytes} B`
-                      : String(l.sizeBytes)}
-                  </TableCell>
-                  <TableCell align="right">
-                    <Button
-                      size="small"
-                      onClick={() => openLogMut.mutate(Number(l.id))}
-                      disabled={openLogMut.isPending}
-                    >
-                      View
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <ResponsiveTable<BeaconLog>
+        rows={sorted}
+        columns={columns}
+        rowKey={(l) => String(l.id)}
+        rowTestId={(l) => `beacon-log-row-${l.id}`}
+        emptyText="No logs uploaded."
+        actions={(l) => (
+          <Button
+            size="small"
+            onClick={() => openLogMut.mutate(Number(l.id))}
+            disabled={openLogMut.isPending}
+          >
+            View
+          </Button>
+        )}
+      />
 
       {openLogId !== null ? (
-        <Paper variant="outlined" sx={{ p: 2 }}>
+        <Paper variant="outlined" sx={{ p: 2, minWidth: 0 }}>
           <Stack
             direction="row"
             alignItems="center"
@@ -141,11 +134,12 @@ export default function BeaconLogs({ beaconId }: Props) {
               m: 0,
               p: 1.5,
               maxHeight: 480,
+              maxWidth: "100%",
               overflow: "auto",
               backgroundColor: "background.default",
               fontFamily: "Menlo, Monaco, Consolas, monospace",
               fontSize: 13,
-              whiteSpace: "pre-wrap",
+              whiteSpace: "pre",
             }}
           >
             {logText}

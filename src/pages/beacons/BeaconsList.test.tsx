@@ -42,6 +42,38 @@ function Harness() {
   );
 }
 
+// jsdom does not implement `window.matchMedia`; stubbing it to match
+// lets `useCompact` return true and the list renders its cards.
+function stubMatchMedia(matches: boolean): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+  return () => {
+    if (original === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).matchMedia;
+    } else {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: original,
+      });
+    }
+  };
+}
+
 beforeEach(() => {
   const um = makeFakeUserManager(
     makeUser({ email: "admin@example.com", "cognito:groups": ["admin"] })
@@ -282,6 +314,90 @@ describe("BeaconsList", () => {
       await screen.findByTestId(`beacon-row-${f.beacons[0]!.id}`);
       expect(screen.queryByTestId("revoked-beacons-accordion")).toBeNull();
       expect(screen.queryByText(/^revoked \(/i)).toBeNull();
+    });
+  });
+
+  describe("compact (M36)", () => {
+    it("renders a card per active beacon with the flags and the menu", async () => {
+      const restore = stubMatchMedia(true);
+      try {
+        render(<Harness />);
+        for (const b of f.beacons.filter((x) => !x.revokedAt)) {
+          const card = await screen.findByTestId(`beacon-row-${b.id}`);
+          expect(
+            within(card).getByRole("link", {
+              name: new RegExp(`edit ${b.name}`, "i"),
+            })
+          ).toBeInTheDocument();
+          expect(
+            within(card).getByRole("button", {
+              name: new RegExp(`actions for ${b.name}`, "i"),
+            })
+          ).toBeInTheDocument();
+        }
+        expect(screen.queryByRole("table")).toBeNull();
+      } finally {
+        restore();
+      }
+    });
+
+    it("renders a card per revoked beacon on compact, greyed and pencil-only", async () => {
+      const user = userEvent.setup();
+      const restore = stubMatchMedia(true);
+      const revoked = [
+        {
+          id: 201,
+          name: "compact-A",
+          keyPrefix: "wbk_ca______",
+          isActive: false,
+          revokedAt: "2026-12-20T00:00:00.000Z",
+          lastSeenAt: null,
+          lastLocationAt: null,
+          lastHeartbeatAt: null,
+          staleSince: null,
+          telemetry: null,
+          hubConnected: null,
+          healthy: false,
+          createdBy: "editor@example.com",
+          createdAt: "2026-11-01T00:00:00.000Z",
+          updatedAt: "2026-12-20T00:00:00.000Z",
+        } as Beacon,
+      ];
+      server.use(
+        http.get(`${testConfig.apiBaseUrl}/admin/beacons`, () =>
+          HttpResponse.json({
+            items: [f.beacons[0]!, ...revoked],
+            staleAfterS: 45,
+          })
+        )
+      );
+      try {
+        render(<Harness />);
+        const accordion = await screen.findByTestId(
+          "revoked-beacons-accordion"
+        );
+        await user.click(
+          within(accordion).getByRole("button", { name: /revoked/i })
+        );
+        for (const b of revoked) {
+          const card = await within(accordion).findByTestId(
+            `beacon-row-${b.id}`
+          );
+          expect(within(card).getByText("Revoked")).toBeInTheDocument();
+          expect(card).toHaveStyle({ opacity: "0.5" });
+          expect(
+            within(card).getByRole("link", {
+              name: new RegExp(`edit ${b.name!}`, "i"),
+            })
+          ).toBeInTheDocument();
+          expect(
+            within(card).queryByRole("button", { name: /actions for/i })
+          ).toBeNull();
+        }
+        expect(screen.queryByRole("table")).toBeNull();
+      } finally {
+        restore();
+      }
     });
   });
 });

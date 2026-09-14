@@ -463,7 +463,14 @@ function AgeLine({
       </Box>
       {ageText}
       {iso ? (
-        <Box component="span" sx={{ color: "text.secondary", ml: 1 }}>
+        <Box
+          component="span"
+          sx={{
+            color: "text.secondary",
+            display: { xs: "block", md: "inline" },
+            ml: { xs: 0, md: 1 },
+          }}
+        >
           ({formatMt(iso)})
         </Box>
       ) : null}
