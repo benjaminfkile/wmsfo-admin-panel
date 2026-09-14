@@ -41,6 +41,38 @@ function Harness() {
   );
 }
 
+// jsdom does not implement `window.matchMedia`; stubbing it to match
+// lets `useCompact` return true and `EventsList` render its cards.
+function stubMatchMedia(matches: boolean): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+  return () => {
+    if (original === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).matchMedia;
+    } else {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: original,
+      });
+    }
+  };
+}
+
 beforeEach(() => {
   const um = makeFakeUserManager(
     makeUser({ email: "admin@example.com", "cognito:groups": ["admin"] })
@@ -277,5 +309,29 @@ describe("EventsList rows", () => {
     const body = captured[0];
     expect(body?.inheritRoute).toBe(false);
     expect(body?.routeId).toBeNull();
+  });
+
+  it("renders a card per event on compact with the pencil and the menu button", async () => {
+    const restore = stubMatchMedia(true);
+    try {
+      render(<Harness />);
+      for (const e of f.events) {
+        const card = await screen.findByTestId(`event-row-${e.id}`);
+        expect(
+          within(card).getByRole("link", {
+            name: new RegExp(`edit ${e.name}`, "i"),
+          })
+        ).toBeInTheDocument();
+        expect(
+          within(card).getByRole("button", {
+            name: new RegExp(`actions for ${e.name}`, "i"),
+          })
+        ).toBeInTheDocument();
+      }
+      // The desktop table does not render on compact.
+      expect(screen.queryByRole("table")).toBeNull();
+    } finally {
+      restore();
+    }
   });
 });
