@@ -17,6 +17,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CheckIcon from "@mui/icons-material/Check";
 import { useConfig } from "../../ConfigContext";
 import ApiKeysList from "../apiKeys/ApiKeysList";
+import PageHeader from "../../components/layout/PageHeader";
 import { buildAgentPrompt } from "./agentPrompt";
 
 export default function AgentsPage() {
@@ -35,16 +36,16 @@ export default function AgentsPage() {
 
   return (
     <Box>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Agents
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 720 }}>
-          Run an agent against the admin API for one session: mint a key with only the
-          capabilities the job needs, give the agent the key and the prompt below, let it
-          work, then revoke the key.
-        </Typography>
-      </Box>
+      <PageHeader
+        title="Agents"
+        subtitle={
+          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 720 }}>
+            Run an agent against the admin API for one session: mint a key with only the
+            capabilities the job needs, give the agent the key and the prompt below, let it
+            work, then revoke the key.
+          </Typography>
+        }
+      />
 
       <Alert severity="info" sx={{ mb: 3, maxWidth: 720 }}>
         <Typography variant="subtitle2" gutterBottom>

@@ -31,6 +31,7 @@ import { pages as pagesApi } from "../../api/resources/pages";
 import { keys } from "../../queries/keys";
 import { useConfig } from "../../ConfigContext";
 import ErrorAlert from "../../components/ErrorAlert";
+import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import { formatMt, formatMtDate } from "../../lib/time";
 import type { Place, QrCodeDetail } from "../../api/types";
@@ -204,20 +205,25 @@ export default function QrCodeDetail() {
 
   return (
     <>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 2 }}
-      >
-        <Typography variant="h4">QR code {d.tag}</Typography>
-        <Button component={RouterLink} to="/qr-codes">
-          Back to list
-        </Button>
-      </Stack>
+      <PageHeader
+        title={`QR code ${d.tag}`}
+        actions={
+          <Button component={RouterLink} to="/qr-codes">
+            Back to list
+          </Button>
+        }
+      />
 
       <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-        <Paper sx={{ p: 2, textAlign: "center", minWidth: 340 }} data-testid="qr-detail-code">
+        <Paper
+          sx={{
+            p: 2,
+            textAlign: "center",
+            minWidth: { xs: "100%", sm: 340 },
+            maxWidth: "100%",
+          }}
+          data-testid="qr-detail-code"
+        >
           <Box
             sx={{ width: 320, height: 320, mx: "auto" }}
             aria-label={`QR for ${d.tag}`}
@@ -243,7 +249,7 @@ export default function QrCodeDetail() {
               value={downloadMm}
               onChange={(e) => setDownloadMm(Math.max(10, Number(e.target.value) || 50))}
               inputProps={{ min: 10, max: 400 }}
-              sx={{ width: 120 }}
+              sx={{ width: { xs: "100%", sm: 120 } }}
             />
             <Button onClick={downloadSvg} variant="outlined">
               SVG
@@ -316,7 +322,7 @@ export default function QrCodeDetail() {
                         setOpensPageId(v ? Number(v.id) : "");
                         setOpensChoice("page");
                       }}
-                      sx={{ width: 260 }}
+                      sx={{ width: { xs: "100%", sm: 260 } }}
                       renderInput={(p) => (
                         <TextField {...p} label="Site page" placeholder="Choose a page" />
                       )}
@@ -336,7 +342,7 @@ export default function QrCodeDetail() {
                         setOpensChoice("url");
                       }}
                       placeholder="https://…"
-                      sx={{ minWidth: 320 }}
+                      sx={{ minWidth: { xs: "100%", sm: 320 } }}
                     />
                   }
                 />

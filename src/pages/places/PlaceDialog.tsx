@@ -3,7 +3,6 @@ import {
   Autocomplete,
   Box,
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -14,6 +13,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import AppDialog from "../../components/AppDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import type { PageAdmin, Place } from "../../api/types";
 
@@ -132,7 +132,7 @@ export default function PlaceDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
+    <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
       <DialogTitle>{title}</DialogTitle>
       <DialogContent dividers>
         {error ? <ErrorAlert error={error} /> : null}
@@ -189,7 +189,7 @@ export default function PlaceDialog({
                       setOpensPageId(v ? Number(v.id) : "");
                       setOpensChoice("page");
                     }}
-                    sx={{ width: 260 }}
+                    sx={{ width: { xs: "100%", sm: 260 } }}
                     renderInput={(p) => (
                       <TextField {...p} label="Site page" placeholder="Choose" />
                     )}
@@ -209,7 +209,7 @@ export default function PlaceDialog({
                       setOpensChoice("url");
                     }}
                     placeholder="https://…"
-                    sx={{ minWidth: 320 }}
+                    sx={{ minWidth: { xs: "100%", sm: 320 } }}
                   />
                 }
               />
@@ -227,6 +227,6 @@ export default function PlaceDialog({
           {submitLabel}
         </Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

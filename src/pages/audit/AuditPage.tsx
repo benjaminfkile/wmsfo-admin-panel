@@ -24,6 +24,7 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { audit as auditApi, AUDIT_ACTIONS } from "../../api/resources/audit";
 import { keys } from "../../queries/keys";
 import ErrorAlert from "../../components/ErrorAlert";
+import PageHeader from "../../components/layout/PageHeader";
 import { ThemedJsonView } from "../../components/ThemedJsonView";
 import { formatMt } from "../../lib/time";
 import {
@@ -93,9 +94,7 @@ export default function AuditPage() {
 
   return (
     <Box>
-      <Typography variant="h4" sx={{ mb: 2 }}>
-        Audit
-      </Typography>
+      <PageHeader title="Audit" />
 
       <Paper sx={{ p: 2, mb: 2 }}>
         <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
@@ -105,7 +104,7 @@ export default function AuditPage() {
             label="Entity"
             value={filters.entity}
             onChange={(e) => setFilters({ ...filters, entity: e.target.value })}
-            sx={{ minWidth: 160 }}
+            sx={{ minWidth: { xs: "100%", sm: 160 } }}
           >
             <MenuItem value="">All</MenuItem>
             {entityOptions.map((k) => (
@@ -120,7 +119,7 @@ export default function AuditPage() {
             label="Action"
             value={filters.action}
             onChange={(e) => setFilters({ ...filters, action: e.target.value })}
-            sx={{ minWidth: 160 }}
+            sx={{ minWidth: { xs: "100%", sm: 160 } }}
           >
             <MenuItem value="">All</MenuItem>
             {AUDIT_ACTIONS.map((a) => (
@@ -134,7 +133,7 @@ export default function AuditPage() {
             label="Actor"
             value={filters.actor}
             onChange={(e) => setFilters({ ...filters, actor: e.target.value })}
-            sx={{ minWidth: 200 }}
+            sx={{ minWidth: { xs: "100%", sm: 200 } }}
           />
           <Chip
             label="Deletes"

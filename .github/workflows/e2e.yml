@@ -24,12 +24,19 @@ jobs:
       VITE_COGNITO_AUTHORITY: ${{ vars.VITE_COGNITO_AUTHORITY }}
       VITE_COGNITO_DOMAIN: ${{ vars.VITE_COGNITO_DOMAIN }}
       VITE_COGNITO_CLIENT_ID: ${{ vars.VITE_COGNITO_CLIENT_ID }}
+      # The build refuses to start without these two, and the mobile spec
+      # needs the site base URL to render QR codes on the QR detail page.
+      VITE_SITE_BASE_URL: ${{ vars.VITE_SITE_BASE_URL }}
+      VITE_GOOGLE_MAPS_KEY: ${{ vars.VITE_GOOGLE_MAPS_KEY }}
       E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
       E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
       E2E_ADMIN_TOTP_SECRET: ${{ secrets.E2E_ADMIN_TOTP_SECRET }}
       E2E_EDITOR_EMAIL: ${{ secrets.E2E_EDITOR_EMAIL }}
       E2E_EDITOR_PASSWORD: ${{ secrets.E2E_EDITOR_PASSWORD }}
       E2E_EDITOR_TOTP_SECRET: ${{ secrets.E2E_EDITOR_TOTP_SECRET }}
+      # Only the mobile spec goes through the go-live gate, but the walk
+      # beacon key stays in the environment so spec 5a also has it.
+      E2E_BEACON_KEY: ${{ secrets.E2E_BEACON_KEY }}
     steps:
       - uses: actions/checkout@v4
 

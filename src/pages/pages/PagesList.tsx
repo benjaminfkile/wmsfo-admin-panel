@@ -31,6 +31,7 @@ import ErrorAlert from "../../components/ErrorAlert";
 import CommentBox from "../../components/CommentBox";
 import DeleteDialog from "../../components/DeleteDialog";
 import AuditCell from "../../components/audit/AuditCell";
+import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import PageCreateDialog, {
   type PageCreateSubmit,
@@ -179,17 +180,15 @@ export default function PagesList() {
 
   return (
     <>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 2 }}
-      >
-        <Typography variant="h4">Pages</Typography>
-        <Button variant="contained" onClick={() => setCreateOpen(true)}>
-          New page
-        </Button>
-      </Stack>
+      <PageHeader
+        title="Pages"
+        actions={
+          <Button variant="contained" onClick={() => setCreateOpen(true)}>
+            New page
+          </Button>
+        }
+      />
+
       <CommentBox variant="info">
         Changes here are drafts until you publish.
       </CommentBox>

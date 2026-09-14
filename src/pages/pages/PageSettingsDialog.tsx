@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import {
   Button,
   Checkbox,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -10,6 +9,7 @@ import {
   Stack,
   TextField,
 } from "@mui/material";
+import AppDialog from "../../components/AppDialog";
 import type { PageAdmin, PageDetail } from "../../api/types";
 import ErrorAlert from "../../components/ErrorAlert";
 import { validatePage, type PageErrors } from "../../validation/page";
@@ -75,7 +75,7 @@ export default function PageSettingsDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
+    <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
       <DialogTitle>Page settings</DialogTitle>
       <DialogContent>
         {error ? <ErrorAlert error={error} /> : null}
@@ -134,6 +134,6 @@ export default function PageSettingsDialog({
           Save
         </Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

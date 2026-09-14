@@ -26,6 +26,7 @@ import type { StatusId } from "../../api/types";
 import StatusChip from "../../components/StatusChip";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import DeleteDialog from "../../components/DeleteDialog";
+import PageHeader from "../../components/layout/PageHeader";
 import ErrorAlert from "../../components/ErrorAlert";
 import { STATUS_IDS, statusName } from "../../lib/statusNames";
 import { useNotify } from "../../hooks/useNotify";
@@ -273,17 +274,19 @@ export default function EventDetail() {
 
   return (
     <>
-      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
-        <Typography variant="h4" sx={{ flexGrow: 1 }}>
-          {event.name}
-        </Typography>
-        <StatusChip statusId={currentStatusId} />
-        {event.isCurrent ? (
-          <Alert severity="info" sx={{ py: 0 }}>
-            Current event
-          </Alert>
-        ) : null}
-      </Stack>
+      <PageHeader
+        title={event.name ?? "Event"}
+        chips={
+          <>
+            <StatusChip statusId={currentStatusId} />
+            {event.isCurrent ? (
+              <Alert severity="info" sx={{ py: 0 }}>
+                Current event
+              </Alert>
+            ) : null}
+          </>
+        }
+      />
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 6 }}>

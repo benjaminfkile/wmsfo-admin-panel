@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -35,11 +34,13 @@ import { ApiError } from "../../api/errors";
 // (admin.md 8.3, contracts 4.5): the delete cascades and the dialog's
 // warnings surface the "while live" note. Only 404 / event_live remain
 // possible from the API, both handled through the dialog's error path.
+import AppDialog from "../../components/AppDialog";
 import CommentBox from "../../components/CommentBox";
 import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import AuditCell from "../../components/audit/AuditCell";
 import IconPicker from "../../components/content/IconPicker";
+import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import type { CookieType, Icon, IconInfo } from "../../api/types";
 
@@ -151,9 +152,19 @@ export default function CookieTypesList() {
 
   return (
     <>
-      <Typography variant="h4" sx={{ mb: 2 }}>
-        Cookie types
-      </Typography>
+      <PageHeader
+        title="Cookie types"
+        actions={
+          <Button
+            variant="contained"
+            onClick={() => setEditing({ mode: "new" })}
+            disabled={locked}
+            data-testid="cookie-type-new"
+          >
+            New type
+          </Button>
+        }
+      />
       {locked ? (
         <CommentBox title="Locked" variant="warning">
           {`Locked: ${
@@ -161,21 +172,6 @@ export default function CookieTypesList() {
           } is live. Cookie types can be created, edited, and deactivated again after the event ends.`}
         </CommentBox>
       ) : null}
-      <Stack
-        direction="row"
-        justifyContent="flex-end"
-        alignItems="center"
-        sx={{ mb: 2 }}
-      >
-        <Button
-          variant="contained"
-          onClick={() => setEditing({ mode: "new" })}
-          disabled={locked}
-          data-testid="cookie-type-new"
-        >
-          New type
-        </Button>
-      </Stack>
 
       {cookieTypesQ.error ? (
         <ErrorAlert error={cookieTypesQ.error} />
@@ -385,7 +381,7 @@ function CookieTypeDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
+    <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
       <DialogTitle>{state?.mode === "edit" ? "Edit cookie type" : "New cookie type"}</DialogTitle>
       <DialogContent>
         {error ? <ErrorAlert error={error} /> : null}
@@ -456,6 +452,6 @@ function CookieTypeDialog({
           setPickerOpen(false);
         }}
       />
-    </Dialog>
+    </AppDialog>
   );
 }

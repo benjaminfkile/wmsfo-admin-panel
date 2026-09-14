@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   CardContent,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -29,10 +28,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { sponsors as sponsorsApi } from "../../api/resources/sponsors";
 import { events as eventsApi } from "../../api/resources/events";
 import { keys } from "../../queries/keys";
+import AppDialog from "../../components/AppDialog";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import AuditCell from "../../components/audit/AuditCell";
+import PageHeader from "../../components/layout/PageHeader";
 import { ApiError } from "../../api/errors";
 import { useNotify } from "../../hooks/useNotify";
 import { formatMt } from "../../lib/time";
@@ -274,16 +275,14 @@ export default function SponsorDetail() {
 
   return (
     <Stack spacing={3}>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-      >
-        <Typography variant="h4">{sponsor.name}</Typography>
-        <Button color="error" onClick={() => setConfirmDelete(true)}>
-          Delete sponsor
-        </Button>
-      </Stack>
+      <PageHeader
+        title={sponsor.name ?? "Sponsor"}
+        actions={
+          <Button color="error" onClick={() => setConfirmDelete(true)}>
+            Delete sponsor
+          </Button>
+        }
+      />
 
       <Card variant="outlined">
         <CardContent>
@@ -585,7 +584,7 @@ function CopyYearPrompt({
     ? "The sponsor already has this year."
     : (rangeError ?? " ");
   return (
-    <Dialog open={prompt !== null} onClose={onCancel} maxWidth="xs" fullWidth>
+    <AppDialog open={prompt !== null} onClose={onCancel} maxWidth="xs" fullWidth>
       <DialogTitle>Copy year</DialogTitle>
       <DialogContent>
         {error && !yearExists ? <ErrorAlert error={error} /> : null}
@@ -616,6 +615,6 @@ function CopyYearPrompt({
           Copy
         </Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

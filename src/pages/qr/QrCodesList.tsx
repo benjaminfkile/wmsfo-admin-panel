@@ -8,7 +8,6 @@ import {
   Menu,
   MenuItem,
   Paper,
-  Stack,
   Table,
   TableBody,
   TableCell,
@@ -17,7 +16,6 @@ import {
   TableRow,
   TextField,
   Tooltip,
-  Typography,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
@@ -28,6 +26,7 @@ import { keys } from "../../queries/keys";
 import AuditCell from "../../components/audit/AuditCell";
 import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
+import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import { useAuth } from "../../auth/AuthProvider";
 import { formatMt, formatMtDate } from "../../lib/time";
@@ -128,39 +127,35 @@ export default function QrCodesList() {
 
   return (
     <>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 2 }}
-        flexWrap="wrap"
-      >
-        <Typography variant="h4">QR codes</Typography>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <TextField
-            size="small"
-            type="number"
-            label="Generate"
-            value={count}
-            onChange={(e) => {
-              const n = Number(e.target.value);
-              setCount(Number.isFinite(n) && n > 0 ? Math.min(100, Math.floor(n)) : 10);
-            }}
-            inputProps={{ min: 1, max: 100, "aria-label": "Number to generate" }}
-            sx={{ width: 120 }}
-          />
-          <Button
-            variant="contained"
-            onClick={() => generateMut.mutate()}
-            disabled={generateMut.isPending}
-          >
-            Generate {count} more
-          </Button>
-          <Button variant="outlined" onClick={() => setPrintOpen(true)}>
-            Print sheet
-          </Button>
-        </Stack>
-      </Stack>
+      <PageHeader
+        title="QR codes"
+        actions={
+          <>
+            <TextField
+              size="small"
+              type="number"
+              label="Generate"
+              value={count}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                setCount(Number.isFinite(n) && n > 0 ? Math.min(100, Math.floor(n)) : 10);
+              }}
+              inputProps={{ min: 1, max: 100, "aria-label": "Number to generate" }}
+              sx={{ width: { xs: "100%", sm: 120 } }}
+            />
+            <Button
+              variant="contained"
+              onClick={() => generateMut.mutate()}
+              disabled={generateMut.isPending}
+            >
+              Generate {count} more
+            </Button>
+            <Button variant="outlined" onClick={() => setPrintOpen(true)}>
+              Print sheet
+            </Button>
+          </>
+        }
+      />
 
       {listQ.error ? <ErrorAlert error={listQ.error} /> : null}
       {generateMut.error ? <ErrorAlert error={generateMut.error} /> : null}

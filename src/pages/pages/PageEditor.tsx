@@ -20,6 +20,7 @@ import { ApiError } from "../../api/errors";
 import { fieldsToErrorSchema } from "../../lib/fieldErrors";
 import ErrorAlert from "../../components/ErrorAlert";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import PageHeader from "../../components/layout/PageHeader";
 import SectionCard, {
   type SaveState,
 } from "../../components/content/SectionCard";
@@ -256,30 +257,29 @@ export default function PageEditor() {
 
   return (
     <>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 2 }}
-      >
-        <Box>
-          <Typography variant="h4">{page.title}</Typography>
+      <PageHeader
+        title={page.title ?? "Page"}
+        subtitle={
           <Typography variant="body2" color="text.secondary">
             /{page.slug}
           </Typography>
-        </Box>
-        <Stack direction="row" spacing={1} alignItems="center">
-          {problemCount > 0 ? (
+        }
+        chips={
+          problemCount > 0 ? (
             <Chip label={`${problemCount} problems`} color="error" />
           ) : (
             <Chip label="No problems" color="success" />
-          )}
-          <Button onClick={() => setSettingsOpen(true)}>Page settings</Button>
-          <Button onClick={() => navigate("/publish")} variant="outlined">
-            Publish
-          </Button>
-        </Stack>
-      </Stack>
+          )
+        }
+        actions={
+          <>
+            <Button onClick={() => setSettingsOpen(true)}>Page settings</Button>
+            <Button onClick={() => navigate("/publish")} variant="outlined">
+              Publish
+            </Button>
+          </>
+        }
+      />
 
       <Box data-testid="section-stack">
         {sectionsData.length === 0 ? (

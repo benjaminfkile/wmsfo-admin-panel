@@ -123,6 +123,8 @@ export function ThemedJsonView({
           backgroundColor: theme.palette.background.paper,
           fontSize: 13,
           fontFamily: "Menlo, Monaco, Consolas, monospace",
+          overflowX: "auto",
+          maxWidth: "100%",
           ...vars,
         }}
       >

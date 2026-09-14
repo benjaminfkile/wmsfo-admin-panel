@@ -2,7 +2,6 @@ import { useState } from "react";
 import {
   Box,
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -14,6 +13,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { icons as iconsApi } from "../../../api/resources/icons";
 import { keys } from "../../../queries/keys";
+import AppDialog from "../../AppDialog";
 import MediaGrid, { type GridFilters } from "../../media/MediaGrid";
 import type { Icon, IconInfo, MediaAsset } from "../../../api/types";
 
@@ -46,7 +46,7 @@ export default function IconPicker({ open, onCancel, onPick }: Props) {
     : items;
 
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="md" fullWidth>
+    <AppDialog open={open} onClose={onCancel} maxWidth="md" fullWidth>
       <DialogTitle>Choose an icon</DialogTitle>
       <Tabs
         value={tab}
@@ -98,6 +98,6 @@ export default function IconPicker({ open, onCancel, onPick }: Props) {
       <DialogActions>
         <Button onClick={onCancel}>Cancel</Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

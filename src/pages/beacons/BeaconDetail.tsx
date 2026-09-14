@@ -22,6 +22,7 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import FlagChip from "../../components/FlagChip";
 import KeyRevealDialog from "../../components/KeyRevealDialog";
+import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import { useNow } from "../../hooks/useNow";
 import { ageS, formatAgeS, formatMt } from "../../lib/time";
@@ -180,24 +181,28 @@ export default function BeaconDetail() {
 
   return (
     <>
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-        <Typography variant="h4" sx={{ flexGrow: 1 }}>
-          {beacon.name}
-        </Typography>
-        <Box component="code">{beacon.keyPrefix}</Box>
-        {revoked ? (
-          <Chip size="small" color="default" label="Revoked" />
-        ) : beacon.isActive ? (
-          <Chip size="small" color="success" label="Active" />
-        ) : null}
-        {!revoked ? (
-          <Chip
-            size="small"
-            label={isHealthy ? "Healthy" : "Unhealthy"}
-            color={isHealthy ? "success" : "error"}
-          />
-        ) : null}
-      </Stack>
+      <PageHeader
+        title={beacon.name ?? "Beacon"}
+        chips={
+          <>
+            <Box component="code" sx={{ overflowWrap: "anywhere" }}>
+              {beacon.keyPrefix}
+            </Box>
+            {revoked ? (
+              <Chip size="small" color="default" label="Revoked" />
+            ) : beacon.isActive ? (
+              <Chip size="small" color="success" label="Active" />
+            ) : null}
+            {!revoked ? (
+              <Chip
+                size="small"
+                label={isHealthy ? "Healthy" : "Unhealthy"}
+                color={isHealthy ? "success" : "error"}
+              />
+            ) : null}
+          </>
+        }
+      />
 
       {revoked ? (
         <Alert severity="warning" sx={{ mb: 2 }}>

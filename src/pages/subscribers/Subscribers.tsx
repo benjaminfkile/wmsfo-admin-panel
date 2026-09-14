@@ -31,6 +31,7 @@ import { keys } from "../../queries/keys";
 import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import AuditCell from "../../components/audit/AuditCell";
+import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import { csvFromRecords } from "../../lib/csv";
 import { downloadCsv } from "../../lib/download";
@@ -152,24 +153,21 @@ export default function Subscribers() {
 
   return (
     <>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 2 }}
-      >
-        <Typography variant="h4">Subscribers</Typography>
-        <Button
-          variant="contained"
-          onClick={() => void exportCsv()}
-          disabled={exportState.running}
-          data-testid="subscribers-export-csv"
-        >
-          {exportState.running
-            ? `Exporting: ${exportState.count} rows`
-            : "Export CSV"}
-        </Button>
-      </Stack>
+      <PageHeader
+        title="Subscribers"
+        actions={
+          <Button
+            variant="contained"
+            onClick={() => void exportCsv()}
+            disabled={exportState.running}
+            data-testid="subscribers-export-csv"
+          >
+            {exportState.running
+              ? `Exporting: ${exportState.count} rows`
+              : "Export CSV"}
+          </Button>
+        }
+      />
 
       <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
         <Chip label={`Verified: ${summaryQ.data?.verified ?? "none"}`} />
@@ -181,7 +179,7 @@ export default function Subscribers() {
           value={filter}
           onChange={(e) => setFilter(e.target.value as FilterValue)}
           size="small"
-          sx={{ minWidth: 180 }}
+          sx={{ minWidth: { xs: "100%", sm: 180 } }}
         >
           {FILTERS.map((f) => (
             <MenuItem key={f.value} value={f.value}>

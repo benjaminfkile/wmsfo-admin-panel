@@ -30,6 +30,7 @@ import StatusChip from "../components/StatusChip";
 import { ThemedJsonView } from "../components/ThemedJsonView";
 import ErrorAlert from "../components/ErrorAlert";
 import ConfirmDialog from "../components/ConfirmDialog";
+import PageHeader from "../components/layout/PageHeader";
 import { useNotify } from "../hooks/useNotify";
 import { useNow } from "../hooks/useNow";
 import {
@@ -192,9 +193,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <Typography variant="h4" gutterBottom>
-        Dashboard
-      </Typography>
+      <PageHeader title="Dashboard" />
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 6 }}>
@@ -440,7 +439,9 @@ function ActiveBeaconCard({
               />
             </Stack>
             <LabeledLine label="keyPrefix">
-              <code>{beacon.keyPrefix}</code>
+              <Box component="code" sx={{ overflowWrap: "anywhere" }}>
+                {beacon.keyPrefix}
+              </Box>
             </LabeledLine>
             <LabeledLine label="heartbeat">
               {formatAgeS(ageS(beacon.lastHeartbeatAt, now)) || "never"}
@@ -608,10 +609,17 @@ function SnapshotCard({
             <LabeledLine label="version">{String(snap.version)}</LabeledLine>
             <LabeledLine label="builtAt">{formatMt(snap.builtAt)}</LabeledLine>
             <LabeledLine label="s3Key">
-              <code>{snap.s3Key}</code>
+              <Box component="code" sx={{ overflowWrap: "anywhere" }}>
+                {snap.s3Key}
+              </Box>
             </LabeledLine>
             <LabeledLine label="url">
-              <Link href={snap.url} target="_blank" rel="noopener noreferrer">
+              <Link
+                href={snap.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{ wordBreak: "break-all" }}
+              >
                 {snap.url}
               </Link>
             </LabeledLine>
@@ -715,6 +723,7 @@ function LiveObjectCard({
                 href={cdn.snapshotUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                sx={{ wordBreak: "break-all" }}
               >
                 {cdn.snapshotUrl}
               </Link>

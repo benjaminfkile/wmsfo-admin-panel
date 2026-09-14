@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import {
   Button,
   Checkbox,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -12,6 +11,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import AppDialog from "../../components/AppDialog";
 import type { Event } from "../../api/types";
 import type { CloneEventBody } from "../../api/resources/events";
 import ErrorAlert from "../../components/ErrorAlert";
@@ -96,7 +96,7 @@ export default function EventCloneDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
+    <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
       <DialogTitle>Clone event</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
@@ -170,6 +170,6 @@ export default function EventCloneDialog({
           Clone
         </Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

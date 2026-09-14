@@ -19,6 +19,7 @@ import { content as contentApi } from "../../api/resources/content";
 import { keys } from "../../queries/keys";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
+import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import { ApiError } from "../../api/errors";
 import { formatMt, formatAgeS, ageS } from "../../lib/time";
@@ -111,7 +112,7 @@ export default function Publish() {
 
   return (
     <Stack spacing={3}>
-      <Typography variant="h4">Publish</Typography>
+      <PageHeader title="Publish" />
 
       {statusQ.error ? (
         <ErrorAlert error={statusQ.error} />

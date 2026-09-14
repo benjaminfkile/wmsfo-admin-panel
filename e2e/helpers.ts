@@ -95,7 +95,7 @@ type EventRow = {
   isCurrent: boolean;
 };
 
-async function adminApi(
+export async function adminApi(
   token: string,
   method: string,
   path: string,

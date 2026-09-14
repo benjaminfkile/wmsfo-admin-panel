@@ -12,10 +12,9 @@ import {
   ListItemText,
   Toolbar,
   Typography,
-  useMediaQuery,
-  useTheme,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
+import CloseIcon from "@mui/icons-material/Close";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -24,6 +23,7 @@ import NetworkBanner from "../NetworkBanner";
 import { useAuth } from "../../auth/AuthProvider";
 import { signOut } from "../../auth/signOut";
 import { useConfig } from "../../ConfigContext";
+import { useCompact } from "../../hooks/useCompact";
 import { navFor, type NavKey } from "../../lib/roles";
 import type { Role } from "../../auth/claims";
 
@@ -71,8 +71,7 @@ export default function MainLayout({
   networkDown = false,
 }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const compact = useCompact();
   const { userManager } = useAuth();
   const config = useConfig();
   const location = useLocation();
@@ -83,13 +82,23 @@ export default function MainLayout({
     void signOut(userManager, config);
   };
 
-  const drawer = (
-    <div>
-      <Toolbar>
-        <Typography variant="h6">WMSFO Admin</Typography>
+  const temporaryDrawer = (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <Toolbar sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Typography variant="h6" sx={{ flexGrow: 1, minWidth: 0 }} noWrap>
+          WMSFO Admin
+        </Typography>
+        <EnvBadge />
+        <IconButton
+          edge="end"
+          aria-label="Close navigation"
+          onClick={() => setMobileOpen(false)}
+        >
+          <CloseIcon />
+        </IconButton>
       </Toolbar>
       <Divider />
-      <List>
+      <List sx={{ flex: 1, overflowY: "auto" }}>
         {entries.map((e) => (
           <ListItemButton
             key={e.key}
@@ -102,15 +111,39 @@ export default function MainLayout({
           </ListItemButton>
         ))}
       </List>
+    </Box>
+  );
+
+  const permanentDrawer = (
+    <div>
+      <Toolbar>
+        <Typography variant="h6">WMSFO Admin</Typography>
+      </Toolbar>
+      <Divider />
+      <List>
+        {entries.map((e) => (
+          <ListItemButton
+            key={e.key}
+            component={RouterLink}
+            to={e.to}
+            selected={location.pathname === e.to}
+          >
+            <ListItemText primary={e.label} />
+          </ListItemButton>
+        ))}
+      </List>
     </div>
   );
 
   return (
     <Box sx={{ display: "flex" }}>
       <CssBaseline />
-      <AppBar position="fixed" sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
+      <AppBar
+        position="fixed"
+        sx={{ zIndex: { md: (t) => t.zIndex.drawer + 1 } }}
+      >
         <Toolbar>
-          {isMobile && (
+          {compact && (
             <IconButton
               color="inherit"
               edge="start"
@@ -121,13 +154,21 @@ export default function MainLayout({
               <MenuIcon />
             </IconButton>
           )}
-          <Typography variant="h6" noWrap sx={{ flexGrow: 1 }}>
+          <Typography
+            variant="h6"
+            noWrap
+            sx={{ flexGrow: 1, minWidth: 0 }}
+          >
             WMSFO Admin
           </Typography>
           <Box sx={{ mr: 2 }}>
             <EnvBadge />
           </Box>
-          <Typography variant="body2" sx={{ mr: 2 }}>
+          <Typography
+            variant="body2"
+            data-testid="app-bar-email"
+            sx={{ mr: 2, display: { xs: "none", md: "block" } }}
+          >
             {email}
           </Typography>
           <IconButton color="inherit" onClick={onToggleTheme} aria-label="Toggle theme">
@@ -148,10 +189,10 @@ export default function MainLayout({
           ModalProps={{ keepMounted: true }}
           sx={{
             display: { xs: "block", md: "none" },
-            "& .MuiDrawer-paper": { width: drawerWidth },
+            "& .MuiDrawer-paper": { width: "min(280px, 85vw)" },
           }}
         >
-          {drawer}
+          {temporaryDrawer}
         </Drawer>
         <Drawer
           variant="permanent"
@@ -161,7 +202,7 @@ export default function MainLayout({
           }}
           open
         >
-          {drawer}
+          {permanentDrawer}
         </Drawer>
       </Box>
 
@@ -169,8 +210,9 @@ export default function MainLayout({
         component="main"
         sx={{
           flexGrow: 1,
+          minWidth: 0,
+          overflowX: "hidden",
           p: 2,
-          width: { md: `calc(100% - ${drawerWidth}px)` },
         }}
       >
         <Toolbar />

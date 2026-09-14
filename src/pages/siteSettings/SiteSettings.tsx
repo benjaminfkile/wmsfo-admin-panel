@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   Paper,
-  Stack,
   Typography,
 } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +14,7 @@ import ErrorAlert from "../../components/ErrorAlert";
 import SchemaForm from "../../components/content/SchemaForm";
 import PreviewFrame from "../../components/content/PreviewFrame";
 import ProblemList from "../../components/content/ProblemList";
+import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import siteSettingsSchema from "../../../contracts/schema/site-settings.schema.json";
 import type { Problem } from "../../api/types";
@@ -64,31 +64,28 @@ export default function SiteSettings() {
 
   return (
     <>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 2 }}
-      >
-        <Typography variant="h4">Site settings</Typography>
-        <Stack direction="row" spacing={1}>
-          <Button
-            variant="outlined"
-            onClick={() => setPreviewOpen(true)}
-            data-testid="site-settings-preview"
-          >
-            Preview
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => saveMut.mutate()}
-            disabled={saveMut.isPending || !dirty}
-            data-testid="site-settings-save"
-          >
-            {saveMut.isPending ? "Saving…" : "Save"}
-          </Button>
-        </Stack>
-      </Stack>
+      <PageHeader
+        title="Site settings"
+        actions={
+          <>
+            <Button
+              variant="outlined"
+              onClick={() => setPreviewOpen(true)}
+              data-testid="site-settings-preview"
+            >
+              Preview
+            </Button>
+            <Button
+              variant="contained"
+              onClick={() => saveMut.mutate()}
+              disabled={saveMut.isPending || !dirty}
+              data-testid="site-settings-save"
+            >
+              {saveMut.isPending ? "Saving…" : "Save"}
+            </Button>
+          </>
+        }
+      />
       <CommentBox variant="info">
         Settings are drafts until you publish.
       </CommentBox>

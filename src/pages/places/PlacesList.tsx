@@ -9,7 +9,6 @@ import {
   Menu,
   MenuItem,
   Paper,
-  Stack,
   Table,
   TableBody,
   TableCell,
@@ -29,6 +28,7 @@ import { keys } from "../../queries/keys";
 import AuditCell from "../../components/audit/AuditCell";
 import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
+import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import { useAuth } from "../../auth/AuthProvider";
 import type { Place } from "../../api/types";
@@ -120,26 +120,22 @@ export default function PlacesList() {
 
   return (
     <>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 2 }}
-        flexWrap="wrap"
-      >
-        <Typography variant="h4">Places</Typography>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Button
-            variant="contained"
-            onClick={() => setCreateOpen({ parentId: null })}
-          >
-            New place
-          </Button>
-          <Button variant="outlined" component={RouterLink} to="/places/map">
-            Map
-          </Button>
-        </Stack>
-      </Stack>
+      <PageHeader
+        title="Places"
+        actions={
+          <>
+            <Button
+              variant="contained"
+              onClick={() => setCreateOpen({ parentId: null })}
+            >
+              New place
+            </Button>
+            <Button variant="outlined" component={RouterLink} to="/places/map">
+              Map
+            </Button>
+          </>
+        }
+      />
 
       {listQ.error ? <ErrorAlert error={listQ.error} /> : null}
 

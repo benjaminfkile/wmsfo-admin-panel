@@ -25,6 +25,7 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import AuditCell from "../../components/audit/AuditCell";
 import KeyRevealDialog from "../../components/KeyRevealDialog";
+import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import { useNow } from "../../hooks/useNow";
 import { ageS, formatAgeS, formatMt } from "../../lib/time";
@@ -99,17 +100,14 @@ export default function ApiKeysList() {
 
   return (
     <>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 2 }}
-      >
-        <Typography variant="h4">API keys</Typography>
-        <Button variant="contained" onClick={() => setCreateOpen(true)}>
-          New key
-        </Button>
-      </Stack>
+      <PageHeader
+        title="API keys"
+        actions={
+          <Button variant="contained" onClick={() => setCreateOpen(true)}>
+            New key
+          </Button>
+        }
+      />
 
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Keys let a script or an agent, such as Claude Code, configure the site
@@ -158,7 +156,9 @@ export default function ApiKeysList() {
                     >
                       <TableCell>{k.name}</TableCell>
                       <TableCell>
-                        <code>{k.keyPrefix}</code>
+                        <Box component="code" sx={{ overflowWrap: "anywhere" }}>
+                          {k.keyPrefix}
+                        </Box>
                       </TableCell>
                       <TableCell>
                         {k.allCapabilities ? (

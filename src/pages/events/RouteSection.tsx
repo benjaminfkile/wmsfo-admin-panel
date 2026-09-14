@@ -221,6 +221,7 @@ export default function RouteSection({ event }: Props) {
                       href={currentRoute.url}
                       target="_blank"
                       rel="noopener noreferrer"
+                      sx={{ wordBreak: "break-all" }}
                     >
                       CDN link
                     </Link>
@@ -237,7 +238,7 @@ export default function RouteSection({ event }: Props) {
         )}
 
         <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }}>
-          <FormControl size="small" sx={{ minWidth: 320, flexGrow: 1 }}>
+          <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 320 }, flexGrow: 1 }}>
             <InputLabel id="flight-history-choose-label">
               Choose existing
             </InputLabel>

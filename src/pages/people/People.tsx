@@ -23,6 +23,7 @@ import { keys } from "../../queries/keys";
 import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import AuditCell from "../../components/audit/AuditCell";
+import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import { formatMt } from "../../lib/time";
 import type { Person } from "../../api/types";
@@ -63,9 +64,7 @@ export default function People() {
 
   return (
     <>
-      <Typography variant="h4" sx={{ mb: 2 }}>
-        People
-      </Typography>
+      <PageHeader title="People" />
 
       {listQ.error ? <ErrorAlert error={listQ.error} /> : null}
 

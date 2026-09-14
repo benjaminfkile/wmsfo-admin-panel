@@ -91,7 +91,7 @@ export default function LocationsSection({ event }: Props) {
             onChange={(e) =>
               setBeaconId(e.target.value === "" ? "" : Number(e.target.value))
             }
-            sx={{ minWidth: 200 }}
+            sx={{ minWidth: { xs: "100%", sm: 200 } }}
           >
             <MenuItem value="">Any beacon</MenuItem>
             {beacons.map((b) => (
