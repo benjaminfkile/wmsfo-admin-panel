@@ -187,5 +187,65 @@ test.describe("mobile viewport: no horizontal scroll", () => {
         ? "no routes overflowed the viewport"
         : `Routes wider than the ${viewportWidth} px viewport:\n${failures.join("\n")}`,
     ).toEqual([]);
+
+    // Interactions per family (admin.md 11, wave 11): open the drawer to
+    // navigate, open a card's row menu, open and cancel a create dialog,
+    // open a card's Audit dialog, and expand an audit row. Every step
+    // stays on the phone viewport; the overflow assertion above has run.
+
+    // Drawer → Events.
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await page
+      .getByRole("button", { name: /open navigation/i })
+      .click();
+    await page.getByRole("link", { name: /^Events$/ }).click();
+    await page.waitForURL((url) => url.pathname === "/events");
+    await page.waitForLoadState("networkidle");
+
+    // Row menu on the first event card.
+    const eventMenu = page
+      .getByRole("button", { name: /^Actions for / })
+      .first();
+    await eventMenu.waitFor({ state: "visible" });
+    await eventMenu.click();
+    const eventMenuOpen = page.getByRole("menu");
+    await eventMenuOpen.waitFor({ state: "visible" });
+    await page.keyboard.press("Escape");
+    await eventMenuOpen.waitFor({ state: "hidden" });
+
+    // New event dialog → Cancel.
+    await page.getByRole("button", { name: /^New event$/ }).click();
+    const eventDialog = page.getByRole("dialog");
+    await eventDialog.waitFor({ state: "visible" });
+    await eventDialog.getByRole("button", { name: /^Cancel$/ }).click();
+    await eventDialog.waitFor({ state: "hidden" });
+
+    // Beacon card's Audit dialog.
+    await page.goto("/beacons");
+    await page.waitForLoadState("networkidle");
+    const beaconAudit = page
+      .getByRole("button", { name: /^Audit / })
+      .first();
+    await beaconAudit.waitFor({ state: "visible" });
+    await beaconAudit.click();
+    const auditDialog = page.getByRole("dialog");
+    await auditDialog.waitFor({ state: "visible" });
+    await auditDialog.getByRole("button", { name: /^Close$/ }).click();
+    await auditDialog.waitFor({ state: "hidden" });
+
+    // Audit page: expand a row.
+    await page.goto("/audit");
+    await page.waitForLoadState("networkidle");
+    const expandToggle = page
+      .getByRole("button", { name: /^Show raw JSON$/ })
+      .first();
+    if (await expandToggle.count() > 0) {
+      await expandToggle.click();
+      await page
+        .getByRole("button", { name: /^Hide raw JSON$/ })
+        .first()
+        .waitFor({ state: "visible" });
+    }
   });
 });

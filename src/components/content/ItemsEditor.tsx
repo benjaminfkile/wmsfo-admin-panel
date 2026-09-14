@@ -83,7 +83,7 @@ function SortableRow({
       data-testid={`item-row-${id}`}
       sx={{ border: "1px solid", borderColor: "divider", p: 1 }}
     >
-      <Stack direction="row" alignItems="center">
+      <Stack direction="row" alignItems="center" useFlexGap flexWrap="wrap">
         <IconButton
           size="small"
           disabled={disabled}

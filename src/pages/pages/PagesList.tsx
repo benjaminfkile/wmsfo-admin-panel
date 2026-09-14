@@ -337,7 +337,13 @@ export default function PagesList() {
                 );
               }}
               actions={(p) => (
-                <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                <Stack
+                  direction="row"
+                  spacing={0.5}
+                  justifyContent="flex-end"
+                  useFlexGap
+                  flexWrap="wrap"
+                >
                   <IconButton
                     size="small"
                     component={RouterLink}

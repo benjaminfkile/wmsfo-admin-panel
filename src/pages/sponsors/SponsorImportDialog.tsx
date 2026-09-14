@@ -170,7 +170,10 @@ export default function SponsorImportDialog({
           </Box>
         ) : null}
         <Stack spacing={2} sx={{ mt: 1 }}>
-          <Stack direction="row" spacing={2}>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={2}
+          >
             <FormControl fullWidth>
               <InputLabel id="import-from-year">From year</InputLabel>
               <Select
