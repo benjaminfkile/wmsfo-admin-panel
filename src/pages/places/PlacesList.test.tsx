@@ -134,8 +134,8 @@ describe("PlacesList delete refusals", () => {
     server.use(
       http.delete(`${testConfig.apiBaseUrl}/admin/places/:id`, () =>
         HttpResponse.json(
-          { code: "place_has_children", message: "place has children", details: null },
-          { status: 409 },
+          { code: "internal_error", message: "internal error", details: null },
+          { status: 500 },
         ),
       ),
     );
@@ -153,7 +153,7 @@ describe("PlacesList delete refusals", () => {
     const dialog = await screen.findByRole("dialog", { name: /delete place/i });
     await user.click(within(dialog).getByRole("button", { name: /^delete$/i }));
 
-    await screen.findByText(/place has children/i);
+    await screen.findByText(/internal error/i);
     expect(screen.getByRole("link", { name: "Southgate Mall" })).toBeInTheDocument();
   });
 });

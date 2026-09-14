@@ -347,8 +347,8 @@ export default function PlacesList() {
           title="Delete place?"
           body={
             <Box>
-              Delete <strong>{confirmDelete.name}</strong>? Its subtree and
-              codes stay put; the API refuses if either has content.
+              Delete <strong>{confirmDelete.name}</strong>? Everything under it goes
+              too. Codes hanging in it become unattached and keep their history.
             </Box>
           }
           confirmLabel="Delete"

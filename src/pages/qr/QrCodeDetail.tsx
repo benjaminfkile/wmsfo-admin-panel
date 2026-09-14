@@ -401,7 +401,7 @@ export default function QrCodeDetail() {
                 <TableBody>
                   {history.map((row) => (
                     <TableRow key={row.attachmentId}>
-                      <TableCell>{row.placePath.join(" › ")}</TableCell>
+                      <TableCell>{row.placePath.length > 0 ? row.placePath.join(" › ") : "a place since deleted"}</TableCell>
                       <TableCell>{formatMt(row.fromAt)}</TableCell>
                       <TableCell>
                         {row.toAt ? formatMt(row.toAt) : "current"}

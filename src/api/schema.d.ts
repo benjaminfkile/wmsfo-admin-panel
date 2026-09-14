@@ -5436,7 +5436,7 @@ export interface components {
             /** Format: int64 */
             attachmentId?: number | string;
             /** Format: int64 */
-            placeId?: number | string;
+            placeId?: null | number | string;
             placePath?: string[];
             /** Format: date-time */
             fromAt?: string;
