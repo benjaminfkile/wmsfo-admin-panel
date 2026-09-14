@@ -143,9 +143,14 @@ export default function RouteSection({ event }: Props) {
   return (
     <Card>
       <CardContent>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          alignItems={{ xs: "flex-start", md: "center" }}
+          justifyContent="space-between"
+          spacing={1}
+        >
           <Typography variant="h6">Flight history</Typography>
-          <Stack direction="row" spacing={1}>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
             <Button
               size="small"
               variant="outlined"
@@ -237,8 +242,13 @@ export default function RouteSection({ event }: Props) {
           </Stack>
         )}
 
-        <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }}>
-          <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 320 }, flexGrow: 1 }}>
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={2}
+          alignItems={{ xs: "stretch", md: "center" }}
+          sx={{ mt: 2 }}
+        >
+          <FormControl size="small" sx={{ minWidth: { xs: "100%", md: 320 }, flexGrow: 1 }}>
             <InputLabel id="flight-history-choose-label">
               Choose existing
             </InputLabel>

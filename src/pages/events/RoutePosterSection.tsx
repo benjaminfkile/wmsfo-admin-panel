@@ -60,12 +60,13 @@ export default function RoutePosterSection({ event }: Props) {
     <Card>
       <CardContent>
         <Stack
-          direction="row"
-          alignItems="center"
+          direction={{ xs: "column", md: "row" }}
+          alignItems={{ xs: "flex-start", md: "center" }}
           justifyContent="space-between"
+          spacing={1}
         >
           <Typography variant="h6">Route poster</Typography>
-          <Stack direction="row" spacing={1}>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
             <Button
               size="small"
               variant="outlined"
@@ -132,13 +133,22 @@ function PosterPreview({ asset }: { asset: MediaAsset }) {
       ? `${asset.width} × ${asset.height}`
       : "unknown size";
   return (
-    <Stack direction="row" spacing={2} alignItems="center">
+    <Stack
+      direction={{ xs: "column", sm: "row" }}
+      spacing={2}
+      alignItems={{ xs: "flex-start", sm: "center" }}
+    >
       {url ? (
         <Box
           component="img"
           src={url}
           alt={asset.alt ?? ""}
-          sx={{ maxWidth: 240, maxHeight: 160, objectFit: "contain" }}
+          sx={{
+            maxWidth: "100%",
+            width: { xs: "100%", sm: 240 },
+            maxHeight: 160,
+            objectFit: "contain",
+          }}
         />
       ) : null}
       <Stack spacing={0.5}>

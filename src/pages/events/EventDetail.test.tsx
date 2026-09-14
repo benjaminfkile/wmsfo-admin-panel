@@ -21,6 +21,38 @@ import {
 // The dialog flows type a message and drive three MUI dialogs; give them room.
 vi.setConfig({ testTimeout: 15_000 });
 
+// jsdom does not implement `window.matchMedia`; stubbing it to match true
+// lets `useCompact` return true and the page renders its compact layout.
+function stubMatchMedia(matches: boolean): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+  return () => {
+    if (original === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).matchMedia;
+    } else {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: original,
+      });
+    }
+  };
+}
+
 function Harness({ id }: { id: number }) {
   const client = new QueryClient({
     defaultOptions: {
@@ -454,5 +486,47 @@ describe("EventDetail: route poster and flight history blocks", () => {
         screen.getByRole("dialog", { name: /choose route poster/i })
       ).toBeInTheDocument()
     );
+  });
+});
+
+describe("EventDetail on compact (admin.md 6.3)", () => {
+  let restore: (() => void) | null = null;
+
+  afterEach(() => {
+    restore?.();
+    restore = null;
+  });
+
+  it("renders the history as cards (no table) and shows the wrapped Details actions row", async () => {
+    restore = stubMatchMedia(true);
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/events/:id/status-history`, () =>
+        HttpResponse.json({
+          items: [
+            {
+              id: 51,
+              eventId: 7,
+              fromStatusId: 2,
+              toStatusId: 3,
+              changedBy: "admin@example.com",
+              changedAt: "2026-12-22T01:02:11.000Z",
+              notify: true,
+              message: "Doors are open; Santa is on final approach.",
+              sentCount: 812,
+            },
+          ],
+        })
+      )
+    );
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    const history = await screen.findByTestId("status-history");
+    // On compact the history renders as cards, not a table.
+    expect(within(history).queryByRole("table")).toBeNull();
+    await waitFor(() =>
+      expect(within(history).getByText(/812 sent/i)).toBeInTheDocument()
+    );
+    // Details actions row wraps (flexWrap on the Stack container).
+    const actions = await screen.findByTestId("event-details-actions");
+    expect(actions).toHaveStyle({ "flex-wrap": "wrap" });
   });
 });

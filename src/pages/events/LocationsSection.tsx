@@ -73,7 +73,12 @@ export default function LocationsSection({ event }: Props) {
   return (
     <Card>
       <CardContent>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          justifyContent="space-between"
+          alignItems={{ xs: "flex-start", md: "center" }}
+          spacing={1}
+        >
           <Typography variant="h6">Locations</Typography>
           <Button
             variant="outlined"
@@ -83,7 +88,12 @@ export default function LocationsSection({ event }: Props) {
             Download CSV
           </Button>
         </Stack>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ my: 2 }} alignItems="center">
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={2}
+          sx={{ my: 2 }}
+          alignItems={{ xs: "stretch", md: "center" }}
+        >
           <Select
             displayEmpty
             size="small"
@@ -91,7 +101,7 @@ export default function LocationsSection({ event }: Props) {
             onChange={(e) =>
               setBeaconId(e.target.value === "" ? "" : Number(e.target.value))
             }
-            sx={{ minWidth: { xs: "100%", sm: 200 } }}
+            sx={{ minWidth: { xs: "100%", md: 200 } }}
           >
             <MenuItem value="">Any beacon</MenuItem>
             {beacons.map((b) => (
@@ -115,7 +125,7 @@ export default function LocationsSection({ event }: Props) {
             {(listQ.error as Error).message}
           </Typography>
         ) : (
-          <Box sx={{ maxHeight: 400, overflow: "auto" }}>
+          <Box sx={{ maxHeight: 400, overflow: "auto", maxWidth: "100%" }}>
             <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow>

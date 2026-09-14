@@ -1,17 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   Box,
   Button,
   Card,
   CardContent,
+  Chip,
   Grid,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   TextField,
   Tooltip,
   Typography,
@@ -22,12 +17,15 @@ import { events as eventsApi } from "../../api/resources/events";
 import { beacons as beaconsApi } from "../../api/resources/beacons";
 import type { PatchEventBody } from "../../api/resources/events";
 import { keys } from "../../queries/keys";
-import type { StatusId } from "../../api/types";
+import type { StatusHistory, StatusId } from "../../api/types";
 import StatusChip from "../../components/StatusChip";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import DeleteDialog from "../../components/DeleteDialog";
 import PageHeader from "../../components/layout/PageHeader";
 import ErrorAlert from "../../components/ErrorAlert";
+import ResponsiveTable, {
+  type Column,
+} from "../../components/list/ResponsiveTable";
 import { STATUS_IDS, statusName } from "../../lib/statusNames";
 import { useNotify } from "../../hooks/useNotify";
 import { useNow } from "../../hooks/useNow";
@@ -280,9 +278,7 @@ export default function EventDetail() {
           <>
             <StatusChip statusId={currentStatusId} />
             {event.isCurrent ? (
-              <Alert severity="info" sx={{ py: 0 }}>
-                Current event
-              </Alert>
+              <Chip size="small" color="info" label="Current event" />
             ) : null}
           </>
         }
@@ -364,7 +360,13 @@ export default function EventDetail() {
                   helperText={formErrors.fundsPercent ?? ""}
                   fullWidth
                 />
-                <Stack direction="row" spacing={2}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  useFlexGap
+                  flexWrap="wrap"
+                  data-testid="event-details-actions"
+                >
                   <Button
                     variant="contained"
                     onClick={save}
@@ -377,7 +379,6 @@ export default function EventDetail() {
                       Set current
                     </Button>
                   ) : null}
-                  <Box sx={{ flexGrow: 1 }} />
                   {(() => {
                     const blockReason =
                       Number(event.statusId) === 3
@@ -482,68 +483,9 @@ export default function EventDetail() {
               <Typography variant="subtitle2" sx={{ mt: 3 }}>
                 History
               </Typography>
-              {historyQ.data?.items && historyQ.data.items.length > 0 ? (
-                <Table size="small" data-testid="status-history">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Change</TableCell>
-                      <TableCell>Who</TableCell>
-                      <TableCell>When</TableCell>
-                      <TableCell>Notified</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {[...historyQ.data.items]
-                      .sort((a, b) =>
-                        (a.changedAt ?? "") < (b.changedAt ?? "") ? 1 : -1
-                      )
-                      .map((h) => {
-                        const from = Number(h.fromStatusId);
-                        const to = Number(h.toStatusId);
-                        const same = from === to;
-                        const notified = h.notify === true;
-                        const excerpt =
-                          h.message && h.message.length > 0
-                            ? h.message.slice(0, 60)
-                            : null;
-                        return (
-                          <TableRow key={String(h.id)}>
-                            <TableCell>
-                              {same
-                                ? "announced again"
-                                : `${statusName(from)} → ${statusName(to)}`}
-                            </TableCell>
-                            <TableCell>{h.changedBy}</TableCell>
-                            <TableCell>{formatMt(h.changedAt)}</TableCell>
-                            <TableCell>
-                              {notified ? (
-                                <>
-                                  <Typography variant="body2">
-                                    Yes · {String(h.sentCount ?? 0)} sent
-                                  </Typography>
-                                  {excerpt ? (
-                                    <Typography
-                                      variant="caption"
-                                      color="text.secondary"
-                                    >
-                                      {excerpt}
-                                    </Typography>
-                                  ) : null}
-                                </>
-                              ) : (
-                                "No"
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                  </TableBody>
-                </Table>
-              ) : (
-                <Typography variant="body2" color="text.secondary">
-                  No history yet.
-                </Typography>
-              )}
+              <Box data-testid="status-history">
+                <StatusHistorySection items={historyQ.data?.items ?? []} />
+              </Box>
             </CardContent>
           </Card>
         </Grid>
@@ -635,6 +577,73 @@ export default function EventDetail() {
         />
       ) : null}
     </>
+  );
+}
+
+function StatusHistorySection({ items }: { items: StatusHistory[] }) {
+  const sorted = [...items].sort((a, b) =>
+    (a.changedAt ?? "") < (b.changedAt ?? "") ? 1 : -1
+  );
+  const columns: Column<StatusHistory>[] = [
+    {
+      key: "change",
+      header: "Change",
+      role: "title",
+      render: (h) => {
+        const from = Number(h.fromStatusId);
+        const to = Number(h.toStatusId);
+        return from === to
+          ? "announced again"
+          : `${statusName(from)} → ${statusName(to)}`;
+      },
+    },
+    {
+      key: "who",
+      header: "Who",
+      role: "line",
+      label: "who",
+      render: (h) => h.changedBy ?? "",
+    },
+    {
+      key: "when",
+      header: "When",
+      role: "line",
+      label: "when",
+      render: (h) => formatMt(h.changedAt),
+    },
+    {
+      key: "notified",
+      header: "Notified",
+      role: "line",
+      label: "notified",
+      render: (h) => {
+        const notified = h.notify === true;
+        const excerpt =
+          h.message && h.message.length > 0 ? h.message.slice(0, 60) : null;
+        if (!notified) return "No";
+        return (
+          <>
+            {`Yes · ${String(h.sentCount ?? 0)} sent`}
+            {excerpt ? (
+              <Box
+                component="span"
+                sx={{ ml: 1, color: "text.secondary", fontSize: "0.75rem" }}
+              >
+                {excerpt}
+              </Box>
+            ) : null}
+          </>
+        );
+      },
+    },
+  ];
+  return (
+    <ResponsiveTable<StatusHistory>
+      rows={sorted}
+      columns={columns}
+      rowKey={(h) => String(h.id)}
+      emptyText="No history yet."
+    />
   );
 }
 

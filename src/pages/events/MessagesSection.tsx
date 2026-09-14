@@ -144,7 +144,14 @@ export default function MessagesSection({ eventId }: Props) {
             helperText={errors.body ?? ""}
             fullWidth
           />
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="flex-start">
+          <Stack
+            direction="row"
+            spacing={2}
+            useFlexGap
+            flexWrap="wrap"
+            alignItems="flex-start"
+            data-testid="message-post-actions"
+          >
             <TextField
               label="Event time"
               type="datetime-local"
@@ -167,7 +174,6 @@ export default function MessagesSection({ eventId }: Props) {
               }
               label="Notify"
             />
-            <Box sx={{ flexGrow: 1 }} />
             <Button
               variant="contained"
               onClick={submit}
