@@ -25,6 +25,9 @@ export interface Column<T> {
   align?: "left" | "right";
   role?: "title" | "subtitle" | "chip" | "line" | "desktop-only";
   label?: string;
+  // Used instead of `render` on compact cards, for a cell whose table
+  // placeholder ("none") has no place on a card.
+  renderCompact?: (row: T) => ReactNode;
 }
 
 export interface RowAudit {
@@ -145,6 +148,10 @@ function labelFor<T>(column: Column<T>): string {
   return column.key;
 }
 
+function compactValue<T>(column: Column<T>, row: T): ReactNode {
+  return (column.renderCompact ?? column.render)(row);
+}
+
 function CompactCards<T>({
   rows,
   columns,
@@ -184,13 +191,13 @@ function CompactCards<T>({
                   <Stack direction="row" spacing={1} alignItems="center">
                     {leading ? <Box>{leading(row)}</Box> : null}
                     <Typography variant="subtitle1" sx={{ minWidth: 0 }}>
-                      {titleCol.render(row)}
+                      {compactValue(titleCol, row)}
                     </Typography>
                   </Stack>
                 ) : null}
                 {subtitleCol ? (
                   <Typography variant="body2" color="text.secondary">
-                    {subtitleCol.render(row)}
+                    {compactValue(subtitleCol, row)}
                   </Typography>
                 ) : null}
                 {chipCols.length > 0 ? (
@@ -200,9 +207,12 @@ function CompactCards<T>({
                     useFlexGap
                     flexWrap="wrap"
                   >
-                    {chipCols.map((c) => (
-                      <Box key={c.key}>{c.render(row)}</Box>
-                    ))}
+                    {chipCols.map((c) => {
+                      const value = compactValue(c, row);
+                      return value === null || value === undefined ? null : (
+                        <Box key={c.key}>{value}</Box>
+                      );
+                    })}
                   </Stack>
                 ) : null}
                 {lineCols.map((c) => (
@@ -210,7 +220,7 @@ function CompactCards<T>({
                     <Box component="span" sx={{ color: "text.secondary" }}>
                       {labelFor(c)}:{" "}
                     </Box>
-                    {c.render(row)}
+                    {compactValue(c, row)}
                   </Typography>
                 ))}
                 {actions || info ? (

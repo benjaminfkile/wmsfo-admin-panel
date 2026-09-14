@@ -138,6 +138,10 @@ export default function EventsList() {
             none
           </Box>
         ),
+      renderCompact: (e) =>
+        e.isCurrent ? (
+          <Chip size="small" color="primary" label="Current" />
+        ) : null,
     },
     {
       key: "scheduledAt",
