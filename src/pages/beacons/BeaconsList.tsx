@@ -42,6 +42,7 @@ import { useNow } from "../../hooks/useNow";
 import { ageS, formatAgeS, formatMt } from "../../lib/time";
 import { beaconFlags } from "../../lib/beaconFlags";
 import type { Beacon } from "../../api/types";
+import PageHeader from "../../components/layout/PageHeader";
 import BeaconCreateDialog, {
   type CreateBeaconBody,
 } from "./BeaconCreateDialog";
@@ -188,17 +189,15 @@ export default function BeaconsList() {
 
   return (
     <>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 2 }}
-      >
-        <Typography variant="h4">Beacons</Typography>
-        <Button variant="contained" onClick={() => setCreateOpen(true)}>
-          New beacon
-        </Button>
-      </Stack>
+      <PageHeader
+        title="Beacons"
+        actions={
+          <Button variant="contained" onClick={() => setCreateOpen(true)}>
+            New beacon
+          </Button>
+        }
+      />
+
 
       {beaconsQ.error ? (
         <ErrorAlert error={beaconsQ.error} />
@@ -249,7 +248,9 @@ export default function BeaconsList() {
                           <RouterLink to={`/beacons/${b.id}`}>{b.name}</RouterLink>
                         </TableCell>
                         <TableCell>
-                          <code>{b.keyPrefix}</code>
+                          <Box component="code" sx={{ overflowWrap: "anywhere" }}>
+                            {b.keyPrefix}
+                          </Box>
                         </TableCell>
                         <TableCell>
                           {b.isActive ? (

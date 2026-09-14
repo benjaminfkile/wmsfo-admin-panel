@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -19,6 +18,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import AppDialog from "../../components/AppDialog";
 import { useQuery } from "@tanstack/react-query";
 import { events as eventsApi } from "../../api/resources/events";
 import { keys } from "../../queries/keys";
@@ -161,7 +161,7 @@ export default function SponsorImportDialog({
     submitting || fromYear === null || toYear === null || n === 0;
 
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
+    <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
       <DialogTitle>Import sponsors from a year</DialogTitle>
       <DialogContent>
         {error ? (
@@ -287,6 +287,6 @@ export default function SponsorImportDialog({
           Import {n}
         </Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

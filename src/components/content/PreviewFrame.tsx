@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
-  Dialog,
   DialogContent,
   DialogTitle,
   IconButton,
@@ -17,6 +16,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { content as contentApi } from "../../api/resources/content";
 import { pages as pagesApi } from "../../api/resources/pages";
 import { keys } from "../../queries/keys";
+import AppDialog from "../AppDialog";
 import ErrorAlert from "../ErrorAlert";
 import type { PreviewToken } from "../../api/types";
 
@@ -139,7 +139,7 @@ export default function PreviewFrame({
   const pageItems = pagesQ.data?.items ?? [];
 
   return (
-    <Dialog
+    <AppDialog
       open={open}
       onClose={onClose}
       maxWidth={false}
@@ -181,7 +181,7 @@ export default function PreviewFrame({
               label="Page"
               value={slug ?? ""}
               onChange={(e) => setSlug(e.target.value === "" ? null : e.target.value)}
-              sx={{ minWidth: 200 }}
+              sx={{ minWidth: { xs: "100%", sm: 200 } }}
               data-testid="preview-page-select"
             >
               <MenuItem value="">Home</MenuItem>
@@ -201,7 +201,7 @@ export default function PreviewFrame({
             label="Device"
             value={device}
             onChange={(e) => setDevice(e.target.value as Device)}
-            sx={{ minWidth: 140 }}
+            sx={{ minWidth: { xs: "100%", sm: 140 } }}
             data-testid="preview-device-select"
           >
             <MenuItem value="phone">Phone</MenuItem>
@@ -242,7 +242,7 @@ export default function PreviewFrame({
           ) : (
             <Box
               sx={{
-                width: DEVICE_WIDTH[device],
+                width: `min(${DEVICE_WIDTH[device]}px, 100%)`,
                 maxWidth: "100%",
                 height: "100%",
                 border: "1px solid",
@@ -265,6 +265,6 @@ export default function PreviewFrame({
           )}
         </Box>
       </DialogContent>
-    </Dialog>
+    </AppDialog>
   );
 }

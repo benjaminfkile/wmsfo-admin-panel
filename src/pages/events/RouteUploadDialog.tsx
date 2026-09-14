@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -13,6 +12,7 @@ import {
   Box,
   Alert,
 } from "@mui/material";
+import AppDialog from "../../components/AppDialog";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import type { RouteUploadBody } from "../../api/resources/routes";
 import { checkRouteFile, type RouteCheck } from "../../validation/routeFile";
@@ -97,7 +97,7 @@ export default function RouteUploadDialog({
   };
 
   return (
-    <Dialog
+    <AppDialog
       open={open}
       onClose={() => {
         onCancel();
@@ -244,6 +244,6 @@ export default function RouteUploadDialog({
           Upload
         </Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

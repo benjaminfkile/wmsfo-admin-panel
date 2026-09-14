@@ -1,7 +1,6 @@
 import {
   Box,
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -9,6 +8,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import AppDialog from "../AppDialog";
 import type { KindInfo } from "../../api/types";
 
 interface Props {
@@ -29,7 +29,7 @@ export default function SectionPalette({
   pageRole,
 }: Props) {
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="md" fullWidth>
+    <AppDialog open={open} onClose={onCancel} maxWidth="md" fullWidth>
       <DialogTitle>Add a section</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={1}>
@@ -66,6 +66,6 @@ export default function SectionPalette({
       <DialogActions>
         <Button onClick={onCancel}>Cancel</Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

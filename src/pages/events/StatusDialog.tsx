@@ -2,7 +2,6 @@ import { useState } from "react";
 import {
   Alert,
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
@@ -11,6 +10,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import AppDialog from "../../components/AppDialog";
 import { useQuery } from "@tanstack/react-query";
 import type { Beacon, Event, StatusId } from "../../api/types";
 import { keys } from "../../queries/keys";
@@ -125,7 +125,7 @@ export default function StatusDialog({
 
   return (
     <>
-      <Dialog open={open && !askSilent} onClose={onCancel} maxWidth="sm" fullWidth>
+      <AppDialog open={open && !askSilent} onClose={onCancel} maxWidth="sm" fullWidth>
         <DialogTitle>
           Change status of {event.name}: {fromName} to {toName}
         </DialogTitle>
@@ -183,8 +183,8 @@ export default function StatusDialog({
             Change and notify
           </Button>
         </DialogActions>
-      </Dialog>
-      <Dialog
+      </AppDialog>
+      <AppDialog
         open={open && askSilent}
         onClose={() => setAskSilent(false)}
         maxWidth="xs"
@@ -209,7 +209,7 @@ export default function StatusDialog({
             Change without notifying
           </Button>
         </DialogActions>
-      </Dialog>
+      </AppDialog>
     </>
   );
 }

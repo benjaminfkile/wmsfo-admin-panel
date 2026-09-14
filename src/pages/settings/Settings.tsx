@@ -19,6 +19,7 @@ import { keys } from "../../queries/keys";
 import CommentBox from "../../components/CommentBox";
 import ErrorAlert from "../../components/ErrorAlert";
 import AuditCell from "../../components/audit/AuditCell";
+import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import { formatMt } from "../../lib/time";
 import {
@@ -48,9 +49,7 @@ export default function Settings() {
 
   return (
     <>
-      <Typography variant="h4" sx={{ mb: 2 }}>
-        Settings
-      </Typography>
+      <PageHeader title="Settings" />
       <CommentBox>
         Every save rebuilds the snapshot and rewrites the live object, so a new
         poll interval reaches the site within its next poll.
@@ -139,7 +138,9 @@ function SettingRow({ setting }: { setting: Setting }) {
   return (
     <TableRow data-testid={`setting-row-${setting.key}`}>
       <TableCell>
-        <code>{setting.key}</code>
+        <Box component="code" sx={{ overflowWrap: "anywhere" }}>
+          {setting.key}
+        </Box>
       </TableCell>
       <TableCell>
         {spec ? (
@@ -163,7 +164,7 @@ function SettingRow({ setting }: { setting: Setting }) {
             inputProps={
               spec ? { min: spec.min, max: spec.max, step: 1 } : undefined
             }
-            sx={{ maxWidth: 200 }}
+            sx={{ maxWidth: "100%", width: { xs: "100%", sm: 200 } }}
             aria-label={setting.key ?? "value"}
           />
         </Stack>

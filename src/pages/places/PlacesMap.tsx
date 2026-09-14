@@ -26,6 +26,7 @@ import { events as eventsApi } from "../../api/resources/events";
 import { keys } from "../../queries/keys";
 import { useConfig } from "../../ConfigContext";
 import ErrorAlert from "../../components/ErrorAlert";
+import PageHeader from "../../components/layout/PageHeader";
 import type { PlacePin } from "../../api/types";
 import { loadMaps, loadMarkers } from "./googleMaps";
 
@@ -168,21 +169,17 @@ export default function PlacesMap() {
 
   return (
     <>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 2 }}
-        flexWrap="wrap"
-      >
-        <Typography variant="h4">Places map</Typography>
-        <Button component={RouterLink} to="/places">
-          Back to list
-        </Button>
-      </Stack>
+      <PageHeader
+        title="Places map"
+        actions={
+          <Button component={RouterLink} to="/places">
+            Back to list
+          </Button>
+        }
+      />
 
       <Stack direction="row" spacing={2} sx={{ mb: 2 }} flexWrap="wrap">
-        <FormControl size="small" sx={{ minWidth: 220 }}>
+        <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 220 } }}>
           <InputLabel id="places-map-event">Event</InputLabel>
           <Select
             labelId="places-map-event"
@@ -201,7 +198,7 @@ export default function PlacesMap() {
             ))}
           </Select>
         </FormControl>
-        <FormControl size="small" sx={{ minWidth: 220 }}>
+        <FormControl size="small" sx={{ minWidth: { xs: "100%", sm: 220 } }}>
           <InputLabel id="places-map-window">Window</InputLabel>
           <Select
             labelId="places-map-window"
@@ -228,7 +225,7 @@ export default function PlacesMap() {
           />
         </Paper>
 
-        <Card sx={{ flex: 1, minWidth: 260 }}>
+        <Card sx={{ flex: 1, minWidth: { xs: "100%", sm: 260 }, maxWidth: "100%" }}>
           <CardContent>
             <Typography variant="h6" sx={{ mb: 1 }}>
               Places in this window

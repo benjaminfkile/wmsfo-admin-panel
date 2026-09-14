@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
@@ -9,6 +8,7 @@ import {
   Stack,
   TextField,
 } from "@mui/material";
+import AppDialog from "../../components/AppDialog";
 import { useQuery } from "@tanstack/react-query";
 import type { Event, StatusId } from "../../api/types";
 import { keys } from "../../queries/keys";
@@ -58,7 +58,7 @@ export default function NotifyDialog({
   const send = () => onConfirm(trimmed.length > 0 ? trimmed : null);
 
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
+    <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
       <DialogTitle>Notify subscribers of {statusName(statusId)}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
@@ -84,6 +84,6 @@ export default function NotifyDialog({
           Send now
         </Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

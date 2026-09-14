@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -10,6 +9,7 @@ import {
   Switch,
   TextField,
 } from "@mui/material";
+import AppDialog from "../../components/AppDialog";
 import { useQuery } from "@tanstack/react-query";
 import ErrorAlert from "../../components/ErrorAlert";
 import {
@@ -147,7 +147,7 @@ export default function SponsorYearDialog({
       : null);
 
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
+    <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
       <DialogTitle>{edit ? "Edit year" : "Add year"}</DialogTitle>
       <DialogContent>
         {error ? (
@@ -244,6 +244,6 @@ export default function SponsorYearDialog({
           Save
         </Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

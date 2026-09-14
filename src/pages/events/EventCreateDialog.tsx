@@ -3,7 +3,6 @@ import {
   Alert,
   Box,
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -18,6 +17,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import AppDialog from "../../components/AppDialog";
 import type { Event, Route } from "../../api/types";
 import type { CreateEventBody } from "../../api/resources/events";
 import ErrorAlert from "../../components/ErrorAlert";
@@ -113,7 +113,7 @@ export default function EventCreateDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
+    <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
       <DialogTitle>New event</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
@@ -242,6 +242,6 @@ export default function EventCreateDialog({
           Create
         </Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

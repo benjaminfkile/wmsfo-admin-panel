@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Box, Divider, Stack, Typography } from "@mui/material";
+import { Box, Divider, Stack } from "@mui/material";
 import { useQueryClient } from "@tanstack/react-query";
 import MediaGrid, { type GridFilters } from "../../components/media/MediaGrid";
 import Uploader from "../../components/media/Uploader";
 import MediaDetailDrawer from "../../components/media/MediaDetailDrawer";
+import PageHeader from "../../components/layout/PageHeader";
 import type { MediaAsset } from "../../api/types";
 
 // /media (admin.md 6.15). Uploader at the top, grid below with filters
@@ -25,7 +26,7 @@ export default function MediaLibrary() {
 
   return (
     <Stack spacing={3}>
-      <Typography variant="h4">Media</Typography>
+      <PageHeader title="Media" />
       <Box>
         <Uploader onReady={handleReady} />
       </Box>

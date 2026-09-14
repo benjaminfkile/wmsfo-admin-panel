@@ -3,7 +3,6 @@ import {
   Alert,
   Box,
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -25,8 +24,10 @@ import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { sponsors as sponsorsApi } from "../../api/resources/sponsors";
 import { keys } from "../../queries/keys";
+import AppDialog from "../../components/AppDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import AuditCell from "../../components/audit/AuditCell";
+import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import {
   toSponsorBody,
@@ -116,22 +117,19 @@ export default function SponsorsList() {
 
   return (
     <>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 2 }}
-      >
-        <Typography variant="h4">Sponsors</Typography>
-        <Stack direction="row" spacing={1}>
-          <Button variant="outlined" onClick={() => setImportOpen(true)}>
-            Import from year
-          </Button>
-          <Button variant="contained" onClick={() => setCreateOpen(true)}>
-            New sponsor
-          </Button>
-        </Stack>
-      </Stack>
+      <PageHeader
+        title="Sponsors"
+        actions={
+          <>
+            <Button variant="outlined" onClick={() => setImportOpen(true)}>
+              Import from year
+            </Button>
+            <Button variant="contained" onClick={() => setCreateOpen(true)}>
+              New sponsor
+            </Button>
+          </>
+        }
+      />
       {sponsorsQ.error ? (
         <ErrorAlert error={sponsorsQ.error} />
       ) : (
@@ -167,7 +165,7 @@ export default function SponsorsList() {
         </TableContainer>
       )}
 
-      <Dialog
+      <AppDialog
         open={createOpen}
         onClose={() => {
           setCreateOpen(false);
@@ -220,7 +218,7 @@ export default function SponsorsList() {
             Create
           </Button>
         </DialogActions>
-      </Dialog>
+      </AppDialog>
 
       <SponsorImportDialog
         open={importOpen}

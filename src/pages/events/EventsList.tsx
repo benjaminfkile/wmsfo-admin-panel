@@ -32,6 +32,7 @@ import ErrorAlert from "../../components/ErrorAlert";
 import AuditCell from "../../components/audit/AuditCell";
 import { formatMt } from "../../lib/time";
 import { useNotify } from "../../hooks/useNotify";
+import PageHeader from "../../components/layout/PageHeader";
 import EventCreateDialog from "./EventCreateDialog";
 import EventCloneDialog from "./EventCloneDialog";
 import type { Event } from "../../api/types";
@@ -108,17 +109,15 @@ export default function EventsList() {
 
   return (
     <>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 2 }}
-      >
-        <Typography variant="h4">Events</Typography>
-        <Button variant="contained" onClick={() => setCreateOpen(true)}>
-          New event
-        </Button>
-      </Stack>
+      <PageHeader
+        title="Events"
+        actions={
+          <Button variant="contained" onClick={() => setCreateOpen(true)}>
+            New event
+          </Button>
+        }
+      />
+
       {eventsQ.error ? (
         <ErrorAlert error={eventsQ.error} />
       ) : (

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -10,6 +9,7 @@ import {
 } from "@mui/material";
 import type { MediaAsset } from "../../api/types";
 import type { MediaQuery } from "../../api/resources/media";
+import AppDialog from "../AppDialog";
 import MediaGrid, { type GridFilters } from "../media/MediaGrid";
 import Uploader from "../media/Uploader";
 
@@ -51,7 +51,7 @@ export default function MediaPicker({
   };
 
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="md" fullWidth>
+    <AppDialog open={open} onClose={onCancel} maxWidth="md" fullWidth>
       <DialogTitle>{title}</DialogTitle>
       <Tabs
         value={tab}
@@ -85,6 +85,6 @@ export default function MediaPicker({
           Choose
         </Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

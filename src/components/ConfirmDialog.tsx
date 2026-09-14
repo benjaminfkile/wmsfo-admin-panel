@@ -1,12 +1,12 @@
 import {
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
 } from "@mui/material";
 import type { ReactNode } from "react";
+import AppDialog from "./AppDialog";
 
 interface Props {
   open: boolean;
@@ -30,7 +30,7 @@ export default function ConfirmDialog({
   onCancel,
 }: Props) {
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
+    <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
         {typeof body === "string" ? (
@@ -50,6 +50,6 @@ export default function ConfirmDialog({
           {confirmLabel}
         </Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

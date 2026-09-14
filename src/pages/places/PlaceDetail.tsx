@@ -24,6 +24,7 @@ import { pages as pagesApi } from "../../api/resources/pages";
 import { keys } from "../../queries/keys";
 import { useConfig } from "../../ConfigContext";
 import ErrorAlert from "../../components/ErrorAlert";
+import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import type { Place } from "../../api/types";
 import LocationCard from "./LocationCard";
@@ -193,17 +194,14 @@ export default function PlaceDetail() {
 
   return (
     <>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 2 }}
-      >
-        <Typography variant="h4">Place: {place.name}</Typography>
-        <Button component={RouterLink} to="/places">
-          Back to list
-        </Button>
-      </Stack>
+      <PageHeader
+        title={`Place: ${place.name}`}
+        actions={
+          <Button component={RouterLink} to="/places">
+            Back to list
+          </Button>
+        }
+      />
 
       <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
         <Paper sx={{ p: 2, flexGrow: 1 }}>
@@ -262,7 +260,7 @@ export default function PlaceDetail() {
                         setOpensPageId(v ? Number(v.id) : "");
                         setOpensChoice("page");
                       }}
-                      sx={{ width: 260 }}
+                      sx={{ width: { xs: "100%", sm: 260 } }}
                       renderInput={(p) => (
                         <TextField {...p} label="Site page" placeholder="Choose" />
                       )}
@@ -282,7 +280,7 @@ export default function PlaceDetail() {
                         setOpensChoice("url");
                       }}
                       placeholder="https://…"
-                      sx={{ minWidth: 320 }}
+                      sx={{ minWidth: { xs: "100%", sm: 320 } }}
                     />
                   }
                 />
@@ -301,7 +299,7 @@ export default function PlaceDetail() {
           </Stack>
         </Paper>
 
-        <Box sx={{ flex: 1, minWidth: 340 }}>
+        <Box sx={{ flex: 1, minWidth: { xs: "100%", sm: 340 }, maxWidth: "100%" }}>
           <LocationCard
             place={place}
             apiKey={config.googleMapsKey}
@@ -336,7 +334,7 @@ export default function PlaceDetail() {
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 2 }}>
             <Autocomplete
               size="small"
-              sx={{ width: 260 }}
+              sx={{ width: { xs: "100%", sm: 260 } }}
               options={unattachedCodes.map((c) => ({ id: c.id, tag: c.tag }))}
               value={
                 unattachedCodes.find((c) => c.id === attachCodeId)

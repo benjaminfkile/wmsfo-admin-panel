@@ -36,6 +36,7 @@ import { events as eventsApi } from "../../api/resources/events";
 import { keys } from "../../queries/keys";
 import CommentBox from "../../components/CommentBox";
 import ErrorAlert from "../../components/ErrorAlert";
+import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import type { MediaAsset, SponsorOrderRow } from "../../api/types";
 
@@ -175,9 +176,7 @@ export default function SponsorOrder() {
 
   return (
     <>
-      <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Typography variant="h4">Sponsor order</Typography>
-      </Stack>
+      <PageHeader title="Sponsor order" />
       <Box sx={{ my: 2 }}>
         <Select
           size="small"

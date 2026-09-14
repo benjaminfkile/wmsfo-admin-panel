@@ -2,12 +2,12 @@ import { useMemo, useState } from "react";
 import {
   Autocomplete,
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   TextField,
 } from "@mui/material";
+import AppDialog from "../../components/AppDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import type { Place } from "../../api/types";
 
@@ -45,7 +45,7 @@ export default function AttachDialog({
   const [selected, setSelected] = useState<Option | null>(null);
 
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
+    <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
       <DialogTitle>{title}</DialogTitle>
       <DialogContent dividers>
         {error ? <ErrorAlert error={error} /> : null}
@@ -71,6 +71,6 @@ export default function AttachDialog({
           Attach
         </Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

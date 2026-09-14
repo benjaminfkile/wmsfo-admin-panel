@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -10,6 +9,7 @@ import {
   ListItemText,
   Typography,
 } from "@mui/material";
+import AppDialog from "../AppDialog";
 import type { KindInfo, PageAdmin } from "../../api/types";
 
 interface Props {
@@ -48,7 +48,7 @@ export default function MoveSectionDialog({
   const options = pages.filter((p) => Number(p.id) !== currentPageId);
 
   return (
-    <Dialog open={open} onClose={onCancel} fullWidth maxWidth="sm">
+    <AppDialog open={open} onClose={onCancel} fullWidth maxWidth="sm">
       <DialogTitle>Move to page</DialogTitle>
       <DialogContent dividers>
         {options.length === 0 ? (
@@ -93,6 +93,6 @@ export default function MoveSectionDialog({
           Move
         </Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

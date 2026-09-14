@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   CircularProgress,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -14,6 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
+import AppDialog from "./AppDialog";
 import ErrorAlert from "./ErrorAlert";
 import { impact, type DeleteImpact, type ImpactGroup, type ImpactResource } from "../api/impact";
 
@@ -139,7 +139,7 @@ export default function DeleteDialog({
   const warnings = useMemo(() => data?.warnings ?? [], [data]);
 
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
+    <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
       <DialogTitle>{`Delete ${name}?`}</DialogTitle>
       <DialogContent>
         {impactQ.isLoading ? (
@@ -239,6 +239,6 @@ export default function DeleteDialog({
           </Button>
         )}
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

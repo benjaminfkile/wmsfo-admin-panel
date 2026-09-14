@@ -2,7 +2,6 @@ import { useState } from "react";
 import {
   Button,
   Checkbox,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -10,6 +9,7 @@ import {
   Stack,
   TextField,
 } from "@mui/material";
+import AppDialog from "../../components/AppDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import { slugify, validatePage, type PageErrors } from "../../validation/page";
 
@@ -75,7 +75,7 @@ export default function PageCreateDialog({
   };
 
   return (
-    <Dialog
+    <AppDialog
       open={open}
       onClose={() => {
         onCancel();
@@ -144,6 +144,6 @@ export default function PageCreateDialog({
           Create
         </Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

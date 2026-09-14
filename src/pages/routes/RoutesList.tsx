@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   CardContent,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -31,10 +30,12 @@ import { events as eventsApi } from "../../api/resources/events";
 import { routes as routesApi } from "../../api/resources/routes";
 import type { RouteUploadBody } from "../../api/resources/routes";
 import { keys } from "../../queries/keys";
+import AppDialog from "../../components/AppDialog";
 import CommentBox from "../../components/CommentBox";
 import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import AuditCell from "../../components/audit/AuditCell";
+import PageHeader from "../../components/layout/PageHeader";
 import { formatMt } from "../../lib/time";
 import { useNotify } from "../../hooks/useNotify";
 import RouteUploadDialog from "../events/RouteUploadDialog";
@@ -102,22 +103,19 @@ export default function RoutesList() {
 
   return (
     <>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{ mb: 2 }}
-      >
-        <Typography variant="h4">Flight recordings</Typography>
-        <Stack direction="row" spacing={2}>
-          <Button variant="outlined" onClick={() => setFromEventOpen(true)}>
-            Build from event
-          </Button>
-          <Button variant="contained" onClick={() => setUploadOpen(true)}>
-            Upload recording
-          </Button>
-        </Stack>
-      </Stack>
+      <PageHeader
+        title="Flight recordings"
+        actions={
+          <>
+            <Button variant="outlined" onClick={() => setFromEventOpen(true)}>
+              Build from event
+            </Button>
+            <Button variant="contained" onClick={() => setUploadOpen(true)}>
+              Upload recording
+            </Button>
+          </>
+        }
+      />
       <CommentBox>
         Recordings of past flights. The one linked to an event is its flight
         history on the tracker, and what Red-Nose replay and exports use. The
@@ -170,6 +168,7 @@ export default function RoutesList() {
                             href={r.url}
                             target="_blank"
                             rel="noopener noreferrer"
+                            sx={{ wordBreak: "break-all" }}
                           >
                             CDN
                           </Link>
@@ -281,7 +280,7 @@ function BuildFromEventDialog({
   const selected = eligible.find((e) => Number(e.id) === Number(eventId));
 
   return (
-    <Dialog
+    <AppDialog
       open={open}
       onClose={() => {
         onCancel();
@@ -365,6 +364,6 @@ function BuildFromEventDialog({
           Build
         </Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

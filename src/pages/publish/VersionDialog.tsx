@@ -1,7 +1,6 @@
 import {
   Box,
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -14,6 +13,7 @@ import {
   Tabs,
   Typography,
 } from "@mui/material";
+import AppDialog from "../../components/AppDialog";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { content as contentApi } from "../../api/resources/content";
@@ -56,7 +56,7 @@ export default function VersionDialog({ open, versionId, onClose }: Props) {
   const info = versionQ.data;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+    <AppDialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
       <DialogTitle>
         {info ? (
           <>
@@ -144,6 +144,6 @@ export default function VersionDialog({ open, versionId, onClose }: Props) {
       <DialogActions>
         <Button onClick={onClose}>Close</Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

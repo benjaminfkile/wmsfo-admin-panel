@@ -104,7 +104,7 @@ export default function MediaGrid({
                     undefined,
                 })
               }
-              sx={{ minWidth: 140 }}
+              sx={{ minWidth: { xs: "100%", sm: 140 } }}
             >
               <MenuItem value="">All kinds</MenuItem>
               <MenuItem value="raster">Raster</MenuItem>
@@ -126,7 +126,7 @@ export default function MediaGrid({
                     undefined,
                 })
               }
-              sx={{ minWidth: 140 }}
+              sx={{ minWidth: { xs: "100%", sm: 140 } }}
             >
               <MenuItem value="">All states</MenuItem>
               <MenuItem value="ready">Ready</MenuItem>

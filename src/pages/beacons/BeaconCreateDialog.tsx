@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -9,6 +8,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import AppDialog from "../../components/AppDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 
 export type CreateBeaconBody = {
@@ -63,7 +63,7 @@ export default function BeaconCreateDialog({
   };
 
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
+    <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
       <DialogTitle>New beacon</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
@@ -108,6 +108,6 @@ export default function BeaconCreateDialog({
           Create
         </Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

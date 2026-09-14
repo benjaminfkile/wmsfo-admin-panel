@@ -3,7 +3,6 @@ import {
   Alert,
   Box,
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -17,6 +16,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import type { Enrollment } from "../api/types";
 import { useNow } from "../hooks/useNow";
 import { useNotify } from "../hooks/useNotify";
+import AppDialog from "./AppDialog";
 
 interface Props {
   open: boolean;
@@ -77,7 +77,7 @@ export default function KeyRevealDialog({
   };
 
   return (
-    <Dialog
+    <AppDialog
       open={open}
       disableEscapeKeyDown
       onClose={(_e, reason) => {
@@ -173,6 +173,6 @@ export default function KeyRevealDialog({
           I have stored the key
         </Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   CircularProgress,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -13,6 +12,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import AppDialog from "../../components/AppDialog";
 import { useConfig } from "../../ConfigContext";
 import type { QrCode } from "../../api/types";
 import { qrTargetUrl, renderSvg } from "./qrRender";
@@ -92,7 +92,7 @@ export default function PrintSheetDialog({ open, codes, onClose }: Props) {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+    <AppDialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
       <DialogTitle>Print sheet</DialogTitle>
       <DialogContent dividers>
         <Stack direction="row" spacing={2} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
@@ -102,7 +102,7 @@ export default function PrintSheetDialog({ open, codes, onClose }: Props) {
             label="Batch"
             value={batchNo === "" ? "" : String(batchNo)}
             onChange={(e) => setBatchNo(Number(e.target.value))}
-            sx={{ minWidth: 220 }}
+            sx={{ minWidth: { xs: "100%", sm: 220 } }}
           >
             {batches.length === 0 ? (
               <MenuItem value="" disabled>
@@ -122,7 +122,7 @@ export default function PrintSheetDialog({ open, codes, onClose }: Props) {
             label="Size"
             value={String(sizeMm)}
             onChange={(e) => setSizeMm(Number(e.target.value))}
-            sx={{ minWidth: 240 }}
+            sx={{ minWidth: { xs: "100%", sm: 240 } }}
           >
             {PRINT_SIZES.map((s) => (
               <MenuItem key={s.mm} value={String(s.mm)}>
@@ -204,6 +204,6 @@ export default function PrintSheetDialog({ open, codes, onClose }: Props) {
           Print
         </Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

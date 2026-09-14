@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -14,6 +13,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import AppDialog from "../../components/AppDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import { ApiError } from "../../api/errors";
 import { fieldErrorFor } from "../../lib/fieldErrors";
@@ -146,7 +146,7 @@ export default function ApiKeyCreateDialog({
   if (errors.expiresAt) handledFields.push("expiresAt");
 
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
+    <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
       <DialogTitle>New API key</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
@@ -236,6 +236,6 @@ export default function ApiKeyCreateDialog({
           Create
         </Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }

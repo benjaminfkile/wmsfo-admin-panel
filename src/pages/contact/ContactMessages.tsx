@@ -25,6 +25,7 @@ import { keys } from "../../queries/keys";
 import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import AuditCell from "../../components/audit/AuditCell";
+import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import { formatMt } from "../../lib/time";
 import type { ContactMessage } from "../../api/types";
@@ -63,9 +64,7 @@ export default function ContactMessages() {
 
   return (
     <>
-      <Typography variant="h4" sx={{ mb: 2 }}>
-        Contact messages
-      </Typography>
+      <PageHeader title="Contact messages" />
       {listQ.error ? <ErrorAlert error={listQ.error} /> : null}
       <TableContainer component={Paper}>
         <Table size="small">
@@ -108,7 +107,9 @@ export default function ContactMessages() {
                     {m.body ?? ""}
                   </TableCell>
                   <TableCell>
-                    <code>{m.clientIp ?? "none"}</code>
+                    <Box component="code" sx={{ overflowWrap: "anywhere" }}>
+                      {m.clientIp ?? "none"}
+                    </Box>
                   </TableCell>
                   <TableCell align="right">
                     <Stack

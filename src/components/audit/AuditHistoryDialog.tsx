@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   Collapse,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -23,6 +22,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { audit as auditApi } from "../../api/resources/audit";
 import { keys } from "../../queries/keys";
+import AppDialog from "../AppDialog";
 import ErrorAlert from "../ErrorAlert";
 import { ThemedJsonView } from "../ThemedJsonView";
 import { formatMt } from "../../lib/time";
@@ -63,7 +63,7 @@ export default function AuditHistoryDialog({
   );
 
   return (
-    <Dialog
+    <AppDialog
       open={open}
       onClose={onClose}
       maxWidth="md"
@@ -114,7 +114,7 @@ export default function AuditHistoryDialog({
       <DialogActions>
         <Button onClick={onClose}>Close</Button>
       </DialogActions>
-    </Dialog>
+    </AppDialog>
   );
 }
 
