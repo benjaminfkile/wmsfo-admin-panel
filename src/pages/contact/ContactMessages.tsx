@@ -4,14 +4,6 @@ import {
   Button,
   IconButton,
   Link,
-  Paper,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Typography,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -24,8 +16,10 @@ import { contactMessages as contactMessagesApi } from "../../api/resources/conta
 import { keys } from "../../queries/keys";
 import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
-import AuditCell from "../../components/audit/AuditCell";
 import PageHeader from "../../components/layout/PageHeader";
+import ResponsiveTable, {
+  type Column,
+} from "../../components/list/ResponsiveTable";
 import { useNotify } from "../../hooks/useNotify";
 import { formatMt } from "../../lib/time";
 import type { ContactMessage } from "../../api/types";
@@ -62,84 +56,80 @@ export default function ContactMessages() {
     [listQ.data]
   );
 
+  const columns: Column<ContactMessage>[] = [
+    {
+      key: "name",
+      header: "Name",
+      role: "title",
+      render: (m) => m.name ?? "none",
+    },
+    {
+      key: "email",
+      header: "Email",
+      role: "line",
+      render: (m) =>
+        m.email ? <Link href={`mailto:${m.email}`}>{m.email}</Link> : "none",
+    },
+    {
+      key: "createdAt",
+      header: "Created at",
+      label: "Created",
+      role: "line",
+      render: (m) => formatMt(m.createdAt) || "none",
+    },
+    {
+      key: "clientIp",
+      header: "Client IP",
+      role: "line",
+      render: (m) => (
+        <Box component="code" sx={{ overflowWrap: "anywhere" }}>
+          {m.clientIp ?? "none"}
+        </Box>
+      ),
+    },
+    {
+      key: "body",
+      header: "Body",
+      role: "line",
+      render: (m) => (
+        <Typography
+          variant="body2"
+          component="span"
+          sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+        >
+          {m.body ?? ""}
+        </Typography>
+      ),
+    },
+  ];
+
   return (
     <>
       <PageHeader title="Contact messages" />
       {listQ.error ? <ErrorAlert error={listQ.error} /> : null}
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Created at</TableCell>
-              <TableCell>Name</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Body</TableCell>
-              <TableCell>Client IP</TableCell>
-              <TableCell align="right">Actions</TableCell>
-              <TableCell align="right">Audit</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7}>
-                  <Typography variant="body2" color="text.secondary">
-                    No contact messages.
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            ) : (
-              rows.map((m) => (
-                <TableRow
-                  key={String(m.id)}
-                  data-testid={`contact-row-${m.id}`}
-                >
-                  <TableCell>{formatMt(m.createdAt) || "none"}</TableCell>
-                  <TableCell>{m.name ?? "none"}</TableCell>
-                  <TableCell>
-                    {m.email ? (
-                      <Link href={`mailto:${m.email}`}>{m.email}</Link>
-                    ) : (
-                      "none"
-                    )}
-                  </TableCell>
-                  <TableCell sx={{ whiteSpace: "pre-wrap" }}>
-                    {m.body ?? ""}
-                  </TableCell>
-                  <TableCell>
-                    <Box component="code" sx={{ overflowWrap: "anywhere" }}>
-                      {m.clientIp ?? "none"}
-                    </Box>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      justifyContent="flex-end"
-                    >
-                      <IconButton
-                        size="small"
-                        color="error"
-                        aria-label="Delete"
-                        onClick={() => setConfirmDelete(m)}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Stack>
-                  </TableCell>
-                  <AuditCell
-                    entity="contact_message"
-                    entityId={m.id ?? ""}
-                    name={m.name ?? "contact message"}
-                    audit={m.audit}
-                    align="right"
-                  />
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <ResponsiveTable<ContactMessage>
+        rows={rows}
+        columns={columns}
+        rowKey={(m) => String(m.id)}
+        rowTestId={(m) => `contact-row-${m.id}`}
+        emptyText="No contact messages."
+        actions={(m) => (
+          <IconButton
+            size="small"
+            color="error"
+            aria-label="Delete"
+            onClick={() => setConfirmDelete(m)}
+          >
+            <DeleteIcon fontSize="small" />
+          </IconButton>
+        )}
+        audit={(m) => ({
+          entity: "contact_message",
+          entityId: m.id ?? "",
+          name: m.name ?? "contact message",
+          audit: m.audit,
+        })}
+      />
 
       {listQ.hasNextPage ? (
         <Box sx={{ textAlign: "center", mt: 2 }}>

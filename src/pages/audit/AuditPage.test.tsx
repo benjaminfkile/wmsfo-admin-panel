@@ -53,6 +53,56 @@ afterEach(() => {
   server.resetHandlers();
 });
 
+function stubMatchMedia(matches: boolean): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+  return () => {
+    if (original === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).matchMedia;
+    } else {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: original,
+      });
+    }
+  };
+}
+
+describe("AuditPage on compact", () => {
+  it("renders a card per entry with the expand toggle", async () => {
+    const restore = stubMatchMedia(true);
+    try {
+      render(
+        <Harness>
+          <AuditPage />
+        </Harness>
+      );
+      const card = await screen.findByTestId("audit-page-row-900");
+      expect(
+        within(card).getByRole("button", { name: /show raw json/i })
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("table")).toBeNull();
+    } finally {
+      restore();
+    }
+  });
+});
+
 describe("AuditPage (admin.md 6.22)", () => {
   it("renders the entries newest first with the changed-fields summary", async () => {
     render(

@@ -56,6 +56,68 @@ afterEach(() => {
   server.resetHandlers();
 });
 
+function stubMatchMedia(matches: boolean): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+  return () => {
+    if (original === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).matchMedia;
+    } else {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: original,
+      });
+    }
+  };
+}
+
+describe("VersionsList on compact", () => {
+  it("renders a card per version with View, Restore, and Restore and publish", async () => {
+    const restore = stubMatchMedia(true);
+    try {
+      server.use(
+        http.get(`${testConfig.apiBaseUrl}/admin/content/status`, () =>
+          HttpResponse.json(f.contentStatus)
+        ),
+        http.get(`${testConfig.apiBaseUrl}/admin/content/versions`, () =>
+          HttpResponse.json({
+            items: [{ ...f.contentVersions[0], id: 5, label: "Older" }],
+          })
+        )
+      );
+      render(<Harness />);
+      const card = await screen.findByTestId("version-row-5");
+      expect(
+        within(card).getByRole("button", { name: /^view$/i })
+      ).toBeInTheDocument();
+      expect(
+        within(card).getByRole("button", { name: /^restore$/i })
+      ).toBeInTheDocument();
+      expect(
+        within(card).getByRole("button", { name: /restore and publish/i })
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("table")).toBeNull();
+    } finally {
+      restore();
+    }
+  });
+});
+
 describe("Publish: status card states", () => {
   it("renders 'No unpublished changes' when hasUnpublishedChanges is false", async () => {
     server.use(

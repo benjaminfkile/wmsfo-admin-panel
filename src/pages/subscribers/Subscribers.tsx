@@ -5,16 +5,8 @@ import {
   Chip,
   IconButton,
   MenuItem,
-  Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
-  Typography,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import {
@@ -30,8 +22,10 @@ import {
 import { keys } from "../../queries/keys";
 import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
-import AuditCell from "../../components/audit/AuditCell";
 import PageHeader from "../../components/layout/PageHeader";
+import ResponsiveTable, {
+  type Column,
+} from "../../components/list/ResponsiveTable";
 import { useNotify } from "../../hooks/useNotify";
 import { csvFromRecords } from "../../lib/csv";
 import { downloadCsv } from "../../lib/download";
@@ -151,6 +145,48 @@ export default function Subscribers() {
     [listQ.data]
   );
 
+  const columns: Column<SubscriberAdmin>[] = [
+    {
+      key: "personEmail",
+      header: "Person email",
+      role: "title",
+      render: (s) => s.personEmail ?? "none",
+    },
+    {
+      key: "address",
+      header: "Address",
+      role: "line",
+      render: (s) => s.address ?? "none",
+    },
+    {
+      key: "channel",
+      header: "Channel",
+      role: "line",
+      render: (s) => s.channel ?? "none",
+    },
+    {
+      key: "verifiedAt",
+      header: "Verified at",
+      label: "Verified",
+      role: "line",
+      render: (s) => formatMt(s.verifiedAt) || "none",
+    },
+    {
+      key: "unsubscribedAt",
+      header: "Unsubscribed at",
+      label: "Unsubscribed",
+      role: "line",
+      render: (s) => formatMt(s.unsubscribedAt) || "none",
+    },
+    {
+      key: "createdAt",
+      header: "Created at",
+      label: "Created",
+      role: "line",
+      render: (s) => formatMt(s.createdAt) || "none",
+    },
+  ];
+
   return (
     <>
       <PageHeader
@@ -169,7 +205,14 @@ export default function Subscribers() {
         }
       />
 
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+      <Stack
+        direction="row"
+        spacing={2}
+        alignItems="center"
+        useFlexGap
+        flexWrap="wrap"
+        sx={{ mb: 2 }}
+      >
         <Chip label={`Verified: ${summaryQ.data?.verified ?? "none"}`} />
         <Chip label={`Pending: ${summaryQ.data?.pending ?? "none"}`} />
         <Chip label={`Unsubscribed: ${summaryQ.data?.unsubscribed ?? "none"}`} />
@@ -191,64 +234,29 @@ export default function Subscribers() {
 
       {listQ.error ? <ErrorAlert error={listQ.error} /> : null}
 
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Person email</TableCell>
-              <TableCell>Address</TableCell>
-              <TableCell>Channel</TableCell>
-              <TableCell>Verified at</TableCell>
-              <TableCell>Unsubscribed at</TableCell>
-              <TableCell>Created at</TableCell>
-              <TableCell align="right">Actions</TableCell>
-              <TableCell align="right">Audit</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8}>
-                  <Typography variant="body2" color="text.secondary">
-                    No subscribers.
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            ) : (
-              rows.map((s) => (
-                <TableRow
-                  key={String(s.id)}
-                  data-testid={`subscriber-row-${s.id}`}
-                >
-                  <TableCell>{s.personEmail ?? "none"}</TableCell>
-                  <TableCell>{s.address ?? "none"}</TableCell>
-                  <TableCell>{s.channel ?? "none"}</TableCell>
-                  <TableCell>{formatMt(s.verifiedAt) || "none"}</TableCell>
-                  <TableCell>{formatMt(s.unsubscribedAt) || "none"}</TableCell>
-                  <TableCell>{formatMt(s.createdAt) || "none"}</TableCell>
-                  <TableCell align="right">
-                    <IconButton
-                      size="small"
-                      color="error"
-                      aria-label="Delete"
-                      onClick={() => setConfirmDelete(s)}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </TableCell>
-                  <AuditCell
-                    entity="subscriber"
-                    entityId={s.id ?? ""}
-                    name={s.personEmail ?? "subscriber"}
-                    audit={s.audit}
-                    align="right"
-                  />
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <ResponsiveTable<SubscriberAdmin>
+        rows={rows}
+        columns={columns}
+        rowKey={(s) => String(s.id)}
+        rowTestId={(s) => `subscriber-row-${s.id}`}
+        emptyText="No subscribers."
+        actions={(s) => (
+          <IconButton
+            size="small"
+            color="error"
+            aria-label="Delete"
+            onClick={() => setConfirmDelete(s)}
+          >
+            <DeleteIcon fontSize="small" />
+          </IconButton>
+        )}
+        audit={(s) => ({
+          entity: "subscriber",
+          entityId: s.id ?? "",
+          name: s.personEmail ?? "subscriber",
+          audit: s.audit,
+        })}
+      />
 
       {listQ.hasNextPage ? (
         <Box sx={{ textAlign: "center", mt: 2 }}>

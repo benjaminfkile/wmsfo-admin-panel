@@ -8,16 +8,8 @@ import {
   DialogTitle,
   IconButton,
   Link,
-  Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
-  Typography,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
@@ -26,8 +18,10 @@ import { sponsors as sponsorsApi } from "../../api/resources/sponsors";
 import { keys } from "../../queries/keys";
 import AppDialog from "../../components/AppDialog";
 import ErrorAlert from "../../components/ErrorAlert";
-import AuditCell from "../../components/audit/AuditCell";
 import PageHeader from "../../components/layout/PageHeader";
+import ResponsiveTable, {
+  type Column,
+} from "../../components/list/ResponsiveTable";
 import { useNotify } from "../../hooks/useNotify";
 import {
   toSponsorBody,
@@ -59,6 +53,23 @@ const OPTIONAL_FIELDS: { key: SponsorField; label: string }[] = [
   { key: "fbUrl", label: "Facebook URL" },
   { key: "igUrl", label: "Instagram URL" },
 ];
+
+function sponsorLogoUrl(sponsor: Sponsor): string | null {
+  const logo = sponsor.logo;
+  if (!logo) return null;
+  const v480 = logo.variants?.["480"];
+  if (typeof v480 === "string" && v480.length > 0) return v480;
+  if (typeof logo.url === "string" && logo.url.length > 0) return logo.url;
+  return null;
+}
+
+function latestYearOf(sponsor: Sponsor): number | null {
+  const years = Array.isArray(sponsor.years) ? sponsor.years : [];
+  return years.reduce<number | null>((acc, y) => {
+    const yr = Number(y.eventYear);
+    return Number.isFinite(yr) && (acc === null || yr > acc) ? yr : acc;
+  }, null);
+}
 
 export default function SponsorsList() {
   const qc = useQueryClient();
@@ -115,6 +126,50 @@ export default function SponsorsList() {
 
   const sponsors = sponsorsQ.data?.items ?? [];
 
+  const columns: Column<Sponsor>[] = [
+    {
+      key: "name",
+      header: "Name",
+      role: "title",
+      render: (s) => (
+        <RouterLink to={`/sponsors/${s.id}`}>{s.name}</RouterLink>
+      ),
+    },
+    {
+      key: "latestYear",
+      header: "Latest year",
+      role: "line",
+      render: (s) => {
+        const y = latestYearOf(s);
+        return y !== null ? String(y) : "none";
+      },
+    },
+    {
+      key: "years",
+      header: "Years",
+      align: "right",
+      role: "line",
+      render: (s) => String((s.years ?? []).length),
+    },
+    {
+      key: "website",
+      header: "Website",
+      role: "line",
+      render: (s) =>
+        s.websiteUrl ? (
+          <Link
+            href={s.websiteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {s.websiteUrl}
+          </Link>
+        ) : (
+          "none"
+        ),
+    },
+  ];
+
   return (
     <>
       <PageHeader
@@ -133,36 +188,44 @@ export default function SponsorsList() {
       {sponsorsQ.error ? (
         <ErrorAlert error={sponsorsQ.error} />
       ) : (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Logo</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Latest year</TableCell>
-                <TableCell align="right">Years</TableCell>
-                <TableCell>Website</TableCell>
-                <TableCell align="right">Actions</TableCell>
-                <TableCell align="right">Audit</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {sponsors.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7}>
-                    <Typography variant="body2" color="text.secondary">
-                      No sponsors yet.
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                sponsors.map((s) => (
-                  <SponsorRow key={String(s.id)} sponsor={s} />
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <ResponsiveTable<Sponsor>
+          rows={sponsors}
+          columns={columns}
+          rowKey={(s) => String(s.id)}
+          rowTestId={(s) => `sponsor-row-${s.id}`}
+          emptyText="No sponsors yet."
+          leading={(s) => {
+            const url = sponsorLogoUrl(s);
+            return url ? (
+              <Box
+                component="img"
+                src={url}
+                alt={s.name ?? ""}
+                sx={{ width: 40, height: 40, objectFit: "contain" }}
+              />
+            ) : (
+              <Alert severity="info" icon={false} sx={{ py: 0, px: 1 }}>
+                none
+              </Alert>
+            );
+          }}
+          actions={(s) => (
+            <IconButton
+              size="small"
+              component={RouterLink}
+              to={`/sponsors/${s.id}`}
+              aria-label={`Edit ${s.name ?? "sponsor"}`}
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+          )}
+          audit={(s) => ({
+            entity: "sponsor",
+            entityId: s.id ?? "",
+            name: s.name ?? "sponsor",
+            audit: s.audit,
+          })}
+        />
       )}
 
       <AppDialog
@@ -233,73 +296,4 @@ export default function SponsorsList() {
       />
     </>
   );
-}
-
-function SponsorRow({ sponsor }: { sponsor: Sponsor }) {
-  const logoUrl = sponsorLogoUrl(sponsor);
-  const years = Array.isArray(sponsor.years) ? sponsor.years : [];
-  const latestYear = years.reduce<number | null>((acc, y) => {
-    const yr = Number(y.eventYear);
-    return Number.isFinite(yr) && (acc === null || yr > acc) ? yr : acc;
-  }, null);
-  return (
-    <TableRow hover data-testid={`sponsor-row-${sponsor.id}`}>
-      <TableCell>
-        {logoUrl ? (
-          <Box
-            component="img"
-            src={logoUrl}
-            alt={sponsor.name ?? ""}
-            sx={{ width: 40, height: 40, objectFit: "contain" }}
-          />
-        ) : (
-          <Alert severity="info" icon={false} sx={{ py: 0, px: 1 }}>
-            none
-          </Alert>
-        )}
-      </TableCell>
-      <TableCell>
-        <RouterLink to={`/sponsors/${sponsor.id}`}>{sponsor.name}</RouterLink>
-      </TableCell>
-      <TableCell>
-        {latestYear !== null ? String(latestYear) : "none"}
-      </TableCell>
-      <TableCell align="right">{years.length}</TableCell>
-      <TableCell>
-        {sponsor.websiteUrl ? (
-          <Link href={sponsor.websiteUrl} target="_blank" rel="noopener noreferrer">
-            {sponsor.websiteUrl}
-          </Link>
-        ) : (
-          "none"
-        )}
-      </TableCell>
-      <TableCell align="right">
-        <IconButton
-          size="small"
-          component={RouterLink}
-          to={`/sponsors/${sponsor.id}`}
-          aria-label={`Edit ${sponsor.name ?? "sponsor"}`}
-        >
-          <EditIcon fontSize="small" />
-        </IconButton>
-      </TableCell>
-      <AuditCell
-        entity="sponsor"
-        entityId={sponsor.id ?? ""}
-        name={sponsor.name ?? "sponsor"}
-        audit={sponsor.audit}
-        align="right"
-      />
-    </TableRow>
-  );
-}
-
-function sponsorLogoUrl(sponsor: Sponsor): string | null {
-  const logo = sponsor.logo;
-  if (!logo) return null;
-  const v480 = logo.variants?.["480"];
-  if (typeof v480 === "string" && v480.length > 0) return v480;
-  if (typeof logo.url === "string" && logo.url.length > 0) return logo.url;
-  return null;
 }

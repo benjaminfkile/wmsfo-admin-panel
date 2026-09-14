@@ -19,6 +19,37 @@ import {
 } from "../../test/renderWithProviders";
 import type { Sponsor, SponsorYear } from "../../api/types";
 
+// stub matchMedia so useCompact returns true.
+function stubMatchMedia(matches: boolean): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+  return () => {
+    if (original === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).matchMedia;
+    } else {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: original,
+      });
+    }
+  };
+}
+
 function Harness() {
   const client = new QueryClient({
     defaultOptions: {
@@ -295,5 +326,23 @@ describe("SponsorsList: import from year", () => {
     await waitFor(() => expect(captured.length).toBeGreaterThan(0));
     const body = captured[0]!.body as { sponsorIds: number[] };
     expect(body.sponsorIds).toEqual([4]);
+  });
+});
+
+describe("SponsorsList on compact", () => {
+  it("renders a card per sponsor with the pencil", async () => {
+    const restore = stubMatchMedia(true);
+    try {
+      render(<Harness />);
+      const card = await screen.findByTestId(`sponsor-row-${f.sponsors[0]!.id}`);
+      expect(
+        within(card).getByRole("link", {
+          name: new RegExp(`edit ${f.sponsors[0]!.name}`, "i"),
+        })
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("table")).toBeNull();
+    } finally {
+      restore();
+    }
   });
 });

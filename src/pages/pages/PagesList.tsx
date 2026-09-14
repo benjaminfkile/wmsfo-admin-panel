@@ -1,26 +1,17 @@
 import { useState } from "react";
 import {
-  Alert,
   Box,
   Button,
   Chip,
   IconButton,
   Menu,
   MenuItem,
-  Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Typography,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import SettingsIcon from "@mui/icons-material/Settings";
-import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
@@ -30,8 +21,10 @@ import { keys } from "../../queries/keys";
 import ErrorAlert from "../../components/ErrorAlert";
 import CommentBox from "../../components/CommentBox";
 import DeleteDialog from "../../components/DeleteDialog";
-import AuditCell from "../../components/audit/AuditCell";
 import PageHeader from "../../components/layout/PageHeader";
+import ResponsiveTable, {
+  type Column,
+} from "../../components/list/ResponsiveTable";
 import { useNotify } from "../../hooks/useNotify";
 import PageCreateDialog, {
   type PageCreateSubmit,
@@ -178,6 +171,86 @@ export default function PagesList() {
     orderMut.mutate(next.map((p) => Number(p.id ?? 0)));
   };
 
+  const problemsChip = (p: PageAdmin) =>
+    Number(p.problemCount ?? 0) > 0 ? (
+      <Chip size="small" color="error" label={`${p.problemCount} problems`} />
+    ) : null;
+
+  const statusColumns: Column<PageAdmin>[] = [
+    {
+      key: "title",
+      header: "Title",
+      role: "title",
+      render: (p) => <RouterLink to={`/pages/${p.id}`}>{p.title}</RouterLink>,
+    },
+    {
+      key: "role",
+      header: "Role",
+      role: "chip",
+      render: (p) => (
+        <Chip size="small" label={statusRoleLabel(p.role ?? "")} />
+      ),
+    },
+    {
+      key: "problems",
+      header: "Problems",
+      align: "right",
+      role: "chip",
+      render: (p) => problemsChip(p) ?? <Box component="span">0</Box>,
+      renderCompact: (p) => problemsChip(p),
+    },
+    {
+      key: "sections",
+      header: "Sections",
+      align: "right",
+      role: "line",
+      render: (p) => String(p.sectionCount ?? 0),
+    },
+  ];
+
+  const noneColumns: Column<PageAdmin>[] = [
+    {
+      key: "title",
+      header: "Title",
+      role: "title",
+      render: (p) => <RouterLink to={`/pages/${p.id}`}>{p.title}</RouterLink>,
+    },
+    {
+      key: "slug",
+      header: "Slug",
+      role: "subtitle",
+      render: (p) => p.slug ?? "",
+    },
+    {
+      key: "hidden",
+      header: "Hidden",
+      role: "chip",
+      render: (p) =>
+        p.isHidden ? <Chip size="small" label="Hidden" /> : null,
+    },
+    {
+      key: "problems",
+      header: "Problems",
+      align: "right",
+      role: "chip",
+      render: (p) => problemsChip(p) ?? <Box component="span">0</Box>,
+      renderCompact: (p) => problemsChip(p),
+    },
+    {
+      key: "nav",
+      header: "Nav",
+      role: "line",
+      render: (p) => p.navLabel ?? "not in nav",
+    },
+    {
+      key: "sections",
+      header: "Sections",
+      align: "right",
+      role: "line",
+      render: (p) => String(p.sectionCount ?? 0),
+    },
+  ];
+
   return (
     <>
       <PageHeader
@@ -201,188 +274,103 @@ export default function PagesList() {
             <Typography variant="h6" gutterBottom>
               Status pages
             </Typography>
-            <TableContainer component={Paper}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Role</TableCell>
-                    <TableCell>Title</TableCell>
-                    <TableCell align="right">Sections</TableCell>
-                    <TableCell align="right">Problems</TableCell>
-                    <TableCell align="right">Actions</TableCell>
-                    <TableCell align="right">Audit</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {statusPages.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6}>
-                        <Typography variant="body2" color="text.secondary">
-                          No status pages.
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    statusPages.map((p) => (
-                      <TableRow
-                        key={String(p.id)}
-                        data-testid={`page-row-${p.id}`}
-                      >
-                        <TableCell>{statusRoleLabel(p.role ?? "")}</TableCell>
-                        <TableCell>
-                          <RouterLink to={`/pages/${p.id}`}>{p.title}</RouterLink>
-                        </TableCell>
-                        <TableCell align="right">{p.sectionCount}</TableCell>
-                        <TableCell align="right">
-                          {Number(p.problemCount ?? 0) > 0 ? (
-                            <Chip
-                              size="small"
-                              color="error"
-                              label={p.problemCount}
-                            />
-                          ) : (
-                            "0"
-                          )}
-                        </TableCell>
-                        <TableCell align="right">
-                          <IconButton
-                            size="small"
-                            component={RouterLink}
-                            to={`/pages/${p.id}`}
-                            aria-label={`Edit ${p.title ?? "page"}`}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </TableCell>
-                        <AuditCell
-                          entity="page"
-                          entityId={p.id ?? ""}
-                          name={p.title ?? "page"}
-                          audit={p.audit}
-                          align="right"
-                        />
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <ResponsiveTable<PageAdmin>
+              rows={statusPages}
+              columns={statusColumns}
+              rowKey={(p) => String(p.id)}
+              rowTestId={(p) => `page-row-${p.id}`}
+              emptyText="No status pages."
+              actions={(p) => (
+                <IconButton
+                  size="small"
+                  component={RouterLink}
+                  to={`/pages/${p.id}`}
+                  aria-label={`Edit ${p.title ?? "page"}`}
+                >
+                  <EditIcon fontSize="small" />
+                </IconButton>
+              )}
+              audit={(p) => ({
+                entity: "page",
+                entityId: p.id ?? "",
+                name: p.title ?? "page",
+                audit: p.audit,
+              })}
+            />
           </Box>
 
           <Box>
             <Typography variant="h6" gutterBottom>
               Pages
             </Typography>
-            <TableContainer component={Paper}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell />
-                    <TableCell>Slug</TableCell>
-                    <TableCell>Title</TableCell>
-                    <TableCell>Nav</TableCell>
-                    <TableCell>Hidden</TableCell>
-                    <TableCell align="right">Sections</TableCell>
-                    <TableCell align="right">Problems</TableCell>
-                    <TableCell align="right">Actions</TableCell>
-                    <TableCell align="right">Audit</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {nonePages.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={9}>
-                        <Alert severity="info">No content pages yet.</Alert>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    nonePages.map((p, i) => (
-                      <TableRow
-                        key={String(p.id)}
-                        data-testid={`page-row-${p.id}`}
-                      >
-                        <TableCell>
-                          <Stack direction="row" spacing={0.5}>
-                            <DragIndicatorIcon color="disabled" />
-                            <IconButton
-                              size="small"
-                              onClick={() => move(i, -1)}
-                              disabled={i === 0 || orderMut.isPending}
-                              aria-label="Move up"
-                            >
-                              <ArrowUpwardIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={() => move(i, 1)}
-                              disabled={
-                                i === nonePages.length - 1 || orderMut.isPending
-                              }
-                              aria-label="Move down"
-                            >
-                              <ArrowDownwardIcon fontSize="small" />
-                            </IconButton>
-                          </Stack>
-                        </TableCell>
-                        <TableCell>{p.slug}</TableCell>
-                        <TableCell>
-                          <RouterLink to={`/pages/${p.id}`}>{p.title}</RouterLink>
-                        </TableCell>
-                        <TableCell>{p.navLabel ?? "not in nav"}</TableCell>
-                        <TableCell>{p.isHidden ? "yes" : "no"}</TableCell>
-                        <TableCell align="right">{p.sectionCount}</TableCell>
-                        <TableCell align="right">
-                          {Number(p.problemCount ?? 0) > 0 ? (
-                            <Chip
-                              size="small"
-                              color="error"
-                              label={p.problemCount}
-                            />
-                          ) : (
-                            "0"
-                          )}
-                        </TableCell>
-                        <TableCell align="right">
-                          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                            <IconButton
-                              size="small"
-                              component={RouterLink}
-                              to={`/pages/${p.id}`}
-                              aria-label={`Edit ${p.title ?? "page"}`}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={() => setSettingsFor(p)}
-                              aria-label={`Settings for ${p.title ?? "page"}`}
-                            >
-                              <SettingsIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              aria-label={`Actions for ${p.title ?? "page"}`}
-                              onClick={(ev) =>
-                                setMenuAnchor({ el: ev.currentTarget, page: p })
-                              }
-                            >
-                              <MoreVertIcon fontSize="small" />
-                            </IconButton>
-                          </Stack>
-                        </TableCell>
-                        <AuditCell
-                          entity="page"
-                          entityId={p.id ?? ""}
-                          name={p.title ?? "page"}
-                          audit={p.audit}
-                          align="right"
-                        />
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <ResponsiveTable<PageAdmin>
+              rows={nonePages}
+              columns={noneColumns}
+              rowKey={(p) => String(p.id)}
+              rowTestId={(p) => `page-row-${p.id}`}
+              emptyText="No content pages yet."
+              leading={(p) => {
+                const i = nonePages.findIndex(
+                  (x) => Number(x.id) === Number(p.id)
+                );
+                return (
+                  <Stack direction="row" spacing={0.5}>
+                    <IconButton
+                      size="small"
+                      onClick={() => move(i, -1)}
+                      disabled={i === 0 || orderMut.isPending}
+                      aria-label="Move up"
+                    >
+                      <ArrowUpwardIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => move(i, 1)}
+                      disabled={
+                        i === nonePages.length - 1 || orderMut.isPending
+                      }
+                      aria-label="Move down"
+                    >
+                      <ArrowDownwardIcon fontSize="small" />
+                    </IconButton>
+                  </Stack>
+                );
+              }}
+              actions={(p) => (
+                <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                  <IconButton
+                    size="small"
+                    component={RouterLink}
+                    to={`/pages/${p.id}`}
+                    aria-label={`Edit ${p.title ?? "page"}`}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={() => setSettingsFor(p)}
+                    aria-label={`Settings for ${p.title ?? "page"}`}
+                  >
+                    <SettingsIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    aria-label={`Actions for ${p.title ?? "page"}`}
+                    onClick={(ev) =>
+                      setMenuAnchor({ el: ev.currentTarget, page: p })
+                    }
+                  >
+                    <MoreVertIcon fontSize="small" />
+                  </IconButton>
+                </Stack>
+              )}
+              audit={(p) => ({
+                entity: "page",
+                entityId: p.id ?? "",
+                name: p.title ?? "page",
+                audit: p.audit,
+              })}
+            />
           </Box>
         </Stack>
       )}

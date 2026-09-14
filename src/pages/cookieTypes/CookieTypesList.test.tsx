@@ -57,6 +57,71 @@ afterEach(() => {
   server.resetHandlers();
 });
 
+function stubMatchMedia(matches: boolean): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+  return () => {
+    if (original === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).matchMedia;
+    } else {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: original,
+      });
+    }
+  };
+}
+
+describe("CookieTypesList on compact", () => {
+  it("renders a card per type with the pencil and the menu", async () => {
+    const restore = stubMatchMedia(true);
+    try {
+      // Serve no live event so the buttons stay enabled.
+      const noLive: Event[] = [
+        { ...f.events[0]!, statusId: 4 },
+        f.events[1]!,
+      ];
+      server.use(
+        http.get(`${testConfig.apiBaseUrl}/admin/events`, () =>
+          HttpResponse.json({ items: noLive })
+        )
+      );
+      render(<Harness />);
+      const card = await screen.findByTestId(
+        `cookie-type-row-${f.cookieTypes[0]!.id}`
+      );
+      expect(
+        within(card).getByRole("button", {
+          name: new RegExp(`edit ${f.cookieTypes[0]!.name}`, "i"),
+        })
+      ).toBeInTheDocument();
+      expect(
+        within(card).getByRole("button", {
+          name: new RegExp(`actions for ${f.cookieTypes[0]!.name}`, "i"),
+        })
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("table")).toBeNull();
+    } finally {
+      restore();
+    }
+  });
+});
+
 describe("CookieTypesList: locked while live", () => {
   it("shows the banner and disables controls when an event is live", async () => {
     render(<Harness />);

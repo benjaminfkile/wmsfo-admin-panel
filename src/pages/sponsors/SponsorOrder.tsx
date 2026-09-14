@@ -374,8 +374,10 @@ function SortableSponsorRow({
         ) : (
           <Box sx={{ width: 32, height: 32 }} />
         )}
-        <Box sx={{ flexGrow: 1 }}>
-          <Typography variant="body1">{row.name}</Typography>
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+          <Typography variant="body1" sx={{ wordBreak: "break-word" }}>
+            {row.name}
+          </Typography>
           <Typography variant="caption" color="text.secondary">
             {amount === null ? "no amount" : `$${amount.toLocaleString()}`}
             {" · tracker "}

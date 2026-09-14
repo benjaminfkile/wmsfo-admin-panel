@@ -3,14 +3,7 @@ import {
   Alert,
   Button,
   Chip,
-  Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Typography,
 } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -18,7 +11,9 @@ import { content as contentApi } from "../../api/resources/content";
 import { keys } from "../../queries/keys";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
-import AuditCell from "../../components/audit/AuditCell";
+import ResponsiveTable, {
+  type Column,
+} from "../../components/list/ResponsiveTable";
 import { formatMt } from "../../lib/time";
 import { useNotify } from "../../hooks/useNotify";
 import VersionDialog from "./VersionDialog";
@@ -73,6 +68,59 @@ export default function VersionsList({ currentPublishedId }: Props) {
 
   const versions = (versionsQ.data?.items ?? []).slice(0, 50);
 
+  const columns: Column<ContentVersionInfo>[] = [
+    {
+      key: "title",
+      header: "ID and label",
+      role: "title",
+      render: (v) => {
+        const id = Number(v.id ?? 0);
+        const isPublished = id === currentPublishedId;
+        return (
+          <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+            <span>
+              #{id} {v.label ?? "(no label)"}
+            </span>
+            {isPublished ? (
+              <Chip
+                label="Published"
+                color="success"
+                size="small"
+                data-testid={`version-published-${id}`}
+              />
+            ) : null}
+          </Stack>
+        );
+      },
+    },
+    {
+      key: "publisher",
+      header: "Publisher",
+      role: "line",
+      render: (v) => v.publishedBy ?? "none",
+    },
+    {
+      key: "time",
+      header: "Time",
+      role: "line",
+      render: (v) => formatMt(v.publishedAt ?? null),
+    },
+    {
+      key: "pages",
+      header: "Pages",
+      align: "right",
+      role: "line",
+      render: (v) => String(v.pageCount ?? 0),
+    },
+    {
+      key: "sections",
+      header: "Sections",
+      align: "right",
+      role: "line",
+      render: (v) => String(v.sectionCount ?? 0),
+    },
+  ];
+
   return (
     <>
       <Typography variant="h6" sx={{ mb: 1 }}>
@@ -83,81 +131,47 @@ export default function VersionsList({ currentPublishedId }: Props) {
       ) : versions.length === 0 ? (
         <Alert severity="info">No published versions yet.</Alert>
       ) : (
-        <TableContainer component={Paper} variant="outlined">
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>ID</TableCell>
-                <TableCell>Label</TableCell>
-                <TableCell>Publisher</TableCell>
-                <TableCell>Time</TableCell>
-                <TableCell align="right">Pages</TableCell>
-                <TableCell align="right">Sections</TableCell>
-                <TableCell align="right">Actions</TableCell>
-                <TableCell align="right">Audit</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {versions.map((v) => {
-                const id = Number(v.id ?? 0);
-                const isPublished = id === currentPublishedId;
-                return (
-                  <TableRow key={id} data-testid={`version-row-${id}`}>
-                    <TableCell>{id}</TableCell>
-                    <TableCell>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <span>{v.label ?? "(no label)"}</span>
-                        {isPublished ? (
-                          <Chip
-                            label="Published"
-                            color="success"
-                            size="small"
-                            data-testid={`version-published-${id}`}
-                          />
-                        ) : null}
-                      </Stack>
-                    </TableCell>
-                    <TableCell>{v.publishedBy ?? "none"}</TableCell>
-                    <TableCell>{formatMt(v.publishedAt ?? null)}</TableCell>
-                    <TableCell align="right">{String(v.pageCount ?? 0)}</TableCell>
-                    <TableCell align="right">
-                      {String(v.sectionCount ?? 0)}
-                    </TableCell>
-                    <TableCell align="right">
-                      <Stack direction="row" spacing={1} justifyContent="flex-end">
-                        <Button size="small" onClick={() => setViewFor(v)}>
-                          View
-                        </Button>
-                        <Button
-                          size="small"
-                          onClick={() => setRestoreFor(v)}
-                          disabled={restoreMut.isPending}
-                        >
-                          Restore
-                        </Button>
-                        <Button
-                          size="small"
-                          color="secondary"
-                          onClick={() => setRestorePublishFor(v)}
-                          disabled={restorePublishMut.isPending}
-                        >
-                          Restore and publish
-                        </Button>
-                      </Stack>
-                    </TableCell>
-                    <AuditCell
-                      entity="content_version"
-                      entityId={id}
-                      name={v.label ?? `version ${id}`}
-                      audit={v.audit}
-                      align="right"
-                    />
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <ResponsiveTable<ContentVersionInfo>
+          rows={versions}
+          columns={columns}
+          rowKey={(v) => String(v.id ?? 0)}
+          rowTestId={(v) => `version-row-${Number(v.id ?? 0)}`}
+          emptyText="No published versions yet."
+          actions={(v) => (
+            <Stack
+              direction="row"
+              spacing={1}
+              justifyContent="flex-end"
+              useFlexGap
+              flexWrap="wrap"
+            >
+              <Button size="small" onClick={() => setViewFor(v)}>
+                View
+              </Button>
+              <Button
+                size="small"
+                onClick={() => setRestoreFor(v)}
+                disabled={restoreMut.isPending}
+              >
+                Restore
+              </Button>
+              <Button
+                size="small"
+                color="secondary"
+                onClick={() => setRestorePublishFor(v)}
+                disabled={restorePublishMut.isPending}
+              >
+                Restore and publish
+              </Button>
+            </Stack>
+          )}
+          audit={(v) => ({
+            entity: "content_version",
+            entityId: Number(v.id ?? 0),
+            name: v.label ?? `version ${Number(v.id ?? 0)}`,
+            audit: v.audit,
+          })}
+        />
       )}
 
       <VersionDialog

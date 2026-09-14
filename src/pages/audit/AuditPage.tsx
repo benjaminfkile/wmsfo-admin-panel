@@ -9,12 +9,6 @@ import {
   MenuItem,
   Paper,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
@@ -25,6 +19,9 @@ import { audit as auditApi, AUDIT_ACTIONS } from "../../api/resources/audit";
 import { keys } from "../../queries/keys";
 import ErrorAlert from "../../components/ErrorAlert";
 import PageHeader from "../../components/layout/PageHeader";
+import ResponsiveTable, {
+  type Column,
+} from "../../components/list/ResponsiveTable";
 import { ThemedJsonView } from "../../components/ThemedJsonView";
 import { formatMt } from "../../lib/time";
 import {
@@ -59,6 +56,7 @@ const ROUTE_FOR_ENTITY: Record<string, (id: string) => string> = {
 
 export default function AuditPage() {
   const [filters, setFilters] = useState<Filters>(EMPTY);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const applied = filters;
 
   const entitiesQ = useQuery({
@@ -91,6 +89,72 @@ export default function AuditPage() {
   );
 
   const entityOptions = entitiesQ.data?.items ?? [];
+
+  const toggle = (id: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const columns: Column<AuditEntry>[] = [
+    {
+      key: "time",
+      header: "Time",
+      role: "title",
+      render: (e) => formatMt(e.at),
+    },
+    {
+      key: "actorAction",
+      header: "Actor and action",
+      role: "subtitle",
+      compactOnly: true,
+      render: (e) => `${formatActor(e.actor)} - ${formatAction(e.action)}`,
+    },
+    {
+      key: "actor",
+      header: "Actor",
+      render: (e) => formatActor(e.actor),
+    },
+    {
+      key: "action",
+      header: "Action",
+      render: (e) => formatAction(e.action),
+    },
+    {
+      key: "entity",
+      header: "Entity",
+      role: "line",
+      render: (e) => {
+        const link = e.entity
+          ? ROUTE_FOR_ENTITY[e.entity]?.(String(e.entityId ?? ""))
+          : undefined;
+        const isDeleted = e.action === "delete";
+        const entityLabel = `${e.entity ?? ""} #${e.entityId ?? ""}`;
+        return link && !isDeleted ? (
+          <a href={link}>{entityLabel}</a>
+        ) : (
+          <span>{entityLabel}</span>
+        );
+      },
+    },
+    {
+      key: "changes",
+      header: "Changes",
+      role: "line",
+      render: (e) => (
+        <Typography
+          variant="body2"
+          component="span"
+          sx={{ whiteSpace: "pre-wrap" }}
+        >
+          {summariseEntry(e)}
+        </Typography>
+      ),
+    },
+  ];
 
   return (
     <Box>
@@ -152,25 +216,41 @@ export default function AuditPage() {
       {entries.length === 0 && !listQ.isLoading ? (
         <Alert severity="info">No audit entries match those filters.</Alert>
       ) : (
-        <TableContainer component={Paper}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell />
-                <TableCell>Time</TableCell>
-                <TableCell>Actor</TableCell>
-                <TableCell>Action</TableCell>
-                <TableCell>Entity</TableCell>
-                <TableCell>Changes</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {entries.map((e) => (
-                <AuditRow key={String(e.id)} entry={e} />
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <ResponsiveTable<AuditEntry>
+          rows={entries}
+          columns={columns}
+          rowKey={(e) => String(e.id)}
+          rowTestId={(e) => `audit-page-row-${e.id}`}
+          emptyText="No audit entries match those filters."
+          actions={(e) => {
+            const id = String(e.id);
+            const open = expanded.has(id);
+            return (
+              <IconButton
+                size="small"
+                onClick={() => toggle(id)}
+                aria-label={open ? "Hide raw JSON" : "Show raw JSON"}
+              >
+                {open ? (
+                  <ExpandLessIcon fontSize="small" />
+                ) : (
+                  <ExpandMoreIcon fontSize="small" />
+                )}
+              </IconButton>
+            );
+          }}
+          expandedContent={(e) => {
+            const id = String(e.id);
+            const open = expanded.has(id);
+            return (
+              <Collapse in={open} unmountOnExit>
+                <Box sx={{ p: 2 }}>
+                  <BeforeAfter entry={e} />
+                </Box>
+              </Collapse>
+            );
+          }}
+        />
       )}
       {listQ.hasNextPage ? (
         <Box sx={{ mt: 2 }}>
@@ -187,71 +267,29 @@ export default function AuditPage() {
   );
 }
 
-function AuditRow({ entry }: { entry: AuditEntry }) {
-  const [open, setOpen] = useState(false);
-  const link = entry.entity
-    ? ROUTE_FOR_ENTITY[entry.entity]?.(String(entry.entityId ?? ""))
-    : undefined;
-  const isDeleted = entry.action === "delete";
-  const entityLabel = `${entry.entity ?? ""} #${entry.entityId ?? ""}`;
+function BeforeAfter({ entry }: { entry: AuditEntry }) {
   return (
-    <>
-      <TableRow hover data-testid={`audit-page-row-${entry.id}`}>
-        <TableCell padding="none" sx={{ width: 40 }}>
-          <IconButton
-            size="small"
-            onClick={() => setOpen((p) => !p)}
-            aria-label={open ? "Hide raw JSON" : "Show raw JSON"}
-          >
-            {open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-          </IconButton>
-        </TableCell>
-        <TableCell>{formatMt(entry.at)}</TableCell>
-        <TableCell>{formatActor(entry.actor)}</TableCell>
-        <TableCell>{formatAction(entry.action)}</TableCell>
-        <TableCell>
-          {link && !isDeleted ? (
-            <a href={link}>{entityLabel}</a>
-          ) : (
-            <span>{entityLabel}</span>
-          )}
-        </TableCell>
-        <TableCell>
-          <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
-            {summariseEntry(entry)}
+    <Stack spacing={2}>
+      <Box>
+        <Typography variant="overline">Before</Typography>
+        {entry.before === null || entry.before === undefined ? (
+          <Typography variant="body2" color="text.secondary">
+            (none)
           </Typography>
-        </TableCell>
-      </TableRow>
-      <TableRow>
-        <TableCell colSpan={6} sx={{ p: 0, borderBottom: open ? undefined : "none" }}>
-          <Collapse in={open} unmountOnExit>
-            <Box sx={{ p: 2 }}>
-              <Stack spacing={2}>
-                <Box>
-                  <Typography variant="overline">Before</Typography>
-                  {entry.before === null || entry.before === undefined ? (
-                    <Typography variant="body2" color="text.secondary">
-                      (none)
-                    </Typography>
-                  ) : (
-                    <ThemedJsonView value={entry.before} />
-                  )}
-                </Box>
-                <Box>
-                  <Typography variant="overline">After</Typography>
-                  {entry.after === null || entry.after === undefined ? (
-                    <Typography variant="body2" color="text.secondary">
-                      (none)
-                    </Typography>
-                  ) : (
-                    <ThemedJsonView value={entry.after} />
-                  )}
-                </Box>
-              </Stack>
-            </Box>
-          </Collapse>
-        </TableCell>
-      </TableRow>
-    </>
+        ) : (
+          <ThemedJsonView value={entry.before} />
+        )}
+      </Box>
+      <Box>
+        <Typography variant="overline">After</Typography>
+        {entry.after === null || entry.after === undefined ? (
+          <Typography variant="body2" color="text.secondary">
+            (none)
+          </Typography>
+        ) : (
+          <ThemedJsonView value={entry.after} />
+        )}
+      </Box>
+    </Stack>
   );
 }

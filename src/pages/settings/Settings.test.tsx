@@ -57,6 +57,53 @@ afterEach(() => {
   server.resetHandlers();
 });
 
+function stubMatchMedia(matches: boolean): () => void {
+  const original = window.matchMedia;
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+  return () => {
+    if (original === undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).matchMedia;
+    } else {
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: original,
+      });
+    }
+  };
+}
+
+describe("Settings on compact", () => {
+  it("renders a card per key with the value input and Save inside the card", async () => {
+    const restore = stubMatchMedia(true);
+    try {
+      render(<Harness />);
+      const card = await screen.findByTestId("setting-row-poll_interval_ms");
+      expect(within(card).getByRole("spinbutton")).toBeInTheDocument();
+      expect(
+        within(card).getByRole("button", { name: /^save$/i })
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("table")).toBeNull();
+    } finally {
+      restore();
+    }
+  });
+});
+
 describe("Settings", () => {
   it("renders every setting from the fixture", async () => {
     render(<Harness />);
