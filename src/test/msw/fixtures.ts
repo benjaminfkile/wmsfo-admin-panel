@@ -387,6 +387,12 @@ export const settings: Setting[] = [
     updatedBy: AUTHOR,
     updatedAt: NOW,
   },
+  {
+    key: "hub_enabled",
+    value: true,
+    updatedBy: AUTHOR,
+    updatedAt: NOW,
+  },
 ];
 
 export const snapshotInfo: SnapshotInfo = {

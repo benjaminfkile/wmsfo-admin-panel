@@ -6,6 +6,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { Switch as HubSwitch, FormControlLabel as HubSwitchLabel } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { settings as settingsApi } from "../../api/resources/settings";
 import { keys } from "../../queries/keys";
@@ -54,7 +55,7 @@ export default function Settings() {
   );
 
   const initialFor = (s: Setting): string =>
-    typeof s.value === "number"
+    typeof s.value === "number" || typeof s.value === "boolean"
       ? String(s.value)
       : typeof s.value === "string"
         ? s.value
@@ -85,7 +86,7 @@ export default function Settings() {
     }));
 
   const saveMut = useMutation({
-    mutationFn: ({ key, value }: { key: string; value: number }) =>
+    mutationFn: ({ key, value }: { key: string; value: number | boolean }) =>
       settingsApi.put(key, value),
     onSuccess: (row) => {
       notify(`${row.key} saved`);
@@ -132,6 +133,26 @@ export default function Settings() {
       error: null,
       saving: false,
     };
+    if (spec?.kind === "boolean") {
+      const on = state.input === "true";
+      return (
+        <HubSwitchLabel
+          control={
+            <HubSwitch
+              checked={on}
+              disabled={state.saving}
+              onChange={(e) => {
+                const next = e.target.checked;
+                setRow(key, { input: String(next), error: null, saving: true });
+                saveMut.mutate({ key, value: next });
+              }}
+              slotProps={{ input: { "aria-label": key } }}
+            />
+          }
+          label={on ? "on" : "off"}
+        />
+      );
+    }
     return (
       <Stack
         direction="row"

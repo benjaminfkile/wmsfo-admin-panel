@@ -139,6 +139,34 @@ describe("Settings", () => {
     expect(captured[0]?.body).toEqual({ value: 30000 });
   });
 
+  it("renders hub_enabled as a switch and PUTs a boolean when toggled", async () => {
+    const user = userEvent.setup();
+    const captured: Array<{ url: string; body: unknown }> = [];
+    server.use(
+      http.put(
+        `${testConfig.apiBaseUrl}/admin/settings/:key`,
+        async ({ request }) => {
+          const body = await request.json();
+          captured.push({ url: request.url, body });
+          return HttpResponse.json({
+            key: "hub_enabled",
+            value: false,
+            updatedBy: "tester",
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      )
+    );
+    render(<Harness />);
+    const row = await screen.findByTestId("setting-row-hub_enabled");
+    const toggle = within(row).getByRole("switch");
+    expect(toggle).toBeChecked();
+    await user.click(toggle);
+    await waitFor(() => expect(captured.length).toBeGreaterThan(0));
+    expect(captured[0]?.url).toMatch(/\/admin\/settings\/hub_enabled$/);
+    expect(captured[0]?.body).toEqual({ value: false });
+  });
+
   it("rejects out-of-range values without calling the API", async () => {
     const user = userEvent.setup();
     const requests: string[] = [];
@@ -167,7 +195,7 @@ describe("Settings", () => {
   });
 
   it("has a spec for every documented key", () => {
-    // 6.9 lists eight keys in a specific order; SETTING_SPECS is that order.
+    // contracts 6 lists nine keys in a specific order; SETTING_SPECS is that order.
     expect(SETTING_SPECS.map((s) => s.key)).toEqual([
       "poll_interval_ms",
       "cookie_limit_per_person",
@@ -177,6 +205,7 @@ describe("Settings", () => {
       "flight_history_max_points",
       "location_min_interval_ms",
       "location_min_distance_m",
+      "hub_enabled",
     ]);
   });
 

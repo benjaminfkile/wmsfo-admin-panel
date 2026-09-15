@@ -40,7 +40,7 @@ export function beaconFlags(
   const socketState = h?.socketState ?? null;
   const hub = b.hubConnected ?? null;
   if (hub === false || (hub === null && socketState !== "connected")) {
-    flags.push("socket_down");
+    if (b.hubAllowed !== false) flags.push("socket_down");
   }
 
   if (b.staleSince !== null && b.staleSince !== undefined) {

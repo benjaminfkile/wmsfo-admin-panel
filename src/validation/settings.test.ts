@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SETTING_SPECS, specFor, validateSettingValue } from "./settings";
 
 describe("SETTING_SPECS", () => {
-  it("lists the eight documented keys in the documented order", () => {
+  it("lists the nine documented keys in the documented order", () => {
     expect(SETTING_SPECS.map((s) => s.key)).toEqual([
       "poll_interval_ms",
       "cookie_limit_per_person",
@@ -12,6 +12,7 @@ describe("SETTING_SPECS", () => {
       "flight_history_max_points",
       "location_min_interval_ms",
       "location_min_distance_m",
+      "hub_enabled",
     ]);
   });
 });

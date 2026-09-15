@@ -11,6 +11,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { Switch as HubSwitch, FormControlLabel as HubSwitchLabel } from "@mui/material";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { beacons as beaconsApi } from "../../api/resources/beacons";
@@ -57,6 +58,7 @@ export default function BeaconDetail() {
   const [formName, setFormName] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [formMinInterval, setFormMinInterval] = useState("");
+  const [formHubAllowed, setFormHubAllowed] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const invalidateBeacons = () =>
@@ -80,13 +82,14 @@ export default function BeaconDetail() {
           ? ""
           : String(beacon.minIntervalMs)
       );
+      setFormHubAllowed(beacon.hubAllowed ?? true);
       setErrors({});
     }
   }, [beacon, editing]);
 
   const patchMut = useMutation({
     mutationFn: (
-      b: Partial<{ name: string; notes: string; minIntervalMs: number | null }>
+      b: Partial<{ name: string; notes: string; minIntervalMs: number | null; hubAllowed: boolean }>
     ) => beaconsApi.patch(id, b),
     onSuccess: () => {
       notify("Beacon saved");
@@ -178,7 +181,7 @@ export default function BeaconDetail() {
     const changes: Partial<{
       name: string;
       notes: string;
-      minIntervalMs: number | null;
+      minIntervalMs: number | null; hubAllowed: boolean;
     }> = {};
     if (trimmedName !== (beacon.name ?? "")) changes.name = trimmedName;
     if (trimmedNotes !== (beacon.notes ?? "")) changes.notes = trimmedNotes;
@@ -187,6 +190,7 @@ export default function BeaconDetail() {
         ? null
         : Number(beacon.minIntervalMs);
     if (minValue !== currentMin) changes.minIntervalMs = minValue;
+    if (formHubAllowed !== (beacon.hubAllowed ?? true)) changes.hubAllowed = formHubAllowed;
     if (Object.keys(changes).length === 0) {
       setEditing(false);
       return;
@@ -312,6 +316,17 @@ export default function BeaconDetail() {
                   fullWidth
                   inputProps={{ min: 0, max: 60000, step: 1 }}
                 />
+                <HubSwitchLabel
+                  control={
+                    <HubSwitch
+                      checked={formHubAllowed}
+                      onChange={(e) => setFormHubAllowed(e.target.checked)}
+                      disabled={!editing}
+                      slotProps={{ input: { "aria-label": "hub allowed" } }}
+                    />
+                  }
+                  label={formHubAllowed ? "Hub allowed" : "Hub off (HTTP only)"}
+                />
                 <Stack direction="row" spacing={1}>
                   {editing ? (
                     <>
@@ -333,6 +348,7 @@ export default function BeaconDetail() {
                               ? ""
                               : String(beacon.minIntervalMs)
                           );
+                          setFormHubAllowed(beacon.hubAllowed ?? true);
                           setErrors({});
                         }}
                       >

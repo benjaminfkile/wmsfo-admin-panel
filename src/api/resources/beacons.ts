@@ -15,7 +15,7 @@ export const beacons = {
     post<KeyMint>("/admin/beacons", b),
   patch: (
     id: number,
-    b: Partial<{ name: string; notes: string; minIntervalMs: number | null }>
+    b: Partial<{ name: string; notes: string; minIntervalMs: number | null; hubAllowed: boolean }>
   ) => patch<Beacon>(`/admin/beacons/${id}`, b),
   activate: (id: number) => post<Beacon>(`/admin/beacons/${id}/activate`),
   deactivate: (id: number) => post<Beacon>(`/admin/beacons/${id}/deactivate`),

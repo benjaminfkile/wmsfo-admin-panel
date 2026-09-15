@@ -50,6 +50,7 @@ type Confirm = {
 };
 
 function hubStateLabel(b: Beacon): string {
+  if (b.hubAllowed === false) return "off (HTTP only)";
   if (b.hubConnected === true) return "connected";
   if (b.hubConnected === false) return "polling";
   return "unknown";

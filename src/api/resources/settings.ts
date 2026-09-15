@@ -3,6 +3,6 @@ import type { Setting } from "../types";
 
 export const settings = {
   list: () => get<{ items: Setting[] }>("/admin/settings"),
-  put: (key: string, value: number) =>
+  put: (key: string, value: number | boolean) =>
     put<Setting>(`/admin/settings/${key}`, { value }),
 };

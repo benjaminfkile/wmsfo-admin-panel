@@ -217,6 +217,27 @@ describe("BeaconDetail min interval and fix counters", () => {
     expect(captured[0]?.body).toEqual({ minIntervalMs: 750 });
   });
 
+  it("PATCHes hubAllowed: false when the hub switch is turned off", async () => {
+    const user = userEvent.setup();
+    const captured: Array<{ url: string; body: unknown }> = [];
+    server.use(
+      http.patch(
+        `${testConfig.apiBaseUrl}/admin/beacons/:id`,
+        async ({ request }) => {
+          captured.push({ url: request.url, body: await request.json() });
+          return HttpResponse.json({ ...f.beacons[0], hubAllowed: false });
+        }
+      )
+    );
+    renderDetail();
+    await screen.findByRole("heading", { name: f.beacons[0]!.name!, level: 4 });
+    await user.click(screen.getByRole("button", { name: /^edit$/i }));
+    await user.click(await screen.findByLabelText(/hub allowed/i));
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+    await waitFor(() => expect(captured.length).toBeGreaterThan(0));
+    expect(captured[0]?.body).toEqual({ hubAllowed: false });
+  });
+
   it("PATCHes minIntervalMs: null when Edit clears the field", async () => {
     const user = userEvent.setup();
     const beaconWithMin: Beacon = {

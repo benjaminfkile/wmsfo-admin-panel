@@ -8,7 +8,8 @@ export type SettingKey =
   | "beacon_stale_after_s"
   | "flight_history_max_points"
   | "location_min_interval_ms"
-  | "location_min_distance_m";
+  | "location_min_distance_m"
+  | "hub_enabled";
 
 export type SettingSpec = {
   key: SettingKey;
@@ -20,6 +21,7 @@ export type SettingSpec = {
   // `location_min_distance_m` is the only key whose JSON type is number,
   // not int (contracts 6); every other spec accepts whole numbers only.
   allowDecimal?: boolean;
+  kind?: "boolean";
 };
 
 export const SETTING_SPECS: SettingSpec[] = [
@@ -93,6 +95,16 @@ export const SETTING_SPECS: SettingSpec[] = [
     max: 10000,
     allowDecimal: true,
   },
+  {
+    key: "hub_enabled",
+    label: "hub_enabled",
+    description:
+      "Whether visitors' browsers use the hub; off takes every visitor onto the poll within one poll",
+    unit: "",
+    min: 0,
+    max: 1,
+    kind: "boolean",
+  },
 ];
 
 export function specFor(key: string): SettingSpec | null {
@@ -102,8 +114,13 @@ export function specFor(key: string): SettingSpec | null {
 export function validateSettingValue(
   spec: SettingSpec,
   raw: string
-): { ok: true; value: number } | { ok: false; message: string } {
+): { ok: true; value: number | boolean } | { ok: false; message: string } {
   const trimmed = raw.trim();
+  if (spec.kind === "boolean") {
+    if (trimmed === "true") return { ok: true, value: true };
+    if (trimmed === "false") return { ok: true, value: false };
+    return { ok: false, message: "Must be on or off" };
+  }
   const kind = spec.allowDecimal ? "number" : "whole number";
   const boundsMsg = `Must be a ${kind} between ${spec.min} and ${spec.max}`;
   if (trimmed === "") {
