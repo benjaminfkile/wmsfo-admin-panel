@@ -387,12 +387,6 @@ export const settings: Setting[] = [
     updatedBy: AUTHOR,
     updatedAt: NOW,
   },
-  {
-    key: "location_max_gap_s",
-    value: 30,
-    updatedBy: AUTHOR,
-    updatedAt: NOW,
-  },
 ];
 
 export const snapshotInfo: SnapshotInfo = {

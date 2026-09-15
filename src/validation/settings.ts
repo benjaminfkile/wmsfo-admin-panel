@@ -8,8 +8,7 @@ export type SettingKey =
   | "beacon_stale_after_s"
   | "flight_history_max_points"
   | "location_min_interval_ms"
-  | "location_min_distance_m"
-  | "location_max_gap_s";
+  | "location_min_distance_m";
 
 export type SettingSpec = {
   key: SettingKey;
@@ -88,20 +87,11 @@ export const SETTING_SPECS: SettingSpec[] = [
     key: "location_min_distance_m",
     label: "location_min_distance_m",
     description:
-      "A fix that moved less than this from the last stored one is shown live but not recorded (0 records everything but exact repeats)",
+      "a fix that moved less than this from the last recorded one is shown live but not recorded (0 records every new position; a position already recorded for the event is never recorded twice)",
     unit: "m",
     min: 0,
     max: 10000,
     allowDecimal: true,
-  },
-  {
-    key: "location_max_gap_s",
-    label: "location_max_gap_s",
-    description:
-      "A fix is recorded regardless once this long has passed",
-    unit: "s",
-    min: 1,
-    max: 3600,
   },
 ];
 

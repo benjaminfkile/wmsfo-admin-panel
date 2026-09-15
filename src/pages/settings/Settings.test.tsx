@@ -167,7 +167,7 @@ describe("Settings", () => {
   });
 
   it("has a spec for every documented key", () => {
-    // 6.9 lists nine keys in a specific order; SETTING_SPECS is that order.
+    // 6.9 lists eight keys in a specific order; SETTING_SPECS is that order.
     expect(SETTING_SPECS.map((s) => s.key)).toEqual([
       "poll_interval_ms",
       "cookie_limit_per_person",
@@ -177,7 +177,6 @@ describe("Settings", () => {
       "flight_history_max_points",
       "location_min_interval_ms",
       "location_min_distance_m",
-      "location_max_gap_s",
     ]);
   });
 
@@ -189,7 +188,7 @@ describe("Settings", () => {
     expect(row).toBeInTheDocument();
   });
 
-  it("renders the three location keys with their help lines", async () => {
+  it("renders the two location keys with their help lines", async () => {
     render(<Harness />);
     const iv = await screen.findByTestId("setting-row-location_min_interval_ms");
     expect(
@@ -200,10 +199,6 @@ describe("Settings", () => {
     );
     expect(
       within(dist).getByText(/shown live but not recorded/i)
-    ).toBeInTheDocument();
-    const gap = await screen.findByTestId("setting-row-location_max_gap_s");
-    expect(
-      within(gap).getByText(/recorded regardless once this long has passed/i)
     ).toBeInTheDocument();
   });
 
