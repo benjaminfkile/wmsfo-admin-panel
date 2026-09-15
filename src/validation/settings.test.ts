@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SETTING_SPECS, specFor, validateSettingValue } from "./settings";
 
 describe("SETTING_SPECS", () => {
-  it("lists the nine documented keys in the documented order", () => {
+  it("lists the eight documented keys in the documented order", () => {
     expect(SETTING_SPECS.map((s) => s.key)).toEqual([
       "poll_interval_ms",
       "cookie_limit_per_person",
@@ -12,7 +12,6 @@ describe("SETTING_SPECS", () => {
       "flight_history_max_points",
       "location_min_interval_ms",
       "location_min_distance_m",
-      "location_max_gap_s",
     ]);
   });
 });
@@ -67,12 +66,5 @@ describe("validateSettingValue", () => {
     const s = specFor("location_min_interval_ms")!;
     const r = validateSettingValue(s, "1.5");
     expect(r.ok).toBe(false);
-  });
-
-  it("rejects out-of-range values on location_max_gap_s", () => {
-    const s = specFor("location_max_gap_s")!;
-    expect(validateSettingValue(s, "0").ok).toBe(false);
-    expect(validateSettingValue(s, "3601").ok).toBe(false);
-    expect(validateSettingValue(s, "60")).toEqual({ ok: true, value: 60 });
   });
 });

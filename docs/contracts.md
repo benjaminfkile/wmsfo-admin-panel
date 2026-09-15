@@ -1873,7 +1873,6 @@ Plain `lat`/`lng` columns; no PostGIS. `seq` is per event from `event.next_seq`,
 | `flight_history_max_points` | int | 2000 | 100 to 50000 | Admin panel | Snapshot `event.flightHistory.points` thinning (1.3): a 7,200-point flight at 2,000 keeps every 4th point, about 110 KB in the snapshot |
 | `location_min_interval_ms` | int | 250 | 0 to 60000 | Admin panel | Location write path (7.2): the least time between two accepted fixes from one beacon on a node; 0 disables |
 | `location_min_distance_m` | number | 0 | 0 to 10000 | Admin panel | Location write path (7.2): a fix that moved less than this from the beacon's last stored fix on the event is carried, not stored; 0 means only an exact repeat of `lat` and `lng` is carried |
-| `location_max_gap_s` | int | 30 | 1 to 3600 | Admin panel | Location write path (7.2): a fix is stored regardless of distance once this long has passed since the beacon's last stored fix on the event |
 
 Only `PUT /admin/settings/{key}` changes a value. A missing row means the default. Every settings write is a snapshot-affecting write: the version bump makes every node re-read settings within a tick, and the writing node rewrites the live object so a new `poll_interval_ms` reaches the site. No other configuration lives in the database.
 
@@ -1896,7 +1895,7 @@ select is_active, revoked_at, key_version, min_interval_ms from beacon where id 
 select seq, lat, lng, recorded_at, received_at from location
   where event_id = $event and beacon_id = $beacon order by seq desc limit 1;                 -- the previous stored fix, or none
 -- store when: no previous fix; or the haversine distance from it is at least location_min_distance_m
--- (with 0 meaning lat or lng differs at all); or now - its received_at is at least location_max_gap_s.
+-- (with 0 meaning lat or lng differs at all).
 -- otherwise carry.
 --
 -- stored:
@@ -2377,7 +2376,7 @@ Tests the artifacts drive: Vitest on the site store, page selection, section reg
 - Poster tiles are lossless PNG at the poster's own pixels and the viewer never zooms past 1:1; earlier JPEG pyramids stay valid through their descriptor.
 - Printed QR codes are permanent numbered tags at `/q/<tag>`, printed in batches at any size; places are a tree with a note and an optional pin; an attachment is the history; scans count against the code and roll up the tree; the snapshot carries every active code resolved so the site never asks the API what to open; the only public write is the scan beacon, always `204`.
 - A third admin-pool group, `canvasser`, reaches exactly the QR and places routes; deletes stay admin.
-- The location ingest filter is the API's, and beacons stay blind to it: `location_min_interval_ms` and `beacon.min_interval_ms` gate a per-beacon rate limit in memory on the node (dropped fixes get `outcome: "dropped"` and update no row); `location_min_distance_m` and `location_max_gap_s` decide inside the transaction whether the row is stored or carried. A carried fix still advances `event.next_seq` and moves the live object (contracts 1.2), so the site needs no change; the `LocationRow` and CSV gain `speedSource` (`beacon`, `derived`, or null) and `speedMps` on the live object is the beacon's value when present or the API-derived one.
+- The location ingest filter is the API's, and beacons stay blind to it: `location_min_interval_ms` and `beacon.min_interval_ms` gate a per-beacon rate limit in memory on the node (dropped fixes get `outcome: "dropped"` and update no row); `location_min_distance_m` decides inside the transaction whether the row is stored or carried. A carried fix still advances `event.next_seq` and moves the live object (contracts 1.2), so the site needs no change; the `LocationRow` and CSV gain `speedSource` (`beacon`, `derived`, or null) and `speedMps` on the live object is the beacon's value when present or the API-derived one.
 - Clearing a recording is `DELETE /admin/events/{id}/locations?beaconId=`: 204 on success, 409 while the event is live; `next_seq` is not reset; the audit action is `event.locations_cleared` and the site keeps whatever it holds until the leader's next tick rewrites the live object.
 
 ## 15. Needs a decision

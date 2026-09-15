@@ -874,8 +874,7 @@ One row per key from `GET /admin/settings`, in this order (unknown keys last), w
 | `beacon_stale_after_s` | Seconds without a heartbeat or location before a beacon is flagged stale | 15 to 3600 | s |
 | `flight_history_max_points` | Most points of the flight history carried in the snapshot (longer recordings are thinned) | 100 to 50000 | |
 | `location_min_interval_ms` | Least time between two accepted fixes from one beacon (0 disables) | 0 to 60000 | ms |
-| `location_min_distance_m` | A fix that moved less than this from the last stored one is shown live but not recorded (0 records everything but exact repeats) | 0 to 10000 | m |
-| `location_max_gap_s` | A fix is recorded regardless once this long has passed | 1 to 3600 | s |
+| `location_min_distance_m` | a fix that moved less than this from the last recorded one is shown live but not recorded (0 records every new position; a position already recorded for the event is never recorded twice) | 0 to 10000 | m |
 
 The rows sit in a `ResponsiveTable`: title is the key in `<code>`, subtitle is the description, lines are `updatedBy` and `updatedAt` ("default" when null), and the actions cell carries a number input with the range as helper text next to its own Save button (`PUT /admin/settings/{key}` with `{ value }`); the Audit cell sits at the end. On a phone the rows are cards with the value input and Save button on one row inside the card. Validation per 7.2; the response `Setting` replaces the row. A `CommentBox` states that every save rebuilds the snapshot and rewrites the live object, so a new poll interval reaches the site within its next poll. The specs live in `validation/settings.ts`.
 
