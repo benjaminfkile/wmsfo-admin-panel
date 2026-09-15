@@ -501,7 +501,7 @@ describe("EventDetail Clear recording (M42)", () => {
             blocked: null,
             deletes: [
               {
-                entity: "location",
+                entity: "locations",
                 count: 1200,
                 names: [f.beacons[0]!.name!],
               },
@@ -546,7 +546,7 @@ describe("EventDetail Clear recording (M42)", () => {
             blocked: null,
             deletes: [
               {
-                entity: "location",
+                entity: "locations",
                 count: 1200,
                 names: [f.beacons[0]!.name!],
               },
@@ -615,7 +615,7 @@ describe("EventDetail Clear recording (M42)", () => {
           HttpResponse.json({
             blocked: null,
             deletes: [
-              { entity: "location", count: 3, names: [f.beacons[0]!.name!] },
+              { entity: "locations", count: 3, names: [f.beacons[0]!.name!] },
             ],
             unlinks: [],
             warnings: [],

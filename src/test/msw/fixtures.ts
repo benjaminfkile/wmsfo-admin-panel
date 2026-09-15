@@ -746,7 +746,7 @@ export const emptyImpact: DeleteImpact = {
 export const eventLocationsImpact: DeleteImpact = {
   blocked: null,
   deletes: [
-    { entity: "location", count: 1200, names: ["Helicopter phone"] },
+    { entity: "locations", count: 1200, names: ["Helicopter phone"] },
   ],
   unlinks: [],
   warnings: [],
@@ -764,7 +764,7 @@ export const impactByResource: Record<string, DeleteImpact> = {
       },
       { entity: "event_status_history", count: 3, names: [] },
       { entity: "cookie", count: 41, names: [] },
-      { entity: "location", count: 1832, names: [] },
+      { entity: "locations", count: 1832, names: [] },
     ],
     unlinks: [],
     warnings: [],

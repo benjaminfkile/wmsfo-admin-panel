@@ -63,7 +63,7 @@ export default function ClearRecordingDialog({
 
   const rows: Row[] = useMemo(() => {
     const groups = (data?.deletes ?? []).filter(
-      (g) => g.entity === "location"
+      (g) => g.entity === "locations" || g.entity === "location"
     );
     const out: Row[] = [];
     for (const g of groups) {
