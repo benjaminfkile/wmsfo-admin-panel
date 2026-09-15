@@ -149,7 +149,13 @@ export default function Settings() {
           error={Boolean(state.error)}
           helperText={state.error ?? (spec ? rangeHint(spec) : "")}
           inputProps={
-            spec ? { min: spec.min, max: spec.max, step: 1 } : undefined
+            spec
+              ? {
+                  min: spec.min,
+                  max: spec.max,
+                  step: spec.allowDecimal ? "any" : 1,
+                }
+              : undefined
           }
           sx={{ maxWidth: "100%", width: { xs: "100%", sm: 200 } }}
           aria-label={key || "value"}

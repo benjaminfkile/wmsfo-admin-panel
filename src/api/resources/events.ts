@@ -1,4 +1,5 @@
 import { del, get, patch, post, request } from "../client";
+import type { DeleteImpact } from "../impact";
 import type {
   Event,
   EventMessage,
@@ -96,4 +97,12 @@ export const events = {
       accept: "text/csv",
       parse: "blob",
     }),
+  locationsImpact: (id: number) =>
+    get<DeleteImpact>(`/admin/events/${id}/locations/impact`),
+  clearLocations: (id: number, beaconId?: number) =>
+    del(
+      `/admin/events/${id}/locations${
+        typeof beaconId === "number" ? `?beaconId=${beaconId}` : ""
+      }`
+    ),
 };

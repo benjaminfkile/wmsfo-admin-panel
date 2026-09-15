@@ -167,7 +167,7 @@ describe("Settings", () => {
   });
 
   it("has a spec for every documented key", () => {
-    // 6.9 lists six keys in a specific order; SETTING_SPECS is that order.
+    // 6.9 lists nine keys in a specific order; SETTING_SPECS is that order.
     expect(SETTING_SPECS.map((s) => s.key)).toEqual([
       "poll_interval_ms",
       "cookie_limit_per_person",
@@ -175,6 +175,9 @@ describe("Settings", () => {
       "sponsor_linger_min_ms",
       "beacon_stale_after_s",
       "flight_history_max_points",
+      "location_min_interval_ms",
+      "location_min_distance_m",
+      "location_max_gap_s",
     ]);
   });
 
@@ -184,5 +187,66 @@ describe("Settings", () => {
       "setting-row-flight_history_max_points"
     );
     expect(row).toBeInTheDocument();
+  });
+
+  it("renders the three location keys with their help lines", async () => {
+    render(<Harness />);
+    const iv = await screen.findByTestId("setting-row-location_min_interval_ms");
+    expect(
+      within(iv).getByText(/least time between two accepted fixes/i)
+    ).toBeInTheDocument();
+    const dist = await screen.findByTestId(
+      "setting-row-location_min_distance_m"
+    );
+    expect(
+      within(dist).getByText(/shown live but not recorded/i)
+    ).toBeInTheDocument();
+    const gap = await screen.findByTestId("setting-row-location_max_gap_s");
+    expect(
+      within(gap).getByText(/recorded regardless once this long has passed/i)
+    ).toBeInTheDocument();
+  });
+
+  it("rejects out-of-range values for the three location keys and PUTs an in-range one", async () => {
+    const user = userEvent.setup();
+    const captured: Array<{ url: string; body: unknown }> = [];
+    server.use(
+      http.put(
+        `${testConfig.apiBaseUrl}/admin/settings/:key`,
+        async ({ params, request }) => {
+          const body = await request.json();
+          captured.push({ url: request.url, body });
+          return HttpResponse.json({
+            key: String(params.key),
+            value: 500,
+            updatedBy: "admin@example.com",
+            updatedAt: "2026-12-22T02:00:00.000Z",
+          });
+        }
+      )
+    );
+    render(<Harness />);
+    // location_min_interval_ms: rejects a value above 60000.
+    const row = await screen.findByTestId(
+      "setting-row-location_min_interval_ms"
+    );
+    const input = within(row).getByRole("spinbutton");
+    await user.clear(input);
+    await user.type(input, "70000");
+    await user.click(within(row).getByRole("button", { name: /^save$/i }));
+    expect(
+      await within(row).findByText(/between 0 and 60000/i)
+    ).toBeInTheDocument();
+    expect(captured.length).toBe(0);
+
+    // A valid value fires the PUT.
+    await user.clear(input);
+    await user.type(input, "500");
+    await user.click(within(row).getByRole("button", { name: /^save$/i }));
+    await waitFor(() => expect(captured.length).toBeGreaterThan(0));
+    expect(captured[0]?.url).toMatch(
+      /\/admin\/settings\/location_min_interval_ms$/
+    );
+    expect(captured[0]?.body).toEqual({ value: 500 });
   });
 });

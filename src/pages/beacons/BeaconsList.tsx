@@ -55,6 +55,13 @@ function hubStateLabel(b: Beacon): string {
   return "unknown";
 }
 
+function fixesLabel(b: Beacon): string {
+  const stored = Number(b.fixesStored ?? 0).toLocaleString("en-US");
+  const carried = Number(b.fixesCarried ?? 0).toLocaleString("en-US");
+  const dropped = Number(b.fixesRateLimited ?? 0).toLocaleString("en-US");
+  return `${stored} / ${carried} / ${dropped}`;
+}
+
 export default function BeaconsList() {
   const qc = useQueryClient();
   const notify = useNotify();
@@ -284,6 +291,13 @@ export default function BeaconsList() {
           {formatAgeS(ageS(b.lastLocationAt ?? null, now)) || "never"}
         </span>
       ),
+    },
+    {
+      key: "fixes",
+      header: "Fixes",
+      role: "line",
+      label: "fixes",
+      render: (b) => fixesLabel(b),
     },
   ];
 

@@ -56,6 +56,7 @@ export default function BeaconDetail() {
   const [editing, setEditing] = useState(false);
   const [formName, setFormName] = useState("");
   const [formNotes, setFormNotes] = useState("");
+  const [formMinInterval, setFormMinInterval] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const invalidateBeacons = () =>
@@ -74,13 +75,19 @@ export default function BeaconDetail() {
     if (beacon && !editing) {
       setFormName(beacon.name ?? "");
       setFormNotes(beacon.notes ?? "");
+      setFormMinInterval(
+        beacon.minIntervalMs === null || beacon.minIntervalMs === undefined
+          ? ""
+          : String(beacon.minIntervalMs)
+      );
       setErrors({});
     }
   }, [beacon, editing]);
 
   const patchMut = useMutation({
-    mutationFn: (b: Partial<{ name: string; notes: string }>) =>
-      beaconsApi.patch(id, b),
+    mutationFn: (
+      b: Partial<{ name: string; notes: string; minIntervalMs: number | null }>
+    ) => beaconsApi.patch(id, b),
     onSuccess: () => {
       notify("Beacon saved");
       invalidateBeacons();
@@ -149,17 +156,37 @@ export default function BeaconDetail() {
   const save = () => {
     const trimmedName = formName.trim();
     const trimmedNotes = formNotes.trim();
+    const trimmedMin = formMinInterval.trim();
     const next: Record<string, string> = {};
     if (trimmedName.length < 1) next.name = "Name is required";
     else if (trimmedName.length > 100)
       next.name = "Name must be 100 characters or fewer";
     if (trimmedNotes.length > 2000)
       next.notes = "Notes must be 2000 characters or fewer";
+    let minValue: number | null = null;
+    if (trimmedMin !== "") {
+      const n = Number(trimmedMin);
+      if (!Number.isInteger(n) || n < 0 || n > 60000) {
+        next.minIntervalMs =
+          "Must be a whole number between 0 and 60000, or blank";
+      } else {
+        minValue = n;
+      }
+    }
     setErrors(next);
     if (Object.keys(next).length > 0) return;
-    const changes: Partial<{ name: string; notes: string }> = {};
+    const changes: Partial<{
+      name: string;
+      notes: string;
+      minIntervalMs: number | null;
+    }> = {};
     if (trimmedName !== (beacon.name ?? "")) changes.name = trimmedName;
     if (trimmedNotes !== (beacon.notes ?? "")) changes.notes = trimmedNotes;
+    const currentMin =
+      beacon.minIntervalMs === null || beacon.minIntervalMs === undefined
+        ? null
+        : Number(beacon.minIntervalMs);
+    if (minValue !== currentMin) changes.minIntervalMs = minValue;
     if (Object.keys(changes).length === 0) {
       setEditing(false);
       return;
@@ -271,6 +298,20 @@ export default function BeaconDetail() {
                   multiline
                   rows={3}
                 />
+                <TextField
+                  label="Min interval (ms)"
+                  type="number"
+                  value={formMinInterval}
+                  onChange={(e) => setFormMinInterval(e.target.value)}
+                  disabled={!editing}
+                  error={!!errors.minIntervalMs}
+                  helperText={
+                    errors.minIntervalMs ??
+                    "0 to 60000; blank uses the default from settings"
+                  }
+                  fullWidth
+                  inputProps={{ min: 0, max: 60000, step: 1 }}
+                />
                 <Stack direction="row" spacing={1}>
                   {editing ? (
                     <>
@@ -286,6 +327,12 @@ export default function BeaconDetail() {
                           setEditing(false);
                           setFormName(beacon.name ?? "");
                           setFormNotes(beacon.notes ?? "");
+                          setFormMinInterval(
+                            beacon.minIntervalMs === null ||
+                              beacon.minIntervalMs === undefined
+                              ? ""
+                              : String(beacon.minIntervalMs)
+                          );
                           setErrors({});
                         }}
                       >
@@ -384,6 +431,30 @@ export default function BeaconDetail() {
         </Grid>
 
         <Grid size={12}>
+          <Card data-testid="beacon-fixes-card">
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Fixes
+              </Typography>
+              <Stack spacing={0.5}>
+                <FixesLine
+                  label="Fixes stored"
+                  value={Number(beacon.fixesStored ?? 0)}
+                />
+                <FixesLine
+                  label="Fixes carried"
+                  value={Number(beacon.fixesCarried ?? 0)}
+                />
+                <FixesLine
+                  label="Fixes rate limited"
+                  value={Number(beacon.fixesRateLimited ?? 0)}
+                />
+              </Stack>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid size={12}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
@@ -436,6 +507,17 @@ export default function BeaconDetail() {
         />
       ) : null}
     </>
+  );
+}
+
+function FixesLine({ label, value }: { label: string; value: number }) {
+  return (
+    <Typography variant="body2" component="div">
+      <Box component="span" sx={{ color: "text.secondary", mr: 1 }}>
+        {label}:
+      </Box>
+      {value.toLocaleString("en-US")}
+    </Typography>
   );
 }
 

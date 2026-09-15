@@ -35,6 +35,10 @@ export const handlers: HttpHandler[] = [
     HttpResponse.json(f.eventMessages[0])
   ),
   http.delete("*/admin/events/:id/messages/:mid", () => new HttpResponse(null, { status: 204 })),
+  http.get("*/admin/events/:id/locations/impact", () =>
+    HttpResponse.json(f.eventLocationsImpact)
+  ),
+  http.delete("*/admin/events/:id/locations", () => new HttpResponse(null, { status: 204 })),
   http.get("*/admin/events/:id/locations", ({ request }) => {
     const accept = request.headers.get("accept") ?? "";
     if (accept.includes("text/csv")) {
