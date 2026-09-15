@@ -1113,6 +1113,58 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/events/{id}/locations/impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeleteImpactDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4862,6 +4914,14 @@ export interface components {
             telemetry?: null | components["schemas"]["JsonElement"];
             hubConnected?: null | boolean;
             healthy?: boolean;
+            /** Format: int32 */
+            minIntervalMs?: null | number | string;
+            /** Format: int64 */
+            fixesStored?: number | string;
+            /** Format: int64 */
+            fixesCarried?: number | string;
+            /** Format: int64 */
+            fixesRateLimited?: number | string;
             createdBy?: string;
             /** Format: date-time */
             createdAt?: string;
@@ -5362,6 +5422,7 @@ export interface components {
             receivedAt?: string;
             /** Format: date-time */
             serverTime?: string;
+            outcome?: string;
         };
         LocationRowDto: {
             /** Format: int64 */
@@ -5379,6 +5440,7 @@ export interface components {
             lng?: number | string;
             /** Format: double */
             speedMps?: null | number | string;
+            speedSource?: null | string;
             /** Format: double */
             altitudeM?: null | number | string;
             /** Format: double */
@@ -5508,6 +5570,10 @@ export interface components {
             /** Format: int64 */
             locationsPublished?: number | string;
             /** Format: int64 */
+            locationsCarried?: number | string;
+            /** Format: int64 */
+            locationsRateLimited?: number | string;
+            /** Format: int64 */
             livePutsOk?: number | string;
             /** Format: int64 */
             livePutsFailed?: number | string;
@@ -5614,6 +5680,7 @@ export interface components {
         PatchBeaconRequest: {
             name?: null | string;
             notes?: null | string;
+            minIntervalMs?: components["schemas"]["JsonElement"];
         };
         PatchCookieTypeRequest: {
             name?: null | string;
