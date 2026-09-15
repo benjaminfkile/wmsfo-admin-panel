@@ -13,8 +13,10 @@ export const beacons = {
   get: (id: number) => get<Beacon>(`/admin/beacons/${id}`),
   create: (b: { name: string; notes: string }) =>
     post<KeyMint>("/admin/beacons", b),
-  patch: (id: number, b: Partial<{ name: string; notes: string }>) =>
-    patch<Beacon>(`/admin/beacons/${id}`, b),
+  patch: (
+    id: number,
+    b: Partial<{ name: string; notes: string; minIntervalMs: number | null }>
+  ) => patch<Beacon>(`/admin/beacons/${id}`, b),
   activate: (id: number) => post<Beacon>(`/admin/beacons/${id}/activate`),
   deactivate: (id: number) => post<Beacon>(`/admin/beacons/${id}/deactivate`),
   rotate: (id: number) => post<KeyMint>(`/admin/beacons/${id}/rotate`),

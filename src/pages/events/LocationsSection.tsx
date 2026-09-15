@@ -16,7 +16,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   events as eventsApi,
   type LocationsQuery,
@@ -27,6 +27,7 @@ import { formatMt } from "../../lib/time";
 import { downloadBlob } from "../../lib/download";
 import { useNotify } from "../../hooks/useNotify";
 import type { Event } from "../../api/types";
+import ClearRecordingDialog from "./ClearRecordingDialog";
 
 interface Props {
   event: Event;
@@ -34,8 +35,10 @@ interface Props {
 
 export default function LocationsSection({ event }: Props) {
   const notify = useNotify();
+  const qc = useQueryClient();
   const [beaconId, setBeaconId] = useState<number | "">("");
   const [publishedOnly, setPublishedOnly] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
 
   const beaconsQ = useQuery({
     queryKey: keys.beacons,
@@ -67,6 +70,24 @@ export default function LocationsSection({ event }: Props) {
       notify(e instanceof Error ? e.message : "Download failed", "error"),
   });
 
+  const clearMut = useMutation({
+    mutationFn: (bid: number | null) =>
+      eventsApi.clearLocations(
+        Number(event.id),
+        bid !== null ? bid : undefined
+      ),
+    onSuccess: () => {
+      notify("Recording cleared");
+      setClearOpen(false);
+      void qc.invalidateQueries({ queryKey: keys.event(Number(event.id)) });
+      void qc.invalidateQueries({
+        queryKey: ["events", Number(event.id), "locations"],
+      });
+    },
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Clear failed", "error"),
+  });
+
   const items = listQ.data?.items ?? [];
   const beacons = beaconsQ.data?.items ?? [];
 
@@ -80,13 +101,23 @@ export default function LocationsSection({ event }: Props) {
           spacing={1}
         >
           <Typography variant="h6">Locations</Typography>
-          <Button
-            variant="outlined"
-            onClick={() => csvMut.mutate()}
-            disabled={csvMut.isPending}
-          >
-            Download CSV
-          </Button>
+          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+            <Button
+              variant="outlined"
+              onClick={() => csvMut.mutate()}
+              disabled={csvMut.isPending}
+            >
+              Download CSV
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={() => setClearOpen(true)}
+              data-testid="clear-recording"
+            >
+              Clear recording
+            </Button>
+          </Stack>
         </Stack>
         <Stack
           direction={{ xs: "column", md: "row" }}
@@ -163,6 +194,17 @@ export default function LocationsSection({ event }: Props) {
           </Box>
         )}
       </CardContent>
+      {clearOpen ? (
+        <ClearRecordingDialog
+          open={clearOpen}
+          eventId={Number(event.id)}
+          eventName={event.name ?? "event"}
+          beacons={beacons}
+          disabled={clearMut.isPending}
+          onCancel={() => setClearOpen(false)}
+          onConfirm={({ beaconId: bid }) => clearMut.mutate(bid)}
+        />
+      ) : null}
     </Card>
   );
 }

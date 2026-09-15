@@ -170,6 +170,10 @@ export const beacons: Beacon[] = [
     telemetry: null,
     hubConnected: true,
     healthy: true,
+    minIntervalMs: null,
+    fixesStored: 5000,
+    fixesCarried: 12,
+    fixesRateLimited: 3,
     createdBy: AUTHOR,
     createdAt: NOW,
     updatedAt: NOW,
@@ -368,6 +372,24 @@ export const settings: Setting[] = [
   {
     key: "flight_history_max_points",
     value: 2000,
+    updatedBy: AUTHOR,
+    updatedAt: NOW,
+  },
+  {
+    key: "location_min_interval_ms",
+    value: 250,
+    updatedBy: AUTHOR,
+    updatedAt: NOW,
+  },
+  {
+    key: "location_min_distance_m",
+    value: 0,
+    updatedBy: AUTHOR,
+    updatedAt: NOW,
+  },
+  {
+    key: "location_max_gap_s",
+    value: 30,
     updatedBy: AUTHOR,
     updatedAt: NOW,
   },
@@ -713,6 +735,19 @@ import type { DeleteImpact } from "../../api/impact";
 export const emptyImpact: DeleteImpact = {
   blocked: null,
   deletes: [],
+  unlinks: [],
+  warnings: [],
+};
+
+// Impact preview for `DELETE /admin/events/{id}/locations`: one
+// `location` group per beacon with the count and the beacon's name.
+// The API returns `blocked: "This event is live. End it first."` when
+// the event has `statusId = 3`; tests override this fixture as needed.
+export const eventLocationsImpact: DeleteImpact = {
+  blocked: null,
+  deletes: [
+    { entity: "location", count: 1200, names: ["Helicopter phone"] },
+  ],
   unlinks: [],
   warnings: [],
 };

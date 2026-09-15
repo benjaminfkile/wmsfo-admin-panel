@@ -109,6 +109,27 @@ describe("BeaconsList", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows the compact stored / carried / dropped fixes line", async () => {
+    server.use(
+      http.get("*/admin/beacons", () =>
+        HttpResponse.json({
+          items: [
+            {
+              ...f.beacons[0]!,
+              fixesStored: 5000,
+              fixesCarried: 12,
+              fixesRateLimited: 3,
+            },
+          ],
+          staleAfterS: 45,
+        })
+      )
+    );
+    render(<Harness />);
+    const row = await screen.findByTestId(`beacon-row-${f.beacons[0]!.id}`);
+    expect(within(row).getByText(/5,000\s*\/\s*12\s*\/\s*3/)).toBeInTheDocument();
+  });
+
   it("shows the Active and Healthy chip on the active beacon", async () => {
     render(<Harness />);
     const row = await screen.findByTestId(`beacon-row-${f.beacons[0]!.id}`);

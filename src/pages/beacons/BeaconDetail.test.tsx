@@ -193,6 +193,82 @@ describe("BeaconDetail telemetry panel", () => {
   });
 });
 
+describe("BeaconDetail min interval and fix counters", () => {
+  it("PATCHes minIntervalMs as a number when Edit and Save carry a value", async () => {
+    const user = userEvent.setup();
+    const captured: Array<{ url: string; body: unknown }> = [];
+    server.use(
+      http.patch(
+        `${testConfig.apiBaseUrl}/admin/beacons/:id`,
+        async ({ request }) => {
+          captured.push({ url: request.url, body: await request.json() });
+          return HttpResponse.json(f.beacons[0]);
+        }
+      )
+    );
+    renderDetail();
+    await screen.findByRole("heading", { name: f.beacons[0]!.name!, level: 4 });
+    await user.click(screen.getByRole("button", { name: /^edit$/i }));
+    const field = await screen.findByLabelText(/^min interval/i);
+    await user.clear(field);
+    await user.type(field, "750");
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+    await waitFor(() => expect(captured.length).toBeGreaterThan(0));
+    expect(captured[0]?.body).toEqual({ minIntervalMs: 750 });
+  });
+
+  it("PATCHes minIntervalMs: null when Edit clears the field", async () => {
+    const user = userEvent.setup();
+    const beaconWithMin: Beacon = {
+      ...f.beacons[0]!,
+      minIntervalMs: 500,
+    } as Beacon;
+    const captured: Array<{ body: unknown }> = [];
+    server.use(
+      http.get("*/admin/beacons", () =>
+        HttpResponse.json({ items: [beaconWithMin], staleAfterS: 45 })
+      ),
+      http.patch(
+        `${testConfig.apiBaseUrl}/admin/beacons/:id`,
+        async ({ request }) => {
+          captured.push({ body: await request.json() });
+          return HttpResponse.json(f.beacons[0]);
+        }
+      )
+    );
+    renderDetail();
+    await screen.findByRole("heading", { name: f.beacons[0]!.name!, level: 4 });
+    await user.click(screen.getByRole("button", { name: /^edit$/i }));
+    const field = await screen.findByLabelText(/^min interval/i);
+    await user.clear(field);
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+    await waitFor(() => expect(captured.length).toBeGreaterThan(0));
+    expect(captured[0]?.body).toEqual({ minIntervalMs: null });
+  });
+
+  it("shows the three fix counters from the beacon", async () => {
+    const beaconWithCounts: Beacon = {
+      ...f.beacons[0]!,
+      fixesStored: 12345,
+      fixesCarried: 6,
+      fixesRateLimited: 2,
+    } as Beacon;
+    server.use(
+      http.get("*/admin/beacons", () =>
+        HttpResponse.json({ items: [beaconWithCounts], staleAfterS: 45 })
+      )
+    );
+    renderDetail();
+    const card = await screen.findByTestId("beacon-fixes-card");
+    expect(within(card).getByText(/Fixes stored:/i)).toBeInTheDocument();
+    expect(within(card).getByText(/12,345/)).toBeInTheDocument();
+    expect(within(card).getByText(/Fixes carried:/i)).toBeInTheDocument();
+    expect(within(card).getByText(/^6$/)).toBeInTheDocument();
+    expect(within(card).getByText(/Fixes rate limited:/i)).toBeInTheDocument();
+    expect(within(card).getByText(/^2$/)).toBeInTheDocument();
+  });
+});
+
 describe("BeaconDetail logs", () => {
   it("shows the log rows for every beacon", async () => {
     const user = userEvent.setup();

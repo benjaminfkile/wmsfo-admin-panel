@@ -489,6 +489,162 @@ describe("EventDetail: route poster and flight history blocks", () => {
   });
 });
 
+describe("EventDetail Clear recording (M42)", () => {
+  it("opens the preview, confirms without a beaconId, refetches, and toasts", async () => {
+    const user = userEvent.setup();
+    const deletes: string[] = [];
+    server.use(
+      http.get(
+        `${testConfig.apiBaseUrl}/admin/events/:id/locations/impact`,
+        () =>
+          HttpResponse.json({
+            blocked: null,
+            deletes: [
+              {
+                entity: "location",
+                count: 1200,
+                names: [f.beacons[0]!.name!],
+              },
+            ],
+            unlinks: [],
+            warnings: [],
+          })
+      ),
+      http.delete(
+        `${testConfig.apiBaseUrl}/admin/events/:id/locations`,
+        ({ request }) => {
+          deletes.push(request.url);
+          return new HttpResponse(null, { status: 204 });
+        }
+      )
+    );
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    await user.click(await screen.findByTestId("clear-recording"));
+    await screen.findByRole("heading", { name: /^clear recording for/i });
+    const list = await screen.findByText(
+      new RegExp(`${f.beacons[0]!.name!}: 1,200`, "i")
+    );
+    expect(list).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: /^clear recording$/i })
+    );
+    await waitFor(() => expect(deletes.length).toBe(1));
+    // Without ?beaconId=… on the URL, all beacons are cleared.
+    expect(deletes[0]).not.toMatch(/beaconId=/);
+    // Success toast text lands.
+    await screen.findByText(/recording cleared/i);
+  });
+
+  it("adds ?beaconId=<id> when the select picks a beacon in the preview", async () => {
+    const user = userEvent.setup();
+    const deletes: string[] = [];
+    server.use(
+      http.get(
+        `${testConfig.apiBaseUrl}/admin/events/:id/locations/impact`,
+        () =>
+          HttpResponse.json({
+            blocked: null,
+            deletes: [
+              {
+                entity: "location",
+                count: 1200,
+                names: [f.beacons[0]!.name!],
+              },
+            ],
+            unlinks: [],
+            warnings: [],
+          })
+      ),
+      http.delete(
+        `${testConfig.apiBaseUrl}/admin/events/:id/locations`,
+        ({ request }) => {
+          deletes.push(request.url);
+          return new HttpResponse(null, { status: 204 });
+        }
+      )
+    );
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    await user.click(await screen.findByTestId("clear-recording"));
+    const select = await screen.findByLabelText(/^beacon$/i);
+    await user.click(select);
+    const option = await screen.findByRole("option", {
+      name: f.beacons[0]!.name!,
+    });
+    await user.click(option);
+    await user.click(
+      screen.getByRole("button", { name: /^clear recording$/i })
+    );
+    await waitFor(() => expect(deletes.length).toBe(1));
+    expect(deletes[0]).toMatch(
+      new RegExp(`beaconId=${f.beacons[0]!.id}`)
+    );
+  });
+
+  it("blocks the action while the event is live with the API's sentence", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get(
+        `${testConfig.apiBaseUrl}/admin/events/:id/locations/impact`,
+        () =>
+          HttpResponse.json({
+            blocked: "This event is live. End it first.",
+            deletes: [],
+            unlinks: [],
+            warnings: [],
+          })
+      )
+    );
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    await user.click(await screen.findByTestId("clear-recording"));
+    expect(
+      await screen.findByText(/this event is live\. end it first\./i)
+    ).toBeInTheDocument();
+    // The confirm button is replaced by Close alone.
+    expect(
+      screen.queryByRole("button", { name: /^clear recording$/i })
+    ).toBeNull();
+    expect(screen.getByRole("button", { name: /^close$/i })).toBeInTheDocument();
+  });
+
+  it("toasts the API message on a 409 conflict", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get(
+        `${testConfig.apiBaseUrl}/admin/events/:id/locations/impact`,
+        () =>
+          HttpResponse.json({
+            blocked: null,
+            deletes: [
+              { entity: "location", count: 3, names: [f.beacons[0]!.name!] },
+            ],
+            unlinks: [],
+            warnings: [],
+          })
+      ),
+      http.delete(
+        `${testConfig.apiBaseUrl}/admin/events/:id/locations`,
+        () =>
+          HttpResponse.json(
+            {
+              code: "event_live",
+              message: "This event just went live.",
+              details: null,
+              requestId: "req-cr",
+            },
+            { status: 409 }
+          )
+      )
+    );
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    await user.click(await screen.findByTestId("clear-recording"));
+    await screen.findByRole("heading", { name: /^clear recording for/i });
+    await user.click(
+      screen.getByRole("button", { name: /^clear recording$/i })
+    );
+    await screen.findByText(/this event just went live\./i);
+  });
+});
+
 describe("EventDetail on compact (admin.md 6.3)", () => {
   let restore: (() => void) | null = null;
 

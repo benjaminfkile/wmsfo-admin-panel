@@ -1,4 +1,4 @@
-// Client-side rules for the five settings keys (admin.md 6.9, 7.2).
+// Client-side rules for the settings keys (admin.md 6.9, contracts 6, 7.2).
 
 export type SettingKey =
   | "poll_interval_ms"
@@ -6,7 +6,10 @@ export type SettingKey =
   | "sponsor_linger_ms_per_dollar"
   | "sponsor_linger_min_ms"
   | "beacon_stale_after_s"
-  | "flight_history_max_points";
+  | "flight_history_max_points"
+  | "location_min_interval_ms"
+  | "location_min_distance_m"
+  | "location_max_gap_s";
 
 export type SettingSpec = {
   key: SettingKey;
@@ -15,6 +18,9 @@ export type SettingSpec = {
   unit: string;
   min: number;
   max: number;
+  // `location_min_distance_m` is the only key whose JSON type is number,
+  // not int (contracts 6); every other spec accepts whole numbers only.
+  allowDecimal?: boolean;
 };
 
 export const SETTING_SPECS: SettingSpec[] = [
@@ -69,6 +75,34 @@ export const SETTING_SPECS: SettingSpec[] = [
     min: 100,
     max: 50000,
   },
+  {
+    key: "location_min_interval_ms",
+    label: "location_min_interval_ms",
+    description:
+      "Least time between two accepted fixes from one beacon (0 disables)",
+    unit: "ms",
+    min: 0,
+    max: 60000,
+  },
+  {
+    key: "location_min_distance_m",
+    label: "location_min_distance_m",
+    description:
+      "A fix that moved less than this from the last stored one is shown live but not recorded (0 records everything but exact repeats)",
+    unit: "m",
+    min: 0,
+    max: 10000,
+    allowDecimal: true,
+  },
+  {
+    key: "location_max_gap_s",
+    label: "location_max_gap_s",
+    description:
+      "A fix is recorded regardless once this long has passed",
+    unit: "s",
+    min: 1,
+    max: 3600,
+  },
 ];
 
 export function specFor(key: string): SettingSpec | null {
@@ -80,18 +114,17 @@ export function validateSettingValue(
   raw: string
 ): { ok: true; value: number } | { ok: false; message: string } {
   const trimmed = raw.trim();
+  const kind = spec.allowDecimal ? "number" : "whole number";
+  const boundsMsg = `Must be a ${kind} between ${spec.min} and ${spec.max}`;
   if (trimmed === "") {
-    return {
-      ok: false,
-      message: `Must be a whole number between ${spec.min} and ${spec.max}`,
-    };
+    return { ok: false, message: boundsMsg };
   }
   const n = Number(trimmed);
-  if (!Number.isFinite(n) || !Number.isInteger(n) || n < spec.min || n > spec.max) {
-    return {
-      ok: false,
-      message: `Must be a whole number between ${spec.min} and ${spec.max}`,
-    };
+  if (!Number.isFinite(n) || n < spec.min || n > spec.max) {
+    return { ok: false, message: boundsMsg };
+  }
+  if (!spec.allowDecimal && !Number.isInteger(n)) {
+    return { ok: false, message: boundsMsg };
   }
   return { ok: true, value: n };
 }
