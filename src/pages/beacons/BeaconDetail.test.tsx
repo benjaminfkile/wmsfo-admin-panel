@@ -231,9 +231,8 @@ describe("BeaconDetail min interval and fix counters", () => {
     );
     renderDetail();
     await screen.findByRole("heading", { name: f.beacons[0]!.name!, level: 4 });
-    await user.click(screen.getByRole("button", { name: /^edit$/i }));
-    await user.click(await screen.findByLabelText(/hub allowed/i));
-    await user.click(screen.getByRole("button", { name: /^save$/i }));
+    // The hub switch lives in Actions and applies at once: no Edit, no Save.
+    await user.click(await screen.findByRole("switch", { name: /hub allowed/i }));
     await waitFor(() => expect(captured.length).toBeGreaterThan(0));
     expect(captured[0]?.body).toEqual({ hubAllowed: false });
   });

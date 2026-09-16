@@ -58,7 +58,6 @@ export default function BeaconDetail() {
   const [formName, setFormName] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [formMinInterval, setFormMinInterval] = useState("");
-  const [formHubAllowed, setFormHubAllowed] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const invalidateBeacons = () =>
@@ -82,10 +81,21 @@ export default function BeaconDetail() {
           ? ""
           : String(beacon.minIntervalMs)
       );
-      setFormHubAllowed(beacon.hubAllowed ?? true);
       setErrors({});
     }
   }, [beacon, editing]);
+
+  // The hub switch is an operator action like Activate, not a detail edit:
+  // it applies at once and never sits disabled behind the Edit button.
+  const hubMut = useMutation({
+    mutationFn: (b: { hubAllowed: boolean }) => beaconsApi.patch(id, b),
+    onSuccess: (_row, vars) => {
+      notify(vars.hubAllowed ? "Hub allowed" : "Hub off for this beacon");
+      void qc.invalidateQueries({ queryKey: keys.beacons });
+    },
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Save failed", "error"),
+  });
 
   const patchMut = useMutation({
     mutationFn: (
@@ -190,7 +200,6 @@ export default function BeaconDetail() {
         ? null
         : Number(beacon.minIntervalMs);
     if (minValue !== currentMin) changes.minIntervalMs = minValue;
-    if (formHubAllowed !== (beacon.hubAllowed ?? true)) changes.hubAllowed = formHubAllowed;
     if (Object.keys(changes).length === 0) {
       setEditing(false);
       return;
@@ -316,17 +325,6 @@ export default function BeaconDetail() {
                   fullWidth
                   inputProps={{ min: 0, max: 60000, step: 1 }}
                 />
-                <HubSwitchLabel
-                  control={
-                    <HubSwitch
-                      checked={formHubAllowed}
-                      onChange={(e) => setFormHubAllowed(e.target.checked)}
-                      disabled={!editing}
-                      slotProps={{ input: { "aria-label": "hub allowed" } }}
-                    />
-                  }
-                  label={formHubAllowed ? "Hub allowed" : "Hub off (HTTP only)"}
-                />
                 <Stack direction="row" spacing={1}>
                   {editing ? (
                     <>
@@ -348,7 +346,6 @@ export default function BeaconDetail() {
                               ? ""
                               : String(beacon.minIntervalMs)
                           );
-                          setFormHubAllowed(beacon.hubAllowed ?? true);
                           setErrors({});
                         }}
                       >
@@ -408,6 +405,34 @@ export default function BeaconDetail() {
                   </Button>
                 ) : null}
               </Stack>
+              {!revoked ? (
+                <Box sx={{ mt: 1 }}>
+                  <HubSwitchLabel
+                    control={
+                      <HubSwitch
+                        checked={beacon.hubAllowed ?? true}
+                        onChange={(e) =>
+                          hubMut.mutate({ hubAllowed: e.target.checked })
+                        }
+                        disabled={hubMut.isPending}
+                        slotProps={{ input: { "aria-label": "hub allowed" } }}
+                      />
+                    }
+                    label={
+                      (beacon.hubAllowed ?? true)
+                        ? "Hub allowed"
+                        : "Hub off (HTTP only)"
+                    }
+                  />
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    display="block"
+                  >
+                    Off denies this beacon's hub join; it sends over HTTP instead.
+                  </Typography>
+                </Box>
+              ) : null}
             </CardContent>
           </Card>
         </Grid>
