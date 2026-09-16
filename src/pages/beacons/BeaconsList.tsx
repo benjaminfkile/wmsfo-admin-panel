@@ -56,11 +56,8 @@ function hubStateLabel(b: Beacon): string {
   return "unknown";
 }
 
-function fixesLabel(b: Beacon): string {
-  const stored = Number(b.fixesStored ?? 0).toLocaleString("en-US");
-  const carried = Number(b.fixesCarried ?? 0).toLocaleString("en-US");
-  const dropped = Number(b.fixesRateLimited ?? 0).toLocaleString("en-US");
-  return `${stored} / ${carried} / ${dropped}`;
+function count(n: string | number | null | undefined): string {
+  return Number(n ?? 0).toLocaleString("en-US");
 }
 
 export default function BeaconsList() {
@@ -294,11 +291,28 @@ export default function BeaconsList() {
       ),
     },
     {
-      key: "fixes",
-      header: "Fixes",
+      key: "fixesStored",
+      header: "Stored",
       role: "line",
-      label: "fixes",
-      render: (b) => fixesLabel(b),
+      label: "fixes stored",
+      align: "right",
+      render: (b) => count(b.fixesStored),
+    },
+    {
+      key: "fixesCarried",
+      header: "Carried",
+      role: "line",
+      label: "fixes carried",
+      align: "right",
+      render: (b) => count(b.fixesCarried),
+    },
+    {
+      key: "fixesRateLimited",
+      header: "Rate limited",
+      role: "line",
+      label: "fixes rate limited",
+      align: "right",
+      render: (b) => count(b.fixesRateLimited),
     },
   ];
 

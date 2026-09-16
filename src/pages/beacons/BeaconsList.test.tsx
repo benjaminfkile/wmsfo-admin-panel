@@ -109,7 +109,7 @@ describe("BeaconsList", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the compact stored / carried / dropped fixes line", async () => {
+  it("shows the three fix counters in their own columns", async () => {
     server.use(
       http.get("*/admin/beacons", () =>
         HttpResponse.json({
@@ -127,7 +127,10 @@ describe("BeaconsList", () => {
     );
     render(<Harness />);
     const row = await screen.findByTestId(`beacon-row-${f.beacons[0]!.id}`);
-    expect(within(row).getByText(/5,000\s*\/\s*12\s*\/\s*3/)).toBeInTheDocument();
+    expect(within(row).getByText("5,000")).toBeInTheDocument();
+    expect(within(row).getByText("12")).toBeInTheDocument();
+    expect(within(row).getByText("3")).toBeInTheDocument();
+    expect(within(row).queryByText(/5,000\s*\/\s*12/)).toBeNull();
   });
 
   it("shows the Active and Healthy chip on the active beacon", async () => {
