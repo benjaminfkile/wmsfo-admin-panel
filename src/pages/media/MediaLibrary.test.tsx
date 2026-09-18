@@ -259,21 +259,12 @@ describe("MediaLibrary", () => {
     );
   });
 
-  it("renders 409 media_in_use with the usage list in the detail drawer", async () => {
+  it("deletes an asset that is in use: the drawer closes and the delete is confirmed", async () => {
     const user = userEvent.setup();
     server.use(
       http.delete(
         `${testConfig.apiBaseUrl}/admin/media/${f.mediaAssets[0]!.id}`,
-        () =>
-          HttpResponse.json(
-            {
-              code: "media_in_use",
-              message: "This asset is in use",
-              details: { usage: f.mediaUsage },
-              requestId: "req-abc",
-            },
-            { status: 409 }
-          )
+        () => new HttpResponse(null, { status: 204 })
       )
     );
     render(<Harness />);
@@ -288,8 +279,8 @@ describe("MediaLibrary", () => {
       name: /^delete$/i,
     });
     await user.click(confirmButtons[confirmButtons.length - 1]!);
-    // The 409 renders "In use by:" and the usage list.
-    expect(await screen.findByText(/in use by/i)).toBeInTheDocument();
+    // The API clears the references itself; the panel reports the delete.
+    expect(await screen.findByText("Deleted")).toBeInTheDocument();
   });
 
   it("shows the Deep zoom chip on the card when dziUrl is set", async () => {

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  Alert,
   Box,
   Button,
   Divider,
@@ -17,8 +16,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { media as mediaApi } from "../../api/resources/media";
 import { events as eventsApi } from "../../api/resources/events";
-import type { Event, MediaAsset, MediaUsage } from "../../api/types";
-import { ApiError } from "../../api/errors";
+import type { Event, MediaAsset } from "../../api/types";
 import { keys } from "../../queries/keys";
 import DeleteDialog from "../DeleteDialog";
 import ErrorAlert from "../ErrorAlert";
@@ -43,13 +41,11 @@ export default function MediaDetailDrawer({
   const [alt, setAlt] = useState("");
   const [title, setTitle] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [inUse, setInUse] = useState<MediaUsage | null>(null);
 
   useEffect(() => {
     if (asset) {
       setAlt(asset.alt ?? "");
       setTitle(asset.title ?? "");
-      setInUse(null);
     }
   }, [asset]);
 
@@ -90,22 +86,7 @@ export default function MediaDetailDrawer({
       onDeleted?.(asset?.id ?? "");
       onClose();
     },
-    onError: (e) => {
-      if (e instanceof ApiError && e.code === "media_in_use") {
-        // The API returned the usage document in details.usage; fall back
-        // to the current usage query for the same list.
-        const details = e.body?.details;
-        const usage =
-          details && typeof details === "object" && "usage" in details
-            ? (details as { usage: unknown }).usage
-            : null;
-        if (usage && typeof usage === "object") setInUse(usage as MediaUsage);
-        else if (usageQ.data) setInUse(usageQ.data);
-        setConfirmOpen(false);
-      } else {
-        notify("Delete failed", "error");
-      }
-    },
+    onError: () => notify("Delete failed", "error"),
   });
 
   const handleCopy = (url: string) => {
@@ -219,12 +200,6 @@ export default function MediaDetailDrawer({
               </Typography>
             ) : usageQ.data ? (
               <UsageList usage={usageQ.data} posterEvents={posterEvents} />
-            ) : null}
-            {inUse ? (
-              <Alert severity="warning">
-                In use by:
-                <UsageList usage={inUse} posterEvents={posterEvents} />
-              </Alert>
             ) : null}
             <Divider />
             <Box>

@@ -16,8 +16,8 @@ import {
 // 10 s; the snapshot's `content` contains the paragraph and the media map
 // contains the asset with three variants absent (the PNG is 400 px wide)
 // and its `url` present; restore the previous version and publish again;
-// delete the section and the asset (409 media_in_use first, then 204 after
-// removing the reference).
+// delete the asset while the section still references it (the API clears the
+// reference), then the section.
 
 type Live = { snapshotUrl: string };
 type Snapshot = {
@@ -113,10 +113,9 @@ test.describe("editor authoring flow", () => {
     // block whose field is labelled "Text"; take the last Text box on the page.
     await page.getByLabel(/^text$/i).last().fill(paragraph);
 
-    // An asset only the draft references exercises the usage guard: 409
-    // while a section references it, 204 once the section is gone. Assets
-    // that reach a published version stay referenced by the version history
-    // and can never be deleted, so the published half uses a second asset.
+    // An asset a draft section references deletes all the same: the API
+    // clears the reference and the card goes. The published half uses a
+    // second asset so this one never reaches a version.
     // A per-run name keeps this asset distinct from any leftover.
     const draftName = `e2e-editor-draft-${Date.now()}.png`;
     const draftRe = new RegExp(draftName.replace(/\./g, "\\."), "i");
@@ -134,21 +133,15 @@ test.describe("editor authoring flow", () => {
       .getByRole("dialog", { name: /^delete /i })
       .getByRole("button", { name: /^delete$/i })
       .click();
-    await expect(page.getByText(/media_in_use|in use/i)).toBeVisible();
-    await closeDrawer(page);
+    await expect(
+      page.getByTestId(/^media-card-/).filter({ hasText: draftRe }),
+    ).toHaveCount(0);
 
     await page.getByRole("link", { name: "Pages", exact: true }).click();
     await page.getByRole("link", { name: "About the flyover", exact: true }).click();
     await deleteLastSection(page);
 
     await page.getByRole("link", { name: "Media", exact: true }).click();
-    await expect(
-      page.getByTestId(/^media-card-/).filter({ hasText: draftRe }).first(),
-    ).toBeVisible();
-    await deleteAssets(page, draftRe);
-    await expect(
-      page.getByTestId(/^media-card-/).filter({ hasText: draftRe }),
-    ).toHaveCount(0);
 
     // The section that gets published. Reuse the asset when an earlier run
     // left it in the library.
@@ -272,19 +265,6 @@ async function deleteAssets(page: Page, name: RegExp): Promise<void> {
       .getByRole("dialog", { name: /^delete /i })
       .getByRole("button", { name: /^delete$/i })
       .click();
-    if ((await page.getByText(/media_in_use|in use/i).count()) > 0) {
-      await closeDrawer(page);
-      return;
-    }
     await expect(cards).toHaveCount(remaining - 1);
   }
-}
-
-// Leave the media detail drawer by reloading the library: the drawer's own
-// Close control scrolls out of reach once the usage list renders, and the
-// backdrop click does not dismiss it under the driver.
-async function closeDrawer(page: Page): Promise<void> {
-  await page.goto("/media");
-  await expect(page.getByRole("navigation")).toBeVisible();
-  await expect(page.getByTestId(/^media-card-/).first().or(page.getByText(/no media/i))).toBeVisible();
 }

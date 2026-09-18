@@ -18,7 +18,6 @@ export type MessageContext = {
   liveEventName?: string;
   uploadLimitLabel?: string;
   allowedUploadTypes?: string;
-  cookieCount?: number;
 };
 
 export function toCopy(
@@ -71,18 +70,8 @@ function messageForCode(err: ApiError, ctx: MessageContext): string {
       return "The current event is live. End it before changing the current event.";
     case "event_live":
       return "A live event cannot be deleted";
-    case "cookie_type_in_use": {
-      const n = ctx.cookieCount ?? Number(
-        (err.body?.details?.["cookieCount"] as number | undefined) ?? 0
-      );
-      return `${n} cookies use this type; deactivate it instead`;
-    }
     case "no_healthy_beacon":
       return "No healthy active beacon";
-    case "event_has_locations":
-      return "This event has recorded locations and cannot be deleted";
-    case "route_in_use":
-      return "Used by an event; unlink it there first";
     case "pinned_position_taken":
       return "Position is taken for this year; use Sponsor order to rearrange";
     case "name_taken":
@@ -109,8 +98,6 @@ function messageForCode(err: ApiError, ctx: MessageContext): string {
       return "The upload has already been confirmed";
     case "upload_not_found":
       return "The uploaded file did not arrive";
-    case "media_in_use":
-      return "This asset is in use";
     case "preview_token_invalid":
       return "The preview link has expired";
     case "payload_too_large":
