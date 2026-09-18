@@ -74,7 +74,7 @@ wmsfo-admin-panel/
   contracts/                    vendored copy of the API repository's contracts/ (openapi.json, schema/, fixtures/, icons/, kinds.json, starter-content.json, admin-thresholds.json, CONTRACTS_VERSION)
   CONTRACTS_SHA                 API commit the copy came from
   scripts/check-contracts.mjs   diffs contracts/ against that commit
-  e2e/                          Playwright specs (01 to 08 plus 05a) and helpers.ts
+  e2e/                          Playwright specs (01 to 09 plus 05a; 09 is the phone-viewport project) and helpers.ts
   docs/                         admin.md (this file), README.md, DESIGN.md and contracts.md (copies)
   src/
     main.tsx  App.tsx  AppRoutes.tsx  routesConfig.ts  ConfigContext.tsx  config.ts  vite-env.d.ts  setupTests.ts
@@ -88,8 +88,8 @@ wmsfo-admin-panel/
     schemas/    draft.ts (derive the draft-level schema)  bundle.ts (inline the primitives)
     lib/        time.ts  csv.ts  download.ts  publishedState.ts  beaconFlags.ts  thresholds.ts  statusNames.ts  statusCopy.ts
                 roles.ts  errorMessages.ts  fieldErrors.ts
-    hooks/      useNotify.tsx  useNow.ts  useDebouncedSave.ts
-    components/ layout/MainLayout.tsx  EnvBadge.tsx  NetworkBanner.tsx  ErrorAlert.tsx  ConfirmDialog.tsx  DeleteDialog.tsx
+    hooks/      useNotify.tsx  useNow.ts  useDebouncedSave.ts  useCompact.ts
+    components/ layout/MainLayout.tsx  layout/PageHeader.tsx  EnvBadge.tsx  NetworkBanner.tsx  ErrorAlert.tsx  AppDialog.tsx  ConfirmDialog.tsx  DeleteDialog.tsx
                 KeyRevealDialog.tsx  ThemedJsonView.tsx  CommentBox.tsx  StatusChip.tsx  FlagChip.tsx
                 audit/    AuditCell.tsx  AuditHistoryDialog.tsx  auditFormat.ts
                 list/     ResponsiveTable.tsx
@@ -103,7 +103,7 @@ wmsfo-admin-panel/
                 auth/     SignIn.tsx  Callback.tsx  NoRole.tsx  MfaSetup.tsx  ConfigError.tsx
                 events/   EventsList.tsx  EventDetail.tsx  EventCreateDialog.tsx  EventCloneDialog.tsx  StatusDialog.tsx
                           NotifyDialog.tsx  MessagesSection.tsx  RoutePosterSection.tsx  RouteSection.tsx
-                          RouteUploadDialog.tsx  LocationsSection.tsx
+                          RouteUploadDialog.tsx  LocationsSection.tsx  ClearRecordingDialog.tsx
                 routes/   RoutesList.tsx
                 beacons/  BeaconsList.tsx  BeaconDetail.tsx  BeaconCreateDialog.tsx  TelemetryPanel.tsx  BeaconLogs.tsx
                 sponsors/ SponsorsList.tsx  SponsorDetail.tsx  SponsorYearDialog.tsx  SponsorImportDialog.tsx
@@ -756,7 +756,9 @@ export function beaconFlags(b: Beacon, staleAfterS: number, anyEventLive: boolea
   const locAge = ageS(b.lastLocationAt, nowMs);
   if ((fixAge !== null && fixAge > t.noFixAgeS) || (anyEventLive && locAge !== null && locAge > t.noLocationAgeS)) f.push("no_recent_fix");
   const hub = b.hubConnected ?? null;
-  if (hub === false || (hub === null && (h?.socketState ?? null) !== "connected")) f.push("socket_down");
+  if (hub === false || (hub === null && (h?.socketState ?? null) !== "connected")) {
+    if (b.hubAllowed !== false) f.push("socket_down");   // a beacon with the hub switched off is on HTTP by design
+  }
   if (b.staleSince != null) f.push("stale");
   const hbAge = ageS(b.lastHeartbeatAt, nowMs);
   if (hbAge !== null && hbAge > staleAfterS) f.push("heartbeat_old");
@@ -826,17 +828,17 @@ Under the inherit choice the dialog shows what the rule selects, computed from t
 
 ### 6.5 Beacons
 
-**List** (`/beacons`, polled): a `ResponsiveTable` by name: title is the name (link), subtitle is the `keyPrefix` in `<code>`, chips are the "Active" chip, the Healthy or Unhealthy chip (`healthy`), the hub state chip (connected, polling, unknown from `hubConnected`), and the flag chips (5.2); the lines are last seen, last heartbeat, last location as ages with the absolute time as the title, and three right-aligned counter columns, Stored, Carried, and Rate limited, from `fixesStored`, `fixesCarried`, `fixesRateLimited` (they are counters on the beacon row, not rows anywhere: they count fixes that produced a location row, fixes accepted and published without one, and fixes refused by the beacon's minimum interval, and they never reset); actions are the edit pencil (opens the beacon page) and a row menu; then the Audit cell. The row menu holds Activate (when not active), Deactivate (when active), Rotate, Revoke, and Open. On compact each row becomes a card carrying the same title, subtitle, chips, lines, actions, and audit button (M34). Revoked beacons are not in this list: they sit in a `Revoked (n)` accordion under it, collapsed by default, as a second `ResponsiveTable` with the same title, subtitle, and lines, a "Revoked" chip, no flags, the pencil only, the Audit cell, and rows greyed through `rowSx`; an empty accordion is not rendered. "New beacon" opens `BeaconCreateDialog`: `name` and `notes` only, with the text "A beacon is a key. Anything that holds it can post locations, heartbeats, and logs; what runs behind it is up to you."
+**List** (`/beacons`, polled): a `ResponsiveTable` by name: title is the name (link), subtitle is the `keyPrefix` in `<code>`, chips are the "Active" chip, the Healthy or Unhealthy chip (`healthy`), the hub state chip (connected, polling, unknown from `hubConnected`; "off (HTTP only)" when `hubAllowed` is false), and the flag chips (5.2); the lines are last seen, last heartbeat, last location as ages with the absolute time as the title, and three right-aligned counter columns, Stored, Carried, and Rate limited, from `fixesStored`, `fixesCarried`, `fixesRateLimited` (they are counters on the beacon row, not rows anywhere: they count fixes that produced a location row, fixes accepted and published without one, and fixes refused by the beacon's minimum interval, and they never reset); actions are the edit pencil (opens the beacon page) and a row menu; then the Audit cell. The row menu holds Activate (when not active), Deactivate (when active), Rotate, Revoke, and Open. On compact each row becomes a card carrying the same title, subtitle, chips, lines, actions, and audit button (M34). Revoked beacons are not in this list: they sit in a `Revoked (n)` accordion under it, collapsed by default, as a second `ResponsiveTable` with the same title, subtitle, and lines, a "Revoked" chip, no flags, the pencil only, the Audit cell, and rows greyed through `rowSx`; an empty accordion is not rendered. "New beacon" opens `BeaconCreateDialog`: `name` and `notes` only, with the text "A beacon is a key. Anything that holds it can post locations, heartbeats, and logs; what runs behind it is up to you."
 
 **KeyRevealDialog** (after create and after rotate): the `key` in a monospace read-only field with a Copy button; the `enrollment.qrPngDataUrl` as `<img>` fixed at 220 px and centred (same on the full-screen phone dialog); `enrollment.url` as text with Copy; a live countdown to `enrollment.expiresAt` ("QR valid for 14:32"; at zero, "QR expired. The key still works when typed by hand; rotate to mint a new QR"); the warning "This key is shown once. Store it before closing." The dialog has no backdrop close and no escape close; the only button is "I have stored the key".
 
-**Detail** (`/beacons/:id`): selects the row from `keys.beacons` (same poll as the list, `staleAfterS` included). Header through `PageHeader`: title is the name, the chips are the `keyPrefix` in `<code>`, an Active or Revoked chip, and the Healthy chip (not for revoked); below it a revoked banner with `revokedAt`, and the flag chips. Cards: Details (an Edit button unlocks `name`, `notes`, and `minIntervalMs` as "Min interval (ms)" with the helper text "0 to 60000; blank uses the default from settings", Save sends the changed fields with a blank Min interval sent as `null` to clear the override, "Created by <createdBy> on <createdAt>"), Actions (Activate or Deactivate, Rotate key, Revoke; none for a revoked beacon; the same confirmations as the list; buttons wrap), Ages (`lastSeenAt`, `lastHeartbeatAt`, `lastLocationAt`, `staleSince`, each as an age plus the absolute Mountain time, with the absolute time wrapping under the age on compact; `heartbeat_old` and `stale` colour theirs red), Fixes (`fixesStored`, `fixesCarried`, `fixesRateLimited` as three counter lines), Telemetry (`TelemetryPanel`; its search row and the JSON tree fit and the tree scrolls inside its box, M33), and Logs (`BeaconLogs`).
+**Detail** (`/beacons/:id`): selects the row from `keys.beacons` (same poll as the list, `staleAfterS` included). Header through `PageHeader`: title is the name, the chips are the `keyPrefix` in `<code>`, an Active or Revoked chip, and the Healthy chip (not for revoked); below it a revoked banner with `revokedAt`, and the flag chips. Cards: Details (an Edit button unlocks `name`, `notes`, and `minIntervalMs` as "Min interval (ms)" with the helper text "0 to 60000; blank uses the default from settings", Save sends the changed fields with a blank Min interval sent as `null` to clear the override, "Created by <createdBy> on <createdAt>"), Actions (Activate or Deactivate, Rotate key, Revoke, and a Hub allowed switch that applies at once through `PATCH /admin/beacons/{id}` with `{ hubAllowed }` and a toast, labelled "Hub allowed" or "Hub off (HTTP only)"; none for a revoked beacon; the same confirmations as the list; buttons wrap), Ages (`lastSeenAt`, `lastHeartbeatAt`, `lastLocationAt`, `staleSince`, each as an age plus the absolute Mountain time, with the absolute time wrapping under the age on compact; `heartbeat_old` and `stale` colour theirs red), Fixes (`fixesStored`, `fixesCarried`, `fixesRateLimited` as three counter lines), Telemetry (`TelemetryPanel`; its search row and the JSON tree fit and the tree scrolls inside its box, M33), and Logs (`BeaconLogs`).
 
 **TelemetryPanel**: `telemetry === null` renders "No heartbeat received". Otherwise two blocks:
 
 | Block | Content | Coloured by |
 |---|---|---|
-| Health | `sentAt` with its age; hub: connected, polling, or unknown from `hubConnected`; then each of the three `health` leaves the beacon reported (`batteryPercent` %, `lastFixAgeS` s, `socketState`), "not reported" for a missing leaf, "unknown" for null | `battery_low`, `no_recent_fix`, `socket_down` |
+| Health | `sentAt` with its age; hub: connected, polling, or unknown from `hubConnected`, or "off (HTTP only)" when `hubAllowed` is false; then each of the three `health` leaves the beacon reported (`batteryPercent` %, `lastFixAgeS` s, `socketState`), "not reported" for a missing leaf, "unknown" for null | `battery_low`, `no_recent_fix`, `socket_down` |
 | Debug | the beacon's `debug` object as a themed, collapsible JSON tree (`ThemedJsonView`, expanded two levels, copy button, search box filtering keys); "This beacon sends no debug data" when null or empty | nothing; the panel never reads it |
 
 The panel has no idea what a beacon is, so it names nothing inside `debug`; Red-Nose's power, radio, GPS, transport, process, and identity groups appear there exactly as the phone sends them, and the simulator's or the legacy beacon's own objects the same way.
@@ -875,8 +877,9 @@ One row per key from `GET /admin/settings`, in this order (unknown keys last), w
 | `flight_history_max_points` | Most points of the flight history carried in the snapshot (longer recordings are thinned) | 100 to 50000 | |
 | `location_min_interval_ms` | Least time between two accepted fixes from one beacon (0 disables) | 0 to 60000 | ms |
 | `location_min_distance_m` | a fix that moved less than this from the last recorded one is shown live but not recorded (0 records every new position; a position already recorded for the event is never recorded twice) | 0 to 10000 | m |
+| `hub_enabled` | Whether visitors' browsers use the hub; off takes every visitor onto the poll within one poll | on or off | |
 
-The rows sit in a `ResponsiveTable`: title is the key in `<code>`, subtitle is the description, lines are `updatedBy` and `updatedAt` ("default" when null), and the actions cell carries a number input with the range as helper text next to its own Save button (`PUT /admin/settings/{key}` with `{ value }`); the Audit cell sits at the end. On a phone the rows are cards with the value input and Save button on one row inside the card. Validation per 7.2; the response `Setting` replaces the row. A `CommentBox` states that every save rebuilds the snapshot and rewrites the live object, so a new poll interval reaches the site within its next poll. The specs live in `validation/settings.ts`.
+The rows sit in a `ResponsiveTable`: title is the key in `<code>`, subtitle is the description, lines are `updatedBy` and `updatedAt` ("default" when null), and the actions cell carries a number input with the range as helper text next to its own Save button (`PUT /admin/settings/{key}` with `{ value }`), or for a boolean key a switch labelled on or off that saves the moment it is flipped; the Audit cell sits at the end. On a phone the rows are cards with the value input and Save button on one row inside the card. Validation per 7.2; the response `Setting` replaces the row. A `CommentBox` states that every save rebuilds the snapshot and rewrites the live object, so a new poll interval reaches the site within its next poll. The specs live in `validation/settings.ts`.
 
 ### 6.10 Subscribers
 

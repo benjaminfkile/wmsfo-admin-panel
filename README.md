@@ -1,6 +1,6 @@
 # wmsfo-admin-panel
 
-The WMSFO admin panel: the only surface for admin and editor actions. Events, beacons, routes, sponsors, cookie types and moderation, settings, subscribers, people, contact messages, and the content system (pages, sections, media, site settings, publish and versions, preview).
+The WMSFO admin panel: the only surface for admin and editor actions. Events, beacons, flight recordings, sponsors, cookie types, settings, subscribers, people, contact messages, API keys, the audit log, QR codes and places, and the content system (pages, sections, media, site settings, publish and versions, preview).
 
 Vite 6 + React 19 + MUI v7 + TanStack Query v5 + `react-router-dom` v7 + `oidc-client-ts`. Tests: Vitest, Testing Library, MSW. Hosted on Vercel from `main`; the eight `VITE_` variables live on the project.
 
