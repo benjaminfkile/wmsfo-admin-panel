@@ -102,7 +102,16 @@ test.describe("editor authoring flow", () => {
     await expect(page.getByRole("heading", { name: /media/i }).first()).toBeVisible();
     await deleteAssets(page, /e2e-editor-draft/i);
 
+    // A restore gives every page a new id, and the list paints its cached rows
+    // while it refetches: wait for the fresh list before following a row link.
+    const pagesListed = page.waitForResponse(
+      (r) =>
+        new URL(r.url()).pathname.endsWith("/admin/pages") &&
+        r.request().method() === "GET" &&
+        r.ok(),
+    );
     await page.getByRole("link", { name: "Pages", exact: true }).click();
+    await pagesListed;
     await page.getByRole("link", { name: "About the flyover", exact: true }).click();
 
     // Rich text section with a paragraph.
