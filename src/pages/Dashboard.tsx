@@ -22,6 +22,7 @@ import { snapshot as snapshotApi } from "../api/resources/snapshot";
 import { live as liveApi } from "../api/resources/live";
 import { beacons as beaconsApi } from "../api/resources/beacons";
 import { cookieTypes as cookieTypesApi } from "../api/resources/cookieTypes";
+import { email as emailApi } from "../api/resources/email";
 import { fetchLiveObject } from "../api/cdn";
 import { CdnError } from "../api/errors";
 import { keys } from "../queries/keys";
@@ -41,6 +42,7 @@ import {
 } from "../lib/time";
 import type {
   Beacon,
+  EmailQuota,
   Event,
   LiveObject,
   LiveState,
@@ -88,6 +90,11 @@ export default function Dashboard() {
   const cookieTypesQ = useQuery({
     queryKey: keys.cookieTypes,
     queryFn: () => cookieTypesApi.list(),
+  });
+  const emailQuotaQ = useQuery({
+    queryKey: keys.emailQuota,
+    queryFn: () => emailApi.quota(),
+    ...polled,
   });
 
   const invalidateAll = () => {
@@ -247,6 +254,13 @@ export default function Dashboard() {
                 : {}
             }
             now={now}
+          />
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <EmailQuotaCard
+            quota={emailQuotaQ.data ?? null}
+            error={emailQuotaQ.error}
+            loading={emailQuotaQ.isLoading}
           />
         </Grid>
       </Grid>
@@ -793,6 +807,70 @@ function LiveObjectCard({
             />
           </Box>
         ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function toNum(v: number | string | null | undefined): number | null {
+  if (v === null || v === undefined) return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function EmailQuotaCard({
+  quota,
+  error,
+  loading,
+}: {
+  quota: EmailQuota | null;
+  error: unknown;
+  loading: boolean;
+}) {
+  return (
+    <Card data-testid="email-quota-card">
+      <CardContent>
+        <Typography variant="h6" gutterBottom>
+          Email quota
+        </Typography>
+        {error ? (
+          <Typography variant="body2">Could not be checked</Typography>
+        ) : loading || quota === null ? (
+          <Typography variant="body2">Loading…</Typography>
+        ) : quota.dryRun === true ? (
+          <Typography variant="body2">Not checked (dry run)</Typography>
+        ) : quota.available === false ? (
+          <Typography variant="body2">Could not be checked</Typography>
+        ) : (
+          (() => {
+            const sent = toNum(quota.sentLast24Hours) ?? 0;
+            const max = toNum(quota.max24HourSend);
+            const queued = toNum(quota.queued) ?? 0;
+            const verified = toNum(quota.verifiedSubscribers) ?? 0;
+            const rate = toNum(quota.maxSendRate);
+            return (
+              <Stack spacing={0.5}>
+                <Typography variant="body2">
+                  {sent.toLocaleString()} of {max === null ? "No limit" : max.toLocaleString()} sent in the last 24 hours
+                </Typography>
+                <Typography variant="body2">
+                  {queued.toLocaleString()} waiting
+                </Typography>
+                <Typography variant="body2">
+                  {verified.toLocaleString()} verified subscribers
+                </Typography>
+                <Typography variant="body2">
+                  {rate === null ? "No limit" : rate.toLocaleString()} per second
+                </Typography>
+                {quota.wouldExceed === true ? (
+                  <Typography variant="body2" color="warning.main">
+                    One alert to every subscriber would not fit
+                  </Typography>
+                ) : null}
+              </Stack>
+            );
+          })()
+        )}
       </CardContent>
     </Card>
   );

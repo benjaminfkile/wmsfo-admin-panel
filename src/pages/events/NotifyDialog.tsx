@@ -14,6 +14,7 @@ import type { Event, StatusId } from "../../api/types";
 import { keys } from "../../queries/keys";
 import { subscribers as subsApi } from "../../api/resources/subscribers";
 import ErrorAlert from "../../components/ErrorAlert";
+import EmailQuotaNotice from "../../components/EmailQuotaNotice";
 import { stockParagraph } from "../../lib/statusCopy";
 import { statusName } from "../../lib/statusNames";
 
@@ -76,6 +77,7 @@ export default function NotifyDialog({
             InputLabelProps={{ shrink: true }}
             fullWidth
           />
+          <EmailQuotaNotice />
         </Stack>
       </DialogContent>
       <DialogActions>

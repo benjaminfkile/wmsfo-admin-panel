@@ -7,6 +7,7 @@ import type {
   Beacon,
   BeaconLog,
   ContactMessage,
+  EmailQuota,
   ContentBundle,
   ContentStatus,
   ContentVersionInfo,
@@ -44,6 +45,19 @@ import type {
 
 const NOW = "2026-12-22T01:31:07.412Z";
 const AUTHOR = "editor@example.com";
+
+export const emailQuota: EmailQuota = {
+  available: true,
+  dryRun: false,
+  max24HourSend: 50000,
+  sentLast24Hours: 120,
+  maxSendRate: 14,
+  queued: 0,
+  remaining: 49880,
+  verifiedSubscribers: 812,
+  wouldExceed: false,
+  fetchedAt: NOW,
+};
 
 export const liveObject: LiveObject = {
   schemaVersion: 1,

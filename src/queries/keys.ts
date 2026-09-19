@@ -18,6 +18,7 @@ export const keys = {
   cookieTypes: ["cookie-types"] as const,
   settings: ["settings"] as const,
   subscribersSummary: ["subscribers", "summary"] as const,
+  emailQuota: ["email", "quota"] as const,
   subscribers: (status: SubscriberStatus | undefined) =>
     ["subscribers", "list", status ?? "all"] as const,
   people: ["people"] as const,

@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -162,6 +163,63 @@ describe("StatusDialog", () => {
         screen.getByText(/\d+ verified subscribers will be emailed/i)
       ).toBeInTheDocument()
     );
+  });
+
+  it("shows the email quota warning in the main dialog when the quota would not fit", async () => {
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/email/quota`, () =>
+        HttpResponse.json({
+          available: true,
+          dryRun: false,
+          max24HourSend: 1000,
+          sentLast24Hours: 950,
+          maxSendRate: 14,
+          queued: 40,
+          remaining: 10,
+          verifiedSubscribers: 1500,
+          wouldExceed: true,
+          fetchedAt: "2026-12-22T01:31:07.412Z",
+        })
+      )
+    );
+    render(
+      <Harness event={f.events[0]!} target={2 as StatusId} onConfirm={vi.fn()} />
+    );
+    expect(await screen.findByTestId("email-quota-warning")).toBeInTheDocument();
+  });
+
+  it("hides the email quota notice in the nested silent confirmation", async () => {
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/email/quota`, () =>
+        HttpResponse.json({
+          available: true,
+          dryRun: false,
+          max24HourSend: 1000,
+          sentLast24Hours: 950,
+          maxSendRate: 14,
+          queued: 40,
+          remaining: 10,
+          verifiedSubscribers: 1500,
+          wouldExceed: true,
+          fetchedAt: "2026-12-22T01:31:07.412Z",
+        })
+      )
+    );
+    const user = userEvent.setup();
+    render(
+      <Harness event={f.events[0]!} target={4 as StatusId} onConfirm={vi.fn()} />
+    );
+    // The main dialog shows the warning.
+    expect(await screen.findByTestId("email-quota-warning")).toBeInTheDocument();
+    // Opening the nested silent-confirm view hides the notice.
+    await user.click(
+      screen.getByRole("button", { name: /^change without notifying$/i })
+    );
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("email-quota-warning")
+      ).not.toBeInTheDocument();
+    });
   });
 
   it("stacks the two confirm buttons on compact with full-width buttons", async () => {

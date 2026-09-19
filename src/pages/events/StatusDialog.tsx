@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { Beacon, Event, StatusId } from "../../api/types";
 import { keys } from "../../queries/keys";
 import { subscribers as subsApi } from "../../api/resources/subscribers";
+import EmailQuotaNotice from "../../components/EmailQuotaNotice";
 import { ApiError } from "../../api/errors";
 import { statusName } from "../../lib/statusNames";
 import { stockParagraph } from "../../lib/statusCopy";
@@ -175,6 +176,7 @@ export default function StatusDialog({
                 Another event is already live.
               </Typography>
             ) : null}
+            <EmailQuotaNotice />
           </Stack>
         </DialogContent>
         <DialogActions sx={stackedActionsSx} data-testid="status-dialog-actions">

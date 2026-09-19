@@ -61,6 +61,7 @@ export type MediaRef = { mediaId: string; alt: string | null };
 export type Presentation = S["PresentationDto"];
 export type AuditStamp = S["AuditStampDto"];
 export type AuditEntry = S["AuditEntryDto"];
+export type EmailQuota = S["EmailQuota"];
 
 export type Page<T> = { items: T[]; nextCursor: string | null };
 export type StatusId = 1 | 2 | 3 | 4 | 5;

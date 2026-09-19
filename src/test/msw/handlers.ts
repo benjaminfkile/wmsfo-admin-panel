@@ -168,6 +168,9 @@ export const handlers: HttpHandler[] = [
   http.get("*/admin/settings", () => HttpResponse.json({ items: f.settings })),
   http.put("*/admin/settings/:key", () => HttpResponse.json(f.settings[0])),
 
+  // Email quota
+  http.get("*/admin/email/quota", () => HttpResponse.json(f.emailQuota)),
+
   // Subscribers
   http.get("*/admin/subscribers/summary", () =>
     HttpResponse.json({ verified: 812, pending: 40, unsubscribed: 12 })
