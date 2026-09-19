@@ -3403,6 +3403,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/email/quota": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EmailQuota"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/subscribers/{id}": {
         parameters: {
             query?: never;
@@ -5183,6 +5218,25 @@ export interface components {
             deletes?: components["schemas"]["ImpactGroupDto"][];
             unlinks?: components["schemas"]["ImpactGroupDto"][];
             warnings?: string[];
+        };
+        EmailQuota: {
+            available?: boolean;
+            dryRun?: boolean;
+            /** Format: double */
+            max24HourSend?: null | number | string;
+            /** Format: double */
+            sentLast24Hours?: null | number | string;
+            /** Format: double */
+            maxSendRate?: null | number | string;
+            /** Format: int32 */
+            queued?: number | string;
+            /** Format: double */
+            remaining?: null | number | string;
+            /** Format: int32 */
+            verifiedSubscribers?: number | string;
+            wouldExceed?: boolean;
+            /** Format: date-time */
+            fetchedAt?: string;
         };
         EnrollmentDto: {
             token?: string;

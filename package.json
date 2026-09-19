@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "gen:api-types": "openapi-typescript contracts/openapi.json -o src/api/schema.d.ts",
     "check:contracts": "node scripts/check-contracts.mjs",
+    "check:no-infra": "node scripts/check-no-infra.mjs",
     "e2e": "playwright test"
   },
   "dependencies": {
