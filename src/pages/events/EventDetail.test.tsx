@@ -233,6 +233,61 @@ describe("EventDetail: status notified state and history", () => {
     ).toBeInTheDocument();
   });
 
+  it("NotifyDialog renders the email quota warning when the quota would not fit", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
+        HttpResponse.json({ ...f.events[0]!, statusNotifiedAt: null })
+      ),
+      http.get(`${testConfig.apiBaseUrl}/admin/email/quota`, () =>
+        HttpResponse.json({
+          available: true,
+          dryRun: false,
+          max24HourSend: 1000,
+          sentLast24Hours: 950,
+          maxSendRate: 14,
+          queued: 40,
+          remaining: 10,
+          verifiedSubscribers: 1500,
+          wouldExceed: true,
+          fetchedAt: "2026-12-22T01:31:07.412Z",
+        })
+      )
+    );
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    await user.click(
+      await screen.findByRole("button", { name: /notify subscribers/i })
+    );
+    expect(await screen.findByTestId("email-quota-warning")).toBeInTheDocument();
+  });
+
+  it("MessagesSection renders the email quota warning only while Notify is checked", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/email/quota`, () =>
+        HttpResponse.json({
+          available: true,
+          dryRun: false,
+          max24HourSend: 1000,
+          sentLast24Hours: 950,
+          maxSendRate: 14,
+          queued: 40,
+          remaining: 10,
+          verifiedSubscribers: 1500,
+          wouldExceed: true,
+          fetchedAt: "2026-12-22T01:31:07.412Z",
+        })
+      )
+    );
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    await screen.findByRole("heading", { name: /^messages$/i });
+    // Unchecked: no warning.
+    expect(screen.queryByTestId("email-quota-warning")).not.toBeInTheDocument();
+    // Check the Notify box: warning appears.
+    await user.click(screen.getByRole("checkbox", { name: /notify/i }));
+    expect(await screen.findByTestId("email-quota-warning")).toBeInTheDocument();
+  });
+
   it("history table shows 'announced again' when fromStatusId equals toStatusId", async () => {
     server.use(
       http.get(`${testConfig.apiBaseUrl}/admin/events/:id/status-history`, () =>

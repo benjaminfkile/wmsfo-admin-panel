@@ -21,6 +21,7 @@ import type { MessageBody } from "../../api/resources/events";
 import { keys } from "../../queries/keys";
 import { useNotify } from "../../hooks/useNotify";
 import ErrorAlert from "../../components/ErrorAlert";
+import EmailQuotaNotice from "../../components/EmailQuotaNotice";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import {
   fromLocalInputValue,
@@ -144,6 +145,7 @@ export default function MessagesSection({ eventId }: Props) {
             helperText={errors.body ?? ""}
             fullWidth
           />
+          {notifyChecked ? <EmailQuotaNotice /> : null}
           <Stack
             direction="row"
             spacing={2}

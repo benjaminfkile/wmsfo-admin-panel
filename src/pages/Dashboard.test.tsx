@@ -162,6 +162,116 @@ describe("Dashboard", () => {
     expect(within(currentCard).getByText(/63%/)).toBeInTheDocument();
   });
 
+  it("renders the Email quota card in the normal state", async () => {
+    render(<Harness />);
+    const card = await screen.findByTestId("email-quota-card");
+    await waitFor(() => {
+      expect(card.textContent).toContain("120 of 50,000 sent in the last 24 hours");
+    });
+    expect(card.textContent).toContain("0 waiting");
+    expect(card.textContent).toContain("812 verified subscribers");
+    expect(card.textContent).toContain("14 per second");
+    expect(card.textContent).not.toContain("One alert to every subscriber would not fit");
+  });
+
+  it("Email quota card shows the would-not-fit warning line", async () => {
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/email/quota`, () =>
+        HttpResponse.json({
+          available: true,
+          dryRun: false,
+          max24HourSend: 1000,
+          sentLast24Hours: 950,
+          maxSendRate: 14,
+          queued: 40,
+          remaining: 10,
+          verifiedSubscribers: 1500,
+          wouldExceed: true,
+          fetchedAt: "2026-12-22T01:31:07.412Z",
+        })
+      )
+    );
+    render(<Harness />);
+    const card = await screen.findByTestId("email-quota-card");
+    await waitFor(() => {
+      expect(card.textContent).toContain(
+        "One alert to every subscriber would not fit"
+      );
+    });
+  });
+
+  it("Email quota card shows 'No limit' when max24HourSend is null", async () => {
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/email/quota`, () =>
+        HttpResponse.json({
+          available: true,
+          dryRun: false,
+          max24HourSend: null,
+          sentLast24Hours: 120,
+          maxSendRate: null,
+          queued: 0,
+          remaining: null,
+          verifiedSubscribers: 812,
+          wouldExceed: false,
+          fetchedAt: "2026-12-22T01:31:07.412Z",
+        })
+      )
+    );
+    render(<Harness />);
+    const card = await screen.findByTestId("email-quota-card");
+    await waitFor(() => {
+      expect(card.textContent).toContain("120 of No limit sent in the last 24 hours");
+    });
+    expect(card.textContent).toContain("No limit per second");
+  });
+
+  it("Email quota card shows 'Not checked (dry run)' on dry run and 'Could not be checked' when unavailable", async () => {
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/email/quota`, () =>
+        HttpResponse.json({
+          available: false,
+          dryRun: true,
+          max24HourSend: null,
+          sentLast24Hours: null,
+          maxSendRate: null,
+          queued: 0,
+          remaining: null,
+          verifiedSubscribers: 812,
+          wouldExceed: false,
+          fetchedAt: "2026-12-22T01:31:07.412Z",
+        })
+      )
+    );
+    const first = render(<Harness />);
+    const card = await first.findByTestId("email-quota-card");
+    await waitFor(() =>
+      expect(card.textContent).toContain("Not checked (dry run)")
+    );
+    first.unmount();
+
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/email/quota`, () =>
+        HttpResponse.json({
+          available: false,
+          dryRun: false,
+          max24HourSend: null,
+          sentLast24Hours: null,
+          maxSendRate: null,
+          queued: 3,
+          remaining: null,
+          verifiedSubscribers: 812,
+          wouldExceed: false,
+          fetchedAt: "2026-12-22T01:31:07.412Z",
+        })
+      )
+    );
+    const second = render(<Harness />);
+    const card2 = await second.findByTestId("email-quota-card");
+    await waitFor(() =>
+      expect(card2.textContent).toContain("Could not be checked")
+    );
+  });
+
   it("on compact renders the five cards with the JSON blocks collapsed to one level", async () => {
     // Desktop render: full JSON tree.
     const restoreDesktop = stubMatchMedia(false);

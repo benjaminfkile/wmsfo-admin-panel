@@ -5,6 +5,7 @@ export { sponsors } from "./sponsors";
 export { cookieTypes } from "./cookieTypes";
 export { settings } from "./settings";
 export { subscribers } from "./subscribers";
+export { email } from "./email";
 export { people } from "./people";
 export { contactMessages } from "./contactMessages";
 export { snapshot } from "./snapshot";
