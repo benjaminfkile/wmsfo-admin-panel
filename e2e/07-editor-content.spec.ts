@@ -89,10 +89,12 @@ test.describe("editor authoring flow", () => {
 
     // Start from the published content: an interrupted run leaves draft
     // sections behind (an empty media item blocks publishing), so restore
-    // the published version into the draft first.
+    // the published version into the draft first. It has to be the version
+    // that is published now: an older one lacks the newer pages, and a
+    // restore without a page unlinks every place and printed code that opens it.
     await page.getByRole("link", { name: "Publish", exact: true }).click();
-    const starterRow = page.getByRole("row").filter({ hasText: /Starter content/ }).first();
-    await starterRow.getByRole("button", { name: /^restore$/i }).click();
+    const publishedRow = page.getByTestId(`version-row-${publishedVersionIdAtStart!}`);
+    await publishedRow.getByRole("button", { name: /^restore$/i }).click();
     await page
       .getByRole("dialog", { name: /restore version/i })
       .getByRole("button", { name: /^restore$/i })
