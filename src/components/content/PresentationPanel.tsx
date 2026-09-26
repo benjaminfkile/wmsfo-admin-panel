@@ -1,61 +1,168 @@
+import { useEffect, useState } from "react";
 import {
   Box,
+  Button,
   MenuItem,
+  Slider,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import type { Presentation } from "../../api/types";
+import IconPicker from "./pickers/IconPicker";
+import IconPreview from "./IconPreview";
+import MediaPicker from "./MediaPicker";
+import MediaPreview from "./MediaPreview";
+import type { Icon, MediaAsset, MediaRef, Presentation } from "../../api/types";
 
 interface Props {
   value?: Presentation | null;
   onChange: (next: Presentation) => void;
   disabled?: boolean;
+  // The section's kind; Width shows only for the four cardless kinds and
+  // is hidden for every other kind.
+  sectionKind?: string;
 }
 
-// The `Presentation` primitive as an editor panel (admin.md 6.14). The
-// full spec adds icon and media pickers and an overlay slider; the wire
-// value stays a plain object shaped by `PresentationDto`.
-const WIDTHS = ["full", "wide", "narrow"];
-const ALIGNS = ["start", "center"];
-const SPACINGS = ["tight", "normal", "loose"];
-const BG_TOKENS = ["surface", "muted", "accent", "night"];
+type MediaBg = { kind: "media"; media: MediaRef; overlay: number };
+type TokenBg = { kind: "token"; token: string };
+type NoneBg = { kind: "none" };
+type Bg = NoneBg | TokenBg | MediaBg;
 
-export default function PresentationPanel({ value, onChange, disabled }: Props) {
-  const current: Presentation = value ?? {
-    width: "wide",
-    align: "start",
-    background: { kind: "none" },
-    spacing: "normal",
-    iconBefore: null,
-    iconAfter: null,
-    anchor: null,
-  };
-  const bg = current.background as
-    | { kind: "none" }
-    | { kind: "token"; token: string }
-    | { kind: "media"; media: unknown; overlay: number }
-    | undefined;
+const WIDTH_OPTIONS: Array<[string, string]> = [
+  ["full", "Full"],
+  ["wide", "Wide"],
+  ["narrow", "Narrow"],
+];
+const ALIGN_OPTIONS: Array<[string, string]> = [
+  ["start", "Start"],
+  ["center", "Centre"],
+];
+const SPACING_OPTIONS: Array<[string, string]> = [
+  ["tight", "Tight"],
+  ["normal", "Normal"],
+  ["loose", "Loose"],
+];
+const BG_KIND_OPTIONS: Array<[string, string]> = [
+  ["none", "None"],
+  ["token", "Colour"],
+  ["media", "Image"],
+];
+const BG_TOKEN_OPTIONS: Array<[string, string]> = [
+  ["surface", "Surface"],
+  ["muted", "Muted"],
+  ["accent", "Accent"],
+  ["night", "Night"],
+];
+
+// The four kinds that render outside a card; the site ignores `width` on
+// every other kind (santa S31).
+const KINDS_WITH_WIDTH = new Set(["hero", "map", "divider", "countdown"]);
+
+const DEFAULT_PRES: Presentation = {
+  width: "wide",
+  align: "start",
+  background: { kind: "none" } as unknown as Presentation["background"],
+  spacing: "normal",
+  iconBefore: null,
+  iconAfter: null,
+  anchor: null,
+};
+
+// The `Presentation` primitive as an editor panel (admin.md 6.14): width
+// (four cardless kinds only), align, spacing, background (none, colour
+// token, or an image with a MediaField and a Darken slider), icon before
+// and icon after with the icon picker, and an anchor.
+export default function PresentationPanel({
+  value,
+  onChange,
+  disabled,
+  sectionKind,
+}: Props) {
+  const current: Presentation = value ?? DEFAULT_PRES;
+  const bg = (current.background ?? { kind: "none" }) as Bg;
+
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const [pendingBgKind, setPendingBgKind] = useState<"media" | null>(null);
+
+  useEffect(() => {
+    if (!mediaPickerOpen && pendingBgKind !== null) {
+      setPendingBgKind(null);
+    }
+  }, [mediaPickerOpen, pendingBgKind]);
 
   const patch = (partial: Partial<Presentation>) => {
     onChange({ ...current, ...partial });
   };
 
-  const setBgKind = (kind: string) => {
-    if (kind === "none") patch({ background: { kind: "none" } as unknown as Presentation["background"] });
-    if (kind === "token")
-      patch({
-        background: { kind: "token", token: "surface" } as unknown as Presentation["background"],
-      });
-    if (kind === "media")
-      patch({
-        background: {
-          kind: "media",
-          media: { mediaId: "", alt: null },
-          overlay: 0,
-        } as unknown as Presentation["background"],
-      });
+  const writeBg = (next: Bg) => {
+    patch({ background: next as unknown as Presentation["background"] });
   };
+
+  const openPicker = () => {
+    setMediaPickerOpen(true);
+  };
+
+  const onBgKindChange = (kind: string) => {
+    if (kind === "none") {
+      writeBg({ kind: "none" });
+      return;
+    }
+    if (kind === "token") {
+      const existing =
+        bg.kind === "token" ? (bg as TokenBg).token : "surface";
+      writeBg({ kind: "token", token: existing });
+      return;
+    }
+    if (kind === "media") {
+      if (bg.kind === "media") {
+        openPicker();
+        return;
+      }
+      setPendingBgKind("media");
+      setMediaPickerOpen(true);
+    }
+  };
+
+  const onMediaPick = (asset: MediaAsset) => {
+    const mediaId = typeof asset.id === "string" ? asset.id : "";
+    if (!mediaId) {
+      setMediaPickerOpen(false);
+      return;
+    }
+    const existingAlt = bg.kind === "media" ? bg.media.alt ?? null : null;
+    const existingOverlay = bg.kind === "media" ? bg.overlay : 0;
+    writeBg({
+      kind: "media",
+      media: { mediaId, alt: existingAlt },
+      overlay: existingOverlay,
+    });
+    setMediaPickerOpen(false);
+  };
+
+  const onMediaCancel = () => {
+    setMediaPickerOpen(false);
+  };
+
+  const setAlt = (alt: string) => {
+    if (bg.kind !== "media") return;
+    writeBg({
+      ...bg,
+      media: { ...bg.media, alt: alt === "" ? null : alt },
+    });
+  };
+
+  const setOverlay = (overlay: number) => {
+    if (bg.kind !== "media") return;
+    writeBg({ ...bg, overlay });
+  };
+
+  const setToken = (token: string) => {
+    writeBg({ kind: "token", token });
+  };
+
+  const bgKindValue = pendingBgKind ?? bg.kind ?? "none";
+  const showWidth =
+    sectionKind === undefined || KINDS_WITH_WIDTH.has(sectionKind);
 
   return (
     <Box data-testid="presentation-panel">
@@ -63,33 +170,40 @@ export default function PresentationPanel({ value, onChange, disabled }: Props) 
         Presentation
       </Typography>
       <Stack spacing={1}>
-        <TextField
-          select
-          size="small"
-          label="Width"
-          value={String(current.width ?? "wide")}
-          onChange={(e) => patch({ width: e.target.value as Presentation["width"] })}
-          disabled={disabled}
-          fullWidth
-        >
-          {WIDTHS.map((w) => (
-            <MenuItem key={w} value={w}>
-              {w}
-            </MenuItem>
-          ))}
-        </TextField>
+        {showWidth ? (
+          <TextField
+            select
+            size="small"
+            label="Width"
+            value={String(current.width ?? "wide")}
+            onChange={(e) =>
+              patch({ width: e.target.value as Presentation["width"] })
+            }
+            disabled={disabled}
+            fullWidth
+            data-testid="presentation-width"
+          >
+            {WIDTH_OPTIONS.map(([v, l]) => (
+              <MenuItem key={v} value={v}>
+                {l}
+              </MenuItem>
+            ))}
+          </TextField>
+        ) : null}
         <TextField
           select
           size="small"
           label="Align"
           value={String(current.align ?? "start")}
-          onChange={(e) => patch({ align: e.target.value as Presentation["align"] })}
+          onChange={(e) =>
+            patch({ align: e.target.value as Presentation["align"] })
+          }
           disabled={disabled}
           fullWidth
         >
-          {ALIGNS.map((a) => (
-            <MenuItem key={a} value={a}>
-              {a}
+          {ALIGN_OPTIONS.map(([v, l]) => (
+            <MenuItem key={v} value={v}>
+              {l}
             </MenuItem>
           ))}
         </TextField>
@@ -98,13 +212,15 @@ export default function PresentationPanel({ value, onChange, disabled }: Props) 
           size="small"
           label="Spacing"
           value={String(current.spacing ?? "normal")}
-          onChange={(e) => patch({ spacing: e.target.value as Presentation["spacing"] })}
+          onChange={(e) =>
+            patch({ spacing: e.target.value as Presentation["spacing"] })
+          }
           disabled={disabled}
           fullWidth
         >
-          {SPACINGS.map((s) => (
-            <MenuItem key={s} value={s}>
-              {s}
+          {SPACING_OPTIONS.map(([v, l]) => (
+            <MenuItem key={v} value={v}>
+              {l}
             </MenuItem>
           ))}
         </TextField>
@@ -112,45 +228,183 @@ export default function PresentationPanel({ value, onChange, disabled }: Props) 
           select
           size="small"
           label="Background"
-          value={bg?.kind ?? "none"}
-          onChange={(e) => setBgKind(e.target.value)}
+          value={bgKindValue}
+          onChange={(e) => onBgKindChange(e.target.value)}
           disabled={disabled}
           fullWidth
         >
-          <MenuItem value="none">None</MenuItem>
-          <MenuItem value="token">Token</MenuItem>
-          <MenuItem value="media">Media</MenuItem>
+          {BG_KIND_OPTIONS.map(([v, l]) => (
+            <MenuItem key={v} value={v}>
+              {l}
+            </MenuItem>
+          ))}
         </TextField>
-        {bg?.kind === "token" ? (
+        {bg.kind === "token" ? (
           <TextField
             select
             size="small"
-            label="Token"
+            label="Colour"
             value={bg.token}
-            onChange={(e) =>
-              patch({
-                background: { kind: "token", token: e.target.value } as unknown as Presentation["background"],
-              })
-            }
+            onChange={(e) => setToken(e.target.value)}
             disabled={disabled}
             fullWidth
           >
-            {BG_TOKENS.map((t) => (
-              <MenuItem key={t} value={t}>
-                {t}
+            {BG_TOKEN_OPTIONS.map(([v, l]) => (
+              <MenuItem key={v} value={v}>
+                {l}
               </MenuItem>
             ))}
           </TextField>
         ) : null}
+        {bg.kind === "media" ? (
+          <MediaBackgroundEditor
+            bg={bg}
+            disabled={disabled}
+            onChoose={openPicker}
+            onAlt={setAlt}
+            onOverlay={setOverlay}
+          />
+        ) : null}
+        <IconLine
+          label="Icon before"
+          value={(current.iconBefore ?? null) as Icon | null}
+          onChange={(next) => patch({ iconBefore: next })}
+          disabled={disabled}
+          testId="presentation-icon-before"
+        />
+        <IconLine
+          label="Icon after"
+          value={(current.iconAfter ?? null) as Icon | null}
+          onChange={(next) => patch({ iconAfter: next })}
+          disabled={disabled}
+          testId="presentation-icon-after"
+        />
         <TextField
           size="small"
-          label="Anchor"
+          label="Anchor (for links like /page#anchor)"
           value={current.anchor ?? ""}
-          onChange={(e) => patch({ anchor: e.target.value === "" ? null : e.target.value })}
+          onChange={(e) =>
+            patch({ anchor: e.target.value === "" ? null : e.target.value })
+          }
           disabled={disabled}
           fullWidth
         />
       </Stack>
+      <MediaPicker
+        open={mediaPickerOpen}
+        onCancel={onMediaCancel}
+        onPick={onMediaPick}
+      />
+    </Box>
+  );
+}
+
+function MediaBackgroundEditor({
+  bg,
+  disabled,
+  onChoose,
+  onAlt,
+  onOverlay,
+}: {
+  bg: MediaBg;
+  disabled?: boolean;
+  onChoose: () => void;
+  onAlt: (alt: string) => void;
+  onOverlay: (overlay: number) => void;
+}) {
+  const percent = Math.round((bg.overlay ?? 0) * 100);
+  return (
+    <Stack spacing={1} data-testid="presentation-media">
+      <Stack direction="row" spacing={1} alignItems="flex-start" flexWrap="wrap">
+        {bg.media.mediaId ? (
+          <MediaPreview mediaId={bg.media.mediaId} />
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            No media
+          </Typography>
+        )}
+        <Button size="small" onClick={onChoose} disabled={disabled}>
+          Choose
+        </Button>
+      </Stack>
+      <TextField
+        size="small"
+        label="Alt text (leave empty to use the image's own)"
+        value={bg.media.alt ?? ""}
+        onChange={(e) => onAlt(e.target.value)}
+        disabled={disabled}
+        fullWidth
+      />
+      <Box>
+        <Typography variant="caption" color="text.secondary" component="div">
+          Darken the image so text stays readable ({percent}%)
+        </Typography>
+        <Slider
+          value={bg.overlay ?? 0}
+          onChange={(_, v) =>
+            onOverlay(typeof v === "number" ? v : (v[0] ?? 0))
+          }
+          min={0}
+          max={1}
+          step={0.05}
+          disabled={disabled}
+          aria-label="Darken the image so text stays readable"
+          data-testid="presentation-overlay"
+        />
+      </Box>
+    </Stack>
+  );
+}
+
+function IconLine({
+  label,
+  value,
+  onChange,
+  disabled,
+  testId,
+}: {
+  label: string;
+  value: Icon | null;
+  onChange: (next: Icon | null) => void;
+  disabled?: boolean;
+  testId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Box data-testid={testId}>
+      <Typography variant="caption" color="text.secondary" component="div">
+        {label}
+      </Typography>
+      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+        {value ? (
+          <IconPreview icon={value} />
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            None
+          </Typography>
+        )}
+        <Button size="small" onClick={() => setOpen(true)} disabled={disabled}>
+          Choose
+        </Button>
+        {value ? (
+          <Button
+            size="small"
+            color="error"
+            onClick={() => onChange(null)}
+            disabled={disabled}
+          >
+            Clear
+          </Button>
+        ) : null}
+      </Stack>
+      <IconPicker
+        open={open}
+        onCancel={() => setOpen(false)}
+        onPick={(next) => {
+          setOpen(false);
+          onChange(next);
+        }}
+      />
     </Box>
   );
 }
