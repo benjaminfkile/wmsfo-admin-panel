@@ -13,6 +13,7 @@ import type { FieldProps } from "@rjsf/utils";
 import type { Icon, IconInfo, MediaAsset } from "../../../api/types";
 import IconPicker from "../pickers/IconPicker";
 import IconPreview from "../IconPreview";
+import InlineText from "../InlineText";
 import { icons as iconsApi } from "../../../api/resources/icons";
 import { media as mediaApi } from "../../../api/resources/media";
 import { keys } from "../../../queries/keys";
@@ -26,8 +27,9 @@ type LinkValue = {
 
 const EMPTY: LinkValue = { label: "", href: "", icon: null, newTab: false };
 
-// The `Link` primitive. Label (inline), href, icon, and newTab. The
-// icon line uses IconPreview and MUI Buttons for Choose and Clear.
+// The `Link` primitive. Label (Inline through `InlineText`), href, icon,
+// and newTab. The icon line uses IconPreview and MUI Buttons for Choose
+// and Clear.
 export default function LinkField(props: FieldProps) {
   const value = (props.formData as Partial<LinkValue> | undefined) ?? EMPTY;
   const [iconOpen, setIconOpen] = useState(false);
@@ -81,12 +83,11 @@ export default function LinkField(props: FieldProps) {
         {label}
       </Typography>
       <Stack spacing={1}>
-        <TextField
-          size="small"
-          label="Label"
+        <InlineText
           value={value.label ?? ""}
-          onChange={(e) => patch({ label: e.target.value })}
-          fullWidth
+          onChange={(next) => patch({ label: next })}
+          label="Label"
+          maxLength={5000}
         />
         <TextField
           size="small"

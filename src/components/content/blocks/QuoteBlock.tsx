@@ -1,4 +1,5 @@
-import { Stack, TextField } from "@mui/material";
+import { Box, Stack } from "@mui/material";
+import InlineText from "../InlineText";
 
 type BlockLike = { kind: string; [k: string]: unknown };
 
@@ -15,28 +16,24 @@ export default function QuoteBlockEditor({ value, onChange }: Props) {
     typeof value.attribution === "string" ? value.attribution : "";
   return (
     <Stack spacing={2} data-testid="block-quote">
-      <TextField
-        size="small"
-        label="Text"
+      <InlineText
         value={text}
-        onChange={(e) => onChange({ ...value, text: e.target.value })}
-        fullWidth
+        onChange={(next) => onChange({ ...value, text: next })}
+        label="Text"
+        maxLength={5000}
         multiline
         minRows={2}
-        inputProps={{ maxLength: 5000 }}
       />
-      <TextField
-        size="small"
-        label="Attribution (optional)"
-        value={attribution}
-        onChange={(e) => {
-          const next = e.target.value;
-          onChange({ ...value, attribution: next === "" ? null : next });
-        }}
-        fullWidth
-        inputProps={{ maxLength: 5000 }}
-        data-testid="block-quote-attribution"
-      />
+      <Box data-testid="block-quote-attribution">
+        <InlineText
+          value={attribution}
+          onChange={(next) =>
+            onChange({ ...value, attribution: next === "" ? null : next })
+          }
+          label="Attribution (optional)"
+          maxLength={5000}
+        />
+      </Box>
     </Stack>
   );
 }

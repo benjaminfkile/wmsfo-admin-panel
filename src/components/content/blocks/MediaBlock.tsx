@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import MediaPicker from "../MediaPicker";
 import MediaPreview from "../MediaPreview";
+import InlineText from "../InlineText";
 import type { MediaAsset } from "../../../api/types";
 
 type MediaRef = { mediaId: string; alt: string | null };
@@ -88,20 +89,18 @@ export default function MediaBlockEditor({ value, onChange }: Props) {
         fullWidth
         inputProps={{ maxLength: 5000 }}
       />
-      <TextField
-        size="small"
-        label="Caption (optional)"
-        value={caption}
-        onChange={(e) => {
-          const next = e.target.value;
-          onChange({ ...value, caption: next === "" ? null : next });
-        }}
-        fullWidth
-        multiline
-        minRows={1}
-        inputProps={{ maxLength: 5000 }}
-        data-testid="block-media-caption"
-      />
+      <Box data-testid="block-media-caption">
+        <InlineText
+          value={caption}
+          onChange={(next) =>
+            onChange({ ...value, caption: next === "" ? null : next })
+          }
+          label="Caption (optional)"
+          maxLength={5000}
+          multiline
+          minRows={1}
+        />
+      </Box>
       <Box>
         <Typography variant="caption" color="text.secondary">
           Size
