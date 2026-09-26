@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { render } from "@testing-library/react";
+import { useState } from "react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@mui/material";
 import { MemoryRouter } from "react-router-dom";
@@ -89,7 +90,7 @@ describe("SchemaForm: every vendored kind schema renders from its defaults", () 
     expect(kind).toBeDefined();
     const schema = SCHEMAS[name as string];
     expect(schema).toBeDefined();
-    const { unmount } = render(
+    const { container, unmount } = render(
       <Providers>
         <SchemaForm
           schema={schema as Sch}
@@ -98,6 +99,8 @@ describe("SchemaForm: every vendored kind schema renders from its defaults", () 
         />
       </Providers>
     );
+    const text = container.textContent ?? "";
+    expect(text).not.toMatch(/Option 1|Option 2/);
     unmount();
   });
 
@@ -110,7 +113,7 @@ describe("SchemaForm: every vendored kind schema renders from its defaults", () 
     expect(kind).toBeDefined();
     const schema = ITEM_SCHEMAS[name as string];
     expect(schema).toBeDefined();
-    const { unmount } = render(
+    const { container, unmount } = render(
       <Providers>
         <SchemaForm
           schema={schema as Sch}
@@ -119,7 +122,98 @@ describe("SchemaForm: every vendored kind schema renders from its defaults", () 
         />
       </Providers>
     );
+    const text = container.textContent ?? "";
+    expect(text).not.toMatch(/Option 1|Option 2/);
     unmount();
+  });
+});
+
+describe("SchemaForm: optional primitive is a switch, not an Option dropdown", () => {
+  type ItemValue = {
+    media: { mediaId: string; alt: string | null };
+    caption: string | null;
+    link: {
+      label: string;
+      href: string;
+      icon: unknown;
+      newTab: boolean;
+    } | null;
+  };
+
+  function Controlled({ initial }: { initial: ItemValue }) {
+    const [value, setValue] = useState<ItemValue>(initial);
+    return (
+      <>
+        <SchemaForm
+          schema={mediaItem as Sch}
+          formData={value}
+          onChange={(next) => setValue(next as ItemValue)}
+        />
+        <pre data-testid="value">{JSON.stringify(value.link)}</pre>
+      </>
+    );
+  }
+
+  const emptyItem: ItemValue = {
+    media: {
+      mediaId: "00000000-0000-0000-0000-000000000000",
+      alt: null,
+    },
+    caption: null,
+    link: null,
+  };
+
+  it("shows a Link switch with no Option text and toggles the link fields on and off", () => {
+    render(
+      <Providers>
+        <Controlled initial={emptyItem} />
+      </Providers>
+    );
+    const optional = screen.getByTestId("optional-field");
+    expect(optional.textContent ?? "").not.toMatch(/Option 1|Option 2/);
+    const switchInput = within(optional).getByRole("switch", { name: "Link" });
+    expect(switchInput).not.toBeChecked();
+    expect(screen.queryByTestId("link-field")).toBeNull();
+
+    fireEvent.click(switchInput);
+    expect(switchInput).toBeChecked();
+    const linkField = screen.getByTestId("link-field");
+    expect(linkField).toBeInTheDocument();
+    const inputs = within(linkField).getAllByRole("textbox");
+    expect(inputs.length).toBeGreaterThanOrEqual(2);
+    expect(JSON.parse(screen.getByTestId("value").textContent ?? "null")).toEqual({
+      label: "",
+      href: "",
+      icon: null,
+      newTab: false,
+    });
+
+    fireEvent.click(switchInput);
+    expect(switchInput).not.toBeChecked();
+    expect(screen.queryByTestId("link-field")).toBeNull();
+    expect(screen.getByTestId("value").textContent).toBe("null");
+  });
+
+  it("renders a stored link with the switch on and the link fields visible", () => {
+    render(
+      <Providers>
+        <Controlled
+          initial={{
+            ...emptyItem,
+            link: {
+              label: "Home",
+              href: "https://x.example/",
+              icon: null,
+              newTab: false,
+            },
+          }}
+        />
+      </Providers>
+    );
+    const optional = screen.getByTestId("optional-field");
+    const switchInput = within(optional).getByRole("switch", { name: "Link" });
+    expect(switchInput).toBeChecked();
+    expect(screen.getByTestId("link-field")).toBeInTheDocument();
   });
 });
 

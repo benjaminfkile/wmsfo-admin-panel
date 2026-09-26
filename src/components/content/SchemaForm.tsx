@@ -14,6 +14,7 @@ import LinkField from "./fields/LinkField";
 import InlineField from "./fields/InlineField";
 import BlocksField from "./fields/BlocksField";
 import PresentationPanelField from "./fields/PresentationPanelField";
+import OptionalField, { extractOptional } from "./fields/OptionalField";
 import ThemeField from "./fields/ThemeField";
 
 // The `$ref` values we route to custom fields. Matches the local
@@ -35,6 +36,7 @@ const CUSTOM_FIELD = {
   InlineField,
   BlocksField,
   PresentationPanelField,
+  OptionalField,
   ThemeField,
 };
 
@@ -56,6 +58,9 @@ function routedField(schema: unknown): keyof typeof CUSTOM_FIELD | null {
     const itemsRef = items?.[RJSF_REF_KEY];
     if (itemsRef === "#/$defs/Block") return "BlocksField";
   }
+  // A two-branch `oneOf` where one branch is `{ type: "null" }` and the
+  // other is a routed primitive `$ref` renders as an on/off switch.
+  if (extractOptional(schema)) return "OptionalField";
   return null;
 }
 
