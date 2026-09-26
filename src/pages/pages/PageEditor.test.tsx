@@ -6,8 +6,18 @@
 //   - the problems badge shows the count from GET /admin/content/status
 //   - duplicate, move, hide, delete each call their endpoint
 //   - items reorder inside ItemsEditor sends the new order
-//   - on compact the section card header renders in two rows and the up/down
-//     arrows sit in the card header instead of above the card
+// admin.md 6.14:
+//   - each section card header shows its number, the kind title, and
+//     a one-line summary of the data
+//   - rich_text summarises the block kinds in order; a kind with items
+//     summarises as "N items"
+//   - up and down arrows live inside the header, next to the menu
+//   - clicking the header toggles the card between collapsed and
+//     expanded (all start collapsed except a just-added section)
+//   - Expand all and Collapse all buttons above the stack apply to
+//     every card in the stack
+//   - items render as nested cards inside the parent card, headed
+//     "Item n of m"
 
 import {
   describe,
@@ -76,34 +86,12 @@ function Harness() {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-function stubMatchMedia(matches: boolean): () => void {
-  const original = window.matchMedia;
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    configurable: true,
-    value: (query: string) => ({
-      matches,
-      media: query,
-      onchange: null,
-      addListener: () => undefined,
-      removeListener: () => undefined,
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
-      dispatchEvent: () => false,
-    }),
-  });
-  return () => {
-    if (original === undefined) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      delete (window as any).matchMedia;
-    } else {
-      Object.defineProperty(window, "matchMedia", {
-        writable: true,
-        configurable: true,
-        value: original,
-      });
-    }
-  };
+async function expandSection(id: number | string): Promise<HTMLElement> {
+  const card = await screen.findByTestId(`section-card-${id}`);
+  const header = within(card).getByTestId(`section-header-${id}`);
+  const expandBtn = within(header).getByLabelText(/expand section/i);
+  fireEvent.click(expandBtn);
+  return card;
 }
 
 beforeEach(() => {
@@ -199,23 +187,19 @@ describe("PageEditor", () => {
       })
     );
     render(<Harness />);
-    await screen.findByTestId(`section-card-${f.sampleSection.id}`);
-    // Switch to Presentation tab so the anchor field is visible.
+    await expandSection(f.sampleSection.id!);
     const presTab = await screen.findByRole("tab", { name: /presentation/i });
     fireEvent.click(presTab);
     const anchor = await screen.findByLabelText(/anchor/i);
 
-    // Two keystrokes back-to-back.
     fireEvent.change(anchor, { target: { value: "a" } });
     fireEvent.change(anchor, { target: { value: "ab" } });
 
-    // Before the 1 s debounce elapses no patch has fired.
     await act(async () => {
       await sleep(300);
     });
     expect(patches).toBe(0);
 
-    // After the debounce, exactly one patch.
     await act(async () => {
       await sleep(1200);
     });
@@ -271,9 +255,7 @@ describe("PageEditor", () => {
     );
 
     render(<Harness />);
-    const card = await screen.findByTestId(
-      `section-card-${f.sampleSection.id}`
-    );
+    const card = await expandSection(f.sampleSection.id!);
 
     const title = await within(card).findByLabelText(/section title/i);
     fireEvent.change(title, { target: { value: "New" } });
@@ -432,7 +414,6 @@ describe("PageEditor", () => {
     await user.click(screen.getByLabelText(/section menu/i));
     await user.click(await screen.findByRole("menuitem", { name: /delete/i }));
 
-    // Confirm the delete.
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: /^delete$/i }));
 
@@ -507,7 +488,7 @@ describe("PageEditor", () => {
     );
     const user = userEvent.setup();
     render(<Harness />);
-    await screen.findByTestId(`section-card-${f.sampleSection.id}`);
+    await expandSection(f.sampleSection.id!);
 
     const row = await screen.findByTestId(`item-row-${items[0]!.id}`);
     await user.click(within(row).getByLabelText(/move item 101 down/i));
@@ -519,48 +500,268 @@ describe("PageEditor", () => {
     expect(orderBody).toEqual({ ids: [102, 101] });
   });
 
-  it("on compact the section header wraps to two rows and the arrows sit in the header", async () => {
-    const restore = stubMatchMedia(true);
-    try {
-      // Two sections so the arrows have meaning: at position 0, "Move up" is
-      // disabled and "Move down" is enabled.
-      const sectionA: SectionAdmin = {
-        ...f.sampleSection,
-        id: 9,
-      };
-      const sectionB: SectionAdmin = {
-        ...f.sampleSection,
-        id: 10,
-      };
-      const pageDetail: PageDetail = {
-        ...f.pageDetail,
-        sections: [sectionA, sectionB],
-      };
-      server.use(
-        http.get(`${testConfig.apiBaseUrl}/admin/pages/:id`, () =>
-          HttpResponse.json(pageDetail)
-        )
-      );
+  it("the header shows the number, the kind title, and a data summary", async () => {
+    const kinds: KindInfo[] = [
+      {
+        ...(f.kinds[0] as KindInfo),
+        kind: "rich_text",
+        title: "Rich text",
+        hasItems: false,
+      },
+    ];
+    const section: SectionAdmin = {
+      ...f.sampleSection,
+      data: {
+        blocks: [
+          { kind: "heading", text: "Hi" },
+          { kind: "paragraph", text: "Body" },
+          { kind: "list", items: ["a", "b", "c", "d"] },
+        ],
+      },
+    };
+    const pageDetail: PageDetail = {
+      ...f.pageDetail,
+      sections: [section],
+    };
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/content/kinds`, () =>
+        HttpResponse.json({ items: kinds })
+      ),
+      http.get(`${testConfig.apiBaseUrl}/admin/pages/:id`, () =>
+        HttpResponse.json(pageDetail)
+      )
+    );
 
-      render(<Harness />);
-      const card = await screen.findByTestId(`section-card-${sectionA.id}`);
-      // The arrows above the card are gone on compact.
-      expect(screen.queryByLabelText(/^move up$/i)).toBeNull();
-      expect(screen.queryByLabelText(/^move down$/i)).toBeNull();
-      // The arrows now live inside the card header.
-      const upBtn = within(card).getByLabelText(/move section up/i);
-      const downBtn = within(card).getByLabelText(/move section down/i);
-      // First card: up disabled, down enabled.
-      expect(upBtn).toBeDisabled();
-      expect(downBtn).not.toBeDisabled();
-      // The header renders as two rows (title row + controls row): the two
-      // children of the header stack are separate DOM elements.
-      const header = within(card).getByTestId(
-        `section-header-${sectionA.id}`
-      );
-      expect(header.children.length).toBe(2);
-    } finally {
-      restore();
-    }
+    render(<Harness />);
+    const title = await screen.findByTestId(
+      `section-title-${f.sampleSection.id}`
+    );
+    expect(title.textContent).toContain("1");
+    expect(title.textContent).toContain("Rich text");
+
+    const summary = await screen.findByTestId(
+      `section-summary-${f.sampleSection.id}`
+    );
+    expect(summary.textContent).toBe("Heading, paragraph, list of 4");
+  });
+
+  it("a kind with items shows the item count as the summary", async () => {
+    const kinds: KindInfo[] = [
+      {
+        ...(f.kinds[0] as KindInfo),
+        kind: "icon_row",
+        title: "Icon row",
+        hasItems: true,
+        schema: { type: "object", properties: {} },
+        itemSchema: {
+          type: "object",
+          properties: { label: { type: "string" } },
+        },
+        itemDefaults: { label: "" },
+      },
+    ];
+    const items: SectionItemAdmin[] = [1, 2, 3, 4, 5].map((n) => ({
+      id: 200 + n,
+      sectionId: 9,
+      position: n - 1,
+      isHidden: false,
+      data: { label: `Item ${n}` },
+      problems: [],
+      updatedBy: "editor@example.com",
+      updatedAt: "2026-12-22T01:31:07.412Z",
+    }));
+    const section: SectionAdmin = {
+      ...f.sampleSection,
+      kind: "icon_row",
+      items,
+    };
+    const pageDetail: PageDetail = {
+      ...f.pageDetail,
+      sections: [section],
+    };
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/content/kinds`, () =>
+        HttpResponse.json({ items: kinds })
+      ),
+      http.get(`${testConfig.apiBaseUrl}/admin/pages/:id`, () =>
+        HttpResponse.json(pageDetail)
+      )
+    );
+
+    render(<Harness />);
+    const summary = await screen.findByTestId(
+      `section-summary-${f.sampleSection.id}`
+    );
+    expect(summary.textContent).toBe("5 items");
+  });
+
+  it("up and down arrows live inside the header, disabled where they should be", async () => {
+    const sectionA: SectionAdmin = { ...f.sampleSection, id: 9 };
+    const sectionB: SectionAdmin = { ...f.sampleSection, id: 10 };
+    const pageDetail: PageDetail = {
+      ...f.pageDetail,
+      sections: [sectionA, sectionB],
+    };
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/pages/:id`, () =>
+        HttpResponse.json(pageDetail)
+      )
+    );
+
+    render(<Harness />);
+    const cardA = await screen.findByTestId(`section-card-${sectionA.id}`);
+    const cardB = await screen.findByTestId(`section-card-${sectionB.id}`);
+    const headerA = within(cardA).getByTestId(`section-header-${sectionA.id}`);
+    const headerB = within(cardB).getByTestId(`section-header-${sectionB.id}`);
+
+    // Both arrows sit in each card's header, not floating above the card.
+    expect(within(headerA).getByLabelText(/move section up/i)).toBeInTheDocument();
+    expect(within(headerA).getByLabelText(/move section down/i)).toBeInTheDocument();
+    expect(within(headerB).getByLabelText(/move section up/i)).toBeInTheDocument();
+    expect(within(headerB).getByLabelText(/move section down/i)).toBeInTheDocument();
+
+    // First card: up disabled, down enabled. Last card: up enabled, down disabled.
+    expect(within(headerA).getByLabelText(/move section up/i)).toBeDisabled();
+    expect(within(headerA).getByLabelText(/move section down/i)).not.toBeDisabled();
+    expect(within(headerB).getByLabelText(/move section up/i)).not.toBeDisabled();
+    expect(within(headerB).getByLabelText(/move section down/i)).toBeDisabled();
+  });
+
+  it("clicking the header collapses and expands the card", async () => {
+    render(<Harness />);
+    const card = await screen.findByTestId(
+      `section-card-${f.sampleSection.id}`
+    );
+    // Starts collapsed: no tabs rendered.
+    expect(within(card).queryByRole("tab", { name: /content/i })).toBeNull();
+
+    const header = within(card).getByTestId(
+      `section-header-${f.sampleSection.id}`
+    );
+    const expandBtn = within(header).getByLabelText(/expand section/i);
+    fireEvent.click(expandBtn);
+
+    // Expanded: tabs render.
+    await within(card).findByRole("tab", { name: /content/i });
+    // The chevron label flips to collapse.
+    expect(within(header).getByLabelText(/collapse section/i)).toBeInTheDocument();
+
+    // Click again to collapse.
+    fireEvent.click(within(header).getByLabelText(/collapse section/i));
+    await waitFor(() => {
+      expect(within(header).getByLabelText(/expand section/i)).toBeInTheDocument();
+    });
+  });
+
+  it("Expand all and Collapse all toggle every card in the stack", async () => {
+    const sectionA: SectionAdmin = { ...f.sampleSection, id: 9 };
+    const sectionB: SectionAdmin = { ...f.sampleSection, id: 10 };
+    const pageDetail: PageDetail = {
+      ...f.pageDetail,
+      sections: [sectionA, sectionB],
+    };
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/pages/:id`, () =>
+        HttpResponse.json(pageDetail)
+      )
+    );
+
+    const user = userEvent.setup();
+    render(<Harness />);
+    await screen.findByTestId(`section-card-${sectionA.id}`);
+
+    // Both start collapsed.
+    expect(screen.queryAllByRole("tab", { name: /content/i })).toHaveLength(0);
+
+    await user.click(screen.getByRole("button", { name: /expand all/i }));
+    await waitFor(() => {
+      expect(screen.queryAllByRole("tab", { name: /content/i })).toHaveLength(2);
+    });
+
+    await user.click(screen.getByRole("button", { name: /collapse all/i }));
+    await waitFor(() => {
+      expect(screen.queryAllByRole("tab", { name: /content/i })).toHaveLength(0);
+    });
+  });
+
+  it("items render as nested cards inside the parent section card with 'Item n of m'", async () => {
+    const kinds: KindInfo[] = [
+      {
+        ...(f.kinds[0] as KindInfo),
+        kind: "media",
+        title: "Media",
+        hasItems: true,
+        schema: { type: "object", properties: {} },
+        itemSchema: {
+          type: "object",
+          properties: { caption: { type: "string" } },
+        },
+        itemDefaults: { caption: "" },
+      },
+    ];
+    const items: SectionItemAdmin[] = [
+      {
+        id: 401,
+        sectionId: 9,
+        position: 0,
+        isHidden: false,
+        data: { caption: "First" },
+        problems: [],
+        updatedBy: "editor@example.com",
+        updatedAt: "2026-12-22T01:31:07.412Z",
+      },
+      {
+        id: 402,
+        sectionId: 9,
+        position: 1,
+        isHidden: false,
+        data: { caption: "Second" },
+        problems: [],
+        updatedBy: "editor@example.com",
+        updatedAt: "2026-12-22T01:31:07.412Z",
+      },
+      {
+        id: 403,
+        sectionId: 9,
+        position: 2,
+        isHidden: false,
+        data: { caption: "Third" },
+        problems: [],
+        updatedBy: "editor@example.com",
+        updatedAt: "2026-12-22T01:31:07.412Z",
+      },
+    ];
+    const section: SectionAdmin = {
+      ...f.sampleSection,
+      kind: "media",
+      items,
+    };
+    const pageDetail: PageDetail = {
+      ...f.pageDetail,
+      sections: [section],
+    };
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/content/kinds`, () =>
+        HttpResponse.json({ items: kinds })
+      ),
+      http.get(`${testConfig.apiBaseUrl}/admin/pages/:id`, () =>
+        HttpResponse.json(pageDetail)
+      )
+    );
+
+    render(<Harness />);
+    const card = await expandSection(f.sampleSection.id!);
+
+    // Each item card sits inside the parent section card, with the
+    // "Item n of m" label in its header.
+    const rowFirst = within(card).getByTestId(`item-row-${items[0]!.id}`);
+    const rowSecond = within(card).getByTestId(`item-row-${items[1]!.id}`);
+    const rowThird = within(card).getByTestId(`item-row-${items[2]!.id}`);
+    expect(within(rowFirst).getByTestId(`item-title-${items[0]!.id}`).textContent)
+      .toBe("Item 1 of 3");
+    expect(within(rowSecond).getByTestId(`item-title-${items[1]!.id}`).textContent)
+      .toBe("Item 2 of 3");
+    expect(within(rowThird).getByTestId(`item-title-${items[2]!.id}`).textContent)
+      .toBe("Item 3 of 3");
   });
 });

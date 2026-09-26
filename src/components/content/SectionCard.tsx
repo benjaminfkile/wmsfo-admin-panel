@@ -3,7 +3,10 @@ import {
   Badge,
   Box,
   Button,
+  Card,
+  CardContent,
   Chip,
+  Collapse,
   IconButton,
   Menu,
   MenuItem,
@@ -16,11 +19,14 @@ import {
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import type { ErrorSchema, RJSFSchema } from "@rjsf/utils";
 import SchemaForm from "./SchemaForm";
 import PresentationPanel from "./PresentationPanel";
 import ItemsEditor from "./ItemsEditor";
 import ProblemList from "./ProblemList";
+import { sectionSummary } from "./sectionSummary";
 import type {
   KindInfo,
   Presentation,
@@ -28,7 +34,6 @@ import type {
   SectionItemAdmin,
 } from "../../api/types";
 import { useDebouncedSave } from "../../hooks/useDebouncedSave";
-import { useCompact } from "../../hooks/useCompact";
 
 export type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -36,6 +41,9 @@ interface Props {
   section: SectionAdmin;
   kind: KindInfo;
   disabled?: boolean;
+  position: number;
+  expanded: boolean;
+  onToggleExpanded: () => void;
   onPatch: (partial: {
     data?: object;
     presentation?: Presentation;
@@ -56,14 +64,19 @@ interface Props {
   extraErrors?: ErrorSchema;
 }
 
-// A single section card (admin.md 6.14). Content tab renders the kind's
-// `SchemaForm` (and `ItemsEditor` when the kind has items). Presentation
-// tab shows the `PresentationPanel`. Edits schedule an autosave on a 1 s
-// debounce.
+// A single section card (admin.md 6.14). The tinted header holds the
+// position number, kind title, summary from the data, badges, move
+// arrows, and menu; clicking the header toggles the collapse. The
+// Content tab renders the kind's `SchemaForm` (plus `ItemsEditor` when
+// the kind has items). Presentation renders `PresentationPanel`. Edits
+// schedule an autosave on a 1 s debounce.
 export default function SectionCard({
   section,
   kind,
   disabled,
+  position,
+  expanded,
+  onToggleExpanded,
   onPatch,
   onDuplicate,
   onMove,
@@ -79,7 +92,6 @@ export default function SectionCard({
   saveState = "idle",
   extraErrors,
 }: Props) {
-  const compact = useCompact();
   const [tab, setTab] = useState<"content" | "presentation">("content");
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [data, setData] = useState<object>(
@@ -126,198 +138,261 @@ export default function SectionCard({
   const problems = section.problems ?? [];
   const problemCount = problems.length;
   const schema = (kind.schema ?? null) as RJSFSchema | null;
+  const summary = sectionSummary(section, kind);
 
-  const titleRow = (
-    <Stack
-      direction="row"
-      spacing={1}
-      alignItems="center"
-      sx={{ minWidth: 0, flex: 1 }}
-      useFlexGap
-      flexWrap="wrap"
-    >
-      <Typography variant="h6" sx={{ minWidth: 0, wordBreak: "break-word" }}>
-        {kind.title}
-      </Typography>
-      {kind.live ? <Chip size="small" label="Live" color="info" /> : null}
-    </Stack>
-  );
-  const controlsRow = (
-    <Stack
-      direction="row"
-      spacing={1}
-      alignItems="center"
-      useFlexGap
-      flexWrap="wrap"
-      sx={{ flexShrink: 0 }}
-    >
-      {saveState === "saving" ? (
-        <Typography variant="caption" color="text.secondary">
-          Saving…
-        </Typography>
-      ) : saveState === "saved" ? (
-        <Typography variant="caption" color="success.main">
-          Saved
-        </Typography>
-      ) : saveState === "error" ? (
-        <Typography variant="caption" color="error.main">
-          Not saved
-        </Typography>
-      ) : null}
-      <Badge
-        badgeContent={problemCount}
-        color="error"
-        overlap="rectangular"
-        data-testid={`section-problems-${section.id}`}
-      >
-        <span />
-      </Badge>
-      <Stack direction="row" alignItems="center">
-        <Typography variant="caption">Hidden</Typography>
-        <Switch
-          size="small"
-          checked={Boolean(section.isHidden)}
-          onChange={(e) => onPatch({ isHidden: e.target.checked })}
-          disabled={disabled}
-          inputProps={{ "aria-label": "Hidden" }}
-        />
-      </Stack>
-      <IconButton
-        onClick={(e) => setMenuAnchor(e.currentTarget)}
-        size="small"
-        aria-label="Section menu"
-      >
-        <MoreVertIcon />
-      </IconButton>
-      <Menu
-        anchorEl={menuAnchor}
-        open={Boolean(menuAnchor)}
-        onClose={() => setMenuAnchor(null)}
-      >
-        <MenuItem
-          onClick={() => {
-            setMenuAnchor(null);
-            onDuplicate?.();
-          }}
-        >
-          Duplicate
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            setMenuAnchor(null);
-            onMove?.();
-          }}
-        >
-          Move to page
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            setMenuAnchor(null);
-            onDelete?.();
-          }}
-        >
-          Delete
-        </MenuItem>
-      </Menu>
-    </Stack>
-  );
-  const compactArrows = compact && (onMoveUp || onMoveDown) ? (
-    <Stack direction="row" spacing={0.5} alignItems="center">
-      <IconButton
-        size="small"
-        onClick={onMoveUp}
-        disabled={!canMoveUp}
-        aria-label="Move section up"
-      >
-        <ArrowUpwardIcon fontSize="small" />
-      </IconButton>
-      <IconButton
-        size="small"
-        onClick={onMoveDown}
-        disabled={!canMoveDown}
-        aria-label="Move section down"
-      >
-        <ArrowDownwardIcon fontSize="small" />
-      </IconButton>
-    </Stack>
-  ) : null;
+  const stop = (fn?: () => void) => (
+    e: React.MouseEvent<HTMLElement>
+  ) => {
+    e.stopPropagation();
+    fn?.();
+  };
 
   return (
-    <Box
-      sx={{ border: "1px solid", borderColor: "divider", p: 2, mb: 2 }}
+    <Card
+      variant="outlined"
       data-testid={`section-card-${section.id}`}
+      sx={{ borderColor: "divider" }}
     >
-      {compact ? (
-        <Stack spacing={1} data-testid={`section-header-${section.id}`}>
-          <Stack direction="row" spacing={1} alignItems="center" useFlexGap>
-            {compactArrows}
-            {titleRow}
-          </Stack>
-          {controlsRow}
-        </Stack>
-      ) : (
+      <Box
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        aria-label={`Section ${position}: ${kind.title ?? ""}`}
+        onClick={onToggleExpanded}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggleExpanded();
+          }
+        }}
+        data-testid={`section-header-${section.id}`}
+        sx={{
+          bgcolor: "action.hover",
+          px: 2,
+          py: 1,
+          cursor: "pointer",
+          borderBottom: expanded ? "1px solid" : "none",
+          borderColor: "divider",
+        }}
+      >
         <Stack
           direction="row"
           spacing={1}
           alignItems="center"
-          data-testid={`section-header-${section.id}`}
+          useFlexGap
+          flexWrap="wrap"
         >
-          {titleRow}
-          {controlsRow}
-        </Stack>
-      )}
-      <Tabs value={tab} onChange={(_, v: "content" | "presentation") => setTab(v)}>
-        <Tab label="Content" value="content" />
-        <Tab label="Presentation" value="presentation" />
-      </Tabs>
-      <Box sx={{ mt: 2 }}>
-        {tab === "content" ? (
-          schema ? (
-            <>
-              <SchemaForm
-                schema={schema}
-                kind={kind.kind}
-                formData={data}
-                disabled={disabled}
-                onChange={(next: object) => setData(next)}
-                onBlur={() => debouncedData.flush()}
-                extraErrors={extraErrors}
-              />
-              {kind.hasItems ? (
-                <ItemsEditor
-                  items={items}
-                  kind={kind}
-                  disabled={disabled}
-                  onCreate={onCreateItem ?? (() => undefined)}
-                  onPatchItem={onPatchItem ?? (() => undefined)}
-                  onRemoveItem={onRemoveItem ?? (() => undefined)}
-                  onReorder={onReorderItems}
-                />
+          <IconButton
+            size="small"
+            aria-label={expanded ? "Collapse section" : "Expand section"}
+            onClick={stop(onToggleExpanded)}
+          >
+            {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+          </IconButton>
+          <Stack sx={{ minWidth: 0, flex: 1 }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              useFlexGap
+              flexWrap="wrap"
+            >
+              <Typography
+                variant="subtitle1"
+                sx={{ fontWeight: 600, minWidth: 0 }}
+                data-testid={`section-title-${section.id}`}
+              >
+                {position} · {kind.title}
+              </Typography>
+              {kind.live ? (
+                <Chip size="small" label="Live" color="info" />
               ) : null}
-            </>
-          ) : (
-            <Typography variant="body2" color="text.secondary">
-              No schema for this kind.
-            </Typography>
-          )
-        ) : (
-          <PresentationPanel
-            value={presentation}
-            disabled={disabled}
-            sectionKind={kind.kind}
-            onChange={(next) => {
-              setPresentation(next);
-              debouncedPres.schedule(next);
-            }}
-          />
-        )}
+              {section.isHidden ? (
+                <Chip size="small" label="Hidden" color="default" />
+              ) : null}
+              {problemCount > 0 ? (
+                <Badge
+                  badgeContent={problemCount}
+                  color="error"
+                  overlap="rectangular"
+                  data-testid={`section-problems-${section.id}`}
+                  sx={{ ml: 1 }}
+                >
+                  <span />
+                </Badge>
+              ) : (
+                <Badge
+                  badgeContent={0}
+                  showZero={false}
+                  data-testid={`section-problems-${section.id}`}
+                >
+                  <span />
+                </Badge>
+              )}
+              {saveState === "saving" ? (
+                <Typography variant="caption" color="text.secondary">
+                  Saving…
+                </Typography>
+              ) : saveState === "saved" ? (
+                <Typography variant="caption" color="success.main">
+                  Saved
+                </Typography>
+              ) : saveState === "error" ? (
+                <Typography variant="caption" color="error.main">
+                  Not saved
+                </Typography>
+              ) : null}
+            </Stack>
+            {summary ? (
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                data-testid={`section-summary-${section.id}`}
+                sx={{
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {summary}
+              </Typography>
+            ) : null}
+          </Stack>
+          <Stack
+            direction="row"
+            spacing={0.5}
+            alignItems="center"
+            sx={{ flexShrink: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Stack direction="row" alignItems="center">
+              <Typography variant="caption">Hidden</Typography>
+              <Switch
+                size="small"
+                checked={Boolean(section.isHidden)}
+                onChange={(e) => onPatch({ isHidden: e.target.checked })}
+                disabled={disabled}
+                inputProps={{ "aria-label": "Hidden" }}
+              />
+            </Stack>
+            <IconButton
+              size="small"
+              onClick={stop(onMoveUp)}
+              disabled={!canMoveUp}
+              aria-label="Move section up"
+            >
+              <ArrowUpwardIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={stop(onMoveDown)}
+              disabled={!canMoveDown}
+              aria-label="Move section down"
+            >
+              <ArrowDownwardIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuAnchor(e.currentTarget);
+              }}
+              size="small"
+              aria-label="Section menu"
+            >
+              <MoreVertIcon />
+            </IconButton>
+            <Menu
+              anchorEl={menuAnchor}
+              open={Boolean(menuAnchor)}
+              onClose={() => setMenuAnchor(null)}
+            >
+              <MenuItem
+                onClick={() => {
+                  setMenuAnchor(null);
+                  onDuplicate?.();
+                }}
+              >
+                Duplicate
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setMenuAnchor(null);
+                  onMove?.();
+                }}
+              >
+                Move to page
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setMenuAnchor(null);
+                  onDelete?.();
+                }}
+              >
+                Delete
+              </MenuItem>
+            </Menu>
+          </Stack>
+        </Stack>
       </Box>
-      <ProblemList problems={problems} />
-      <Box sx={{ mt: 1 }}>
-        <Button size="small" onClick={() => debouncedData.flush()}>
-          Save now
-        </Button>
-      </Box>
-    </Box>
+      <Collapse in={expanded} unmountOnExit={false}>
+        <CardContent>
+          <Tabs
+            value={tab}
+            onChange={(_, v: "content" | "presentation") => setTab(v)}
+          >
+            <Tab label="Content" value="content" />
+            <Tab label="Presentation" value="presentation" />
+          </Tabs>
+          <Box sx={{ mt: 2 }}>
+            {tab === "content" ? (
+              schema ? (
+                <>
+                  <SchemaForm
+                    schema={schema}
+                    kind={kind.kind}
+                    formData={data}
+                    disabled={disabled}
+                    onChange={(next: object) => setData(next)}
+                    onBlur={() => debouncedData.flush()}
+                    extraErrors={extraErrors}
+                  />
+                  {kind.hasItems ? (
+                    <ItemsEditor
+                      items={items}
+                      kind={kind}
+                      disabled={disabled}
+                      onCreate={onCreateItem ?? (() => undefined)}
+                      onPatchItem={onPatchItem ?? (() => undefined)}
+                      onRemoveItem={onRemoveItem ?? (() => undefined)}
+                      onReorder={onReorderItems}
+                    />
+                  ) : null}
+                </>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  No schema for this kind.
+                </Typography>
+              )
+            ) : (
+              <PresentationPanel
+                value={presentation}
+                disabled={disabled}
+                sectionKind={kind.kind}
+                onChange={(next) => {
+                  setPresentation(next);
+                  debouncedPres.schedule(next);
+                }}
+              />
+            )}
+          </Box>
+          <ProblemList problems={problems} />
+          <Box sx={{ mt: 1 }}>
+            <Button size="small" onClick={() => debouncedData.flush()}>
+              Save now
+            </Button>
+          </Box>
+        </CardContent>
+      </Collapse>
+    </Card>
   );
 }
