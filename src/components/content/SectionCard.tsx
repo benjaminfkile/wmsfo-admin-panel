@@ -26,6 +26,7 @@ import SchemaForm from "./SchemaForm";
 import PresentationPanel from "./PresentationPanel";
 import ItemsEditor from "./ItemsEditor";
 import ProblemList from "./ProblemList";
+import MapStartView, { type MapStart } from "./fields/MapStartView";
 import { sectionSummary } from "./sectionSummary";
 import type {
   KindInfo,
@@ -347,6 +348,13 @@ export default function SectionCard({
             {tab === "content" ? (
               schema ? (
                 <>
+                  {kind.kind === "map" ? (
+                    <MapStartView
+                      value={data as MapStart}
+                      onChange={(next) => setData({ ...data, ...next })}
+                      disabled={disabled}
+                    />
+                  ) : null}
                   <SchemaForm
                     schema={schema}
                     kind={kind.kind}
