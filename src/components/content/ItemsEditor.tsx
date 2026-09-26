@@ -2,6 +2,8 @@ import { useState } from "react";
 import {
   Box,
   Button,
+  Card,
+  CardContent,
   IconButton,
   Stack,
   Typography,
@@ -30,6 +32,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { ReactNode } from "react";
 import type { RJSFSchema } from "@rjsf/utils";
 import SchemaForm from "./SchemaForm";
+import { itemSummary } from "./sectionSummary";
 import type { KindInfo, SectionItemAdmin } from "../../api/types";
 
 interface Props {
@@ -44,6 +47,9 @@ interface Props {
 
 interface RowProps {
   id: number;
+  index: number;
+  total: number;
+  summary: string;
   disabled?: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
@@ -55,6 +61,9 @@ interface RowProps {
 
 function SortableRow({
   id,
+  index,
+  total,
+  summary,
   disabled,
   canMoveUp,
   canMoveDown,
@@ -77,61 +86,98 @@ function SortableRow({
     opacity: isDragging ? 0.5 : 1,
   };
   return (
-    <Box
+    <Card
       ref={setNodeRef}
       style={style}
+      variant="outlined"
       data-testid={`item-row-${id}`}
-      sx={{ border: "1px solid", borderColor: "divider", p: 1 }}
+      sx={{
+        bgcolor: "action.hover",
+        borderColor: "divider",
+        ml: 2,
+      }}
     >
-      <Stack direction="row" alignItems="center" useFlexGap flexWrap="wrap">
-        <IconButton
-          size="small"
-          disabled={disabled}
-          aria-label={`Drag item ${id}`}
-          {...attributes}
-          {...listeners}
-          sx={{ cursor: "grab" }}
-        >
-          <DragIndicatorIcon fontSize="small" />
-        </IconButton>
-        <IconButton
-          size="small"
-          onClick={onMoveUp}
-          disabled={disabled || !canMoveUp}
-          aria-label={`Move item ${id} up`}
-        >
-          <ArrowUpwardIcon fontSize="small" />
-        </IconButton>
-        <IconButton
-          size="small"
-          onClick={onMoveDown}
-          disabled={disabled || !canMoveDown}
-          aria-label={`Move item ${id} down`}
-        >
-          <ArrowDownwardIcon fontSize="small" />
-        </IconButton>
-        <Typography variant="body2" sx={{ flexGrow: 1 }}>
-          Item #{id}
-        </Typography>
-        <IconButton
-          size="small"
-          onClick={onRemove}
-          disabled={disabled}
-          aria-label="Remove item"
-        >
-          <DeleteIcon fontSize="small" />
-        </IconButton>
-      </Stack>
-      {children}
-    </Box>
+      <Box
+        sx={{
+          bgcolor: "action.selected",
+          px: 1,
+          py: 0.5,
+          borderBottom: "1px solid",
+          borderColor: "divider",
+        }}
+      >
+        <Stack direction="row" alignItems="center" useFlexGap flexWrap="wrap">
+          <IconButton
+            size="small"
+            disabled={disabled}
+            aria-label={`Drag item ${id}`}
+            {...attributes}
+            {...listeners}
+            sx={{ cursor: "grab" }}
+          >
+            <DragIndicatorIcon fontSize="small" />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={onMoveUp}
+            disabled={disabled || !canMoveUp}
+            aria-label={`Move item ${id} up`}
+          >
+            <ArrowUpwardIcon fontSize="small" />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={onMoveDown}
+            disabled={disabled || !canMoveDown}
+            aria-label={`Move item ${id} down`}
+          >
+            <ArrowDownwardIcon fontSize="small" />
+          </IconButton>
+          <Stack sx={{ flexGrow: 1, minWidth: 0 }}>
+            <Typography
+              variant="body2"
+              sx={{ fontWeight: 600 }}
+              data-testid={`item-title-${id}`}
+            >
+              Item {index + 1} of {total}
+            </Typography>
+            {summary ? (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                data-testid={`item-summary-${id}`}
+                sx={{
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {summary}
+              </Typography>
+            ) : null}
+          </Stack>
+          <IconButton
+            size="small"
+            onClick={onRemove}
+            disabled={disabled}
+            aria-label="Remove item"
+          >
+            <DeleteIcon fontSize="small" />
+          </IconButton>
+        </Stack>
+      </Box>
+      <CardContent sx={{ pt: 1 }}>{children}</CardContent>
+    </Card>
   );
 }
 
-// A section's items (admin.md 6.14). Each item is a small SchemaForm
-// over the kind's `itemSchema`. Add uses the kind's `itemDefaults`.
-// Rows reorder via drag (dnd-kit) or the up/down keyboard buttons; the
-// caller receives the resulting list of ids to persist through
-// `PUT /admin/sections/{id}/items/order`.
+// A section's items (admin.md 6.14). Each item is a nested card inside
+// the parent section card: a tinted header with the drag handle, up
+// and down arrows, "Item n of m" and a short summary, then the item's
+// SchemaForm below. Rows reorder via drag (dnd-kit) or the up/down
+// buttons; the caller receives the new list of ids to persist through
+// `PUT /admin/sections/{id}/items/order`. Add uses the kind's
+// `itemDefaults`.
 export default function ItemsEditor({
   items,
   kind,
@@ -199,6 +245,9 @@ export default function ItemsEditor({
                 <SortableRow
                   key={id}
                   id={id}
+                  index={index}
+                  total={items.length}
+                  summary={itemSummary(it.data)}
                   disabled={disabled}
                   canMoveUp={index > 0}
                   canMoveDown={index < items.length - 1}

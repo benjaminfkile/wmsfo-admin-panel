@@ -3,14 +3,10 @@ import {
   Box,
   Button,
   Chip,
-  IconButton,
   Stack,
   Typography,
 } from "@mui/material";
-import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
-import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import type { ErrorSchema } from "@rjsf/utils";
-import { useCompact } from "../../hooks/useCompact";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { pages as pagesApi } from "../../api/resources/pages";
@@ -44,7 +40,6 @@ export default function PageEditor() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const notify = useNotify();
-  const compact = useCompact();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [deleteFor, setDeleteFor] = useState<SectionAdmin | null>(null);
@@ -53,6 +48,7 @@ export default function PageEditor() {
   const [fieldErrors, setFieldErrors] = useState<
     Record<number, ErrorSchema>
   >({});
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
   const pageQ = useQuery({
     queryKey: keys.page(pageId),
@@ -121,9 +117,17 @@ export default function PageEditor() {
         kind: kind.kind ?? "",
         data: (kind.defaults ?? {}) as object,
       }),
-    onSuccess: () => {
+    onSuccess: (created) => {
       notify("Section added");
       setPaletteOpen(false);
+      const newId = Number(created.id ?? 0);
+      if (newId) {
+        setExpandedIds((prev) => {
+          const next = new Set(prev);
+          next.add(newId);
+          return next;
+        });
+      }
       void qc.invalidateQueries({ queryKey: keys.page(pageId) });
     },
   });
@@ -247,6 +251,21 @@ export default function PageEditor() {
     reorderMut.mutate(next.map((s) => Number(s.id ?? 0)));
   };
 
+  const toggleExpanded = (sectionId: number) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) next.delete(sectionId);
+      else next.add(sectionId);
+      return next;
+    });
+  };
+  const expandAll = () => {
+    setExpandedIds(
+      new Set(sectionsData.map((s) => Number(s.id ?? 0)).filter(Boolean))
+    );
+  };
+  const collapseAll = () => setExpandedIds(new Set());
+
   if (!Number.isFinite(pageId)) {
     return <ErrorAlert error={new Error("Invalid page id")} />;
   }
@@ -283,7 +302,23 @@ export default function PageEditor() {
         }
       />
 
-      <Box data-testid="section-stack">
+      {sectionsData.length > 0 ? (
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ mb: 2 }}
+          data-testid="section-stack-actions"
+        >
+          <Button size="small" onClick={expandAll}>
+            Expand all
+          </Button>
+          <Button size="small" onClick={collapseAll}>
+            Collapse all
+          </Button>
+        </Stack>
+      ) : null}
+
+      <Stack spacing={2} data-testid="section-stack">
         {sectionsData.length === 0 ? (
           <Typography color="text.secondary">No sections yet.</Typography>
         ) : (
@@ -301,57 +336,40 @@ export default function PageEditor() {
             const canUp = i > 0 && !reorderMut.isPending;
             const canDown =
               i < sectionsData.length - 1 && !reorderMut.isPending;
+            const expanded = expandedIds.has(id);
             return (
-              <Box key={id}>
-                {compact ? null : (
-                  <Stack direction="row" spacing={0.5} alignItems="center">
-                    <IconButton
-                      size="small"
-                      onClick={() => move(i, -1)}
-                      disabled={!canUp}
-                      aria-label="Move up"
-                    >
-                      <ArrowUpwardIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      onClick={() => move(i, 1)}
-                      disabled={!canDown}
-                      aria-label="Move down"
-                    >
-                      <ArrowDownwardIcon fontSize="small" />
-                    </IconButton>
-                  </Stack>
-                )}
-                <SectionCard
-                  section={s}
-                  kind={kind}
-                  saveState={saveStates[id] ?? "idle"}
-                  extraErrors={fieldErrors[id]}
-                  onPatch={(body) => patchSectionMut.mutate({ id, body })}
-                  onDuplicate={() => duplicateMut.mutate(id)}
-                  onMove={() => setMoveFor(s)}
-                  onDelete={() => setDeleteFor(s)}
-                  onCreateItem={(data) =>
-                    createItemMut.mutate({ sectionId: id, data })
-                  }
-                  onPatchItem={(itemId, data) =>
-                    patchItemMut.mutate({ itemId, data })
-                  }
-                  onRemoveItem={(itemId) => removeItemMut.mutate(itemId)}
-                  onReorderItems={(ids) =>
-                    orderItemsMut.mutate({ sectionId: id, ids })
-                  }
-                  onMoveUp={() => move(i, -1)}
-                  onMoveDown={() => move(i, 1)}
-                  canMoveUp={canUp}
-                  canMoveDown={canDown}
-                />
-              </Box>
+              <SectionCard
+                key={id}
+                section={s}
+                kind={kind}
+                position={i + 1}
+                expanded={expanded}
+                onToggleExpanded={() => toggleExpanded(id)}
+                saveState={saveStates[id] ?? "idle"}
+                extraErrors={fieldErrors[id]}
+                onPatch={(body) => patchSectionMut.mutate({ id, body })}
+                onDuplicate={() => duplicateMut.mutate(id)}
+                onMove={() => setMoveFor(s)}
+                onDelete={() => setDeleteFor(s)}
+                onCreateItem={(data) =>
+                  createItemMut.mutate({ sectionId: id, data })
+                }
+                onPatchItem={(itemId, data) =>
+                  patchItemMut.mutate({ itemId, data })
+                }
+                onRemoveItem={(itemId) => removeItemMut.mutate(itemId)}
+                onReorderItems={(ids) =>
+                  orderItemsMut.mutate({ sectionId: id, ids })
+                }
+                onMoveUp={() => move(i, -1)}
+                onMoveDown={() => move(i, 1)}
+                canMoveUp={canUp}
+                canMoveDown={canDown}
+              />
             );
           })
         )}
-      </Box>
+      </Stack>
 
       <Box sx={{ mt: 2 }}>
         <Button variant="contained" onClick={() => setPaletteOpen(true)}>
