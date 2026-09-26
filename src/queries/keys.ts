@@ -35,6 +35,7 @@ export const keys = {
   siteSettings: ["site-settings"] as const,
   media: (q: MediaQuery) => ["media", q] as const,
   mediaOne: (id: string) => ["media", "one", id] as const,
+  mediaAsset: (id: string) => ["media", "asset", id] as const,
   mediaUsage: (id: string) => ["media", "usage", id] as const,
   apiKeys: ["api-keys"] as const,
   audit: (q: AuditQuery) => ["audit", q] as const,

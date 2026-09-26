@@ -1,12 +1,17 @@
 import { useState } from "react";
-import { Box, Button, Chip, Stack, Typography } from "@mui/material";
+import { Box, Button, Stack, Typography } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
 import type { FieldProps } from "@rjsf/utils";
 import IconPicker from "../pickers/IconPicker";
-import type { Icon } from "../../../api/types";
+import IconPreview from "../IconPreview";
+import { icons as iconsApi } from "../../../api/resources/icons";
+import { media as mediaApi } from "../../../api/resources/media";
+import { keys } from "../../../queries/keys";
+import type { Icon, IconInfo, MediaAsset } from "../../../api/types";
 
-// The `Icon` primitive. The current icon shows as a chip; a Choose
-// button opens the shared icon picker; a Clear button removes it
-// (allowed when the schema is nullable).
+// The `Icon` primitive. IconPreview shows the picked icon next to its
+// name (library) or filename (media); Choose opens the shared icon
+// picker; Clear removes the value on nullable schemas.
 export default function IconField(props: FieldProps) {
   const value = (props.formData as Icon | null | undefined) ?? null;
   const oneOf = (props.schema as { oneOf?: unknown[] }).oneOf;
@@ -16,21 +21,45 @@ export default function IconField(props: FieldProps) {
   const label =
     typeof props.schema.title === "string" ? props.schema.title : props.name;
 
+  const isLibrary = value?.source === "library";
+  const isMedia = value?.source === "media";
+
+  const iconsQ = useQuery({
+    queryKey: keys.icons,
+    queryFn: () => iconsApi.list(),
+    enabled: isLibrary,
+    staleTime: Infinity,
+  });
+
+  const mediaQ = useQuery({
+    queryKey: keys.mediaAsset(String(value?.id ?? "")),
+    queryFn: () => mediaApi.get(String(value?.id ?? "")),
+    enabled: isMedia && typeof value?.id === "string" && value.id.length > 0,
+    staleTime: Infinity,
+    retry: false,
+  });
+
+  const displayName = value
+    ? isLibrary
+      ? ((iconsQ.data?.items ?? []).find(
+          (i: IconInfo) => i.id === value.id
+        )?.name ?? String(value.id))
+      : ((mediaQ.data as MediaAsset | undefined)?.filename ?? String(value.id))
+    : null;
+
   return (
     <Box sx={{ my: 1 }} data-testid="icon-field">
       <Typography variant="caption" color="text.secondary">
         {label}
       </Typography>
-      <Stack direction="row" spacing={1} alignItems="center">
+      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
         {value ? (
-          <Chip
-            label={
-              value.source === "library"
-                ? `Library: ${value.id}`
-                : `Media: ${String(value.id).slice(0, 8)}…`
-            }
-            variant="outlined"
-          />
+          <>
+            <IconPreview icon={value} />
+            <Typography variant="body2" sx={{ wordBreak: "break-all" }}>
+              {displayName}
+            </Typography>
+          </>
         ) : (
           <Typography variant="body2" color="text.secondary">
             None
