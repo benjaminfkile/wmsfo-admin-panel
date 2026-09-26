@@ -1,7 +1,8 @@
 // Human labels, help text, and enum display names for every content
-// form (admin.md 6.14). One entry per field of every section and item
-// schema; a completeness test in `labels.test.ts` fails when a new
-// field is added to a schema without an entry here.
+// form (admin.md 6.14, 6.16). One entry per field of every section and
+// item schema and of the site settings schema; a completeness test in
+// `labels.test.ts` fails when a new field is added to a schema without
+// an entry here.
 //
 // Keys are dotted field paths as they appear in a section or item
 // value (arrays are addressed by name, without an index). For example
@@ -304,9 +305,74 @@ const ITEM: Record<string, FieldLabels> = {
   },
 };
 
+// The site settings document (`site-settings.schema.json`). The link
+// arrays address the fields of each entry by the array name, so
+// `navExtraLinks.href` is the address of every extra menu link. The
+// `theme` entries match the switches `ThemeField` draws.
+export const SITE_SETTINGS: FieldLabels = {
+  siteName: {
+    label: "Site name",
+    help: "Shown in the browser tab and at the top of every page.",
+  },
+  tagline: {
+    label: "Tagline",
+    help: "A short line shown under the site name.",
+  },
+  homeNavLabel: {
+    label: "Label for the home link in the menu",
+    help: "The text of the first menu link, which goes to the home page.",
+  },
+  logo: { label: "Logo" },
+  favicon: {
+    label: "Browser tab icon",
+    help: "The small picture shown in the browser tab and in bookmarks.",
+  },
+  theme: { label: "Theme" },
+  "theme.snowDefault": { label: "Snow on by default" },
+  "theme.lightsDefault": { label: "Lights on by default" },
+  "theme.ornaments": { label: "Ornaments in the background" },
+  navExtraLinks: {
+    label: "Extra menu links",
+    help: "Links added to the menu after the pages, up to five.",
+  },
+  "navExtraLinks.label": { label: "Link text" },
+  "navExtraLinks.href": { label: "Web address" },
+  "navExtraLinks.icon": { label: "Icon" },
+  "navExtraLinks.newTab": { label: "Open in new tab" },
+  footerLinks: {
+    label: "Footer links",
+    help: "Links shown at the bottom of every page, up to ten.",
+  },
+  "footerLinks.label": { label: "Link text" },
+  "footerLinks.href": { label: "Web address" },
+  "footerLinks.icon": { label: "Icon" },
+  "footerLinks.newTab": { label: "Open in new tab" },
+  footerText: {
+    label: "Footer text",
+    help: "Text shown at the bottom of every page.",
+  },
+  contactEmail: {
+    label: "Contact email",
+    help: "The address visitors see for getting in touch.",
+  },
+  donateUrl: {
+    label: "Donate page address",
+    help: "The full https:// address of the donation page.",
+  },
+  analyticsEnabled: {
+    label: "Count visits (analytics)",
+    help: "When on, the site counts page visits.",
+  },
+};
+
 export function labelsFor(kind: string, isItem: boolean): FieldLabels {
   const table = isItem ? ITEM : SECTION;
   return table[kind] ?? {};
+}
+
+// The labels for the site settings form.
+export function siteSettingsLabels(): FieldLabels {
+  return SITE_SETTINGS;
 }
 
 // Every kind name for which a section-level entry exists. Used by the

@@ -21,7 +21,9 @@ import richText from "../../../contracts/schema/sections/rich_text.schema.json";
 import routePreview from "../../../contracts/schema/sections/route_preview.schema.json";
 import sponsorCarousel from "../../../contracts/schema/sections/sponsor_carousel.schema.json";
 import sponsorGrid from "../../../contracts/schema/sections/sponsor_grid.schema.json";
-import { labelsFor } from "./labels";
+import siteSettings from "../../../contracts/schema/site-settings.schema.json";
+import primitives from "../../../contracts/schema/primitives.schema.json";
+import { labelsFor, siteSettingsLabels } from "./labels";
 
 type Sch = Record<string, unknown>;
 
@@ -75,6 +77,36 @@ function collectFieldPaths(schema: Sch, prefix = ""): string[] {
   }
   return results;
 }
+
+// The fields of an array's entries when the entries are a primitives
+// object (the site settings link lists hold `Link` entries).
+function arrayEntryPaths(schema: Sch): string[] {
+  const results: string[] = [];
+  const props = (schema as { properties?: Record<string, Sch> }).properties ?? {};
+  const defs = (primitives as { $defs: Record<string, Sch> }).$defs;
+  for (const [key, sub] of Object.entries(props)) {
+    if (sub.type !== "array") continue;
+    const ref = (sub.items as { $ref?: string } | undefined)?.$ref ?? "";
+    const def = defs[ref.slice(ref.lastIndexOf("/") + 1)];
+    if (!def) continue;
+    results.push(...collectFieldPaths(def, key));
+  }
+  return results;
+}
+
+describe("labels.ts: every field of the site settings schema has an entry", () => {
+  it("has a label for every field, the link list entries included", () => {
+    const paths = [
+      ...collectFieldPaths(siteSettings as Sch),
+      ...arrayEntryPaths(siteSettings as Sch),
+    ];
+    expect(paths).toContain("navExtraLinks.href");
+    expect(paths).toContain("theme.ornaments");
+    const table = siteSettingsLabels();
+    const missing = paths.filter((p) => !(p in table));
+    expect(missing, `missing site settings labels: ${missing.join(", ")}`).toEqual([]);
+  });
+});
 
 describe("labels.ts: every field of every section and item schema has an entry", () => {
   const kinds = (

@@ -295,4 +295,57 @@ describe("SiteSettings", () => {
     await waitFor(() => expect(tokens).toBeGreaterThan(0));
     expect(await screen.findByTestId("preview-iframe")).toBeInTheDocument();
   });
+
+  it("shows human labels, help, and no schema names or descriptions", async () => {
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/site-settings`, () =>
+        HttpResponse.json({
+          ...f.siteSettingsDraft,
+          data: {
+            ...FULL_DRAFT,
+            footerLinks: [
+              { label: "Privacy", href: "/privacy", icon: null, newTab: false },
+            ],
+          },
+        })
+      )
+    );
+    const { container } = render(<Harness />);
+    // The footer link's address field appears once the draft has loaded.
+    await waitFor(() =>
+      expect(container.textContent ?? "").toContain("Web address")
+    );
+    const text = container.textContent ?? "";
+    for (const label of [
+      "Site name",
+      "Tagline",
+      "Label for the home link in the menu",
+      "Logo",
+      "Browser tab icon",
+      "Extra menu links",
+      "Footer links",
+      "Footer text",
+      "Contact email",
+      "Donate page address",
+      "Count visits (analytics)",
+      "Web address",
+    ]) {
+      expect(text).toContain(label);
+    }
+    expect(text).toContain("The full https:// address of the donation page.");
+    for (const name of [
+      "siteName",
+      "homeNavLabel",
+      "navExtraLinks",
+      "footerLinks",
+      "footerText",
+      "contactEmail",
+      "donateUrl",
+      "analyticsEnabled",
+      "Href",
+    ]) {
+      expect(text).not.toContain(name);
+    }
+    expect(text).not.toContain("contracts");
+  });
 });

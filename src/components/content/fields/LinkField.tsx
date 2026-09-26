@@ -44,6 +44,17 @@ export default function LinkField(props: FieldProps) {
         ? props.schema.title
         : props.name;
 
+  // Each part's label comes from the uiSchema entry for that part
+  // (`ui:title`), or the default below.
+  const partTitle = (key: string, fallback: string): string => {
+    const part = (props.uiSchema as Record<string, unknown> | undefined)?.[key];
+    const title =
+      part !== null && typeof part === "object"
+        ? (part as { "ui:title"?: unknown })["ui:title"]
+        : undefined;
+    return typeof title === "string" && title.length > 0 ? title : fallback;
+  };
+
   const patch = (partial: Partial<LinkValue>) => {
     props.onChange(
       {
@@ -93,19 +104,19 @@ export default function LinkField(props: FieldProps) {
         <InlineText
           value={value.label ?? ""}
           onChange={(next) => patch({ label: next })}
-          label="Label"
+          label={partTitle("label", "Label")}
           maxLength={5000}
         />
         <TextField
           size="small"
-          label="Href"
+          label={partTitle("href", "Href")}
           value={value.href ?? ""}
           onChange={(e) => patch({ href: e.target.value })}
           onBlur={() => props.onBlur(props.fieldPathId.$id, value)}
           fullWidth
         />
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-          <Typography variant="body2">Icon:</Typography>
+          <Typography variant="body2">{partTitle("icon", "Icon")}:</Typography>
           {icon ? (
             <>
               <IconPreview icon={icon} />
@@ -138,7 +149,7 @@ export default function LinkField(props: FieldProps) {
               onChange={(e) => patch({ newTab: e.target.checked })}
             />
           }
-          label="Open in new tab"
+          label={partTitle("newTab", "Open in new tab")}
         />
       </Stack>
       <IconPicker

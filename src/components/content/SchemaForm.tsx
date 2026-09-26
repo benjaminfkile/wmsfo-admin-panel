@@ -106,51 +106,116 @@ interface Props<T> {
   hideSubmit?: boolean;
   // The section kind (or item kind) whose labels drive the uiSchema.
   // Omit for schemas that are not one of the vendored section or item
-  // schemas (SiteSettings passes its own labels through uiSchema).
+  // schemas.
   kind?: string;
+  // A labels table used instead of the kind's (SiteSettings passes
+  // `SITE_SETTINGS`).
+  labels?: FieldLabels;
   // `true` when the schema is a kind's `itemSchema` (rendered by
   // `ItemsEditor`); labels come from the item table in that case.
   isItem?: boolean;
 }
 
-function assignPath(
-  target: Record<string, unknown>,
-  path: string,
-  entry: Record<string, unknown>
-): void {
+type JsonNode = Record<string, unknown>;
+
+function asNode(v: unknown): JsonNode | null {
+  return v !== null && typeof v === "object" && !Array.isArray(v)
+    ? (v as JsonNode)
+    : null;
+}
+
+// Keys whose values are data, not subschemas; their contents are kept
+// as they are.
+const DATA_KEYWORDS = new Set(["default", "const", "enum", "examples"]);
+
+// Removes every `description` string from a schema, the root and every
+// subschema. Schema descriptions are developer notes; the help a form
+// shows comes from the labels table only. A property named
+// `description` is a subschema (an object), so it is kept.
+function stripDescriptions(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(stripDescriptions);
+  const obj = asNode(node);
+  if (!obj) return node;
+  const out: JsonNode = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (k === "description" && typeof v === "string") continue;
+    out[k] = DATA_KEYWORDS.has(k) ? v : stripDescriptions(v);
+  }
+  return out;
+}
+
+// Follows a local `#/$defs/<name>` reference against the root schema.
+function resolveLocal(root: JsonNode, node: JsonNode | null): JsonNode | null {
+  const ref = node?.$ref;
+  if (typeof ref !== "string" || !ref.startsWith("#/$defs/")) return node;
+  const defs = asNode(root.$defs);
+  return asNode(defs?.[ref.slice("#/$defs/".length)]);
+}
+
+// Turns a dotted labels path into uiSchema keys. A path segment that
+// names an array is followed by `items`, so `footerLinks.href` becomes
+// `footerLinks.items.href`, the uiSchema of every entry's `href`.
+function uiPathParts(root: JsonNode, path: string): string[] {
   const parts = path.split(".");
+  const out: string[] = [];
+  let node: JsonNode | null = root;
+  parts.forEach((part, i) => {
+    out.push(part);
+    node = resolveLocal(root, asNode(asNode(node?.properties)?.[part]));
+    if (node?.type === "array" && i < parts.length - 1) {
+      out.push("items");
+      node = resolveLocal(root, asNode(node.items));
+    }
+  });
+  return out;
+}
+
+function assignPath(
+  target: JsonNode,
+  parts: string[],
+  entry: JsonNode
+): void {
   let node = target;
   for (let i = 0; i < parts.length - 1; i++) {
     const key = parts[i] as string;
-    const next = node[key];
-    if (next === undefined || next === null || typeof next !== "object") {
-      const created: Record<string, unknown> = {};
+    const next = asNode(node[key]);
+    if (!next) {
+      const created: JsonNode = {};
       node[key] = created;
       node = created;
     } else {
-      node = next as Record<string, unknown>;
+      node = next;
     }
   }
   const last = parts[parts.length - 1] as string;
-  const existing = node[last];
-  if (existing && typeof existing === "object") {
-    node[last] = { ...(existing as Record<string, unknown>), ...entry };
-  } else {
-    node[last] = entry;
-  }
+  const existing = asNode(node[last]);
+  node[last] = existing ? { ...existing, ...entry } : entry;
 }
 
-// Builds a uiSchema from the labels table for the given kind. Adds
-// `ui:title`, `ui:description`, and `ui:enumNames` per entry, and
-// hides the root form's own title so the schema title (e.g. "hero
+// Merges `extra` over `base` key by key, descending into objects on
+// both sides.
+function mergeUi(base: JsonNode, extra: JsonNode): JsonNode {
+  const out: JsonNode = { ...base };
+  for (const [k, v] of Object.entries(extra)) {
+    const a = asNode(out[k]);
+    const b = asNode(v);
+    out[k] = a && b ? mergeUi(a, b) : v;
+  }
+  return out;
+}
+
+// Builds a uiSchema from a labels table. Adds `ui:title`,
+// `ui:description` (the entry's help), and `ui:enumNames` per entry,
+// and hides the root form's own title so the schema title (e.g. "hero
 // section data") never appears.
 function buildUiSchemaFromLabels(
   labels: FieldLabels,
+  schema: JsonNode,
   extra?: UiSchema
 ): UiSchema {
-  const out: Record<string, unknown> = { "ui:title": "" };
+  const out: JsonNode = { "ui:title": "" };
   for (const [path, entry] of Object.entries(labels)) {
-    const patch: Record<string, unknown> = { "ui:title": entry.label };
+    const patch: JsonNode = { "ui:title": entry.label };
     if (entry.help !== undefined) {
       patch["ui:description"] = entry.help;
     }
@@ -158,30 +223,14 @@ function buildUiSchemaFromLabels(
       patch["ui:enumNames"] = entry.options;
       patch["ui:options"] = { enumNames: entry.options };
     }
-    assignPath(out, path, patch);
+    assignPath(out, uiPathParts(schema, path), patch);
   }
-  if (extra) {
-    for (const [k, v] of Object.entries(extra)) {
-      const existing = out[k];
-      if (
-        existing &&
-        typeof existing === "object" &&
-        !Array.isArray(existing) &&
-        v &&
-        typeof v === "object" &&
-        !Array.isArray(v)
-      ) {
-        out[k] = { ...(existing as Record<string, unknown>), ...(v as Record<string, unknown>) };
-      } else {
-        out[k] = v;
-      }
-    }
-  }
-  return out as UiSchema;
+  return (extra ? mergeUi(out, extra as JsonNode) : out) as UiSchema;
 }
 
-// A thin wrapper over `@rjsf/mui` that (a) inlines the primitives and
-// derives the draft-level schema (admin.md 6.14, 9.1), (b) routes the
+// A thin wrapper over `@rjsf/mui` that (a) inlines the primitives,
+// derives the draft-level schema (admin.md 6.14, 9.1), and removes the
+// schema's own descriptions, (b) routes the
 // six primitive `$ref` paths to the panel's custom fields, and (c)
 // builds a uiSchema from the kind's `labels.ts` entries so every
 // field shows a plain-English label, non-obvious fields carry help
@@ -199,14 +248,17 @@ export default function SchemaForm<T>({
   hideSubmit = true,
   kind,
   isItem = false,
+  labels,
 }: Props<T>) {
   const prepared = useMemo(() => {
-    return deriveDraftSchema(bundleSchema(schema));
+    return stripDescriptions(
+      deriveDraftSchema(bundleSchema(schema))
+    ) as JsonNode;
   }, [schema]);
   const composedUi = useMemo(() => {
-    const labels = kind ? labelsFor(kind, isItem) : {};
-    return buildUiSchemaFromLabels(labels, uiSchema);
-  }, [kind, isItem, uiSchema]);
+    const table = labels ?? (kind ? labelsFor(kind, isItem) : {});
+    return buildUiSchemaFromLabels(table, prepared, uiSchema);
+  }, [labels, kind, isItem, prepared, uiSchema]);
   return (
     <Form
       schema={prepared as RJSFSchema}

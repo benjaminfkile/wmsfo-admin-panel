@@ -200,6 +200,25 @@ describe("SchemaForm: human labels from labels.ts", () => {
     expect(text).toContain("Show the theme picker");
     expect(text).toContain("Lets visitors switch between the themes above.");
   });
+
+  it("shows no schema description on the map section form", () => {
+    const kind = (
+      kindsJson as { kinds: Array<{ kind: string; defaults: unknown }> }
+    ).kinds.find((k) => k.kind === "map");
+    const { container } = render(
+      <Providers>
+        <SchemaForm
+          schema={map as Sch}
+          kind="map"
+          formData={kind!.defaults}
+          onChange={() => undefined}
+        />
+      </Providers>
+    );
+    const text = container.textContent ?? "";
+    expect(text).not.toContain("contracts 1.3a");
+    expect(text).not.toContain("Full-viewport live map");
+  });
 });
 
 describe("SchemaForm: optional primitive is a switch, not an Option dropdown", () => {
