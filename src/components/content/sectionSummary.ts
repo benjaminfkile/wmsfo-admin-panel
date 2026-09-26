@@ -6,9 +6,15 @@
 //   any kind with items (kind.hasItems): "N items".
 //   hero: the section title text.
 //   other kinds: the section heading when the data has one.
+// Every text is shown as the site shows it: inline markers removed and
+// event placeholders filled from `event` (see `inlineToPlainText`).
 // Returns an empty string when nothing meaningful is set yet.
 
 import type { KindInfo, SectionAdmin } from "../../api/types";
+import {
+  inlineToPlainText,
+  type InlineEventContext,
+} from "./renderInlinePreview";
 
 type Block = { kind?: unknown; items?: unknown };
 
@@ -47,15 +53,19 @@ function richTextSummary(data: Record<string, unknown>): string {
 
 export function sectionSummary(
   section: SectionAdmin,
-  kind: KindInfo
+  kind: KindInfo,
+  event: InlineEventContext = null
 ): string {
+  const plain = (text: string) =>
+    truncate(inlineToPlainText(text, event).trim(), 80);
+
   const data =
     section.data && typeof section.data === "object"
       ? (section.data as Record<string, unknown>)
       : {};
 
   if (kind.kind === "rich_text") {
-    return truncate(richTextSummary(data), 80);
+    return plain(richTextSummary(data));
   }
 
   if (kind.hasItems) {
@@ -64,11 +74,11 @@ export function sectionSummary(
   }
 
   if (kind.kind === "hero") {
-    if (isString(data["title"])) return truncate(data["title"], 80);
+    if (isString(data["title"])) return plain(data["title"]);
     return "";
   }
 
-  if (isString(data["heading"])) return truncate(data["heading"], 80);
+  if (isString(data["heading"])) return plain(data["heading"]);
   return "";
 }
 

@@ -18,16 +18,14 @@ import FormatItalicIcon from "@mui/icons-material/FormatItalic";
 import LinkIcon from "@mui/icons-material/Link";
 import ImageIcon from "@mui/icons-material/Image";
 import EventNoteIcon from "@mui/icons-material/EventNote";
-import { useQuery } from "@tanstack/react-query";
 import IconPicker from "./pickers/IconPicker";
 import AppDialog from "../AppDialog";
 import {
   renderInlinePreview,
   type InlineEventContext,
 } from "./renderInlinePreview";
-import { events as eventsApi } from "../../api/resources/events";
-import { keys } from "../../queries/keys";
-import type { Event, Icon } from "../../api/types";
+import { useCurrentEvent } from "./useCurrentEvent";
+import type { Icon } from "../../api/types";
 
 interface Props {
   value: string;
@@ -43,33 +41,6 @@ interface Props {
 }
 
 const COUNTER_THRESHOLD = 0.9;
-
-// Reads the current event from the panel's events list; the same
-// approach the dashboard and other pages use. Returns null while
-// loading or when no event is current.
-function useCurrentEvent(): InlineEventContext {
-  const q = useQuery({
-    queryKey: keys.events,
-    queryFn: () => eventsApi.list(),
-    staleTime: 30_000,
-  });
-  return useMemo<InlineEventContext>(() => {
-    const items: Event[] = q.data?.items ?? [];
-    const current = items.find((e) => e.isCurrent) ?? null;
-    if (!current) return null;
-    return {
-      name: typeof current.name === "string" ? current.name : "",
-      year:
-        typeof current.year === "number"
-          ? current.year
-          : typeof current.year === "string"
-            ? Number(current.year)
-            : null,
-      scheduledAt:
-        typeof current.scheduledAt === "string" ? current.scheduledAt : null,
-    };
-  }, [q.data]);
-}
 
 // The single inline text editor used by InlineField and by every block
 // text field (admin.md 6.14). A text input with a compact toolbar

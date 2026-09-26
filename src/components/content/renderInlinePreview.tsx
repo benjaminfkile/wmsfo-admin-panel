@@ -179,3 +179,49 @@ export function renderInlinePreview(
   }
   return <>{out}</>;
 }
+
+function tokenToPlainText(token: Token, event: InlineEventContext): string {
+  switch (token.kind) {
+    case "bold":
+    case "italic":
+    case "code":
+      return token.body;
+    case "link":
+      return token.label;
+    case "icon-library":
+    case "icon-media":
+      return "";
+    case "event-name":
+      return event?.name ?? "";
+    case "event-year":
+      return typeof event?.year === "number" ? String(event.year) : "";
+    case "event-scheduledAt":
+      return event?.scheduledAt ? formatMt(event.scheduledAt) : "";
+    case "newline":
+      return " ";
+  }
+}
+
+// Plain text form of the same inline markdown, using the same parser as
+// `renderInlinePreview`: bold, italic, and code lose their markers, a
+// link becomes its label, icons disappear, a newline becomes a space,
+// and the event placeholders are filled from `event` exactly as the
+// preview fills them (blank when the event is null).
+export function inlineToPlainText(
+  text: string,
+  event: InlineEventContext
+): string {
+  let out = "";
+  let cursor = 0;
+  while (cursor < text.length) {
+    const match = nextMatch(text, cursor);
+    if (!match) {
+      out += text.slice(cursor);
+      break;
+    }
+    out += text.slice(cursor, match.start);
+    out += tokenToPlainText(match.token, event);
+    cursor = match.end;
+  }
+  return out;
+}
