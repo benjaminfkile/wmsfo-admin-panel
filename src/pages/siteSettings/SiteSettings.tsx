@@ -12,6 +12,7 @@ import { keys } from "../../queries/keys";
 import CommentBox from "../../components/CommentBox";
 import ErrorAlert from "../../components/ErrorAlert";
 import SchemaForm from "../../components/content/SchemaForm";
+import { SITE_SETTINGS } from "../../components/content/labels";
 import PreviewFrame from "../../components/content/PreviewFrame";
 import ProblemList from "../../components/content/ProblemList";
 import PageHeader from "../../components/layout/PageHeader";
@@ -21,17 +22,22 @@ import type { Problem } from "../../api/types";
 
 const SCHEMA = siteSettingsSchema as Record<string, unknown>;
 
-// UiSchema hands the theme object off to the ThemeField and gives the
-// heavier text areas some room.
+// UiSchema hands the theme object off to the ThemeField, gives the
+// heavier text areas some room, and names each entry of the link
+// lists. SchemaForm merges it over the uiSchema it builds from the
+// `SITE_SETTINGS` labels.
 const UI_SCHEMA: UiSchema = {
   theme: { "ui:field": "ThemeField" },
+  navExtraLinks: { items: { "ui:title": "Menu link" } },
+  footerLinks: { items: { "ui:title": "Footer link" } },
   footerText: { "ui:options": { rows: 3 } },
 };
 
 // Site settings page (admin.md 6.16). One SchemaForm over the vendored
-// site-settings schema with the shared custom fields plus ThemeField
-// for the theme object. Save PUTs the whole document; problems from
-// GET render inline. Preview opens the site's home page.
+// site-settings schema, labelled from `SITE_SETTINGS`, with the shared
+// custom fields plus ThemeField for the theme object. Save PUTs the
+// whole document; problems from GET render inline. Preview opens the
+// site's home page.
 export default function SiteSettings() {
   const qc = useQueryClient();
   const notify = useNotify();
@@ -108,6 +114,7 @@ export default function SiteSettings() {
             <SchemaForm
               schema={SCHEMA as Record<string, unknown>}
               uiSchema={UI_SCHEMA}
+              labels={SITE_SETTINGS}
               formData={data}
               onChange={(next: Record<string, unknown>) => {
                 setData(next);
