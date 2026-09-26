@@ -20,6 +20,7 @@ import {
 } from "../../../test/renderWithProviders";
 import type { MediaAsset } from "../../../api/types";
 import starter from "../../../../contracts/starter-content.json";
+import primitives from "../../../../contracts/schema/primitives.schema.json";
 
 function Harness({ children }: { children: ReactNode }) {
   const client = new QueryClient({
@@ -619,6 +620,46 @@ describe("BlocksField gate over every block kind", () => {
     },
     divider: { body: ["Style"] },
   };
+
+  // Every field of every Block shape in the vendored schema, and the
+  // label in FIELDS_BY_KIND that proves its control. A new block kind or
+  // field in contracts/schema/primitives.schema.json fails this test
+  // until it has an editor and an entry here.
+  const CONTROL_BY_FIELD: Record<string, Record<string, string>> = {
+    heading: { level: "Heading level", text: "Text", icon: "Icon" },
+    paragraph: { text: "Text" },
+    list: { style: "Style", icon: "Icon (required)", items: "Lines" },
+    quote: { text: "Text", attribution: "Attribution (optional)" },
+    media: { media: "Image", caption: "Caption (optional)", size: "Size" },
+    links: { links: "Links", style: "Style" },
+    icon: { icon: "Icon (required)", size: "Size", align: "Align" },
+    divider: { style: "Style" },
+  };
+
+  it("covers every block kind and field of the vendored Block schema", () => {
+    type Shape = { properties: Record<string, { const?: string }> };
+    const defs = (primitives as unknown as { $defs: Record<string, unknown> })
+      .$defs;
+    const block = defs.Block as { oneOf: Array<Shape | { $ref: string }> };
+    const shapes = block.oneOf.map((o) =>
+      "$ref" in o ? (defs[o.$ref.split("/").pop()!] as Shape) : o
+    );
+    const schemaKinds = shapes.map((s) => s.properties.kind!.const!).sort();
+    expect(schemaKinds).toEqual(Object.keys(CONTROL_BY_FIELD).sort());
+    for (const s of shapes) {
+      const kind = s.properties.kind!.const!;
+      const fields = Object.keys(s.properties).filter((k) => k !== "kind");
+      expect(fields.sort()).toEqual(Object.keys(CONTROL_BY_FIELD[kind]!).sort());
+      const spec = FIELDS_BY_KIND[kind]!;
+      const labels = [
+        ...spec.body,
+        ...(spec.nested ?? []).flatMap((n) => n.labels),
+      ];
+      for (const label of Object.values(CONTROL_BY_FIELD[kind]!)) {
+        expect(labels).toContain(label);
+      }
+    }
+  });
 
   it("renders every kind with a labelled control for every field", () => {
     const doc = starter as unknown as StarterDoc;
