@@ -34,8 +34,15 @@ export default function LinkField(props: FieldProps) {
   const value = (props.formData as Partial<LinkValue> | undefined) ?? EMPTY;
   const [iconOpen, setIconOpen] = useState(false);
 
+  const uiTitle = (props.uiSchema as { "ui:title"?: unknown } | undefined)?.[
+    "ui:title"
+  ];
   const label =
-    typeof props.schema.title === "string" ? props.schema.title : props.name;
+    typeof uiTitle === "string" && uiTitle.length > 0
+      ? uiTitle
+      : typeof props.schema.title === "string"
+        ? props.schema.title
+        : props.name;
 
   const patch = (partial: Partial<LinkValue>) => {
     props.onChange(

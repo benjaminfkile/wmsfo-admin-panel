@@ -208,6 +208,8 @@ export default function ItemsEditor({
                 >
                   <SchemaForm
                     schema={itemSchema}
+                    kind={kind.kind}
+                    isItem
                     formData={data}
                     disabled={disabled}
                     onChange={(next: object) => {

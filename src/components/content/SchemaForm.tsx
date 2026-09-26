@@ -16,6 +16,7 @@ import BlocksField from "./fields/BlocksField";
 import PresentationPanelField from "./fields/PresentationPanelField";
 import OptionalField, { extractOptional } from "./fields/OptionalField";
 import ThemeField from "./fields/ThemeField";
+import { labelsFor, type FieldLabels } from "./labels";
 
 // The `$ref` values we route to custom fields. Matches the local
 // definitions bundled by `bundleSchema`.
@@ -89,6 +90,9 @@ const FIELDS: RegistryFieldsType = {
 
 interface Props<T> {
   schema: RJSFSchema;
+  // A caller-provided uiSchema is merged over the one built from the
+  // kind's `labels.ts` entries. Used by SiteSettings to route the
+  // `theme` object to `ThemeField`.
   uiSchema?: UiSchema;
   formData: T;
   onChange: (data: T) => void;
@@ -100,11 +104,88 @@ interface Props<T> {
   // The Form's default is to render its own submit button; hide when the
   // caller owns save state (the page editor autosaves).
   hideSubmit?: boolean;
+  // The section kind (or item kind) whose labels drive the uiSchema.
+  // Omit for schemas that are not one of the vendored section or item
+  // schemas (SiteSettings passes its own labels through uiSchema).
+  kind?: string;
+  // `true` when the schema is a kind's `itemSchema` (rendered by
+  // `ItemsEditor`); labels come from the item table in that case.
+  isItem?: boolean;
+}
+
+function assignPath(
+  target: Record<string, unknown>,
+  path: string,
+  entry: Record<string, unknown>
+): void {
+  const parts = path.split(".");
+  let node = target;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const key = parts[i] as string;
+    const next = node[key];
+    if (next === undefined || next === null || typeof next !== "object") {
+      const created: Record<string, unknown> = {};
+      node[key] = created;
+      node = created;
+    } else {
+      node = next as Record<string, unknown>;
+    }
+  }
+  const last = parts[parts.length - 1] as string;
+  const existing = node[last];
+  if (existing && typeof existing === "object") {
+    node[last] = { ...(existing as Record<string, unknown>), ...entry };
+  } else {
+    node[last] = entry;
+  }
+}
+
+// Builds a uiSchema from the labels table for the given kind. Adds
+// `ui:title`, `ui:description`, and `ui:enumNames` per entry, and
+// hides the root form's own title so the schema title (e.g. "hero
+// section data") never appears.
+function buildUiSchemaFromLabels(
+  labels: FieldLabels,
+  extra?: UiSchema
+): UiSchema {
+  const out: Record<string, unknown> = { "ui:title": "" };
+  for (const [path, entry] of Object.entries(labels)) {
+    const patch: Record<string, unknown> = { "ui:title": entry.label };
+    if (entry.help !== undefined) {
+      patch["ui:description"] = entry.help;
+    }
+    if (entry.options !== undefined) {
+      patch["ui:enumNames"] = entry.options;
+      patch["ui:options"] = { enumNames: entry.options };
+    }
+    assignPath(out, path, patch);
+  }
+  if (extra) {
+    for (const [k, v] of Object.entries(extra)) {
+      const existing = out[k];
+      if (
+        existing &&
+        typeof existing === "object" &&
+        !Array.isArray(existing) &&
+        v &&
+        typeof v === "object" &&
+        !Array.isArray(v)
+      ) {
+        out[k] = { ...(existing as Record<string, unknown>), ...(v as Record<string, unknown>) };
+      } else {
+        out[k] = v;
+      }
+    }
+  }
+  return out as UiSchema;
 }
 
 // A thin wrapper over `@rjsf/mui` that (a) inlines the primitives and
-// derives the draft-level schema (admin.md 6.14, 9.1) and (b) routes the
-// six primitive `$ref` paths to the panel's custom fields.
+// derives the draft-level schema (admin.md 6.14, 9.1), (b) routes the
+// six primitive `$ref` paths to the panel's custom fields, and (c)
+// builds a uiSchema from the kind's `labels.ts` entries so every
+// field shows a plain-English label, non-obvious fields carry help
+// text, and enum values display their names.
 export default function SchemaForm<T>({
   schema,
   uiSchema,
@@ -116,14 +197,20 @@ export default function SchemaForm<T>({
   readonly,
   extraErrors,
   hideSubmit = true,
+  kind,
+  isItem = false,
 }: Props<T>) {
   const prepared = useMemo(() => {
     return deriveDraftSchema(bundleSchema(schema));
   }, [schema]);
+  const composedUi = useMemo(() => {
+    const labels = kind ? labelsFor(kind, isItem) : {};
+    return buildUiSchemaFromLabels(labels, uiSchema);
+  }, [kind, isItem, uiSchema]);
   return (
     <Form
       schema={prepared as RJSFSchema}
-      uiSchema={uiSchema}
+      uiSchema={composedUi}
       formData={formData}
       validator={validator}
       fields={FIELDS}

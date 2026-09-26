@@ -924,6 +924,8 @@ Header counts from `GET /admin/subscribers/summary` as chips: verified, pending,
 
 `ThemeField` is registered by name for `uiSchema` use (6.16). Everything else (strings, numbers, booleans, enums, nested objects, arrays of scalars) is the generator's default MUI widget, so a new field in a kind schema appears in the panel with no panel change.
 
+**Labels and help text**: every content form's field labels, enum display names, and one-line help text live in `src/components/content/labels.ts`, one entry per field path per section kind (and per item schema). `SchemaForm` reads the entries for the kind it is rendering, builds a `uiSchema` with `ui:title`, `ui:description`, and `ui:enumNames`, and hides the schema-level root title so a "<kind> section data" heading never appears. The custom fields (Inline, Icon, Media, Link, Blocks, Optional) read the label from the same `uiSchema`. A vitest test walks every vendored section and item schema and fails when any field is missing from `labels.ts`.
+
 ### 6.15 Media library
 
 `/media`: an `Uploader` drop zone at the top and a `MediaGrid` below with filters (search, kind, state) backed by `keys.media(q)` as an infinite query. The grid is `repeat(2, 1fr)` on `xs` and widens with the viewport so a phone gets two cards per row without overflow.

@@ -276,6 +276,7 @@ export default function SectionCard({
             <>
               <SchemaForm
                 schema={schema}
+                kind={kind.kind}
                 formData={data}
                 disabled={disabled}
                 onChange={(next: object) => setData(next)}

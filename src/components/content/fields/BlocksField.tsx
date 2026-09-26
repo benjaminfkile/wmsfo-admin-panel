@@ -321,9 +321,19 @@ export default function BlocksField(props: FieldProps) {
     move(from, to);
   };
 
+  const uiTitle = (props.uiSchema as { "ui:title"?: unknown } | undefined)?.[
+    "ui:title"
+  ];
+  const heading =
+    typeof uiTitle === "string" && uiTitle.length > 0
+      ? uiTitle
+      : typeof props.schema.title === "string" && props.schema.title.length > 0
+        ? props.schema.title
+        : "Blocks";
+
   return (
     <Box sx={{ my: 1 }} data-testid="blocks-field">
-      <Typography variant="subtitle2">Blocks</Typography>
+      <Typography variant="subtitle2">{heading}</Typography>
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}

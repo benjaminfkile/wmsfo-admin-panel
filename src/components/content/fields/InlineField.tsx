@@ -26,8 +26,15 @@ export default function InlineField(props: FieldProps) {
     [nullable, props]
   );
 
+  const uiTitle = (props.uiSchema as { "ui:title"?: unknown } | undefined)?.[
+    "ui:title"
+  ];
   const label =
-    typeof props.schema.title === "string" ? props.schema.title : props.name;
+    typeof uiTitle === "string" && uiTitle.length > 0
+      ? uiTitle
+      : typeof props.schema.title === "string"
+        ? props.schema.title
+        : props.name;
 
   return (
     <Box sx={{ my: 1 }} data-testid="inline-field">
