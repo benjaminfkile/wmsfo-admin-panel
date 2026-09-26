@@ -2,13 +2,40 @@ import {
   Box,
   Button,
   Divider,
+  IconButton,
   MenuItem,
   Select,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
+import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import type { ReactNode } from "react";
 import type { FieldProps } from "@rjsf/utils";
+import HeadingBlockEditor from "../blocks/HeadingBlock";
+import ParagraphBlockEditor from "../blocks/ParagraphBlock";
+import QuoteBlockEditor from "../blocks/QuoteBlock";
+import ListBlockEditor from "../blocks/ListBlock";
+import DividerBlockEditor from "../blocks/DividerBlock";
 
 type Block = { kind: string; [k: string]: unknown };
 
@@ -22,6 +49,48 @@ const BLOCK_KINDS: { value: string; label: string }[] = [
   { value: "icon", label: "Icon" },
   { value: "divider", label: "Divider" },
 ];
+
+const KIND_LABELS: Record<string, string> = {
+  heading: "Heading",
+  paragraph: "Paragraph",
+  quote: "Quote",
+  list: "List",
+  divider: "Divider",
+  media: "Media",
+  links: "Links",
+  icon: "Icon",
+};
+
+const STYLE_LABELS: Record<string, string> = {
+  bullet: "bullets",
+  number: "numbers",
+  icon: "icon",
+};
+
+function truncate(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max);
+}
+
+function summarize(b: Block): string {
+  if (b.kind === "heading" || b.kind === "paragraph" || b.kind === "quote") {
+    const t = typeof b.text === "string" ? b.text : "";
+    return truncate(t, 60);
+  }
+  if (b.kind === "list") {
+    const items = Array.isArray(b.items) ? b.items : [];
+    const style =
+      typeof b.style === "string" && STYLE_LABELS[b.style]
+        ? STYLE_LABELS[b.style]
+        : "bullets";
+    return `${items.length} lines, ${style} style`;
+  }
+  return "";
+}
+
+function deepCopy<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
 
 function defaultBlock(kind: string): Block {
   switch (kind) {
@@ -56,13 +125,128 @@ function defaultBlock(kind: string): Block {
   }
 }
 
-// The `Block[]` primitive. A sortable list of blocks with add, duplicate,
-// delete, and per-kind editors. Full spec includes drag; the wire value
-// stays an array of blocks.
+interface RowProps {
+  id: string;
+  index: number;
+  block: Block;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onDuplicate: () => void;
+  onRemove: () => void;
+  children: ReactNode;
+}
+
+function SortableBlockRow({
+  id,
+  index,
+  block,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
+  onDuplicate,
+  onRemove,
+  children,
+}: RowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  const label = KIND_LABELS[block.kind] ?? block.kind;
+  const summary = summarize(block);
+  return (
+    <Box
+      ref={setNodeRef}
+      style={style}
+      data-testid={`block-row-${index}`}
+      sx={{ border: "1px solid", borderColor: "divider", p: 1 }}
+    >
+      <Stack direction="row" alignItems="center" useFlexGap flexWrap="wrap">
+        <IconButton
+          size="small"
+          aria-label={`Drag ${label} block`}
+          {...attributes}
+          {...listeners}
+          sx={{ cursor: "grab" }}
+        >
+          <DragIndicatorIcon fontSize="small" />
+        </IconButton>
+        <IconButton
+          size="small"
+          onClick={onMoveUp}
+          disabled={!canMoveUp}
+          aria-label={`Move ${label} block up`}
+        >
+          <ArrowUpwardIcon fontSize="small" />
+        </IconButton>
+        <IconButton
+          size="small"
+          onClick={onMoveDown}
+          disabled={!canMoveDown}
+          aria-label={`Move ${label} block down`}
+        >
+          <ArrowDownwardIcon fontSize="small" />
+        </IconButton>
+        <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {label}
+          </Typography>
+          {summary ? (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", wordBreak: "break-word" }}
+            >
+              {summary}
+            </Typography>
+          ) : null}
+        </Box>
+        <Button size="small" onClick={onDuplicate}>
+          Duplicate
+        </Button>
+        <IconButton
+          size="small"
+          onClick={onRemove}
+          aria-label={`Delete ${label} block`}
+          color="error"
+        >
+          <DeleteIcon fontSize="small" />
+        </IconButton>
+      </Stack>
+      <Divider sx={{ my: 1 }} />
+      {children}
+    </Box>
+  );
+}
+
+// The `Block[]` primitive: a sortable list of blocks. Each row shows a
+// human label and a summary, a drag handle, up and down arrows,
+// Duplicate, and Delete; the body is a per kind editor that reads
+// every field of its shape and preserves anything it does not know.
+// Heading, paragraph, quote, list, and divider have full editors here;
+// media, links, and icon keep an empty body for now.
 export default function BlocksField(props: FieldProps) {
   const value: Block[] = Array.isArray(props.formData)
     ? (props.formData as Block[])
     : [];
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const setBlocks = (next: Block[]) =>
     props.onChange(next as unknown, props.fieldPathId.path);
@@ -73,48 +257,70 @@ export default function BlocksField(props: FieldProps) {
     const b = value[i];
     if (!b) return;
     const next = [...value];
-    next.splice(i + 1, 0, { ...b });
+    next.splice(i + 1, 0, deepCopy(b));
     setBlocks(next);
   };
-  const patch = (i: number, partial: Partial<Block>) => {
+  const replaceAt = (i: number, block: Block) => {
     const next = [...value];
-    next[i] = { ...(next[i] ?? { kind: "paragraph" }), ...partial };
+    next[i] = block;
     setBlocks(next);
+  };
+  const move = (from: number, to: number) => {
+    if (
+      from < 0 ||
+      to < 0 ||
+      from >= value.length ||
+      to >= value.length ||
+      from === to
+    ) {
+      return;
+    }
+    setBlocks(arrayMove(value, from, to));
+  };
+
+  const ids = value.map((_, i) => `block-${i}`);
+
+  const onDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const from = ids.indexOf(String(active.id));
+    const to = ids.indexOf(String(over.id));
+    move(from, to);
   };
 
   return (
     <Box sx={{ my: 1 }} data-testid="blocks-field">
       <Typography variant="subtitle2">Blocks</Typography>
-      <Stack spacing={2} sx={{ my: 1 }}>
-        {value.map((b, i) => (
-          <Box
-            key={i}
-            sx={{ border: "1px solid", borderColor: "divider", p: 1 }}
-          >
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Typography variant="body2">{b.kind}</Typography>
-              <Box sx={{ flexGrow: 1 }} />
-              <Button size="small" onClick={() => duplicate(i)}>
-                Duplicate
-              </Button>
-              <Button size="small" color="error" onClick={() => remove(i)}>
-                Delete
-              </Button>
-            </Stack>
-            <Divider sx={{ my: 1 }} />
-            {b.kind === "paragraph" || b.kind === "heading" || b.kind === "quote" ? (
-              <TextField
-                size="small"
-                label="Text"
-                fullWidth
-                value={typeof b.text === "string" ? b.text : ""}
-                onChange={(e) => patch(i, { text: e.target.value })}
-              />
-            ) : null}
-          </Box>
-        ))}
-      </Stack>
-      <Stack direction="row" spacing={1} alignItems="center">
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={onDragEnd}
+      >
+        <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+          <Stack spacing={2} sx={{ my: 1 }}>
+            {value.map((b, i) => (
+              <SortableBlockRow
+                key={ids[i]}
+                id={ids[i] as string}
+                index={i}
+                block={b}
+                canMoveUp={i > 0}
+                canMoveDown={i < value.length - 1}
+                onMoveUp={() => move(i, i - 1)}
+                onMoveDown={() => move(i, i + 1)}
+                onDuplicate={() => duplicate(i)}
+                onRemove={() => remove(i)}
+              >
+                <BlockBody
+                  block={b}
+                  onChange={(next) => replaceAt(i, next)}
+                />
+              </SortableBlockRow>
+            ))}
+          </Stack>
+        </SortableContext>
+      </DndContext>
+      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
         <Typography variant="body2">Add block:</Typography>
         <Select
           size="small"
@@ -136,4 +342,51 @@ export default function BlocksField(props: FieldProps) {
       </Stack>
     </Box>
   );
+}
+
+interface BodyProps {
+  block: Block;
+  onChange: (next: Block) => void;
+}
+
+function BlockBody({ block, onChange }: BodyProps) {
+  switch (block.kind) {
+    case "heading":
+      return (
+        <HeadingBlockEditor
+          value={block as Block}
+          onChange={(next) => onChange(next as Block)}
+        />
+      );
+    case "paragraph":
+      return (
+        <ParagraphBlockEditor
+          value={block as Block}
+          onChange={(next) => onChange(next as Block)}
+        />
+      );
+    case "quote":
+      return (
+        <QuoteBlockEditor
+          value={block as Block}
+          onChange={(next) => onChange(next as Block)}
+        />
+      );
+    case "list":
+      return (
+        <ListBlockEditor
+          value={block as Block}
+          onChange={(next) => onChange(next as Block)}
+        />
+      );
+    case "divider":
+      return (
+        <DividerBlockEditor
+          value={block as Block}
+          onChange={(next) => onChange(next as Block)}
+        />
+      );
+    default:
+      return null;
+  }
 }
