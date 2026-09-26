@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
@@ -10,11 +11,14 @@ import SchemaForm from "../SchemaForm";
 import { ConfigProvider } from "../../../ConfigContext";
 import { installClient } from "../../../api/client";
 import { buildTheme } from "../../../theme/theme";
+import { server } from "../../../test/msw/server";
+import * as f from "../../../test/msw/fixtures";
 import {
   makeFakeUserManager,
   makeUser,
   testConfig,
 } from "../../../test/renderWithProviders";
+import type { MediaAsset } from "../../../api/types";
 import starter from "../../../../contracts/starter-content.json";
 
 function Harness({ children }: { children: ReactNode }) {
@@ -345,64 +349,313 @@ describe("BlocksField block editors", () => {
   });
 });
 
-describe("BlocksField over starter content", () => {
-  it("no heading, paragraph, quote, list, or divider block renders an empty body", () => {
-    type StarterDoc = {
-      pages: Array<{
-        sections: Array<{
-          kind: string;
-          data?: { blocks?: Block[] };
-        }>;
-      }>;
+describe("BlocksField media block", () => {
+  it("shows the picked image, alt override, caption, and size select", async () => {
+    const user = userEvent.setup();
+    const asset: MediaAsset = {
+      ...f.mediaAssets[0]!,
+      id: "media-block",
+      filename: "picnic.jpg",
+      variants: { "480": "https://cdn.test/picnic-480.webp" },
     };
-    const doc = starter as unknown as StarterDoc;
-    const editedKinds = new Set([
-      "heading",
-      "paragraph",
-      "quote",
-      "list",
-      "divider",
-    ]);
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/media/media-block`, () =>
+        HttpResponse.json(asset)
+      )
+    );
+    render(
+      <Harness>
+        <Controlled
+          initial={[
+            {
+              kind: "media",
+              media: { mediaId: "media-block", alt: null },
+              caption: null,
+              size: "medium",
+            },
+          ]}
+        />
+      </Harness>
+    );
+    const body = screen.getByTestId("block-media");
+    expect(await within(body).findByText("picnic.jpg")).toBeInTheDocument();
 
-    let seen = 0;
+    const alt = within(body).getByLabelText(
+      "Alt text (leave empty to use the image's own)"
+    );
+    await user.type(alt, "override");
+    expect(
+      (readValue()[0] as unknown as { media: { alt: string | null } }).media
+        .alt
+    ).toBe("override");
+
+    const caption = within(screen.getByTestId("block-media-caption")).getByRole(
+      "textbox"
+    );
+    await user.type(caption, "cap");
+    expect(readValue()[0]).toMatchObject({ caption: "cap" });
+    await user.clear(caption);
+    expect(readValue()[0]!.caption).toBeNull();
+
+    const sizeSelect = within(screen.getByTestId("block-media-size")).getByRole(
+      "combobox"
+    );
+    await user.click(sizeSelect);
+    const opt = await screen.findByRole("option", { name: "Full width" });
+    await user.click(opt);
+    expect(readValue()[0]).toMatchObject({ size: "full" });
+  });
+});
+
+describe("BlocksField links block", () => {
+  it("renders, adds, removes, and reorders links; enforces 1 to 20 bounds", async () => {
+    const user = userEvent.setup();
+    render(
+      <Harness>
+        <Controlled
+          initial={[
+            {
+              kind: "links",
+              style: "buttons",
+              links: [
+                { label: "First", href: "/a", icon: null, newTab: false },
+              ],
+            },
+          ]}
+        />
+      </Harness>
+    );
+    const body = screen.getByTestId("block-links");
+    expect(within(body).getByTestId("block-links-item-0")).toBeInTheDocument();
+
+    const styleSelect = within(
+      screen.getByTestId("block-links-style")
+    ).getByRole("combobox");
+    await user.click(styleSelect);
+    await user.click(await screen.findByRole("option", { name: "List" }));
+    expect(readValue()[0]).toMatchObject({ style: "list" });
+
+    // Remove is disabled on the last link.
+    const removeOnly = within(
+      screen.getByTestId("block-links-item-0")
+    ).getByRole("button", { name: "Remove link 1" });
+    expect(removeOnly).toBeDisabled();
+
+    // Add a second link.
+    await user.click(screen.getByRole("button", { name: "Add link" }));
+    expect(
+      (readValue()[0] as unknown as { links: unknown[] }).links.length
+    ).toBe(2);
+
+    // Edit the second link's label.
+    const label2 = within(
+      screen.getByTestId("block-links-control-1")
+    ).getByLabelText("Label");
+    await user.type(label2, "Second");
+    expect(
+      (readValue()[0] as unknown as { links: Array<{ label: string }> })
+        .links[1]!.label
+    ).toBe("Second");
+
+    // Move link 1 down.
+    await user.click(
+      within(screen.getByTestId("block-links-item-0")).getByRole("button", {
+        name: "Move link 1 down",
+      })
+    );
+    const links = (
+      readValue()[0] as unknown as { links: Array<{ label: string }> }
+    ).links;
+    expect(links[0]!.label).toBe("Second");
+    expect(links[1]!.label).toBe("First");
+
+    // Remove the second link.
+    await user.click(
+      within(screen.getByTestId("block-links-item-1")).getByRole("button", {
+        name: "Remove link 2",
+      })
+    );
+    expect(
+      (readValue()[0] as unknown as { links: unknown[] }).links.length
+    ).toBe(1);
+  });
+
+  it("disables Add link when there are 20 links", () => {
+    const links = Array.from({ length: 20 }, (_, i) => ({
+      label: `L${i}`,
+      href: "/",
+      icon: null,
+      newTab: false,
+    }));
+    render(
+      <Harness>
+        <Controlled initial={[{ kind: "links", style: "buttons", links }]} />
+      </Harness>
+    );
+    const btn = screen.getByRole("button", { name: "Add link" });
+    expect(btn).toBeDisabled();
+  });
+});
+
+describe("BlocksField icon block", () => {
+  it("shows the icon, a size select, and an align select; no Clear", async () => {
+    const user = userEvent.setup();
+    render(
+      <Harness>
+        <Controlled
+          initial={[
+            {
+              kind: "icon",
+              icon: { source: "library", id: "star" },
+              size: "md",
+              align: "start",
+            },
+          ]}
+        />
+      </Harness>
+    );
+    const body = screen.getByTestId("block-icon");
+    expect(within(body).getByTestId("block-icon-icon")).toBeInTheDocument();
+    // No Clear button on a required icon control.
+    expect(
+      within(screen.getByTestId("block-icon-icon")).queryByRole("button", {
+        name: "Clear",
+      })
+    ).toBeNull();
+
+    const sizeSelect = within(screen.getByTestId("block-icon-size")).getByRole(
+      "combobox"
+    );
+    await user.click(sizeSelect);
+    await user.click(
+      await screen.findByRole("option", { name: "Extra large" })
+    );
+    expect(readValue()[0]).toMatchObject({ size: "xl" });
+
+    const alignSelect = within(
+      screen.getByTestId("block-icon-align")
+    ).getByRole("combobox");
+    await user.click(alignSelect);
+    await user.click(await screen.findByRole("option", { name: "Centre" }));
+    expect(readValue()[0]).toMatchObject({ align: "center" });
+  });
+});
+
+// The gate: build a fixture from contracts.md 1.3a shapes (one block per
+// kind, every field populated) plus every rich text block in
+// starter-content.json, render it in a single BlocksField, and for each
+// block assert that every field of the block's shape has a visible,
+// labelled control. Fails if a future kind or field has no control.
+describe("BlocksField gate over every block kind", () => {
+  type StarterDoc = {
+    pages: Array<{
+      sections: Array<{
+        kind: string;
+        data?: { blocks?: Block[] };
+      }>;
+    }>;
+  };
+
+  const CONTRACT_BLOCKS: Block[] = [
+    { kind: "heading", level: 2, text: "Head", icon: null },
+    { kind: "paragraph", text: "Para" },
+    {
+      kind: "list",
+      style: "icon",
+      icon: { source: "library", id: "star" },
+      items: ["one"],
+    },
+    { kind: "quote", text: "Say", attribution: "Anon" },
+    {
+      kind: "media",
+      media: { mediaId: "gate-media", alt: null },
+      caption: null,
+      size: "medium",
+    },
+    {
+      kind: "links",
+      style: "buttons",
+      links: [{ label: "L", href: "/", icon: null, newTab: false }],
+    },
+    {
+      kind: "icon",
+      icon: { source: "library", id: "star" },
+      size: "md",
+      align: "start",
+    },
+    { kind: "divider", style: "line" },
+  ];
+
+  // Per kind: for each field of the block's shape, the visible label
+  // text of a control that reads and writes it. When a control appears
+  // on the top-level block-<kind> body it lives under `body`; controls
+  // that live inside a nested sub-testId are listed under `nested`.
+  const FIELDS_BY_KIND: Record<
+    string,
+    { body: string[]; nested?: { testId: string; labels: string[] }[] }
+  > = {
+    heading: {
+      body: ["Text", "Heading level"],
+      nested: [{ testId: "block-heading-icon", labels: ["Icon"] }],
+    },
+    paragraph: { body: ["Text"] },
+    list: {
+      body: ["Style", "Lines"],
+      nested: [{ testId: "block-list-icon", labels: ["Icon (required)"] }],
+    },
+    quote: { body: ["Text", "Attribution (optional)"] },
+    media: {
+      body: [
+        "Image",
+        "Alt text (leave empty to use the image's own)",
+        "Caption (optional)",
+        "Size",
+      ],
+    },
+    links: { body: ["Style", "Links"] },
+    icon: {
+      body: ["Size", "Align"],
+      nested: [{ testId: "block-icon-icon", labels: ["Icon (required)"] }],
+    },
+    divider: { body: ["Style"] },
+  };
+
+  it("renders every kind with a labelled control for every field", () => {
+    const doc = starter as unknown as StarterDoc;
+    const starterBlocks: Block[] = [];
     for (const page of doc.pages) {
       for (const section of page.sections) {
         if (section.kind !== "rich_text") continue;
-        const blocks = section.data?.blocks ?? [];
-        const relevant = blocks.filter((b) => editedKinds.has(b.kind));
-        if (relevant.length === 0) continue;
-        const { unmount } = render(
-          <Harness>
-            <Controlled initial={relevant} />
-          </Harness>
-        );
-        for (const b of relevant) {
-          seen += 1;
-          if (b.kind === "heading") {
-            expect(screen.getAllByTestId("block-heading").length).toBeGreaterThan(
-              0
-            );
-          } else if (b.kind === "paragraph") {
-            expect(
-              screen.getAllByTestId("block-paragraph").length
-            ).toBeGreaterThan(0);
-          } else if (b.kind === "quote") {
-            expect(screen.getAllByTestId("block-quote").length).toBeGreaterThan(
-              0
-            );
-          } else if (b.kind === "list") {
-            expect(screen.getAllByTestId("block-list").length).toBeGreaterThan(
-              0
-            );
-          } else if (b.kind === "divider") {
-            expect(
-              screen.getAllByTestId("block-divider").length
-            ).toBeGreaterThan(0);
-          }
-        }
-        unmount();
+        for (const b of section.data?.blocks ?? []) starterBlocks.push(b);
       }
     }
-    expect(seen).toBeGreaterThan(0);
+    // The starter content must contribute at least one rich text block.
+    expect(starterBlocks.length).toBeGreaterThan(0);
+
+    const fixture: Block[] = [...CONTRACT_BLOCKS, ...starterBlocks];
+    render(
+      <Harness>
+        <Controlled initial={fixture} />
+      </Harness>
+    );
+
+    // Every kind's editor must appear at least once.
+    for (const kind of Object.keys(FIELDS_BY_KIND)) {
+      const bodies = screen.getAllByTestId(`block-${kind}`);
+      expect(bodies.length).toBeGreaterThan(0);
+      // Test the first occurrence for label coverage.
+      const body = bodies[0]!;
+      const spec = FIELDS_BY_KIND[kind]!;
+      for (const label of spec.body) {
+        expect(within(body).getAllByText(label).length).toBeGreaterThan(0);
+      }
+      for (const nest of spec.nested ?? []) {
+        const scopes = within(body).getAllByTestId(nest.testId);
+        expect(scopes.length).toBeGreaterThan(0);
+        for (const label of nest.labels) {
+          expect(within(scopes[0]!).getByText(label)).toBeInTheDocument();
+        }
+      }
+    }
   });
 });

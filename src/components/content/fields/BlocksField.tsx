@@ -31,11 +31,17 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { ReactNode } from "react";
 import type { FieldProps } from "@rjsf/utils";
+import type { Icon } from "../../../api/types";
 import HeadingBlockEditor from "../blocks/HeadingBlock";
 import ParagraphBlockEditor from "../blocks/ParagraphBlock";
 import QuoteBlockEditor from "../blocks/QuoteBlock";
 import ListBlockEditor from "../blocks/ListBlock";
 import DividerBlockEditor from "../blocks/DividerBlock";
+import MediaBlockEditor from "../blocks/MediaBlock";
+import LinksBlockEditor from "../blocks/LinksBlock";
+import IconBlockEditor from "../blocks/IconBlock";
+import MediaFilename from "../blocks/MediaFilename";
+import IconName from "../blocks/IconName";
 
 type Block = { kind: string; [k: string]: unknown };
 
@@ -67,12 +73,17 @@ const STYLE_LABELS: Record<string, string> = {
   icon: "icon",
 };
 
+const LINKS_STYLE_LABELS: Record<string, string> = {
+  buttons: "buttons",
+  list: "list",
+};
+
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
   return text.slice(0, max);
 }
 
-function summarize(b: Block): string {
+function summarize(b: Block): ReactNode {
   if (b.kind === "heading" || b.kind === "paragraph" || b.kind === "quote") {
     const t = typeof b.text === "string" ? b.text : "";
     return truncate(t, 60);
@@ -84,6 +95,26 @@ function summarize(b: Block): string {
         ? STYLE_LABELS[b.style]
         : "bullets";
     return `${items.length} lines, ${style} style`;
+  }
+  if (b.kind === "media") {
+    const media = b.media as { mediaId?: unknown } | undefined;
+    const id =
+      media && typeof media.mediaId === "string" ? media.mediaId : "";
+    return <MediaFilename mediaId={id} />;
+  }
+  if (b.kind === "links") {
+    const items = Array.isArray(b.links) ? b.links : [];
+    const style =
+      typeof b.style === "string" && LINKS_STYLE_LABELS[b.style]
+        ? LINKS_STYLE_LABELS[b.style]
+        : "buttons";
+    return `${items.length} links, ${style}`;
+  }
+  if (b.kind === "icon") {
+    if (b.icon && typeof b.icon === "object") {
+      return <IconName icon={b.icon as Icon} />;
+    }
+    return "";
   }
   return "";
 }
@@ -165,6 +196,8 @@ function SortableBlockRow({
   };
   const label = KIND_LABELS[block.kind] ?? block.kind;
   const summary = summarize(block);
+  const hasSummary =
+    typeof summary === "string" ? summary.length > 0 : summary !== null;
   return (
     <Box
       ref={setNodeRef}
@@ -202,7 +235,7 @@ function SortableBlockRow({
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
             {label}
           </Typography>
-          {summary ? (
+          {hasSummary ? (
             <Typography
               variant="caption"
               color="text.secondary"
@@ -232,10 +265,10 @@ function SortableBlockRow({
 
 // The `Block[]` primitive: a sortable list of blocks. Each row shows a
 // human label and a summary, a drag handle, up and down arrows,
-// Duplicate, and Delete; the body is a per kind editor that reads
-// every field of its shape and preserves anything it does not know.
-// Heading, paragraph, quote, list, and divider have full editors here;
-// media, links, and icon keep an empty body for now.
+// Duplicate, and Delete; the body is a per kind editor for one of the
+// eight kinds (heading, paragraph, list, quote, media, links, icon,
+// divider) that reads every field of its shape and preserves anything
+// it does not know.
 export default function BlocksField(props: FieldProps) {
   const value: Block[] = Array.isArray(props.formData)
     ? (props.formData as Block[])
@@ -382,6 +415,27 @@ function BlockBody({ block, onChange }: BodyProps) {
     case "divider":
       return (
         <DividerBlockEditor
+          value={block as Block}
+          onChange={(next) => onChange(next as Block)}
+        />
+      );
+    case "media":
+      return (
+        <MediaBlockEditor
+          value={block as Block}
+          onChange={(next) => onChange(next as Block)}
+        />
+      );
+    case "links":
+      return (
+        <LinksBlockEditor
+          value={block as Block}
+          onChange={(next) => onChange(next as Block)}
+        />
+      );
+    case "icon":
+      return (
+        <IconBlockEditor
           value={block as Block}
           onChange={(next) => onChange(next as Block)}
         />
