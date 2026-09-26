@@ -191,8 +191,9 @@ describe("CookieTypesList: locked while live", () => {
 });
 
 describe("CookieTypesList: icon picker", () => {
-  it("offers the library plus svg assets only (not raster)", async () => {
+  it("opens the shared picker with the library, media library, and upload tabs", async () => {
     const user = userEvent.setup();
+    const mediaKindParams: (string | null)[] = [];
     // Force no live event so the controls are enabled.
     server.use(
       http.get(
@@ -206,12 +207,10 @@ describe("CookieTypesList: icon picker", () => {
             })),
           })
       ),
-      // Track what the picker's SVG tab asks for.
+      // Watch what the picker's Media library tab asks for.
       http.get(`${testConfig.apiBaseUrl}/admin/media`, ({ request }) => {
         const url = new URL(request.url);
-        // The picker's svg tab forces kind=svg.
-        expect(url.searchParams.get("kind")).toBe("svg");
-        expect(url.searchParams.get("state")).toBe("ready");
+        mediaKindParams.push(url.searchParams.get("kind"));
         return HttpResponse.json({ items: [], nextCursor: null });
       })
     );
@@ -222,11 +221,13 @@ describe("CookieTypesList: icon picker", () => {
     await user.click(screen.getByRole("button", { name: /^choose$/i }));
     // Library tab first: the tile appears from the fixture icons.
     await screen.findByTestId("icon-tile-cookie");
-    // Switch to SVG assets tab: the request is made and inspected above.
-    await user.click(screen.getByRole("tab", { name: /svg assets/i }));
-    // The upload tab exists for uploading a new SVG.
+    // Switch to the media library tab: the request is made with no kind filter.
+    await user.click(screen.getByRole("tab", { name: /media library/i }));
+    await waitFor(() => expect(mediaKindParams.length).toBeGreaterThan(0));
+    for (const kind of mediaKindParams) expect(kind).toBeNull();
+    // The upload tab exists for uploading a new image.
     expect(
-      screen.getByRole("tab", { name: /upload svg/i })
+      screen.getByRole("tab", { name: /^upload$/i })
     ).toBeInTheDocument();
   });
 });
