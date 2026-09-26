@@ -303,6 +303,7 @@ export default function SectionCard({
           <PresentationPanel
             value={presentation}
             disabled={disabled}
+            sectionKind={kind.kind}
             onChange={(next) => {
               setPresentation(next);
               debouncedPres.schedule(next);
