@@ -32,7 +32,7 @@ import AppDialog from "../../components/AppDialog";
 import CommentBox from "../../components/CommentBox";
 import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
-import IconPicker from "../../components/content/IconPicker";
+import IconPicker from "../../components/content/pickers/IconPicker";
 import PageHeader from "../../components/layout/PageHeader";
 import ResponsiveTable, {
   type Column,

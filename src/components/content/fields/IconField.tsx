@@ -5,8 +5,8 @@ import IconPicker from "../pickers/IconPicker";
 import type { Icon } from "../../../api/types";
 
 // The `Icon` primitive. The current icon shows as a chip; a Choose
-// button opens the library and svg-media picker; a Clear button removes
-// it (allowed when the schema is nullable).
+// button opens the shared icon picker; a Clear button removes it
+// (allowed when the schema is nullable).
 export default function IconField(props: FieldProps) {
   const value = (props.formData as Icon | null | undefined) ?? null;
   const oneOf = (props.schema as { oneOf?: unknown[] }).oneOf;
