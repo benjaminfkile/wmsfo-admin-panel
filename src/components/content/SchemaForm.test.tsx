@@ -94,6 +94,7 @@ describe("SchemaForm: every vendored kind schema renders from its defaults", () 
       <Providers>
         <SchemaForm
           schema={schema as Sch}
+          kind={name as string}
           formData={kind!.defaults}
           onChange={() => undefined}
         />
@@ -101,6 +102,8 @@ describe("SchemaForm: every vendored kind schema renders from its defaults", () 
     );
     const text = container.textContent ?? "";
     expect(text).not.toMatch(/Option 1|Option 2/);
+    expect(text).not.toMatch(/section data/);
+    expect(text).not.toMatch(/section item data/);
     unmount();
   });
 
@@ -117,6 +120,8 @@ describe("SchemaForm: every vendored kind schema renders from its defaults", () 
       <Providers>
         <SchemaForm
           schema={schema as Sch}
+          kind={name as string}
+          isItem
           formData={kind!.itemDefaults}
           onChange={() => undefined}
         />
@@ -124,7 +129,76 @@ describe("SchemaForm: every vendored kind schema renders from its defaults", () 
     );
     const text = container.textContent ?? "";
     expect(text).not.toMatch(/Option 1|Option 2/);
+    expect(text).not.toMatch(/section data/);
+    expect(text).not.toMatch(/section item data/);
     unmount();
+  });
+});
+
+describe("SchemaForm: human labels from labels.ts", () => {
+  it("shows Title and Tagline on a hero form and no section data heading", () => {
+    const kind = (
+      kindsJson as { kinds: Array<{ kind: string; defaults: unknown }> }
+    ).kinds.find((k) => k.kind === "hero");
+    expect(kind).toBeDefined();
+    const { container } = render(
+      <Providers>
+        <SchemaForm
+          schema={hero as Sch}
+          kind="hero"
+          formData={kind!.defaults}
+          onChange={() => undefined}
+        />
+      </Providers>
+    );
+    const text = container.textContent ?? "";
+    expect(text).toContain("Title");
+    expect(text).toContain("Tagline");
+    expect(text).not.toMatch(/section data/);
+    expect(text).not.toMatch(/hero section/);
+  });
+
+  it("shows Small, Medium, Large in the icon_row size select", () => {
+    const kind = (
+      kindsJson as { kinds: Array<{ kind: string; defaults: unknown }> }
+    ).kinds.find((k) => k.kind === "icon_row");
+    expect(kind).toBeDefined();
+    render(
+      <Providers>
+        <SchemaForm
+          schema={iconRow as Sch}
+          kind="icon_row"
+          formData={kind!.defaults}
+          onChange={() => undefined}
+        />
+      </Providers>
+    );
+    const sizeCombo = screen.getByRole("combobox", { name: /icon size/i });
+    fireEvent.mouseDown(sizeCombo);
+    const listbox = screen.getByRole("listbox");
+    expect(within(listbox).getByText("Small")).toBeInTheDocument();
+    expect(within(listbox).getByText("Medium")).toBeInTheDocument();
+    expect(within(listbox).getByText("Large")).toBeInTheDocument();
+  });
+
+  it("shows the help text for a map control", () => {
+    const kind = (
+      kindsJson as { kinds: Array<{ kind: string; defaults: unknown }> }
+    ).kinds.find((k) => k.kind === "map");
+    expect(kind).toBeDefined();
+    const { container } = render(
+      <Providers>
+        <SchemaForm
+          schema={map as Sch}
+          kind="map"
+          formData={kind!.defaults}
+          onChange={() => undefined}
+        />
+      </Providers>
+    );
+    const text = container.textContent ?? "";
+    expect(text).toContain("Show the theme picker");
+    expect(text).toContain("Lets visitors switch between the themes above.");
   });
 });
 

@@ -97,12 +97,17 @@ export default function OptionalField(props: FieldProps) {
   const value = props.formData;
   const isOn = value !== null && value !== undefined;
 
+  const uiTitle = (props.uiSchema as { "ui:title"?: unknown } | undefined)?.[
+    "ui:title"
+  ];
   const rawLabel =
-    typeof props.schema.title === "string" && props.schema.title.length > 0
-      ? props.schema.title
-      : typeof props.name === "string" && props.name.length > 0
-        ? titleCase(props.name)
-        : "Value";
+    typeof uiTitle === "string" && uiTitle.length > 0
+      ? uiTitle
+      : typeof props.schema.title === "string" && props.schema.title.length > 0
+        ? props.schema.title
+        : typeof props.name === "string" && props.name.length > 0
+          ? titleCase(props.name)
+          : "Value";
 
   const toggle = (next: boolean) => {
     if (next === isOn) return;

@@ -20,8 +20,15 @@ export default function MediaField(props: FieldProps) {
   };
   const [open, setOpen] = useState(false);
 
+  const uiTitle = (props.uiSchema as { "ui:title"?: unknown } | undefined)?.[
+    "ui:title"
+  ];
   const label =
-    typeof props.schema.title === "string" ? props.schema.title : props.name;
+    typeof uiTitle === "string" && uiTitle.length > 0
+      ? uiTitle
+      : typeof props.schema.title === "string"
+        ? props.schema.title
+        : props.name;
 
   const setAlt = (alt: string) => {
     props.onChange(
