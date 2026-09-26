@@ -1,15 +1,21 @@
 import { useState } from "react";
 import {
   Box,
+  Button,
   Checkbox,
   FormControlLabel,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
 import type { FieldProps } from "@rjsf/utils";
-import type { Icon } from "../../../api/types";
+import type { Icon, IconInfo, MediaAsset } from "../../../api/types";
 import IconPicker from "../pickers/IconPicker";
+import IconPreview from "../IconPreview";
+import { icons as iconsApi } from "../../../api/resources/icons";
+import { media as mediaApi } from "../../../api/resources/media";
+import { keys } from "../../../queries/keys";
 
 type LinkValue = {
   label: string;
@@ -20,7 +26,8 @@ type LinkValue = {
 
 const EMPTY: LinkValue = { label: "", href: "", icon: null, newTab: false };
 
-// The `Link` primitive. Label (inline), href, icon, and newTab.
+// The `Link` primitive. Label (inline), href, icon, and newTab. The
+// icon line uses IconPreview and MUI Buttons for Choose and Clear.
 export default function LinkField(props: FieldProps) {
   const value = (props.formData as Partial<LinkValue> | undefined) ?? EMPTY;
   const [iconOpen, setIconOpen] = useState(false);
@@ -40,6 +47,33 @@ export default function LinkField(props: FieldProps) {
       props.fieldPathId.path
     );
   };
+
+  const icon = value.icon ?? null;
+  const isLibrary = icon?.source === "library";
+  const isMedia = icon?.source === "media";
+
+  const iconsQ = useQuery({
+    queryKey: keys.icons,
+    queryFn: () => iconsApi.list(),
+    enabled: isLibrary,
+    staleTime: Infinity,
+  });
+
+  const mediaQ = useQuery({
+    queryKey: keys.mediaAsset(String(icon?.id ?? "")),
+    queryFn: () => mediaApi.get(String(icon?.id ?? "")),
+    enabled: isMedia && typeof icon?.id === "string" && icon.id.length > 0,
+    staleTime: Infinity,
+    retry: false,
+  });
+
+  const iconName = icon
+    ? isLibrary
+      ? ((iconsQ.data?.items ?? []).find(
+          (i: IconInfo) => i.id === icon.id
+        )?.name ?? String(icon.id))
+      : ((mediaQ.data as MediaAsset | undefined)?.filename ?? String(icon.id))
+    : null;
 
   return (
     <Box sx={{ my: 1 }} data-testid="link-field">
@@ -62,30 +96,31 @@ export default function LinkField(props: FieldProps) {
           onBlur={() => props.onBlur(props.fieldPathId.$id, value)}
           fullWidth
         />
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Typography variant="body2">
-            Icon:{" "}
-            {value.icon
-              ? value.icon.source === "library"
-                ? `Library: ${value.icon.id}`
-                : `Media: ${String(value.icon.id).slice(0, 8)}…`
-              : "none"}
-          </Typography>
-          <button
-            type="button"
-            onClick={() => setIconOpen(true)}
-            style={{ padding: 4 }}
-          >
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+          <Typography variant="body2">Icon:</Typography>
+          {icon ? (
+            <>
+              <IconPreview icon={icon} />
+              <Typography variant="body2" sx={{ wordBreak: "break-all" }}>
+                {iconName}
+              </Typography>
+            </>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              none
+            </Typography>
+          )}
+          <Button size="small" onClick={() => setIconOpen(true)}>
             Choose icon
-          </button>
-          {value.icon ? (
-            <button
-              type="button"
+          </Button>
+          {icon ? (
+            <Button
+              size="small"
+              color="error"
               onClick={() => patch({ icon: null })}
-              style={{ padding: 4 }}
             >
               Clear
-            </button>
+            </Button>
           ) : null}
         </Stack>
         <FormControlLabel
@@ -101,9 +136,9 @@ export default function LinkField(props: FieldProps) {
       <IconPicker
         open={iconOpen}
         onCancel={() => setIconOpen(false)}
-        onPick={(icon) => {
+        onPick={(picked) => {
           setIconOpen(false);
-          patch({ icon });
+          patch({ icon: picked });
         }}
       />
     </Box>
