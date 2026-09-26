@@ -28,6 +28,7 @@ import ItemsEditor from "./ItemsEditor";
 import ProblemList from "./ProblemList";
 import MapStartView, { type MapStart } from "./fields/MapStartView";
 import { sectionSummary } from "./sectionSummary";
+import { useCurrentEvent } from "./useCurrentEvent";
 import type {
   KindInfo,
   Presentation,
@@ -142,7 +143,8 @@ export default function SectionCard({
   const problems = section.problems ?? [];
   const problemCount = problems.length;
   const schema = (kind.schema ?? null) as RJSFSchema | null;
-  const summary = sectionSummary(section, kind);
+  const currentEvent = useCurrentEvent();
+  const summary = sectionSummary(section, kind, currentEvent);
 
   const stop = (fn?: () => void) => (
     e: React.MouseEvent<HTMLElement>
