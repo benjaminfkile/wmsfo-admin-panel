@@ -31,7 +31,8 @@ export type ApiKeyCapability =
   | "subscribers"
   | "people"
   | "diagnostics"
-  | "audit";
+  | "audit"
+  | "qr";
 export type CookieType = S["CookieTypeDto"];
 export type Subscription = S["SubscriptionDto"];
 export type SubscriberAdmin = S["SubscriberAdminDto"];

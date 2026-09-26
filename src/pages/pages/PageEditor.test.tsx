@@ -422,6 +422,126 @@ describe("PageEditor", () => {
     });
   });
 
+  it("item Hidden switch sends PATCH /admin/items/:id with only isHidden", async () => {
+    const kinds: KindInfo[] = [
+      {
+        ...(f.kinds[0] as KindInfo),
+        kind: "media",
+        title: "Media",
+        hasItems: true,
+        schema: { type: "object", properties: {} },
+        itemSchema: {
+          type: "object",
+          properties: { caption: { type: "string" } },
+        },
+        itemDefaults: { caption: "" },
+      },
+    ];
+    const items: SectionItemAdmin[] = [
+      {
+        id: 501,
+        sectionId: 9,
+        position: 0,
+        isHidden: false,
+        data: { caption: "One" },
+        problems: [],
+        updatedBy: "editor@example.com",
+        updatedAt: "2026-12-22T01:31:07.412Z",
+      },
+    ];
+    const section: SectionAdmin = {
+      ...f.sampleSection,
+      kind: "media",
+      items,
+    };
+    const pageDetail: PageDetail = {
+      ...f.pageDetail,
+      sections: [section],
+    };
+    const captured: Array<{ url: string; body: unknown }> = [];
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/content/kinds`, () =>
+        HttpResponse.json({ items: kinds })
+      ),
+      http.get(`${testConfig.apiBaseUrl}/admin/pages/:id`, () =>
+        HttpResponse.json(pageDetail)
+      ),
+      http.patch(
+        `${testConfig.apiBaseUrl}/admin/items/:id`,
+        async ({ request }) => {
+          captured.push({ url: request.url, body: await request.json() });
+          return HttpResponse.json(items[0]);
+        }
+      )
+    );
+    render(<Harness />);
+    await expandSection(f.sampleSection.id!);
+
+    const row = await screen.findByTestId(`item-row-${items[0]!.id}`);
+    const hiddenSwitch = within(row).getByTestId(
+      `item-hidden-switch-${items[0]!.id}`
+    );
+    const input = hiddenSwitch.querySelector("input");
+    if (input) fireEvent.click(input);
+
+    await waitFor(() => {
+      expect(captured.length).toBeGreaterThan(0);
+    });
+    expect(captured[0]?.url).toContain(`/admin/items/${items[0]!.id}`);
+    expect(captured[0]?.body).toEqual({ isHidden: true });
+  });
+
+  it("a hidden item's card shows the Hidden label", async () => {
+    const kinds: KindInfo[] = [
+      {
+        ...(f.kinds[0] as KindInfo),
+        kind: "media",
+        title: "Media",
+        hasItems: true,
+        schema: { type: "object", properties: {} },
+        itemSchema: {
+          type: "object",
+          properties: { caption: { type: "string" } },
+        },
+        itemDefaults: { caption: "" },
+      },
+    ];
+    const items: SectionItemAdmin[] = [
+      {
+        id: 601,
+        sectionId: 9,
+        position: 0,
+        isHidden: true,
+        data: { caption: "Hidden one" },
+        problems: [],
+        updatedBy: "editor@example.com",
+        updatedAt: "2026-12-22T01:31:07.412Z",
+      },
+    ];
+    const section: SectionAdmin = {
+      ...f.sampleSection,
+      kind: "media",
+      items,
+    };
+    const pageDetail: PageDetail = {
+      ...f.pageDetail,
+      sections: [section],
+    };
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/content/kinds`, () =>
+        HttpResponse.json({ items: kinds })
+      ),
+      http.get(`${testConfig.apiBaseUrl}/admin/pages/:id`, () =>
+        HttpResponse.json(pageDetail)
+      )
+    );
+    render(<Harness />);
+    await expandSection(f.sampleSection.id!);
+    expect(
+      await screen.findByTestId(`item-hidden-chip-${items[0]!.id}`)
+    ).toBeInTheDocument();
+  });
+
   it("items reorder inside ItemsEditor sends the new order", async () => {
     const kinds: KindInfo[] = [
       {

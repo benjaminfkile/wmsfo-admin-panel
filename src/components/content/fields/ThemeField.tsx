@@ -9,35 +9,47 @@ import type { FieldProps } from "@rjsf/utils";
 
 // Theme editor for the site-settings `theme` object (admin.md 6.16).
 // Colours and fonts are part of the site design; visitors pick light
-// or dark themselves, so the panel only shows the two flags that
-// admins can flip: whether snow and the lights start on.
+// or dark themselves, so the panel only shows the three flags that
+// admins can flip: whether snow, lights, and ornaments start on.
+// The incoming value is spread through so any key this field does
+// not know is kept.
 export type ThemeValue = {
   snowDefault: boolean;
   lightsDefault: boolean;
+  ornaments: boolean;
 };
 
 const DEFAULT: ThemeValue = {
   snowDefault: false,
   lightsDefault: true,
+  ornaments: false,
 };
 
-function mergeTheme(v: unknown): ThemeValue {
-  if (v === null || typeof v !== "object") return DEFAULT;
-  const obj = v as Partial<ThemeValue>;
-  return {
-    snowDefault: Boolean(obj.snowDefault),
-    lightsDefault:
-      obj.lightsDefault === undefined
-        ? DEFAULT.lightsDefault
-        : Boolean(obj.lightsDefault),
-  };
+type UnknownRecord = Record<string, unknown>;
+
+function baseObject(v: unknown): UnknownRecord {
+  if (v === null || typeof v !== "object") return {};
+  return v as UnknownRecord;
+}
+
+function readFlag(obj: UnknownRecord, key: keyof ThemeValue): boolean {
+  const raw = obj[key];
+  return raw === undefined ? DEFAULT[key] : Boolean(raw);
 }
 
 export default function ThemeField(props: FieldProps) {
-  const value = mergeTheme(props.formData);
+  const raw = baseObject(props.formData);
+  const value: ThemeValue = {
+    snowDefault: readFlag(raw, "snowDefault"),
+    lightsDefault: readFlag(raw, "lightsDefault"),
+    ornaments: readFlag(raw, "ornaments"),
+  };
 
   const patch = (partial: Partial<ThemeValue>) => {
-    props.onChange({ ...value, ...partial } as unknown, props.fieldPathId.path);
+    props.onChange(
+      { ...raw, ...value, ...partial } as unknown,
+      props.fieldPathId.path
+    );
   };
 
   return (
@@ -69,6 +81,16 @@ export default function ThemeField(props: FieldProps) {
             />
           }
           label="Lights on by default"
+        />
+        <FormControlLabel
+          control={
+            <Switch
+              checked={value.ornaments}
+              onChange={(e) => patch({ ornaments: e.target.checked })}
+              data-testid="theme-ornaments"
+            />
+          }
+          label="Ornaments in the background"
         />
       </Stack>
     </Box>
