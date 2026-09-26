@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { Icon, IconInfo, MediaAsset } from "../../../api/types";
 import IconPicker from "../pickers/IconPicker";
 import IconPreview from "../IconPreview";
+import InlineText from "../InlineText";
 import { icons as iconsApi } from "../../../api/resources/icons";
 import { media as mediaApi } from "../../../api/resources/media";
 import { keys } from "../../../queries/keys";
@@ -30,8 +31,8 @@ interface Props {
   testId?: string;
 }
 
-// The Link control used by block editors. Label, Href, an icon line
-// (preview, Choose, Clear) and an "Open in new tab" checkbox.
+// The Link control used by block editors. Label (Inline), Href, an icon
+// line (preview, Choose, Clear) and an "Open in new tab" checkbox.
 export default function LinkControl({
   label,
   value,
@@ -77,13 +78,11 @@ export default function LinkControl({
         {label}
       </Typography>
       <Stack spacing={1}>
-        <TextField
-          size="small"
-          label="Label"
+        <InlineText
           value={value.label}
-          onChange={(e) => patch({ label: e.target.value })}
-          fullWidth
-          inputProps={{ maxLength: 5000 }}
+          onChange={(next) => patch({ label: next })}
+          label="Label"
+          maxLength={5000}
         />
         <TextField
           size="small"

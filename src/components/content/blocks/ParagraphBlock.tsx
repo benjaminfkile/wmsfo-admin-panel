@@ -1,4 +1,5 @@
-import { Stack, TextField } from "@mui/material";
+import { Stack } from "@mui/material";
+import InlineText from "../InlineText";
 
 type BlockLike = { kind: string; [k: string]: unknown };
 
@@ -12,15 +13,13 @@ export default function ParagraphBlockEditor({ value, onChange }: Props) {
   const text = typeof value.text === "string" ? value.text : "";
   return (
     <Stack spacing={2} data-testid="block-paragraph">
-      <TextField
-        size="small"
-        label="Text"
+      <InlineText
         value={text}
-        onChange={(e) => onChange({ ...value, text: e.target.value })}
-        fullWidth
+        onChange={(next) => onChange({ ...value, text: next })}
+        label="Text"
+        maxLength={5000}
         multiline
         minRows={3}
-        inputProps={{ maxLength: 5000 }}
       />
     </Stack>
   );

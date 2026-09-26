@@ -1,10 +1,11 @@
 import { useCallback } from "react";
-import { Box, TextField, Typography } from "@mui/material";
+import { Box } from "@mui/material";
 import type { FieldProps } from "@rjsf/utils";
+import InlineText from "../InlineText";
 
-// A text area for the `Inline` primitive. The full spec includes a
-// toolbar and preview; those are UI concerns of this component while
-// the value on the wire stays a plain string.
+// The `Inline` primitive. `InlineText` supplies the toolbar and the
+// preview; the value on the wire stays a plain string, and an empty
+// value on a nullable schema is sent as null.
 export default function InlineField(props: FieldProps) {
   const value = typeof props.formData === "string" ? props.formData : "";
   const oneOf = (props.schema as { oneOf?: unknown[] }).oneOf;
@@ -30,19 +31,15 @@ export default function InlineField(props: FieldProps) {
 
   return (
     <Box sx={{ my: 1 }} data-testid="inline-field">
-      <TextField
-        label={label ?? ""}
+      <InlineText
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={() => props.onBlur(props.fieldPathId.$id, value)}
-        fullWidth
+        onChange={onChange}
+        label={label ?? ""}
+        maxLength={max}
         multiline
         minRows={2}
-        inputProps={{ maxLength: max }}
+        onBlur={() => props.onBlur(props.fieldPathId.$id, value)}
       />
-      <Typography variant="caption" color="text.secondary">
-        {value.length} / {max}
-      </Typography>
     </Box>
   );
 }

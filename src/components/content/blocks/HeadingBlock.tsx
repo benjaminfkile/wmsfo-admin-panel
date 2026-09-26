@@ -3,10 +3,10 @@ import {
   MenuItem,
   Select,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
 import IconControl from "./IconControl";
+import InlineText from "../InlineText";
 import type { Icon } from "../../../api/types";
 
 type BlockLike = { kind: string; [k: string]: unknown };
@@ -29,15 +29,13 @@ export default function HeadingBlockEditor({ value, onChange }: Props) {
 
   return (
     <Stack spacing={2} data-testid="block-heading">
-      <TextField
-        size="small"
-        label="Text"
+      <InlineText
         value={text}
-        onChange={(e) => onChange({ ...value, text: e.target.value })}
-        fullWidth
+        onChange={(next) => onChange({ ...value, text: next })}
+        label="Text"
+        maxLength={5000}
         multiline
         minRows={1}
-        inputProps={{ maxLength: 5000 }}
       />
       <Box>
         <Typography variant="caption" color="text.secondary">

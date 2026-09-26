@@ -5,13 +5,13 @@ import {
   MenuItem,
   Select,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import IconControl from "./IconControl";
+import InlineText from "../InlineText";
 import type { Icon } from "../../../api/types";
 
 type BlockLike = { kind: string; [k: string]: unknown };
@@ -127,21 +127,19 @@ export default function ListBlockEditor({ value, onChange }: Props) {
               key={i}
               direction="row"
               spacing={0.5}
-              alignItems="center"
+              alignItems="flex-start"
               useFlexGap
               flexWrap="wrap"
               data-testid={`block-list-line-${i}`}
             >
-              <TextField
-                size="small"
-                value={line}
-                onChange={(e) => patchLine(i, e.target.value)}
-                sx={{ flexGrow: 1, minWidth: 120 }}
-                inputProps={{
-                  maxLength: 5000,
-                  "aria-label": `Line ${i + 1}`,
-                }}
-              />
+              <Box sx={{ flexGrow: 1, minWidth: 120 }}>
+                <InlineText
+                  value={line}
+                  onChange={(next) => patchLine(i, next)}
+                  ariaLabel={`Line ${i + 1}`}
+                  maxLength={5000}
+                />
+              </Box>
               <IconButton
                 size="small"
                 onClick={() => moveLine(i, i - 1)}
