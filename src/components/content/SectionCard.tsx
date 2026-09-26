@@ -54,7 +54,10 @@ interface Props {
   onMove?: () => void;
   onDelete?: () => void;
   onCreateItem?: (data: object) => void;
-  onPatchItem?: (id: number, data: object) => void;
+  onPatchItem?: (
+    id: number,
+    body: Partial<{ data: object; isHidden: boolean }>
+  ) => void;
   onRemoveItem?: (id: number) => void;
   onReorderItems?: (ids: number[]) => void;
   onMoveUp?: () => void;

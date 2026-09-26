@@ -187,11 +187,11 @@ export default function PageEditor() {
   const patchItemMut = useMutation({
     mutationFn: ({
       itemId,
-      data,
+      body,
     }: {
       itemId: number;
-      data: object;
-    }) => sectionsApi.patchItem(itemId, { data }),
+      body: Partial<{ data: object; isHidden: boolean }>;
+    }) => sectionsApi.patchItem(itemId, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: keys.page(pageId) });
     },
@@ -354,8 +354,8 @@ export default function PageEditor() {
                 onCreateItem={(data) =>
                   createItemMut.mutate({ sectionId: id, data })
                 }
-                onPatchItem={(itemId, data) =>
-                  patchItemMut.mutate({ itemId, data })
+                onPatchItem={(itemId, body) =>
+                  patchItemMut.mutate({ itemId, body })
                 }
                 onRemoveItem={(itemId) => removeItemMut.mutate(itemId)}
                 onReorderItems={(ids) =>

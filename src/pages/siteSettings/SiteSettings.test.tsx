@@ -83,14 +83,15 @@ afterEach(() => {
 });
 
 describe("SiteSettings", () => {
-  it("renders the form from the vendored schema (two theme switches)", async () => {
+  it("renders the form from the vendored schema (three theme switches)", async () => {
     render(<Harness />);
     await waitFor(() =>
       expect(screen.getByTestId("theme-field")).toBeInTheDocument()
     );
-    // The theme field carries only the two documented switches.
+    // The theme field carries the three documented switches.
     expect(screen.getByTestId("theme-snow-default")).toBeInTheDocument();
     expect(screen.getByTestId("theme-lights-default")).toBeInTheDocument();
+    expect(screen.getByTestId("theme-ornaments")).toBeInTheDocument();
     // The removed accent, surface, and font-pairing controls are gone.
     expect(screen.queryByTestId("theme-accent-blue")).toBeNull();
     expect(screen.queryByTestId("theme-surface-night")).toBeNull();
@@ -134,6 +135,125 @@ describe("SiteSettings", () => {
     // The snow default flip is reflected.
     const theme = body?.data?.theme as { snowDefault?: boolean } | undefined;
     expect(theme?.snowDefault).toBe(true);
+  });
+
+  it("flipping the snow switch keeps ornaments: true in the saved theme", async () => {
+    const user = userEvent.setup();
+    const captured: Array<{ body: unknown }> = [];
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/site-settings`, () =>
+        HttpResponse.json({
+          ...f.siteSettingsDraft,
+          data: {
+            ...FULL_DRAFT,
+            theme: {
+              snowDefault: false,
+              lightsDefault: true,
+              ornaments: true,
+            },
+          },
+        })
+      ),
+      http.put(
+        `${testConfig.apiBaseUrl}/admin/site-settings`,
+        async ({ request }) => {
+          captured.push({ body: await request.json() });
+          return HttpResponse.json({
+            ...f.siteSettingsDraft,
+            data: FULL_DRAFT,
+          });
+        }
+      )
+    );
+    render(<Harness />);
+    await waitFor(() =>
+      expect(screen.getByTestId("theme-field")).toBeInTheDocument()
+    );
+    const snow = screen
+      .getByTestId("theme-snow-default")
+      .querySelector("input");
+    if (snow) await user.click(snow);
+    const save = await screen.findByTestId("site-settings-save");
+    await waitFor(() => expect(save).not.toBeDisabled());
+    await user.click(save);
+    await waitFor(() => expect(captured.length).toBeGreaterThan(0));
+    const body = captured[0]?.body as { data?: { theme?: Record<string, unknown> } };
+    expect(body?.data?.theme?.snowDefault).toBe(true);
+    expect(body?.data?.theme?.ornaments).toBe(true);
+  });
+
+  it("the ornaments switch writes ornaments: true", async () => {
+    const user = userEvent.setup();
+    const captured: Array<{ body: unknown }> = [];
+    server.use(
+      http.put(
+        `${testConfig.apiBaseUrl}/admin/site-settings`,
+        async ({ request }) => {
+          captured.push({ body: await request.json() });
+          return HttpResponse.json({
+            ...f.siteSettingsDraft,
+            data: FULL_DRAFT,
+          });
+        }
+      )
+    );
+    render(<Harness />);
+    await waitFor(() =>
+      expect(screen.getByTestId("theme-field")).toBeInTheDocument()
+    );
+    const orn = screen.getByTestId("theme-ornaments").querySelector("input");
+    if (orn) await user.click(orn);
+    const save = await screen.findByTestId("site-settings-save");
+    await waitFor(() => expect(save).not.toBeDisabled());
+    await user.click(save);
+    await waitFor(() => expect(captured.length).toBeGreaterThan(0));
+    const body = captured[0]?.body as { data?: { theme?: Record<string, unknown> } };
+    expect(body?.data?.theme?.ornaments).toBe(true);
+  });
+
+  it("an unknown theme key survives a snow flip", async () => {
+    const user = userEvent.setup();
+    const captured: Array<{ body: unknown }> = [];
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/site-settings`, () =>
+        HttpResponse.json({
+          ...f.siteSettingsDraft,
+          data: {
+            ...FULL_DRAFT,
+            theme: {
+              snowDefault: false,
+              lightsDefault: true,
+              ornaments: false,
+              futureKey: "keep-me",
+            },
+          },
+        })
+      ),
+      http.put(
+        `${testConfig.apiBaseUrl}/admin/site-settings`,
+        async ({ request }) => {
+          captured.push({ body: await request.json() });
+          return HttpResponse.json({
+            ...f.siteSettingsDraft,
+            data: FULL_DRAFT,
+          });
+        }
+      )
+    );
+    render(<Harness />);
+    await waitFor(() =>
+      expect(screen.getByTestId("theme-field")).toBeInTheDocument()
+    );
+    const snow = screen
+      .getByTestId("theme-snow-default")
+      .querySelector("input");
+    if (snow) await user.click(snow);
+    const save = await screen.findByTestId("site-settings-save");
+    await waitFor(() => expect(save).not.toBeDisabled());
+    await user.click(save);
+    await waitFor(() => expect(captured.length).toBeGreaterThan(0));
+    const body = captured[0]?.body as { data?: { theme?: Record<string, unknown> } };
+    expect(body?.data?.theme?.futureKey).toBe("keep-me");
   });
 
   it("renders problems from the draft response", async () => {

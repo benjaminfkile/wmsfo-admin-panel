@@ -152,6 +152,21 @@ describe("ApiKeyCreateDialog validation", () => {
     expect(t - Date.now()).toBeGreaterThan(60 * 60 * 1000);
   });
 
+  it("offers the qr capability labelled 'QR codes and places' and sends 'qr'", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderDialog({ onSubmit });
+    await user.type(screen.getByLabelText(/^name$/i), "claude-code");
+    await user.click(screen.getByLabelText(/^all capabilities$/i));
+    const qr = screen.getByLabelText(/^qr codes and places$/i);
+    expect(qr).toBeInTheDocument();
+    await user.click(qr);
+    await user.click(screen.getByRole("button", { name: /^create$/i }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    const body = onSubmit.mock.calls[0]![0] as ApiKeyCreateBody;
+    expect(body.capabilities).toContain("qr");
+  });
+
   it("renders a field error on the Name input when the server returns 409 name_taken", async () => {
     renderDialog({
       error: new ApiError(409, {

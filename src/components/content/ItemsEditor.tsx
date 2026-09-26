@@ -4,8 +4,10 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
   IconButton,
   Stack,
+  Switch,
   Typography,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -35,12 +37,14 @@ import SchemaForm from "./SchemaForm";
 import { itemSummary } from "./sectionSummary";
 import type { KindInfo, SectionItemAdmin } from "../../api/types";
 
+export type ItemPatchBody = Partial<{ data: object; isHidden: boolean }>;
+
 interface Props {
   items: SectionItemAdmin[];
   kind: KindInfo;
   disabled?: boolean;
   onCreate: (data: object) => void;
-  onPatchItem: (id: number, data: object) => void;
+  onPatchItem: (id: number, body: ItemPatchBody) => void;
   onRemoveItem: (id: number) => void;
   onReorder?: (ids: number[]) => void;
 }
@@ -50,12 +54,14 @@ interface RowProps {
   index: number;
   total: number;
   summary: string;
+  hidden: boolean;
   disabled?: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onRemove: () => void;
+  onToggleHidden: (next: boolean) => void;
   children: ReactNode;
 }
 
@@ -64,12 +70,14 @@ function SortableRow({
   index,
   total,
   summary,
+  hidden,
   disabled,
   canMoveUp,
   canMoveDown,
   onMoveUp,
   onMoveDown,
   onRemove,
+  onToggleHidden,
   children,
 }: RowProps) {
   const {
@@ -83,7 +91,7 @@ function SortableRow({
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.5 : hidden ? 0.5 : 1,
   };
   return (
     <Card
@@ -134,13 +142,28 @@ function SortableRow({
             <ArrowDownwardIcon fontSize="small" />
           </IconButton>
           <Stack sx={{ flexGrow: 1, minWidth: 0 }}>
-            <Typography
-              variant="body2"
-              sx={{ fontWeight: 600 }}
-              data-testid={`item-title-${id}`}
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              useFlexGap
+              flexWrap="wrap"
             >
-              Item {index + 1} of {total}
-            </Typography>
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 600 }}
+                data-testid={`item-title-${id}`}
+              >
+                Item {index + 1} of {total}
+              </Typography>
+              {hidden ? (
+                <Chip
+                  size="small"
+                  label="Hidden"
+                  data-testid={`item-hidden-chip-${id}`}
+                />
+              ) : null}
+            </Stack>
             {summary ? (
               <Typography
                 variant="caption"
@@ -155,6 +178,19 @@ function SortableRow({
                 {summary}
               </Typography>
             ) : null}
+          </Stack>
+          <Stack direction="row" alignItems="center">
+            <Typography variant="caption">Hidden</Typography>
+            <Switch
+              size="small"
+              checked={hidden}
+              onChange={(e) => onToggleHidden(e.target.checked)}
+              disabled={disabled}
+              inputProps={{
+                "aria-label": `Hide item ${id}`,
+              }}
+              data-testid={`item-hidden-switch-${id}`}
+            />
           </Stack>
           <IconButton
             size="small"
@@ -173,11 +209,13 @@ function SortableRow({
 
 // A section's items (admin.md 6.14). Each item is a nested card inside
 // the parent section card: a tinted header with the drag handle, up
-// and down arrows, "Item n of m" and a short summary, then the item's
-// SchemaForm below. Rows reorder via drag (dnd-kit) or the up/down
-// buttons; the caller receives the new list of ids to persist through
-// `PUT /admin/sections/{id}/items/order`. Add uses the kind's
-// `itemDefaults`.
+// and down arrows, "Item n of m", a short summary, a Hidden switch
+// that PATCHes only `isHidden`, and a remove icon. The item's
+// SchemaForm sits under the header. Rows reorder via drag (dnd-kit)
+// or the up/down buttons; the caller receives the new list of ids to
+// persist through `PUT /admin/sections/{id}/items/order`. Add uses
+// the kind's `itemDefaults`. A hidden item's card is dimmed and
+// carries a "Hidden" label.
 export default function ItemsEditor({
   items,
   kind,
@@ -248,12 +286,16 @@ export default function ItemsEditor({
                   index={index}
                   total={items.length}
                   summary={itemSummary(it.data)}
+                  hidden={Boolean(it.isHidden)}
                   disabled={disabled}
                   canMoveUp={index > 0}
                   canMoveDown={index < items.length - 1}
                   onMoveUp={() => reorderTo(index, index - 1)}
                   onMoveDown={() => reorderTo(index, index + 1)}
                   onRemove={() => onRemoveItem(id)}
+                  onToggleHidden={(next) =>
+                    onPatchItem(id, { isHidden: next })
+                  }
                 >
                   <SchemaForm
                     schema={itemSchema}
@@ -263,7 +305,7 @@ export default function ItemsEditor({
                     disabled={disabled}
                     onChange={(next: object) => {
                       setDrafts((prev) => ({ ...prev, [id]: next }));
-                      onPatchItem(id, next);
+                      onPatchItem(id, { data: next });
                     }}
                   />
                 </SortableRow>
