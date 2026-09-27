@@ -369,6 +369,8 @@ export const SITE_SETTINGS: FieldLabels = {
   "theme.snowDefault": { label: "Snow on by default" },
   "theme.lightsDefault": { label: "Lights on by default" },
   "theme.ornaments": { label: "Ornaments in the background" },
+  "theme.cardOpacityLight": { label: "Card opacity in light mode" },
+  "theme.cardOpacityDark": { label: "Card opacity in dark mode" },
   navExtraLinks: {
     label: "Extra menu links",
     help: "Links added to the menu after the pages, up to five.",

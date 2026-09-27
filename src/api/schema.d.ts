@@ -5540,6 +5540,7 @@ export interface components {
             dziUrl?: null | string;
             darkMediaId?: null | string;
             invertInDark?: boolean;
+            smallMediaId?: null | string;
             uploadedBy?: string;
             /** Format: date-time */
             createdAt?: string;
@@ -5571,6 +5572,8 @@ export interface components {
             dzi?: null | string;
             dark?: null | components["schemas"]["MediaDarkEntry"];
             invertInDark?: boolean;
+            small?: null | components["schemas"]["MediaSmallEntry"];
+            smallMediaId?: null | string;
         };
         MediaPatchRequest: {
             alt?: null | string;
@@ -5578,6 +5581,16 @@ export interface components {
             /** Format: uuid */
             darkMediaId?: null | string;
             invertInDark?: null | boolean;
+            /** Format: uuid */
+            smallMediaId?: null | string;
+        };
+        MediaSmallEntry: {
+            url?: string;
+            variants?: {
+                [key: string]: string;
+            };
+            dark?: null | components["schemas"]["MediaDarkEntry"];
+            invertInDark?: boolean;
         };
         MediaUploadUrlRequest: {
             filename?: string;
@@ -5957,6 +5970,10 @@ export interface components {
             anchor?: null | string;
             card?: null | boolean;
             iconSize?: null | string;
+            /** Format: int32 */
+            cardOpacityLight?: null | number | string;
+            /** Format: int32 */
+            cardOpacityDark?: null | number | string;
         };
         PreviewTokenDto: {
             token?: string;

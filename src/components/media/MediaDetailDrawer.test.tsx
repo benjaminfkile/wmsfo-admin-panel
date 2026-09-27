@@ -154,6 +154,93 @@ describe("MediaDetailDrawer: dark mode", () => {
   });
 });
 
+describe("MediaDetailDrawer: small screen version", () => {
+  it("renders right after the dark mode version with None and the help", async () => {
+    render(<Harness asset={self} />);
+    const dark = await screen.findByTestId("media-dark-mode");
+    const small = screen.getByTestId("media-small-screen");
+    expect(dark.nextElementSibling).toBe(small);
+    expect(within(small).getByText("Small screen version")).toBeInTheDocument();
+    expect(within(small).getByText("None")).toBeInTheDocument();
+    expect(
+      within(small).getByText(
+        "Drawn in this image's place on screens under 760 px wide."
+      )
+    ).toBeInTheDocument();
+    expect(within(small).getByRole("button", { name: "Clear" })).toBeDisabled();
+  });
+
+  it("picking a ready asset patches smallMediaId and shows its thumbnail", async () => {
+    const user = userEvent.setup();
+    render(<Harness asset={self} />);
+    const section = await screen.findByTestId("media-small-screen");
+    await user.click(within(section).getByRole("button", { name: "Choose" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Choose the small screen version",
+    });
+    await within(dialog).findByTestId(`media-card-${other.id}`);
+    expect(within(dialog).queryByTestId(`media-card-${self.id}`)).toBeNull();
+    await user.click(
+      within(within(dialog).getByTestId(`media-card-${other.id}`)).getAllByRole(
+        "button"
+      )[0]!
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Choose" }));
+    await waitFor(() => expect(patches).toEqual([{ smallMediaId: other.id }]));
+    expect(await within(section).findByText("logo-dark.svg")).toBeInTheDocument();
+  });
+
+  it("shows the thumbnail when set", async () => {
+    render(<Harness asset={{ ...self, smallMediaId: other.id }} />);
+    const section = await screen.findByTestId("media-small-screen");
+    expect(await within(section).findByText("logo-dark.svg")).toBeInTheDocument();
+    expect(within(section).getByRole("img")).toBeInTheDocument();
+    expect(within(section).queryByText("None")).toBeNull();
+  });
+
+  it("Clear sends null", async () => {
+    const user = userEvent.setup();
+    render(<Harness asset={{ ...self, smallMediaId: other.id }} />);
+    const section = await screen.findByTestId("media-small-screen");
+    await user.click(within(section).getByRole("button", { name: "Clear" }));
+    await waitFor(() => expect(patches).toEqual([{ smallMediaId: null }]));
+    expect(await within(section).findByText("None")).toBeInTheDocument();
+  });
+
+  it("shows a 409 inline under the picker", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.patch(`${testConfig.apiBaseUrl}/admin/media/:id`, () =>
+        HttpResponse.json(
+          {
+            title: "Conflict",
+            status: 409,
+            detail: "The small screen version is not ready.",
+          },
+          { status: 409, headers: { "Content-Type": "application/problem+json" } }
+        )
+      )
+    );
+    render(<Harness asset={self} />);
+    const section = await screen.findByTestId("media-small-screen");
+    await user.click(within(section).getByRole("button", { name: "Choose" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Choose the small screen version",
+    });
+    await user.click(
+      within(
+        await within(dialog).findByTestId(`media-card-${other.id}`)
+      ).getAllByRole("button")[0]!
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Choose" }));
+    expect(await within(section).findByRole("alert")).toHaveTextContent("409");
+    expect(within(section).getByText("None")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("media-dark-mode")).queryByRole("alert")
+    ).toBeNull();
+  });
+});
+
 describe("MediaCard: dark mode chips", () => {
   function renderCard(asset: MediaAsset) {
     return render(
