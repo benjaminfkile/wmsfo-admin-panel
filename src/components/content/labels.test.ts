@@ -148,3 +148,16 @@ describe("labels.ts: every field of every section and item schema has an entry",
     expect(missing, `missing item labels for ${name}: ${missing.join(", ")}`).toEqual([]);
   });
 });
+
+describe("labels.ts: the map overlays include the online count", () => {
+  it("labels overlays.onlineCount as a switch that defaults to on", () => {
+    const paths = collectFieldPaths(map as Sch);
+    expect(paths).toContain("overlays.onlineCount");
+    const entry = labelsFor("map", false)["overlays.onlineCount"];
+    expect(entry?.label).toBe("Online count");
+    expect(entry?.help).toBe(
+      "How many people are watching, while the event is live and sockets are healthy"
+    );
+    expect(entry?.switchDefault).toBe(true);
+  });
+});
