@@ -377,13 +377,13 @@ export default function EventDetail() {
                   }
                 />
                 <ClearableDateTimeField
-                  label="Went live at"
+                  label="Went live at (Liftoff)"
                   value={form.wentLiveAt}
                   timeZone={form.timeZone}
                   onChange={(v) => setForm({ ...form, wentLiveAt: v })}
                 />
                 <ClearableDateTimeField
-                  label="Ended at"
+                  label="Ended at (Wheels down)"
                   value={form.endedAt}
                   timeZone={form.timeZone}
                   onChange={(v) => setForm({ ...form, endedAt: v })}
