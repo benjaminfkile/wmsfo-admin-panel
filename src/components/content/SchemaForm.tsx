@@ -13,6 +13,7 @@ import MediaField from "./fields/MediaField";
 import LinkField from "./fields/LinkField";
 import InlineField from "./fields/InlineField";
 import BlocksField from "./fields/BlocksField";
+import LinkListField from "./fields/LinkListField";
 import PresentationPanelField from "./fields/PresentationPanelField";
 import OptionalField, { extractOptional } from "./fields/OptionalField";
 import ThemeField from "./fields/ThemeField";
@@ -36,6 +37,7 @@ const CUSTOM_FIELD = {
   LinkField,
   InlineField,
   BlocksField,
+  LinkListField,
   PresentationPanelField,
   OptionalField,
   ThemeField,
@@ -49,7 +51,8 @@ function routedField(schema: unknown): keyof typeof CUSTOM_FIELD | null {
   if (typeof ref === "string" && ref in PRIMITIVE_BY_REF) {
     return PRIMITIVE_BY_REF[ref] ?? null;
   }
-  // Detect Block arrays: an array whose items are the `Block` primitive.
+  // Detect Block and Link arrays: an array whose items are the `Block`
+  // or the `Link` primitive.
   if (
     (schema as { type?: unknown }).type === "array" &&
     typeof (schema as { items?: unknown }).items === "object" &&
@@ -58,6 +61,7 @@ function routedField(schema: unknown): keyof typeof CUSTOM_FIELD | null {
     const items = (schema as { items?: Record<PropertyKey, unknown> }).items;
     const itemsRef = items?.[RJSF_REF_KEY];
     if (itemsRef === "#/$defs/Block") return "BlocksField";
+    if (itemsRef === "#/$defs/Link") return "LinkListField";
   }
   // A two-branch `oneOf` where one branch is `{ type: "null" }` and the
   // other is a routed primitive `$ref` renders as an on/off switch.
