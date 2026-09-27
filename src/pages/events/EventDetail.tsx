@@ -364,42 +364,29 @@ export default function EventDetail() {
                   }
                   helperText="The times below are in this zone"
                 />
-                <ScheduledField
+                <ClearableDateTimeField
+                  label="Scheduled at"
                   value={form.scheduledAt}
                   timeZone={form.timeZone}
                   onChange={(v) => setForm({ ...form, scheduledAt: v })}
                   error={formErrors.scheduledAt}
-                  disabledClear={currentStatusId === 2}
+                  clearDisabledReason={
+                    currentStatusId === 2
+                      ? "Required while the event is scheduled"
+                      : null
+                  }
                 />
-                <TextField
+                <ClearableDateTimeField
                   label="Went live at"
-                  type="datetime-local"
                   value={form.wentLiveAt}
-                  onChange={(e) =>
-                    setForm({ ...form, wentLiveAt: e.target.value })
-                  }
-                  InputLabelProps={{ shrink: true }}
-                  helperText={
-                    form.wentLiveAt
-                      ? formatStamp(
-                          wallTimeToUtc(form.wentLiveAt, form.timeZone)
-                        )
-                      : ""
-                  }
-                  fullWidth
+                  timeZone={form.timeZone}
+                  onChange={(v) => setForm({ ...form, wentLiveAt: v })}
                 />
-                <TextField
+                <ClearableDateTimeField
                   label="Ended at"
-                  type="datetime-local"
                   value={form.endedAt}
-                  onChange={(e) => setForm({ ...form, endedAt: e.target.value })}
-                  InputLabelProps={{ shrink: true }}
-                  helperText={
-                    form.endedAt
-                      ? formatStamp(wallTimeToUtc(form.endedAt, form.timeZone))
-                      : ""
-                  }
-                  fullWidth
+                  timeZone={form.timeZone}
+                  onChange={(v) => setForm({ ...form, endedAt: v })}
                 />
                 <TextField
                   label="Funds percent"
@@ -699,23 +686,28 @@ function StatusHistorySection({ items }: { items: StatusHistory[] }) {
   );
 }
 
-function ScheduledField({
+// A datetime-local input with a Clear button beside it; every one of the
+// event's three times can be cleared, saving them as null.
+function ClearableDateTimeField({
+  label,
   value,
   timeZone,
   onChange,
   error,
-  disabledClear,
+  clearDisabledReason = null,
 }: {
+  label: string;
   value: string;
   timeZone: string;
   onChange: (v: string) => void;
   error?: string;
-  disabledClear: boolean;
+  clearDisabledReason?: string | null;
 }) {
+  const disabledClear = clearDisabledReason !== null;
   return (
     <Stack direction="row" spacing={2} alignItems="center">
       <TextField
-        label="Scheduled at"
+        label={label}
         type="datetime-local"
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -727,13 +719,7 @@ function ScheduledField({
         }
         fullWidth
       />
-      <Tooltip
-        title={
-          disabledClear
-            ? "Required while the event is scheduled"
-            : ""
-        }
-      >
+      <Tooltip title={clearDisabledReason ?? ""}>
         <span>
           <Button onClick={() => onChange("")} disabled={disabledClear}>
             Clear

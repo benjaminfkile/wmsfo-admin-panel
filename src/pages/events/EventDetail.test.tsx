@@ -901,8 +901,13 @@ describe("EventDetail: the schedule timezone (admin.md 7.5)", () => {
     const wentLive = await screen.findByLabelText(/went live at/i);
     const ended = screen.getByLabelText(/ended at/i);
     await waitFor(() => expect(wentLive).not.toHaveValue(""));
-    fireEvent.change(wentLive, { target: { value: "" } });
-    fireEvent.change(ended, { target: { value: "" } });
+    // The Clear buttons sit beside Scheduled at, Went live at, and Ended at.
+    const clears = screen.getAllByRole("button", { name: /^clear$/i });
+    expect(clears.length).toBe(3);
+    await user.click(clears[1]!);
+    await user.click(clears[2]!);
+    expect(wentLive).toHaveValue("");
+    expect(ended).toHaveValue("");
 
     await user.click(screen.getByRole("button", { name: /^save$/i }));
     await waitFor(() => expect(patches.length).toBe(1));
