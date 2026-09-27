@@ -31,11 +31,13 @@ import { useNotify } from "../../hooks/useNotify";
 import { useNow } from "../../hooks/useNow";
 import {
   ageS,
+  browserTimeZone,
   formatAgeS,
-  fromLocalInputValue,
   formatStamp,
-  toLocalInputValue,
+  utcToWallTime,
+  wallTimeToUtc,
 } from "../../lib/time";
+import TimeZoneSelect from "../../components/TimeZoneSelect";
 import MessagesSection from "./MessagesSection";
 import RouteSection from "./RouteSection";
 import RoutePosterSection from "./RoutePosterSection";
@@ -145,6 +147,7 @@ export default function EventDetail() {
     scheduledAt: string;
     wentLiveAt: string;
     endedAt: string;
+    timeZone: string;
     fundsPercent: string;
   }>({
     name: "",
@@ -152,18 +155,21 @@ export default function EventDetail() {
     scheduledAt: "",
     wentLiveAt: "",
     endedAt: "",
+    timeZone: browserTimeZone(),
     fundsPercent: "0",
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (event) {
+      const zone = event.scheduleTimeZone || browserTimeZone();
       setForm({
         name: event.name ?? "",
         year: String(event.year ?? ""),
-        scheduledAt: toLocalInputValue(event.scheduledAt),
-        wentLiveAt: toLocalInputValue(event.wentLiveAt),
-        endedAt: toLocalInputValue(event.endedAt),
+        scheduledAt: utcToWallTime(event.scheduledAt, zone),
+        wentLiveAt: utcToWallTime(event.wentLiveAt, zone),
+        endedAt: utcToWallTime(event.endedAt, zone),
+        timeZone: zone,
         fundsPercent: String(event.fundsPercent ?? "0"),
       });
     }
@@ -176,15 +182,32 @@ export default function EventDetail() {
     if (trimmedName !== event.name) changes.name = trimmedName;
     const y = Number(form.year);
     if (y !== Number(event.year)) changes.year = y;
-    const scheduledIso = fromLocalInputValue(form.scheduledAt);
-    if (scheduledIso !== (event.scheduledAt ?? null))
-      changes.scheduledAt = scheduledIso;
-    const wentLiveIso = fromLocalInputValue(form.wentLiveAt);
-    if (wentLiveIso !== (event.wentLiveAt ?? null))
-      changes.wentLiveAt = wentLiveIso;
-    const endedIso = fromLocalInputValue(form.endedAt);
-    if (endedIso !== (event.endedAt ?? null))
-      changes.endedAt = endedIso;
+    // The datetime fields are wall times in the picked zone. A field is
+    // sent when its wall time or the zone changed and the instant it
+    // reads as differs from the stored one.
+    const initialZone = event.scheduleTimeZone || browserTimeZone();
+    const zoneChanged = form.timeZone !== initialZone;
+    const instant = (wall: string, stored: string | null | undefined) => {
+      const edited =
+        zoneChanged || wall !== utcToWallTime(stored, initialZone);
+      const iso = wallTimeToUtc(wall, form.timeZone);
+      return edited && iso !== (stored ?? null) ? iso : undefined;
+    };
+    const scheduledIso = instant(form.scheduledAt, event.scheduledAt);
+    if (scheduledIso !== undefined) changes.scheduledAt = scheduledIso;
+    const wentLiveIso = instant(form.wentLiveAt, event.wentLiveAt);
+    if (wentLiveIso !== undefined) changes.wentLiveAt = wentLiveIso;
+    const endedIso = instant(form.endedAt, event.endedAt);
+    if (endedIso !== undefined) changes.endedAt = endedIso;
+    const timesChanged =
+      scheduledIso !== undefined ||
+      wentLiveIso !== undefined ||
+      endedIso !== undefined;
+    if (
+      (zoneChanged || timesChanged) &&
+      form.timeZone !== (event.scheduleTimeZone ?? null)
+    )
+      changes.scheduleTimeZone = form.timeZone;
     const fp = Number(form.fundsPercent);
     if (fp !== Number(event.fundsPercent)) changes.fundsPercent = fp;
     return Object.keys(changes).length === 0 ? null : changes;
@@ -315,8 +338,14 @@ export default function EventDetail() {
                   helperText={formErrors.year ?? ""}
                   fullWidth
                 />
+                <TimeZoneSelect
+                  value={form.timeZone}
+                  onChange={(z) => setForm({ ...form, timeZone: z })}
+                  helperText="The times below are in this zone"
+                />
                 <ScheduledField
                   value={form.scheduledAt}
+                  timeZone={form.timeZone}
                   onChange={(v) => setForm({ ...form, scheduledAt: v })}
                   error={formErrors.scheduledAt}
                   disabledClear={currentStatusId === 2}
@@ -331,7 +360,9 @@ export default function EventDetail() {
                   InputLabelProps={{ shrink: true }}
                   helperText={
                     form.wentLiveAt
-                      ? formatStamp(fromLocalInputValue(form.wentLiveAt))
+                      ? formatStamp(
+                          wallTimeToUtc(form.wentLiveAt, form.timeZone)
+                        )
                       : ""
                   }
                   fullWidth
@@ -344,7 +375,7 @@ export default function EventDetail() {
                   InputLabelProps={{ shrink: true }}
                   helperText={
                     form.endedAt
-                      ? formatStamp(fromLocalInputValue(form.endedAt))
+                      ? formatStamp(wallTimeToUtc(form.endedAt, form.timeZone))
                       : ""
                   }
                   fullWidth
@@ -649,11 +680,13 @@ function StatusHistorySection({ items }: { items: StatusHistory[] }) {
 
 function ScheduledField({
   value,
+  timeZone,
   onChange,
   error,
   disabledClear,
 }: {
   value: string;
+  timeZone: string;
   onChange: (v: string) => void;
   error?: string;
   disabledClear: boolean;
@@ -669,7 +702,7 @@ function ScheduledField({
         error={!!error}
         helperText={
           error ??
-          (value ? formatStamp(fromLocalInputValue(value)) : "")
+          (value ? formatStamp(wallTimeToUtc(value, timeZone)) : "")
         }
         fullWidth
       />

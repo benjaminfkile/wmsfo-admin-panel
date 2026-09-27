@@ -5180,6 +5180,7 @@ export interface components {
             /** Format: int64 */
             routeId?: null | number | string;
             inheritRoute?: boolean;
+            scheduleTimeZone?: null | string;
         };
         CreatePageRequest: {
             slug?: string;
@@ -5281,6 +5282,7 @@ export interface components {
             isCurrent?: boolean;
             /** Format: date-time */
             scheduledAt?: null | string;
+            scheduleTimeZone?: null | string;
             /** Format: date-time */
             wentLiveAt?: null | string;
             /** Format: date-time */
@@ -5796,6 +5798,7 @@ export interface components {
             /** Format: int64 */
             routeId?: null | number | string;
             routeImageMediaId?: null | string;
+            scheduleTimeZone?: components["schemas"]["JsonElement"];
         };
         PatchPageRequest: {
             slug?: null | string;
