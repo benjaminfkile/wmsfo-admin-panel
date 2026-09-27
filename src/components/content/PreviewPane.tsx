@@ -36,9 +36,10 @@ export const AUTO_RELOAD_DEBOUNCE_MS = 1500;
 interface Props {
   // Mints a token while true; clears it when false.
   active: boolean;
-  // Slug of the page to preview; when null the frame shows "/".
+  // Slug of the page the preview opens at; when null the frame shows "/".
   initialSlug?: string | null;
-  // Show the page selector? Defaults to true.
+  // Show the "Start at" page select and the click-around hint? Defaults to
+  // true.
   showPageSelector?: boolean;
   // Accessible title of the iframe.
   title?: string;
@@ -75,7 +76,7 @@ function buildSrc(
 }
 
 // The preview site framed with a minted token (admin.md 6.17): a toolbar
-// (page select, device select, Light / Dark / Site default theme toggle,
+// ("Start at" page select, device select, Light / Dark / Site default theme toggle,
 // token countdown, New token, Share, Reload) over an iframe that fills the rest
 // of the pane's height. The parent gives the pane its size.
 export default function PreviewPane({
@@ -199,9 +200,13 @@ export default function PreviewPane({
           <TextField
             select
             size="small"
-            label="Page"
+            label="Start at"
             value={slug ?? ""}
             onChange={(e) => setSlug(e.target.value === "" ? null : e.target.value)}
+            slotProps={{
+              select: { displayEmpty: true },
+              inputLabel: { shrink: true },
+            }}
             sx={{ minWidth: { xs: "auto", sm: 200 }, flex: { xs: 1, sm: "0 0 auto" } }}
             data-testid="preview-page-select"
           >
@@ -271,6 +276,16 @@ export default function PreviewPane({
           </IconButton>
         </Tooltip>
       </Stack>
+      {showPageSelector ? (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ mb: 1 }}
+          data-testid="preview-site-hint"
+        >
+          Click around: every page shows your draft.
+        </Typography>
+      ) : null}
       {mintMut.error ? <ErrorAlert error={mintMut.error} /> : null}
       <Box
         sx={{

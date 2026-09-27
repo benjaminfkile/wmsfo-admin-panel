@@ -3,6 +3,7 @@
 //   - drag reorder sends PUT /admin/pages/order with every `none` id
 //     in the new order
 //   - the delete confirmation names the page's section count
+//   - "Preview site" opens the preview dialog at the home page with Share
 
 import {
   describe,
@@ -10,6 +11,7 @@ import {
   it,
   beforeEach,
   afterEach,
+  vi,
 } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -176,6 +178,47 @@ describe("PagesList", () => {
     });
     // Body must be { ids: [4, 3] } - every `none` id in the new order.
     expect(orderBody).toEqual({ ids: [4, 3] });
+  });
+
+  it("Preview site opens the preview dialog at home with the Share menu", async () => {
+    const user = userEvent.setup();
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    let tokens = 0;
+    server.use(
+      http.post(`${testConfig.apiBaseUrl}/admin/content/preview-token`, () => {
+        tokens += 1;
+        return HttpResponse.json(f.previewToken, { status: 201 });
+      })
+    );
+    try {
+      render(<Harness />);
+      await user.click(
+        await screen.findByRole("button", { name: "Preview site" })
+      );
+      const iframe = await screen.findByTestId("preview-iframe");
+      expect(tokens).toBe(1);
+      expect(iframe.getAttribute("src")).toContain(f.previewToken.token);
+      expect(iframe.getAttribute("src")).not.toMatch(/[?&]page=/);
+      const select = screen.getByTestId("preview-page-select");
+      expect(within(select).getByText("Start at", { selector: "label" })).toBeInTheDocument();
+      expect(within(select).getByRole("combobox")).toHaveTextContent("Home");
+      expect(
+        screen.getByText("Click around: every page shows your draft.")
+      ).toBeInTheDocument();
+
+      await user.click(screen.getByTestId("preview-share"));
+      const menu = await screen.findByTestId("preview-share-menu");
+      await user.click(within(menu).getByTestId("preview-share-open"));
+      await waitFor(() => expect(open).toHaveBeenCalledTimes(1));
+      expect(tokens).toBe(2);
+      const [url, target, features] = open.mock.calls[0] ?? [];
+      expect(String(url)).toMatch(/\/preview\?token=wpv_/);
+      expect(String(url)).not.toMatch(/[?&]page=/);
+      expect(target).toBe("_blank");
+      expect(features).toBe("noopener");
+    } finally {
+      open.mockRestore();
+    }
   });
 
   it("renders a card per page on compact with the pencil", async () => {
