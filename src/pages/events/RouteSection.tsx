@@ -20,7 +20,7 @@ import type { RouteUploadBody } from "../../api/resources/routes";
 import type { Event, Route } from "../../api/types";
 import { keys } from "../../queries/keys";
 import { useNotify } from "../../hooks/useNotify";
-import { formatMt } from "../../lib/time";
+import { formatStamp } from "../../lib/time";
 import ErrorAlert from "../../components/ErrorAlert";
 import RouteUploadDialog from "./RouteUploadDialog";
 
@@ -137,7 +137,7 @@ export default function RouteSection({ event }: Props) {
       .map((e) => Number(e.year))
       .sort((a, b) => b - a);
     const usedBy = years.length === 0 ? "no event" : years.join(", ");
-    return `${r.name ?? `Recording #${r.id}`} · ${String(r.pointCount)} points · ${formatMt(r.createdAt)} · used by ${usedBy}`;
+    return `${r.name ?? `Recording #${r.id}`} · ${String(r.pointCount)} points · ${formatStamp(r.createdAt)} · used by ${usedBy}`;
   };
 
   return (
@@ -212,7 +212,7 @@ export default function RouteSection({ event }: Props) {
                   <Box component="span" sx={{ color: "text.secondary", mr: 1 }}>
                     createdAt:
                   </Box>
-                  {formatMt(currentRoute.createdAt)}
+                  {formatStamp(currentRoute.createdAt)}
                 </Typography>
                 <Typography variant="body2">
                   <Box component="span" sx={{ color: "text.secondary", mr: 1 }}>

@@ -20,7 +20,7 @@ import AppDialog from "../AppDialog";
 import ErrorAlert from "../ErrorAlert";
 import ResponsiveTable, { type Column } from "../list/ResponsiveTable";
 import { ThemedJsonView } from "../ThemedJsonView";
-import { formatMt } from "../../lib/time";
+import { formatStamp } from "../../lib/time";
 import type { AuditEntry, Page } from "../../api/types";
 import { formatAction, formatActor, summariseEntry } from "./auditFormat";
 
@@ -73,7 +73,7 @@ export default function AuditHistoryDialog({
       key: "time",
       header: "Time",
       role: "title",
-      render: (e) => formatMt(e.at),
+      render: (e) => formatStamp(e.at),
     },
     {
       key: "actorAction",

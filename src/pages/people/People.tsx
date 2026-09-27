@@ -19,7 +19,7 @@ import ResponsiveTable, {
   type Column,
 } from "../../components/list/ResponsiveTable";
 import { useNotify } from "../../hooks/useNotify";
-import { formatMt } from "../../lib/time";
+import { formatStamp } from "../../lib/time";
 import type { Person } from "../../api/types";
 
 type PersonWithCount = Person & { cookieCount: number };
@@ -75,13 +75,13 @@ export default function People() {
       header: "Created at",
       label: "Created",
       role: "line",
-      render: (p) => formatMt(p.createdAt) || "none",
+      render: (p) => formatStamp(p.createdAt) || "none",
     },
     {
       key: "lastSeenAt",
       header: "Last seen",
       role: "line",
-      render: (p) => formatMt(p.lastSeenAt) || "none",
+      render: (p) => formatStamp(p.lastSeenAt) || "none",
     },
   ];
 

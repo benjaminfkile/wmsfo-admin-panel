@@ -17,7 +17,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import type { RouteUploadBody } from "../../api/resources/routes";
 import { checkRouteFile, type RouteCheck } from "../../validation/routeFile";
 import ErrorAlert from "../../components/ErrorAlert";
-import { formatMt } from "../../lib/time";
+import { formatStamp } from "../../lib/time";
 import { downloadText } from "../../lib/download";
 import routeFixture from "../../../contracts/fixtures/route.json";
 import { useNotify } from "../../hooks/useNotify";
@@ -214,12 +214,12 @@ export default function RouteUploadDialog({
                 </Typography>
                 {check.summary.firstAt ? (
                   <Typography variant="body2">
-                    First point: {formatMt(check.summary.firstAt)}
+                    First point: {formatStamp(check.summary.firstAt)}
                   </Typography>
                 ) : null}
                 {check.summary.lastAt ? (
                   <Typography variant="body2">
-                    Last point: {formatMt(check.summary.lastAt)}
+                    Last point: {formatStamp(check.summary.lastAt)}
                   </Typography>
                 ) : null}
               </Alert>

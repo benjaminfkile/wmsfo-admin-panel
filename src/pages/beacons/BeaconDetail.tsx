@@ -26,7 +26,7 @@ import KeyRevealDialog from "../../components/KeyRevealDialog";
 import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import { useNow } from "../../hooks/useNow";
-import { ageS, formatAgeS, formatMt } from "../../lib/time";
+import { ageS, formatAgeS, formatStamp } from "../../lib/time";
 import { beaconFlags } from "../../lib/beaconFlags";
 import type { Beacon } from "../../api/types";
 import TelemetryPanel from "./TelemetryPanel";
@@ -246,7 +246,7 @@ export default function BeaconDetail() {
 
       {revoked ? (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          This beacon was revoked at {formatMt(beacon.revokedAt)}. It cannot
+          This beacon was revoked at {formatStamp(beacon.revokedAt)}. It cannot
           be used.
         </Alert>
       ) : null}
@@ -356,7 +356,7 @@ export default function BeaconDetail() {
                 </Stack>
                 <Box>
                   <Typography variant="caption" color="text.secondary">
-                    Created by {beacon.createdBy} on {formatMt(beacon.createdAt)}
+                    Created by {beacon.createdBy} on {formatStamp(beacon.createdAt)}
                   </Typography>
                 </Box>
               </Stack>
@@ -594,7 +594,7 @@ function AgeLine({
             ml: { xs: 0, md: 1 },
           }}
         >
-          ({formatMt(iso)})
+          ({formatStamp(iso)})
         </Box>
       ) : null}
     </Typography>

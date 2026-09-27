@@ -23,7 +23,7 @@ import ResponsiveTable, {
   type Column,
 } from "../../components/list/ResponsiveTable";
 import { ThemedJsonView } from "../../components/ThemedJsonView";
-import { formatMt } from "../../lib/time";
+import { formatStamp } from "../../lib/time";
 import {
   formatAction,
   formatActor,
@@ -104,7 +104,7 @@ export default function AuditPage() {
       key: "time",
       header: "Time",
       role: "title",
-      render: (e) => formatMt(e.at),
+      render: (e) => formatStamp(e.at),
     },
     {
       key: "actorAction",

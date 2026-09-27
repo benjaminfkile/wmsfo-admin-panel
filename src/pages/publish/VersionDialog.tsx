@@ -19,7 +19,7 @@ import { useQuery } from "@tanstack/react-query";
 import { content as contentApi } from "../../api/resources/content";
 import ErrorAlert from "../../components/ErrorAlert";
 import { ThemedJsonView } from "../../components/ThemedJsonView";
-import { formatMt } from "../../lib/time";
+import { formatStamp } from "../../lib/time";
 
 interface Props {
   open: boolean;
@@ -63,7 +63,7 @@ export default function VersionDialog({ open, versionId, onClose }: Props) {
             Version {String(info.id)}: {info.label ?? "(no label)"}
             <Typography variant="caption" display="block" color="text.secondary">
               Published by {info.publishedBy ?? "none"} at{" "}
-              {formatMt(info.publishedAt ?? null)}
+              {formatStamp(info.publishedAt ?? null)}
             </Typography>
           </>
         ) : (

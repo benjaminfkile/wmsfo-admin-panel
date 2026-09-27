@@ -29,7 +29,7 @@ import ResponsiveTable, {
 import { useNotify } from "../../hooks/useNotify";
 import { csvFromRecords } from "../../lib/csv";
 import { downloadCsv } from "../../lib/download";
-import { formatMt } from "../../lib/time";
+import { formatStamp } from "../../lib/time";
 import type { SubscriberAdmin } from "../../api/types";
 
 type FilterValue = "all" | SubscriberStatus;
@@ -169,21 +169,21 @@ export default function Subscribers() {
       header: "Verified at",
       label: "Verified",
       role: "line",
-      render: (s) => formatMt(s.verifiedAt) || "none",
+      render: (s) => formatStamp(s.verifiedAt) || "none",
     },
     {
       key: "unsubscribedAt",
       header: "Unsubscribed at",
       label: "Unsubscribed",
       role: "line",
-      render: (s) => formatMt(s.unsubscribedAt) || "none",
+      render: (s) => formatStamp(s.unsubscribedAt) || "none",
     },
     {
       key: "createdAt",
       header: "Created at",
       label: "Created",
       role: "line",
-      render: (s) => formatMt(s.createdAt) || "none",
+      render: (s) => formatStamp(s.createdAt) || "none",
     },
   ];
 

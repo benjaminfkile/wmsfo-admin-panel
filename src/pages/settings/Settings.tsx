@@ -17,7 +17,7 @@ import ResponsiveTable, {
   type Column,
 } from "../../components/list/ResponsiveTable";
 import { useNotify } from "../../hooks/useNotify";
-import { formatMt } from "../../lib/time";
+import { formatStamp } from "../../lib/time";
 import {
   SETTING_SPECS,
   specFor,
@@ -233,7 +233,7 @@ export default function Settings() {
       header: "Updated at",
       role: "line",
       render: (s) =>
-        s.updatedAt ? formatMt(s.updatedAt) : "default",
+        s.updatedAt ? formatStamp(s.updatedAt) : "default",
     },
   ];
 

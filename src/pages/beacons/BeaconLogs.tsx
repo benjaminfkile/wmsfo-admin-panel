@@ -11,7 +11,7 @@ import { beacons as beaconsApi } from "../../api/resources/beacons";
 import { keys } from "../../queries/keys";
 import { downloadText } from "../../lib/download";
 import { useNotify } from "../../hooks/useNotify";
-import { formatMt } from "../../lib/time";
+import { formatStamp } from "../../lib/time";
 import ErrorAlert from "../../components/ErrorAlert";
 import ResponsiveTable, {
   type Column,
@@ -53,7 +53,7 @@ export default function BeaconLogs({ beaconId }: Props) {
       key: "received",
       header: "Received",
       role: "title",
-      render: (l) => formatMt(l.receivedAt),
+      render: (l) => formatStamp(l.receivedAt),
     },
     {
       key: "appVersion",

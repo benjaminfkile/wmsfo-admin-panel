@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { stockParagraph } from "./statusCopy";
+import { formatStamp } from "./time";
 
 describe("stockParagraph", () => {
   it("returns a distinct paragraph per status id", () => {
@@ -20,5 +21,13 @@ describe("stockParagraph", () => {
     const withoutTime = stockParagraph(2, "Santa Flyover 2027", null);
     expect(withTime).toMatch(/Lift-off is planned for/);
     expect(withoutTime).not.toMatch(/Lift-off is planned for/);
+  });
+
+  it("scheduled paragraph carries the stamp with its zone and no Mountain time", () => {
+    const at = "2027-12-24T02:00:00.000Z";
+    const p = stockParagraph(2, "Santa Flyover 2027", at);
+    expect(p).toContain(`Lift-off is planned for ${formatStamp(at)}.`);
+    expect(p).not.toContain("Mountain time");
+    expect(p).not.toContain("Mountain");
   });
 });

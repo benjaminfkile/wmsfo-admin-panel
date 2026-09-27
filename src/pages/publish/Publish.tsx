@@ -22,7 +22,7 @@ import ErrorAlert from "../../components/ErrorAlert";
 import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import { ApiError } from "../../api/errors";
-import { formatMt, formatAgeS, ageS } from "../../lib/time";
+import { formatStamp, formatAgeS, ageS } from "../../lib/time";
 import { useNow } from "../../hooks/useNow";
 import VersionsList from "./VersionsList";
 import type { ProblemRef } from "../../api/types";
@@ -128,7 +128,7 @@ export default function Publish() {
                   component="span"
                   color="text.secondary"
                   variant="body2"
-                  title={formatMt(published.publishedAt ?? null)}
+                  title={formatStamp(published.publishedAt ?? null)}
                 >
                   {publishedAge ?? "none"}
                 </Typography>
@@ -138,7 +138,7 @@ export default function Publish() {
             )}
             <Typography variant="body2" color="text.secondary">
               Draft changed{" "}
-              <span title={formatMt(status?.draftUpdatedAt ?? null)}>
+              <span title={formatStamp(status?.draftUpdatedAt ?? null)}>
                 {draftAge ?? "never"}
               </span>
             </Typography>

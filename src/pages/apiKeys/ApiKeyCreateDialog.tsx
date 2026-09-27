@@ -17,7 +17,7 @@ import AppDialog from "../../components/AppDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import { ApiError } from "../../api/errors";
 import { fieldErrorFor } from "../../lib/fieldErrors";
-import { fromLocalInputValue, formatMt } from "../../lib/time";
+import { fromLocalInputValue, formatStamp } from "../../lib/time";
 import type { ApiKeyCreateBody } from "../../api/resources/apiKeys";
 import type { ApiKeyCapability } from "../../api/types";
 
@@ -137,7 +137,7 @@ export default function ApiKeyCreateDialog({
   const expiresPreview = useMemo(() => {
     if (neverExpires) return "Never expires";
     const iso = fromLocalInputValue(expiresAtLocal);
-    return iso ? formatMt(iso) : "Must be at least one hour ahead";
+    return iso ? formatStamp(iso) : "Must be at least one hour ahead";
   }, [neverExpires, expiresAtLocal]);
 
   const nameTaken =

@@ -38,7 +38,7 @@ import { useNow } from "../hooks/useNow";
 import {
   ageS,
   formatAgeS,
-  formatMt,
+  formatStamp,
 } from "../lib/time";
 import type {
   Beacon,
@@ -386,13 +386,13 @@ function CurrentEventCard({
               <StatusChip statusId={Number(event.statusId)} />
             </Box>
             <LabeledLine label="scheduledAt">
-              {formatMt(event.scheduledAt) || "none"}
+              {formatStamp(event.scheduledAt) || "none"}
             </LabeledLine>
             <LabeledLine label="wentLiveAt">
-              {formatMt(event.wentLiveAt) || "none"}
+              {formatStamp(event.wentLiveAt) || "none"}
             </LabeledLine>
             <LabeledLine label="endedAt">
-              {formatMt(event.endedAt) || "none"}
+              {formatStamp(event.endedAt) || "none"}
             </LabeledLine>
             <LabeledLine label="fundsPercent">
               {String(event.fundsPercent)}%
@@ -495,7 +495,7 @@ function ActiveBeaconCard({
               {formatAgeS(ageS(beacon.lastLocationAt, now)) || "never"}
             </LabeledLine>
             <LabeledLine label="staleSince">
-              {beacon.staleSince ? formatMt(beacon.staleSince) : "none"}
+              {beacon.staleSince ? formatStamp(beacon.staleSince) : "none"}
             </LabeledLine>
             <LabeledLine label="staleAfterS">{String(staleAfterS)} s</LabeledLine>
           </Stack>
@@ -577,7 +577,7 @@ function PublishedStateCard({
         {live ? (
           <Stack spacing={0.5} sx={{ mt: 2 }}>
             <LabeledLine label="lastWriteAt">
-              {formatMt(live.lastWriteAt) || "none"}
+              {formatStamp(live.lastWriteAt) || "none"}
             </LabeledLine>
             <LabeledLine label="lastWriteSeq">
               {live.lastWriteSeq === null ? "none" : String(live.lastWriteSeq)}
@@ -595,10 +595,10 @@ function PublishedStateCard({
               {String(live.node.isLeader)}
             </LabeledLine>
             <LabeledLine label="leaderEvaluatedAt">
-              {formatMt(live.node.leaderEvaluatedAt) || "none"}
+              {formatStamp(live.node.leaderEvaluatedAt) || "none"}
             </LabeledLine>
             <LabeledLine label="cacheRefreshedAt">
-              {formatMt(live.node.cacheRefreshedAt) || "none"}
+              {formatStamp(live.node.cacheRefreshedAt) || "none"}
             </LabeledLine>
           </Stack>
         ) : null}
@@ -652,7 +652,7 @@ function SnapshotCard({
         ) : (
           <Stack spacing={0.5}>
             <LabeledLine label="version">{String(snap.version)}</LabeledLine>
-            <LabeledLine label="builtAt">{formatMt(snap.builtAt)}</LabeledLine>
+            <LabeledLine label="builtAt">{formatStamp(snap.builtAt)}</LabeledLine>
             <LabeledLine label="s3Key" wrap>
               <Box component="code" sx={{ overflowWrap: "anywhere" }}>
                 {snap.s3Key}
@@ -750,13 +750,13 @@ function LiveObjectCard({
               {cdn.accuracyM === null ? "none" : String(cdn.accuracyM)}
             </LabeledLine>
             <LabeledLine label="recordedAt">
-              {formatMt(cdn.recordedAt) || "none"}
+              {formatStamp(cdn.recordedAt) || "none"}
             </LabeledLine>
             <LabeledLine label="receivedAt">
-              {formatMt(cdn.receivedAt) || "none"}
+              {formatStamp(cdn.receivedAt) || "none"}
             </LabeledLine>
             <LabeledLine label="publishedAt">
-              {formatMt(cdn.publishedAt)}{" "}
+              {formatStamp(cdn.publishedAt)}{" "}
               <Box component="span" sx={{ color: "text.secondary" }}>
                 ({formatAgeS(ageS(cdn.publishedAt, now))} ago)
               </Box>

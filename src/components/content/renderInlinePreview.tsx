@@ -1,7 +1,7 @@
 import { Fragment, type ReactNode } from "react";
 import { Box } from "@mui/material";
 import IconPreview from "./IconPreview";
-import { formatMt } from "../../lib/time";
+import { formatStamp } from "../../lib/time";
 import type { Icon } from "../../api/types";
 
 export type InlineEventContext = {
@@ -70,7 +70,8 @@ function nextMatch(text: string, from: number): Match | null {
 function renderToken(
   token: Token,
   key: number,
-  event: InlineEventContext
+  event: InlineEventContext,
+  timeZone?: string
 ): ReactNode {
   switch (token.kind) {
     case "bold":
@@ -142,7 +143,7 @@ function renderToken(
       ) : null;
     case "event-scheduledAt":
       return event?.scheduledAt ? (
-        <Fragment key={key}>{formatMt(event.scheduledAt)}</Fragment>
+        <Fragment key={key}>{formatStamp(event.scheduledAt, timeZone)}</Fragment>
       ) : null;
     case "newline":
       return <br key={key} />;
@@ -154,11 +155,12 @@ function renderToken(
 // `{icon:<id>}` or `{icon:media:<id>}`, a newline as a line break, and
 // the placeholders `{event:name}`, `{event:year}`, `{event:scheduledAt}`
 // resolved from `event` (blank when the event is null; `scheduledAt`
-// formatted in America/Denver). Anything else is left literal. Never
-// uses innerHTML.
+// formatted by `formatStamp` in `timeZone`, the viewer's zone when
+// omitted). Anything else is left literal. Never uses innerHTML.
 export function renderInlinePreview(
   text: string,
-  event: InlineEventContext
+  event: InlineEventContext,
+  timeZone?: string
 ): ReactNode {
   const out: ReactNode[] = [];
   let cursor = 0;
@@ -174,13 +176,17 @@ export function renderInlinePreview(
         <Fragment key={key++}>{text.slice(cursor, match.start)}</Fragment>
       );
     }
-    out.push(renderToken(match.token, key++, event));
+    out.push(renderToken(match.token, key++, event, timeZone));
     cursor = match.end;
   }
   return <>{out}</>;
 }
 
-function tokenToPlainText(token: Token, event: InlineEventContext): string {
+function tokenToPlainText(
+  token: Token,
+  event: InlineEventContext,
+  timeZone?: string
+): string {
   switch (token.kind) {
     case "bold":
     case "italic":
@@ -196,7 +202,7 @@ function tokenToPlainText(token: Token, event: InlineEventContext): string {
     case "event-year":
       return typeof event?.year === "number" ? String(event.year) : "";
     case "event-scheduledAt":
-      return event?.scheduledAt ? formatMt(event.scheduledAt) : "";
+      return event?.scheduledAt ? formatStamp(event.scheduledAt, timeZone) : "";
     case "newline":
       return " ";
   }
@@ -209,7 +215,8 @@ function tokenToPlainText(token: Token, event: InlineEventContext): string {
 // preview fills them (blank when the event is null).
 export function inlineToPlainText(
   text: string,
-  event: InlineEventContext
+  event: InlineEventContext,
+  timeZone?: string
 ): string {
   let out = "";
   let cursor = 0;
@@ -220,7 +227,7 @@ export function inlineToPlainText(
       break;
     }
     out += text.slice(cursor, match.start);
-    out += tokenToPlainText(match.token, event);
+    out += tokenToPlainText(match.token, event, timeZone);
     cursor = match.end;
   }
   return out;

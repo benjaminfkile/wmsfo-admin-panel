@@ -30,7 +30,7 @@ import ResponsiveTable, {
   type Column,
 } from "../../components/list/ResponsiveTable";
 import { useNotify } from "../../hooks/useNotify";
-import { formatMt, formatMtDate } from "../../lib/time";
+import { formatStamp, formatStampDate } from "../../lib/time";
 import type {
   Place,
   QrCodeDetail,
@@ -219,14 +219,14 @@ export default function QrCodeDetail() {
       header: "From",
       role: "line",
       label: "From",
-      render: (row) => formatMt(row.fromAt),
+      render: (row) => formatStamp(row.fromAt),
     },
     {
       key: "to",
       header: "To",
       role: "line",
       label: "To",
-      render: (row) => (row.toAt ? formatMt(row.toAt) : "current"),
+      render: (row) => (row.toAt ? formatStamp(row.toAt) : "current"),
     },
     {
       key: "people",
@@ -426,7 +426,7 @@ export default function QrCodeDetail() {
             />
 
             <Typography variant="body2" color="text.secondary">
-              Printed: Batch {d.batchNo} · {formatMtDate(d.printedAt)}
+              Printed: Batch {d.batchNo} · {formatStampDate(d.printedAt)}
             </Typography>
 
             <Stack direction="row" spacing={1}>

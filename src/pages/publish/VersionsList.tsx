@@ -14,7 +14,7 @@ import ErrorAlert from "../../components/ErrorAlert";
 import ResponsiveTable, {
   type Column,
 } from "../../components/list/ResponsiveTable";
-import { formatMt } from "../../lib/time";
+import { formatStamp } from "../../lib/time";
 import { useNotify } from "../../hooks/useNotify";
 import VersionDialog from "./VersionDialog";
 import type { ContentVersionInfo } from "../../api/types";
@@ -103,7 +103,7 @@ export default function VersionsList({ currentPublishedId }: Props) {
       key: "time",
       header: "Time",
       role: "line",
-      render: (v) => formatMt(v.publishedAt ?? null),
+      render: (v) => formatStamp(v.publishedAt ?? null),
     },
     {
       key: "pages",
