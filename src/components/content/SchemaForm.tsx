@@ -35,7 +35,15 @@ const PRIMITIVE_BY_REF: Record<string, keyof typeof CUSTOM_FIELD> = {
   "#/$defs/Inline": "InlineField",
   "#/$defs/InlineNullable": "InlineField",
   "#/$defs/Presentation": "PresentationPanelField",
+  "#/$defs/Display": "HiddenField",
+  "#/$defs/DisplayNullable": "HiddenField",
 };
+
+// Renders nothing. A `display` object is edited by the DisplayControls
+// inside the icon and media fields that own it, never as raw fields.
+function HiddenField(): null {
+  return null;
+}
 
 const CUSTOM_FIELD = {
   IconField,
@@ -47,6 +55,7 @@ const CUSTOM_FIELD = {
   PresentationPanelField,
   OptionalField,
   ThemeField,
+  HiddenField,
 };
 
 function routedField(schema: unknown): keyof typeof CUSTOM_FIELD | null {

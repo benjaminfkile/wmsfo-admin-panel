@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { FieldProps } from "@rjsf/utils";
 import IconPicker from "../pickers/IconPicker";
 import IconPreview from "../IconPreview";
+import DisplayControls from "../DisplayControls";
+import { withDisplay } from "../display";
 import { icons as iconsApi } from "../../../api/resources/icons";
 import { media as mediaApi } from "../../../api/resources/media";
 import { keys } from "../../../queries/keys";
@@ -12,6 +14,8 @@ import type { Icon, IconInfo, MediaAsset } from "../../../api/types";
 // The `Icon` primitive. IconPreview shows the picked icon next to its
 // name (library) or filename (media); Choose opens the shared icon
 // picker; Clear removes the value on nullable schemas.
+// With an icon set, the collapsed Advanced section (DisplayControls)
+// edits its `display`, which a new pick keeps.
 // `ui:options.hint` shows a short line under the field.
 export default function IconField(props: FieldProps) {
   const value = (props.formData as Icon | null | undefined) ?? null;
@@ -90,6 +94,14 @@ export default function IconField(props: FieldProps) {
           </Button>
         ) : null}
       </Stack>
+      {value ? (
+        <DisplayControls
+          value={value.display}
+          onChange={(d) =>
+            props.onChange(withDisplay(value, d) as unknown, props.fieldPathId.path)
+          }
+        />
+      ) : null}
       {hint ? (
         <Typography
           variant="caption"
@@ -105,7 +117,10 @@ export default function IconField(props: FieldProps) {
         onCancel={() => setOpen(false)}
         onPick={(next) => {
           setOpen(false);
-          props.onChange(next as unknown, props.fieldPathId.path);
+          props.onChange(
+            (value?.display ? { ...next, display: value.display } : next) as unknown,
+            props.fieldPathId.path
+          );
         }}
       />
     </Box>

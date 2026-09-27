@@ -9,12 +9,17 @@ import {
 import type { FieldProps } from "@rjsf/utils";
 import MediaPicker from "../MediaPicker";
 import MediaPreview from "../MediaPreview";
+import DisplayControls from "../DisplayControls";
+import { withDisplay } from "../display";
 import type { MediaAsset, MediaRef } from "../../../api/types";
 
 // The `MediaRef` primitive. MediaPreview stands in for the id; keep the
-// Choose button and an alt override text field.
+// Choose button, an alt override text field, and, with media picked, the
+// collapsed Advanced section (DisplayControls) for its `display`.
+type MediaRefWithDisplay = MediaRef & { display?: unknown };
+
 export default function MediaField(props: FieldProps) {
-  const value = (props.formData as MediaRef | null | undefined) ?? {
+  const value = (props.formData as MediaRefWithDisplay | null | undefined) ?? {
     mediaId: "",
     alt: null,
   };
@@ -40,7 +45,7 @@ export default function MediaField(props: FieldProps) {
   const pick = (asset: MediaAsset) => {
     setOpen(false);
     props.onChange(
-      { mediaId: asset.id ?? "", alt: value.alt ?? null } as unknown,
+      { ...value, mediaId: asset.id ?? "", alt: value.alt ?? null } as unknown,
       props.fieldPathId.path
     );
   };
@@ -71,6 +76,14 @@ export default function MediaField(props: FieldProps) {
         fullWidth
         sx={{ mt: 1 }}
       />
+      {value.mediaId ? (
+        <DisplayControls
+          value={value.display}
+          onChange={(d) =>
+            props.onChange(withDisplay(value, d) as unknown, props.fieldPathId.path)
+          }
+        />
+      ) : null}
       <MediaPicker
         open={open}
         onCancel={() => setOpen(false)}

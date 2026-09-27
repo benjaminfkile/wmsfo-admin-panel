@@ -13,6 +13,8 @@ import type { FieldProps } from "@rjsf/utils";
 import type { Icon, IconInfo, MediaAsset } from "../../../api/types";
 import IconPicker from "../pickers/IconPicker";
 import IconPreview from "../IconPreview";
+import DisplayControls from "../DisplayControls";
+import { withDisplay } from "../display";
 import InlineText from "../InlineText";
 import { icons as iconsApi } from "../../../api/resources/icons";
 import { media as mediaApi } from "../../../api/resources/media";
@@ -29,7 +31,8 @@ const EMPTY: LinkValue = { label: "", href: "", icon: null, newTab: false };
 
 // The `Link` primitive. Label (Inline through `InlineText`), href, icon,
 // and newTab. The icon line uses IconPreview and MUI Buttons for Choose
-// and Clear.
+// and Clear; with an icon set, the collapsed Advanced section
+// (DisplayControls) edits the icon's `display`.
 export default function LinkField(props: FieldProps) {
   const value = (props.formData as Partial<LinkValue> | undefined) ?? EMPTY;
   const [iconOpen, setIconOpen] = useState(false);
@@ -142,6 +145,12 @@ export default function LinkField(props: FieldProps) {
             </Button>
           ) : null}
         </Stack>
+        {icon ? (
+          <DisplayControls
+            value={icon.display}
+            onChange={(d) => patch({ icon: withDisplay(icon, d) })}
+          />
+        ) : null}
         <FormControlLabel
           control={
             <Checkbox
@@ -157,7 +166,9 @@ export default function LinkField(props: FieldProps) {
         onCancel={() => setIconOpen(false)}
         onPick={(picked) => {
           setIconOpen(false);
-          patch({ icon: picked });
+          patch({
+            icon: icon?.display ? { ...picked, display: icon.display } : picked,
+          });
         }}
       />
     </Box>
