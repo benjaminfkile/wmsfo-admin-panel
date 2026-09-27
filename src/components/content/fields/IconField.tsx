@@ -12,6 +12,7 @@ import type { Icon, IconInfo, MediaAsset } from "../../../api/types";
 // The `Icon` primitive. IconPreview shows the picked icon next to its
 // name (library) or filename (media); Choose opens the shared icon
 // picker; Clear removes the value on nullable schemas.
+// `ui:options.hint` shows a short line under the field.
 export default function IconField(props: FieldProps) {
   const value = (props.formData as Icon | null | undefined) ?? null;
   const oneOf = (props.schema as { oneOf?: unknown[] }).oneOf;
@@ -27,6 +28,10 @@ export default function IconField(props: FieldProps) {
       : typeof props.schema.title === "string"
         ? props.schema.title
         : props.name;
+  const uiOptions = (props.uiSchema as { "ui:options"?: { hint?: unknown } } | undefined)?.[
+    "ui:options"
+  ];
+  const hint = typeof uiOptions?.hint === "string" ? uiOptions.hint : "";
 
   const isLibrary = value?.source === "library";
   const isMedia = value?.source === "media";
@@ -85,6 +90,16 @@ export default function IconField(props: FieldProps) {
           </Button>
         ) : null}
       </Stack>
+      {hint ? (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          component="p"
+          data-testid="icon-field-hint"
+        >
+          {hint}
+        </Typography>
+      ) : null}
       <IconPicker
         open={open}
         onCancel={() => setOpen(false)}

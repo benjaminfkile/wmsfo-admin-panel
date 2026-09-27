@@ -18,6 +18,22 @@ export interface FieldLabel {
   // The option an absent or null value stands for; the select shows its
   // label instead of a blank box.
   unset?: string;
+  // For a boolean field: the value an absent or null value stands for.
+  // The field renders as a switch that shows this value while unset.
+  switchDefault?: boolean;
+  // Changes to the field while another top-level field of the same form
+  // is unset (absent or null) or on (true).
+  when?: FieldCondition;
+}
+
+export interface FieldCondition {
+  field: string;
+  is: "unset" | "on";
+  disabled?: boolean;
+  // A short line shown with the field.
+  hint?: string;
+  // A label used instead of the entry's own.
+  label?: string;
 }
 
 export type FieldLabels = Record<string, FieldLabel>;
@@ -38,14 +54,26 @@ const SECTION: Record<string, FieldLabels> = {
   hero: {
     title: { label: "Title" },
     tagline: { label: "Tagline" },
-    icon: { label: "Icon" },
+    icon: {
+      label: "Icon",
+      when: {
+        field: "showLogo",
+        is: "on",
+        hint: "Not shown while the site logo is on",
+      },
+    },
     iconSize: {
       label: "Icon size",
       help: "How big the icon above the title is",
       options: { sm: "Small", md: "Medium", lg: "Large", xl: "Extra large" },
       unset: "sm",
+      when: { field: "showLogo", is: "on", label: "Icon or logo size" },
     },
-    showLogo: { label: "Show the site logo instead of the icon" },
+    showLogo: {
+      label: "Show the site logo instead of the icon",
+      help: "Uses the logo from Site settings",
+      switchDefault: false,
+    },
     links: { label: "Call-to-action links" },
     height: {
       label: "Height",
@@ -373,8 +401,20 @@ export const SITE_SETTINGS: FieldLabels = {
     label: "Count visits (analytics)",
     help: "When on, the site counts page visits.",
   },
-  logoMedia: { label: "Site logo" },
-  headerShowsSiteName: { label: "Show the site name next to the logo" },
+  logoMedia: {
+    label: "Site logo",
+    help: "Shown in the header, and in any hero set to show the site logo. Upload an SVG or a transparent PNG.",
+  },
+  headerShowsSiteName: {
+    label: "Show the site name next to the logo",
+    switchDefault: true,
+    when: {
+      field: "logoMedia",
+      is: "unset",
+      disabled: true,
+      hint: "Set a site logo first",
+    },
+  },
 };
 
 // The fields of the `display` object an icon or media reference can
@@ -396,9 +436,9 @@ export function labelsFor(kind: string, isItem: boolean): FieldLabels {
 
 // The field order of a section form where it differs from the schema's
 // property order; "*" stands for every field not named. The hero's
-// Icon size sits right after its Icon.
+// logo switch and Icon size sit right after its Icon.
 const SECTION_ORDER: Record<string, string[]> = {
-  hero: ["title", "tagline", "icon", "iconSize", "*"],
+  hero: ["title", "tagline", "icon", "showLogo", "iconSize", "*"],
 };
 
 // The top-level field order for a kind's form, or undefined to keep the
@@ -406,6 +446,15 @@ const SECTION_ORDER: Record<string, string[]> = {
 export function orderFor(kind: string, isItem: boolean): string[] | undefined {
   return isItem ? undefined : SECTION_ORDER[kind];
 }
+
+// The top-level field order of the site settings form: the logo fields
+// sit right after the site name.
+export const SITE_SETTINGS_ORDER = [
+  "siteName",
+  "logoMedia",
+  "headerShowsSiteName",
+  "*",
+];
 
 // The labels for the site settings form.
 export function siteSettingsLabels(): FieldLabels {

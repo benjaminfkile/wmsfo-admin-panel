@@ -256,6 +256,85 @@ describe("SiteSettings", () => {
     expect(body?.data?.theme?.futureKey).toBe("keep-me");
   });
 
+  it("shows the site logo and the name switch right after Site name", async () => {
+    const { container } = render(<Harness />);
+    await waitFor(() =>
+      expect(screen.getByTestId("theme-field")).toBeInTheDocument()
+    );
+    const text = container.textContent ?? "";
+    const nameAt = text.indexOf("Site name");
+    const logoAt = text.indexOf("Site logo");
+    const switchAt = text.indexOf("Show the site name next to the logo");
+    const taglineAt = text.indexOf("Tagline");
+    expect(logoAt).toBeGreaterThan(nameAt);
+    expect(switchAt).toBeGreaterThan(logoAt);
+    expect(taglineAt).toBeGreaterThan(switchAt);
+    expect(text).toContain(
+      "Shown in the header, and in any hero set to show the site logo. Upload an SVG or a transparent PNG."
+    );
+    // The logo is the optional media field: off until switched on.
+    const logoSwitch = screen.getByRole("switch", { name: "Site logo" });
+    expect(logoSwitch).not.toBeChecked();
+  });
+
+  it("the name switch reads on when absent and is disabled without a logo", async () => {
+    render(<Harness />);
+    await waitFor(() =>
+      expect(screen.getByTestId("theme-field")).toBeInTheDocument()
+    );
+    const sw = screen.getByRole("switch", {
+      name: "Show the site name next to the logo",
+    });
+    expect(sw).toBeChecked();
+    expect(sw).toBeDisabled();
+    expect(screen.getByText("Set a site logo first")).toBeInTheDocument();
+  });
+
+  it("with a logo set, turning the name switch off writes false", async () => {
+    const user = userEvent.setup();
+    const captured: Array<{ body: unknown }> = [];
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/site-settings`, () =>
+        HttpResponse.json({
+          ...f.siteSettingsDraft,
+          data: {
+            ...FULL_DRAFT,
+            logoMedia: { mediaId: "m-logo", alt: null },
+            headerShowsSiteName: null,
+          },
+        })
+      ),
+      http.put(
+        `${testConfig.apiBaseUrl}/admin/site-settings`,
+        async ({ request }) => {
+          captured.push({ body: await request.json() });
+          return HttpResponse.json({
+            ...f.siteSettingsDraft,
+            data: FULL_DRAFT,
+          });
+        }
+      )
+    );
+    render(<Harness />);
+    await waitFor(() =>
+      expect(screen.getByTestId("theme-field")).toBeInTheDocument()
+    );
+    const sw = screen.getByRole("switch", {
+      name: "Show the site name next to the logo",
+    });
+    expect(sw).toBeChecked();
+    // Enabled once the draft with its logo has loaded.
+    await waitFor(() => expect(sw).not.toBeDisabled());
+    expect(screen.queryByText("Set a site logo first")).toBeNull();
+    await user.click(sw);
+    const save = await screen.findByTestId("site-settings-save");
+    await waitFor(() => expect(save).not.toBeDisabled());
+    await user.click(save);
+    await waitFor(() => expect(captured.length).toBeGreaterThan(0));
+    const body = captured[0]?.body as { data?: Record<string, unknown> };
+    expect(body?.data?.headerShowsSiteName).toBe(false);
+  });
+
   it("renders problems from the draft response", async () => {
     server.use(
       http.get(`${testConfig.apiBaseUrl}/admin/site-settings`, () =>
