@@ -5787,12 +5787,9 @@ export interface components {
             name?: null | string;
             /** Format: int32 */
             year?: null | number | string;
-            /** Format: date-time */
-            scheduledAt?: null | string;
-            /** Format: date-time */
-            wentLiveAt?: null | string;
-            /** Format: date-time */
-            endedAt?: null | string;
+            scheduledAt?: components["schemas"]["JsonElement"];
+            wentLiveAt?: components["schemas"]["JsonElement"];
+            endedAt?: components["schemas"]["JsonElement"];
             /** Format: int32 */
             fundsPercent?: null | number | string;
             /** Format: int64 */

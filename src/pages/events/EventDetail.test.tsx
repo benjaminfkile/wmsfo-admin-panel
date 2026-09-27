@@ -869,4 +869,49 @@ describe("EventDetail: the schedule timezone (admin.md 7.5)", () => {
     // The instants are untouched, so only the zone is patched.
     expect(patches[0]).toEqual({ scheduleTimeZone: "America/Chicago" });
   });
+
+  it("clearing Went live at and Ended at patches them as null", async () => {
+    const real = Intl.DateTimeFormat.prototype.resolvedOptions;
+    vi.spyOn(
+      Intl.DateTimeFormat.prototype,
+      "resolvedOptions"
+    ).mockImplementation(function (this: Intl.DateTimeFormat) {
+      return { ...real.call(this), timeZone: "America/Denver" };
+    });
+    const user = userEvent.setup();
+    const patches: unknown[] = [];
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
+        HttpResponse.json({
+          ...f.events[0]!,
+          wentLiveAt: "2026-12-22T01:02:00.000Z",
+          endedAt: "2026-12-22T03:04:00.000Z",
+        })
+      ),
+      http.patch(
+        `${testConfig.apiBaseUrl}/admin/events/:id`,
+        async ({ request }) => {
+          patches.push(await request.json());
+          return HttpResponse.json(f.events[0]);
+        }
+      )
+    );
+    render(<Harness id={Number(f.events[0]!.id)} />);
+
+    const wentLive = await screen.findByLabelText(/went live at/i);
+    const ended = screen.getByLabelText(/ended at/i);
+    await waitFor(() => expect(wentLive).not.toHaveValue(""));
+    fireEvent.change(wentLive, { target: { value: "" } });
+    fireEvent.change(ended, { target: { value: "" } });
+
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+    await waitFor(() => expect(patches.length).toBe(1));
+    // A time edit also persists the zone it was edited in (the defaulted
+    // browser zone here).
+    expect(patches[0]).toEqual({
+      wentLiveAt: null,
+      endedAt: null,
+      scheduleTimeZone: "America/Denver",
+    });
+  });
 });
