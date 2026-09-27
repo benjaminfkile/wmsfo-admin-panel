@@ -21,7 +21,15 @@ export const media = {
     title: string;
   }) => post<UploadTicket>("/admin/media/upload-url", b),
   confirm: (id: string) => post<MediaAsset>(`/admin/media/${id}/confirm`),
-  patch: (id: string, b: Partial<{ alt: string; title: string }>) =>
+  patch: (
+    id: string,
+    b: Partial<{
+      alt: string;
+      title: string;
+      darkMediaId: string | null;
+      invertInDark: boolean;
+    }>
+  ) =>
     patch<MediaAsset>(`/admin/media/${id}`, b),
   remove: (id: string) => del(`/admin/media/${id}`),
 };

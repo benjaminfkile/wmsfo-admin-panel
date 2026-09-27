@@ -28,6 +28,9 @@ interface Props {
   // Filters that callers force (MediaPicker fixes state=ready and passes kind).
   fixedKind?: MediaQuery["kind"];
   fixedState?: MediaQuery["state"];
+  // Assets left out of the grid (the drawer's own asset when choosing
+  // its dark mode version).
+  excludeIds?: string[];
   showFilters?: boolean;
   emptyText?: string;
 }
@@ -42,6 +45,7 @@ export default function MediaGrid({
   selectedId,
   fixedKind,
   fixedState,
+  excludeIds,
   showFilters = true,
   emptyText = "No media",
 }: Props) {
@@ -60,8 +64,8 @@ export default function MediaGrid({
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
 
-  const items: MediaAsset[] = (query.data?.pages ?? []).flatMap(
-    (p) => p.items ?? []
+  const items: MediaAsset[] = (query.data?.pages ?? []).flatMap((p) =>
+    (p.items ?? []).filter((a) => !excludeIds?.includes(a.id ?? ""))
   );
 
   return (

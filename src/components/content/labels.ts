@@ -45,6 +45,7 @@ const SECTION: Record<string, FieldLabels> = {
       options: { sm: "Small", md: "Medium", lg: "Large", xl: "Extra large" },
       unset: "sm",
     },
+    showLogo: { label: "Show the site logo instead of the icon" },
     links: { label: "Call-to-action links" },
     height: {
       label: "Height",
@@ -372,6 +373,20 @@ export const SITE_SETTINGS: FieldLabels = {
     label: "Count visits (analytics)",
     help: "When on, the site counts page visits.",
   },
+  logoMedia: { label: "Site logo" },
+  headerShowsSiteName: { label: "Show the site name next to the logo" },
+};
+
+// The fields of the `display` object an icon or media reference can
+// carry (`Display` in primitives.schema.json), keyed by field name.
+export const DISPLAY_LABELS: FieldLabels = {
+  sizePx: { label: "Size (px)" },
+  fit: { label: "Fit" },
+  shape: { label: "Shape" },
+  paddingPx: { label: "Padding (px)" },
+  background: { label: "Background" },
+  shadow: { label: "Shadow" },
+  align: { label: "Alignment" },
 };
 
 export function labelsFor(kind: string, isItem: boolean): FieldLabels {

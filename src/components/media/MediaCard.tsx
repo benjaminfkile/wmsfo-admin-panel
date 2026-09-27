@@ -86,6 +86,7 @@ export default function MediaCard({ asset, onClick, selected = false }: Props) {
                 data-testid={`media-dzi-${asset.id}`}
               />
             ) : null}
+            {darkChipFor(asset)}
             {stateChip}
           </Stack>
         </CardContent>
@@ -118,6 +119,22 @@ function previewUrlFor(asset: MediaAsset): string | null {
     if (typeof v480 === "string" && v480.length > 0) return v480;
   }
   return typeof asset.url === "string" && asset.url.length > 0 ? asset.url : null;
+}
+
+// "Dark" when the asset has a dark mode version, "Inverts" when it only
+// inverts in dark mode.
+function darkChipFor(asset: MediaAsset) {
+  if (typeof asset.darkMediaId === "string" && asset.darkMediaId.length > 0) {
+    return (
+      <Chip size="small" label="Dark" data-testid={`media-dark-${asset.id}`} />
+    );
+  }
+  if (asset.invertInDark === true) {
+    return (
+      <Chip size="small" label="Inverts" data-testid={`media-dark-${asset.id}`} />
+    );
+  }
+  return null;
 }
 
 function stateChipFor(asset: MediaAsset) {

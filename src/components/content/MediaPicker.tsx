@@ -21,6 +21,8 @@ interface Props {
   // Restrict the grid to a kind, e.g. "svg" for icon pickers.
   kind?: MediaQuery["kind"];
   title?: string;
+  // Asset ids the library tab does not offer.
+  excludeIds?: string[];
 }
 
 // A modal picker over the library grid, filtered to `state=ready` plus
@@ -32,6 +34,7 @@ export default function MediaPicker({
   onPick,
   kind,
   title = "Choose media",
+  excludeIds,
 }: Props) {
   const compact = useCompact();
   const [tab, setTab] = useState<"library" | "upload">("library");
@@ -78,6 +81,7 @@ export default function MediaPicker({
             selectedId={selected?.id ?? null}
             fixedKind={kind}
             fixedState="ready"
+            excludeIds={excludeIds}
           />
         ) : (
           <Uploader onReady={handleReady} />
