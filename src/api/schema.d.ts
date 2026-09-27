@@ -370,6 +370,13 @@ export interface paths {
                         "application/json": components["schemas"]["ContentBundleDto"];
                     };
                 };
+                /** @description Not Modified */
+                304: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
             };
         };
         put?: never;
@@ -2918,7 +2925,11 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["PreviewTokenRequest"];
+                };
+            };
             responses: {
                 /** @description Created */
                 201: {
@@ -5953,6 +5964,10 @@ export interface components {
             /** Format: date-time */
             expiresAt?: string;
             audit?: null | components["schemas"]["AuditStampDto"];
+        };
+        PreviewTokenRequest: {
+            /** Format: int32 */
+            ttlMinutes?: null | number | string;
         };
         ProblemDto: {
             path?: string;
