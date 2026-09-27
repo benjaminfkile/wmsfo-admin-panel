@@ -23,7 +23,7 @@ import sponsorCarousel from "../../../contracts/schema/sections/sponsor_carousel
 import sponsorGrid from "../../../contracts/schema/sections/sponsor_grid.schema.json";
 import siteSettings from "../../../contracts/schema/site-settings.schema.json";
 import primitives from "../../../contracts/schema/primitives.schema.json";
-import { labelsFor, siteSettingsLabels } from "./labels";
+import { CARD_OPACITY_LABELS, labelsFor, siteSettingsLabels } from "./labels";
 
 type Sch = Record<string, unknown>;
 
@@ -102,9 +102,24 @@ describe("labels.ts: every field of the site settings schema has an entry", () =
     ];
     expect(paths).toContain("navExtraLinks.href");
     expect(paths).toContain("theme.ornaments");
+    expect(paths).toContain("theme.cardOpacityLight");
+    expect(paths).toContain("theme.cardOpacityDark");
     const table = siteSettingsLabels();
     const missing = paths.filter((p) => !(p in table));
     expect(missing, `missing site settings labels: ${missing.join(", ")}`).toEqual([]);
+  });
+});
+
+describe("labels.ts: the card opacity pair of Presentation has entries", () => {
+  it("has a label for every card opacity field of Presentation", () => {
+    const defs = (primitives as { $defs: Record<string, Sch> }).$defs;
+    const paths = collectFieldPaths(defs.Presentation as Sch).filter((p) =>
+      p.startsWith("cardOpacity")
+    );
+    expect(paths).toEqual(["cardOpacityLight", "cardOpacityDark"]);
+    const missing = paths.filter((p) => !(p in CARD_OPACITY_LABELS));
+    expect(missing, `missing card opacity labels: ${missing.join(", ")}`).toEqual([]);
+    expect(CARD_OPACITY_LABELS.cardOpacity?.label).toBe("Card opacity");
   });
 });
 

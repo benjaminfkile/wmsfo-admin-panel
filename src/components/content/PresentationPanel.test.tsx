@@ -337,3 +337,62 @@ describe("PresentationPanel: Icon size", () => {
     expect(readValue().iconSize).toBe("lg");
   });
 });
+
+describe("PresentationPanel: Card opacity", () => {
+  it("writes and clears the pair", () => {
+    render(<Harness initial={NONE_BG_PRES} sectionKind="rich_text" />);
+    expect(screen.getByText("Card opacity")).toBeInTheDocument();
+    expect(screen.getByText("Empty uses the sitewide value")).toBeInTheDocument();
+    const light = screen.getByTestId("presentation-card-opacity-light");
+    const dark = screen.getByTestId("presentation-card-opacity-dark");
+    fireEvent.change(light, { target: { value: "80" } });
+    fireEvent.blur(light);
+    fireEvent.change(dark, { target: { value: "60" } });
+    fireEvent.blur(dark);
+    expect(readValue().cardOpacityLight).toBe(80);
+    expect(readValue().cardOpacityDark).toBe(60);
+    fireEvent.change(light, { target: { value: "" } });
+    fireEvent.blur(light);
+    expect("cardOpacityLight" in readValue()).toBe(false);
+    expect(readValue().cardOpacityDark).toBe(60);
+  });
+
+  it("clamps out-of-range entries on blur", () => {
+    render(<Harness initial={NONE_BG_PRES} sectionKind="rich_text" />);
+    const light = screen.getByTestId("presentation-card-opacity-light");
+    const dark = screen.getByTestId("presentation-card-opacity-dark");
+    fireEvent.change(light, { target: { value: "150" } });
+    fireEvent.blur(light);
+    fireEvent.change(dark, { target: { value: "-5" } });
+    fireEvent.blur(dark);
+    expect(readValue().cardOpacityLight).toBe(100);
+    expect(readValue().cardOpacityDark).toBe(0);
+    expect(light).toHaveValue(100);
+    expect(dark).toHaveValue(0);
+  });
+
+  it("hides while the card is off and keeps the stored values", () => {
+    render(
+      <Harness
+        initial={{ ...NONE_BG_PRES, cardOpacityLight: 70 }}
+        sectionKind="rich_text"
+      />
+    );
+    expect(screen.getByTestId("presentation-card-opacity-light")).toHaveValue(70);
+    fireEvent.click(
+      within(screen.getByTestId("presentation-card")).getByRole("switch")
+    );
+    expect(screen.queryByTestId("presentation-card-opacity")).toBeNull();
+    expect(readValue().cardOpacityLight).toBe(70);
+  });
+
+  it("is hidden for a presentation with card false and for the map", () => {
+    const { unmount } = render(
+      <Harness initial={{ ...NONE_BG_PRES, card: false }} sectionKind="hero" />
+    );
+    expect(screen.queryByTestId("presentation-card-opacity")).toBeNull();
+    unmount();
+    render(<Harness initial={NONE_BG_PRES} sectionKind="map" />);
+    expect(screen.queryByTestId("presentation-card-opacity")).toBeNull();
+  });
+});

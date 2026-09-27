@@ -6,11 +6,20 @@ import {
   Typography,
 } from "@mui/material";
 import type { FieldProps } from "@rjsf/utils";
+import CardOpacityFields from "../CardOpacityFields";
+import {
+  readOpacity,
+  withOpacity,
+  type CardOpacityKey,
+} from "../cardOpacity";
+import { SITE_SETTINGS } from "../labels";
 
 // Theme editor for the site-settings `theme` object (admin.md 6.16).
 // Colours and fonts are part of the site design; visitors pick light
 // or dark themselves, so the panel only shows the three flags that
-// admins can flip: whether snow, lights, and ornaments start on.
+// admins can flip: whether snow, lights, and ornaments start on, and
+// the sitewide card opacity for each theme (an empty entry removes the
+// key, which the site reads as 100).
 // The incoming value is spread through so any key this field does
 // not know is kept.
 export type ThemeValue = {
@@ -48,6 +57,16 @@ export default function ThemeField(props: FieldProps) {
   const patch = (partial: Partial<ThemeValue>) => {
     props.onChange(
       { ...raw, ...value, ...partial } as unknown,
+      props.fieldPathId.path
+    );
+  };
+
+  const setOpacity = (
+    key: CardOpacityKey,
+    next: number | undefined
+  ) => {
+    props.onChange(
+      withOpacity({ ...raw, ...value }, key, next) as unknown,
       props.fieldPathId.path
     );
   };
@@ -91,6 +110,15 @@ export default function ThemeField(props: FieldProps) {
             />
           }
           label="Ornaments in the background"
+        />
+        <CardOpacityFields
+          value={{
+            cardOpacityLight: readOpacity(raw.cardOpacityLight),
+            cardOpacityDark: readOpacity(raw.cardOpacityDark),
+          }}
+          onChange={setOpacity}
+          help={SITE_SETTINGS["theme.cardOpacityLight"]?.help ?? ""}
+          testId="theme-card-opacity"
         />
       </Stack>
     </Box>

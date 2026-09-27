@@ -435,4 +435,50 @@ describe("SiteSettings", () => {
     }
     expect(text).not.toContain("contracts");
   });
+
+  it("the card opacity pair writes, clamps on blur, and clears its keys", async () => {
+    const user = userEvent.setup();
+    const captured: Array<{ body: unknown }> = [];
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/site-settings`, () =>
+        HttpResponse.json({
+          ...f.siteSettingsDraft,
+          data: {
+            ...FULL_DRAFT,
+            theme: { ...FULL_DRAFT.theme, cardOpacityDark: 40 },
+          },
+        })
+      ),
+      http.put(
+        `${testConfig.apiBaseUrl}/admin/site-settings`,
+        async ({ request }) => {
+          captured.push({ body: await request.json() });
+          return HttpResponse.json({
+            ...f.siteSettingsDraft,
+            data: FULL_DRAFT,
+          });
+        }
+      )
+    );
+    render(<Harness />);
+    const light = await screen.findByTestId("theme-card-opacity-light");
+    const dark = screen.getByTestId("theme-card-opacity-dark");
+    await waitFor(() => expect(dark).toHaveValue(40));
+    expect(
+      screen.getByText("100 is a solid card; lower lets the backdrop show through")
+    ).toBeInTheDocument();
+    await user.type(light, "250");
+    await user.tab();
+    expect(light).toHaveValue(100);
+    await user.clear(dark);
+    await user.tab();
+    const save = await screen.findByTestId("site-settings-save");
+    await waitFor(() => expect(save).not.toBeDisabled());
+    await user.click(save);
+    await waitFor(() => expect(captured.length).toBeGreaterThan(0));
+    const body = captured[0]?.body as { data?: { theme?: Record<string, unknown> } };
+    expect(body?.data?.theme?.cardOpacityLight).toBe(100);
+    expect(body?.data?.theme).not.toHaveProperty("cardOpacityDark");
+    expect(body?.data?.theme?.snowDefault).toBe(false);
+  });
 });
