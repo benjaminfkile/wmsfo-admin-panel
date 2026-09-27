@@ -16,6 +16,13 @@ import MediaPicker from "./MediaPicker";
 import MediaPreview from "./MediaPreview";
 import DisplayControls from "./DisplayControls";
 import { withDisplay, type Display } from "./display";
+import CardOpacityFields from "./CardOpacityFields";
+import {
+  readOpacity,
+  withOpacity,
+  type CardOpacityKey,
+} from "./cardOpacity";
+import { CARD_OPACITY_LABELS } from "./labels";
 import type { Icon, MediaAsset, MediaRef, Presentation } from "../../api/types";
 
 interface Props {
@@ -81,7 +88,7 @@ const DEFAULT_PRES: Presentation = {
 
 // The `Presentation` primitive as an editor panel (admin.md 6.14): a
 // "Show in a card" switch (on unless `card` is false; hidden for the
-// map), width (only with the card off), align, spacing, background
+// map), the card opacity pair (only with the card on), width (only with the card off), align, spacing, background
 // (none, colour token, or an image with a MediaField and a Darken
 // slider), icon before and icon after with the icon picker and an icon
 // size, and an anchor. The background image and each icon carry the
@@ -106,6 +113,10 @@ export default function PresentationPanel({
 
   const patch = (partial: Partial<Presentation>) => {
     onChange({ ...current, ...partial });
+  };
+
+  const setOpacity = (key: CardOpacityKey, next: number | undefined) => {
+    onChange(withOpacity(current, key, next));
   };
 
   const writeBg = (next: Bg) => {
@@ -214,6 +225,18 @@ export default function PresentationPanel({
             </Typography>
           </Box>
         )}
+        {!isMap && carded ? (
+          <CardOpacityFields
+            value={{
+              cardOpacityLight: readOpacity(current.cardOpacityLight),
+              cardOpacityDark: readOpacity(current.cardOpacityDark),
+            }}
+            onChange={setOpacity}
+            help={CARD_OPACITY_LABELS.cardOpacityLight?.help ?? ""}
+            disabled={disabled}
+            testId="presentation-card-opacity"
+          />
+        ) : null}
         {showWidth ? (
           <TextField
             select

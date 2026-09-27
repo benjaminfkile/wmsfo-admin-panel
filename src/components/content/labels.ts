@@ -369,8 +369,14 @@ export const SITE_SETTINGS: FieldLabels = {
   "theme.snowDefault": { label: "Snow on by default" },
   "theme.lightsDefault": { label: "Lights on by default" },
   "theme.ornaments": { label: "Ornaments in the background" },
-  "theme.cardOpacityLight": { label: "Card opacity in light mode" },
-  "theme.cardOpacityDark": { label: "Card opacity in dark mode" },
+  "theme.cardOpacityLight": {
+    label: "Light",
+    help: "100 is a solid card; lower lets the backdrop show through",
+  },
+  "theme.cardOpacityDark": {
+    label: "Dark",
+    help: "100 is a solid card; lower lets the backdrop show through",
+  },
   navExtraLinks: {
     label: "Extra menu links",
     help: "Links added to the menu after the pages, up to five.",
@@ -416,6 +422,21 @@ export const SITE_SETTINGS: FieldLabels = {
       disabled: true,
       hint: "Set a site logo first",
     },
+  },
+};
+
+// The card opacity pair of a section's `Presentation`; the site
+// settings theme carries the same pair under `theme.`. `cardOpacity`
+// is the row's own label.
+export const CARD_OPACITY_LABELS: FieldLabels = {
+  cardOpacity: { label: "Card opacity" },
+  cardOpacityLight: {
+    label: "Light",
+    help: "Empty uses the sitewide value",
+  },
+  cardOpacityDark: {
+    label: "Dark",
+    help: "Empty uses the sitewide value",
   },
 };
 
