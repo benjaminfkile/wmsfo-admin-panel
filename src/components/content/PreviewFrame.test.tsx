@@ -220,6 +220,33 @@ describe("PreviewFrame", () => {
     expect(tokens).toBe(1);
   });
 
+  it("the theme toggle adds the theme parameter; Site default removes it", async () => {
+    const user = userEvent.setup();
+    let tokens = 0;
+    server.use(
+      http.post(
+        `${testConfig.apiBaseUrl}/admin/content/preview-token`,
+        () => {
+          tokens += 1;
+          return HttpResponse.json(f.previewToken, { status: 201 });
+        }
+      )
+    );
+    render(<Harness slug="about" />);
+    const src = () =>
+      screen.getByTestId("preview-iframe").getAttribute("src") ?? "";
+    await screen.findByTestId("preview-iframe");
+    expect(src()).not.toMatch(/[?&]theme=/);
+    await user.click(screen.getByRole("button", { name: "Dark" }));
+    expect(src()).toMatch(/[?&]theme=dark(?:$|&)/);
+    await user.click(screen.getByRole("button", { name: "Light" }));
+    expect(src()).toMatch(/[?&]theme=light(?:$|&)/);
+    await user.click(screen.getByRole("button", { name: "Site default" }));
+    expect(src()).not.toMatch(/[?&]theme=/);
+    expect(src()).toMatch(/[?&]page=about(?:$|&)/);
+    expect(tokens).toBe(1);
+  });
+
   it("hides the device select on compact", async () => {
     const restore = stubMatchMedia(true);
     try {

@@ -3,9 +3,14 @@ import {
   Box,
   Button,
   Chip,
+  IconButton,
+  Paper,
   Stack,
+  Tooltip,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import type { ErrorSchema } from "@rjsf/utils";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -23,6 +28,8 @@ import SectionCard, {
 } from "../../components/content/SectionCard";
 import SectionPalette from "../../components/content/SectionPalette";
 import MoveSectionDialog from "../../components/content/MoveSectionDialog";
+import PreviewPane from "../../components/content/PreviewPane";
+import PreviewFrame from "../../components/content/PreviewFrame";
 import PageSettingsDialog, {
   type PageSettingsSubmit,
 } from "./PageSettingsDialog";
@@ -33,6 +40,31 @@ import type {
   Presentation,
   SectionAdmin,
 } from "../../api/types";
+
+// localStorage key holding "1" while the preview column is open.
+const PREVIEW_OPEN_KEY = "pageEditorPreviewOpen";
+// The narrowest viewport that shows the preview as a column beside the
+// editor; below it the preview opens as the dialog.
+export const PREVIEW_SIDE_QUERY = "(min-width:1280px)";
+// The editor column's width while the preview column is open.
+const EDITOR_MIN_WIDTH = 560;
+
+function readPreviewOpen(): boolean {
+  try {
+    return localStorage.getItem(PREVIEW_OPEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writePreviewOpen(open: boolean) {
+  try {
+    if (open) localStorage.setItem(PREVIEW_OPEN_KEY, "1");
+    else localStorage.removeItem(PREVIEW_OPEN_KEY);
+  } catch {
+    // Storage unavailable: the state lasts for this visit only.
+  }
+}
 
 export default function PageEditor() {
   const { id } = useParams<{ id: string }>();
@@ -49,6 +81,23 @@ export default function PageEditor() {
     Record<number, ErrorSchema>
   >({});
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const wide = useMediaQuery(PREVIEW_SIDE_QUERY);
+  // The column's open state is remembered; the dialog opens per visit.
+  const [previewOpen, setPreviewOpen] = useState<boolean>(readPreviewOpen);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  // Counts finished saves; the preview reloads (debounced) on each change.
+  const [saveCount, setSaveCount] = useState(0);
+  const markSaved = () => setSaveCount((n) => n + 1);
+
+  const setColumnOpen = (open: boolean) => {
+    setPreviewOpen(open);
+    writePreviewOpen(open);
+  };
+  const togglePreview = () => {
+    if (wide) setColumnOpen(!previewOpen);
+    else setPreviewDialogOpen(true);
+  };
+  const showColumn = wide && previewOpen;
 
   const pageQ = useQuery({
     queryKey: keys.page(pageId),
@@ -93,6 +142,7 @@ export default function PageEditor() {
     }) => sectionsApi.patch(id, body),
     onMutate: ({ id }) => setSaveState(id, "saving"),
     onSuccess: (_res, vars) => {
+      markSaved();
       setSaveState(vars.id, "saved");
       setFieldErrors((prev) => {
         if (!prev[vars.id]) return prev;
@@ -118,6 +168,7 @@ export default function PageEditor() {
         data: (kind.defaults ?? {}) as object,
       }),
     onSuccess: (created) => {
+      markSaved();
       notify("Section added");
       setPaletteOpen(false);
       const newId = Number(created.id ?? 0);
@@ -135,6 +186,7 @@ export default function PageEditor() {
   const duplicateMut = useMutation({
     mutationFn: (sectionId: number) => sectionsApi.duplicate(sectionId),
     onSuccess: () => {
+      markSaved();
       notify("Section duplicated");
       void qc.invalidateQueries({ queryKey: keys.page(pageId) });
     },
@@ -143,6 +195,7 @@ export default function PageEditor() {
   const deleteSectionMut = useMutation({
     mutationFn: (sectionId: number) => sectionsApi.remove(sectionId),
     onSuccess: () => {
+      markSaved();
       notify("Section deleted");
       setDeleteFor(null);
       void qc.invalidateQueries({ queryKey: keys.page(pageId) });
@@ -152,6 +205,7 @@ export default function PageEditor() {
   const reorderMut = useMutation({
     mutationFn: (ids: number[]) => sectionsApi.order(pageId, ids),
     onSuccess: () => {
+      markSaved();
       void qc.invalidateQueries({ queryKey: keys.page(pageId) });
     },
   });
@@ -165,6 +219,7 @@ export default function PageEditor() {
         isHidden: body.isHidden,
       }),
     onSuccess: () => {
+      markSaved();
       notify("Page saved");
       setSettingsOpen(false);
       void qc.invalidateQueries({ queryKey: keys.page(pageId) });
@@ -181,6 +236,7 @@ export default function PageEditor() {
       data: object;
     }) => sectionsApi.createItem(sectionId, { data }),
     onSuccess: () => {
+      markSaved();
       void qc.invalidateQueries({ queryKey: keys.page(pageId) });
     },
   });
@@ -193,12 +249,14 @@ export default function PageEditor() {
       body: Partial<{ data: object; isHidden: boolean }>;
     }) => sectionsApi.patchItem(itemId, body),
     onSuccess: () => {
+      markSaved();
       void qc.invalidateQueries({ queryKey: keys.page(pageId) });
     },
   });
   const removeItemMut = useMutation({
     mutationFn: (itemId: number) => sectionsApi.removeItem(itemId),
     onSuccess: () => {
+      markSaved();
       void qc.invalidateQueries({ queryKey: keys.page(pageId) });
     },
   });
@@ -211,6 +269,7 @@ export default function PageEditor() {
       ids: number[];
     }) => sectionsApi.orderItems(sectionId, ids),
     onSuccess: () => {
+      markSaved();
       void qc.invalidateQueries({ queryKey: keys.page(pageId) });
     },
   });
@@ -229,6 +288,7 @@ export default function PageEditor() {
         position,
       }),
     onSuccess: (_res, vars) => {
+      markSaved();
       notify("Section moved");
       setMoveFor(null);
       void qc.invalidateQueries({ queryKey: keys.page(pageId) });
@@ -276,7 +336,7 @@ export default function PageEditor() {
   const problemCount = Number(page.problemCount ?? 0);
   const pageRole = page.role ?? "none";
 
-  return (
+  const editor = (
     <>
       <PageHeader
         title={page.title ?? "Page"}
@@ -294,6 +354,14 @@ export default function PageEditor() {
         }
         actions={
           <>
+            <Button
+              onClick={togglePreview}
+              variant={showColumn ? "contained" : "text"}
+              aria-pressed={showColumn}
+              data-testid="page-preview-toggle"
+            >
+              Preview
+            </Button>
             <Button onClick={() => setSettingsOpen(true)}>Page settings</Button>
             <Button onClick={() => navigate("/publish")} variant="outlined">
               Publish
@@ -376,6 +444,85 @@ export default function PageEditor() {
           Add section
         </Button>
       </Box>
+    </>
+  );
+
+  return (
+    <>
+      {/* One tree in both layouts so opening the preview never remounts
+          the section cards. With the column open both columns fill the
+          viewport under the app bar and scroll on their own, so the
+          preview stays in view while the editor scrolls. */}
+      <Box
+        sx={
+          showColumn
+            ? { display: "flex", gap: 2, height: "calc(100vh - 96px)", minHeight: 0 }
+            : undefined
+        }
+        data-testid="page-editor-split"
+      >
+        <Box
+          sx={
+            showColumn
+              ? {
+                  flex: `0 0 ${EDITOR_MIN_WIDTH}px`,
+                  minWidth: EDITOR_MIN_WIDTH,
+                  overflowY: "auto",
+                  pr: 1,
+                }
+              : undefined
+          }
+        >
+          {editor}
+        </Box>
+        {showColumn ? (
+          <Paper
+            variant="outlined"
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              display: "flex",
+              flexDirection: "column",
+              p: 1.5,
+            }}
+            data-testid="page-preview-column"
+          >
+            <Stack direction="row" alignItems="center" sx={{ mb: 1 }}>
+              <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
+                Preview
+              </Typography>
+              <Tooltip title="Close preview">
+                <IconButton
+                  aria-label="Close preview"
+                  onClick={() => setColumnOpen(false)}
+                  data-testid="page-preview-close"
+                >
+                  <CloseIcon />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+            <Box sx={{ flex: 1, minHeight: 0 }}>
+              <PreviewPane
+                active
+                initialSlug={page.slug ?? null}
+                showPageSelector={false}
+                title={`Preview of ${page.title ?? "the page"}`}
+                defaultDevice="desktop"
+                reloadSignal={saveCount}
+              />
+            </Box>
+          </Paper>
+        ) : null}
+      </Box>
+
+      <PreviewFrame
+        open={previewDialogOpen && !showColumn}
+        onClose={() => setPreviewDialogOpen(false)}
+        initialSlug={page.slug ?? null}
+        showPageSelector={false}
+        title={`Preview of ${page.title ?? "the page"}`}
+        reloadSignal={saveCount}
+      />
 
       <SectionPalette
         open={paletteOpen}
