@@ -29,7 +29,13 @@ interface Props {
   value: LinkValue;
   onChange: (next: LinkValue) => void;
   testId?: string;
+  // Labels for the parts of the link; each defaults to the name below.
+  partLabels?: LinkPartLabels;
 }
+
+export type LinkPartLabels = Partial<
+  Record<"label" | "href" | "icon" | "newTab", string>
+>;
 
 // The Link control used by block editors. Label (Inline), Href, an icon
 // line (preview, Choose, Clear) and an "Open in new tab" checkbox.
@@ -38,6 +44,7 @@ export default function LinkControl({
   value,
   onChange,
   testId,
+  partLabels,
 }: Props) {
   const [iconOpen, setIconOpen] = useState(false);
 
@@ -81,18 +88,20 @@ export default function LinkControl({
         <InlineText
           value={value.label}
           onChange={(next) => patch({ label: next })}
-          label="Label"
+          label={partLabels?.label ?? "Label"}
           maxLength={5000}
         />
         <TextField
           size="small"
-          label="Href"
+          label={partLabels?.href ?? "Href"}
           value={value.href}
           onChange={(e) => patch({ href: e.target.value })}
           fullWidth
         />
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-          <Typography variant="body2">Icon:</Typography>
+          <Typography variant="body2">
+            {partLabels?.icon ?? "Icon"}:
+          </Typography>
           {icon ? (
             <>
               <IconPreview icon={icon} />
@@ -125,7 +134,7 @@ export default function LinkControl({
               onChange={(e) => patch({ newTab: e.target.checked })}
             />
           }
-          label="Open in new tab"
+          label={partLabels?.newTab ?? "Open in new tab"}
         />
       </Stack>
       <IconPicker
