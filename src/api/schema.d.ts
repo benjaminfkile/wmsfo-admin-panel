@@ -5467,6 +5467,8 @@ export interface components {
             receivedAt?: null | string;
             /** Format: date-time */
             publishedAt?: string;
+            /** Format: int32 */
+            onlineCount?: null | number | string;
         };
         LocationBody: {
             /** Format: double */

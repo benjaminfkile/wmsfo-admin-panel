@@ -343,6 +343,57 @@ describe("SchemaForm: human labels from labels.ts", () => {
   });
 });
 
+describe("SchemaForm: the map's Online count overlay", () => {
+  type MapValue = { overlays: Record<string, boolean> } & Record<string, unknown>;
+
+  function Controlled({ initial }: { initial: MapValue }) {
+    const [value, setValue] = useState<MapValue>(initial);
+    return (
+      <>
+        <SchemaForm
+          schema={map as Sch}
+          kind="map"
+          formData={value}
+          onChange={(next) => setValue(next as MapValue)}
+        />
+        <pre data-testid="overlays">{JSON.stringify(value.overlays)}</pre>
+      </>
+    );
+  }
+
+  function mapDefaults(): MapValue {
+    const kind = (
+      kindsJson as { kinds: Array<{ kind: string; defaults: unknown }> }
+    ).kinds.find((k) => k.kind === "map");
+    const defaults = structuredClone(kind!.defaults) as MapValue;
+    delete defaults.overlays.onlineCount;
+    return defaults;
+  }
+
+  it("reads on while absent and writes false when switched off", () => {
+    render(
+      <Providers>
+        <Controlled initial={mapDefaults()} />
+      </Providers>
+    );
+    expect(
+      screen.getByText(
+        "How many people are watching, while the event is live and sockets are healthy"
+      )
+    ).toBeInTheDocument();
+    const toggle = screen.getByRole("switch", { name: "Online count" });
+    expect(toggle).toBeChecked();
+    expect(JSON.parse(screen.getByTestId("overlays").textContent ?? "{}")).not.toHaveProperty(
+      "onlineCount"
+    );
+    fireEvent.click(toggle);
+    expect(toggle).not.toBeChecked();
+    expect(JSON.parse(screen.getByTestId("overlays").textContent ?? "{}").onlineCount).toBe(
+      false
+    );
+  });
+});
+
 describe("SchemaForm: optional primitive is a switch, not an Option dropdown", () => {
   type ItemValue = {
     media: { mediaId: string; alt: string | null };

@@ -253,6 +253,11 @@ const SECTION: Record<string, FieldLabels> = {
       label: "Show the distance chip",
       help: "The distance from the visitor to the balloon.",
     },
+    "overlays.onlineCount": {
+      label: "Online count",
+      help: "How many people are watching, while the event is live and sockets are healthy",
+      switchDefault: true,
+    },
   },
   leaderboard: {
     heading: { label: "Heading" },
