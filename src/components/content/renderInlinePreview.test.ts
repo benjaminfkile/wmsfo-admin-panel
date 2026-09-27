@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { inlineToPlainText } from "./renderInlinePreview";
-import { formatMt } from "../../lib/time";
+import { formatStamp } from "../../lib/time";
 
 const event = {
   name: "2026 Santa Flyover",
@@ -43,7 +43,7 @@ describe("inlineToPlainText", () => {
     expect(inlineToPlainText("{event:name}", event)).toBe("2026 Santa Flyover");
     expect(inlineToPlainText("Year {event:year}", event)).toBe("Year 2026");
     expect(inlineToPlainText("At {event:scheduledAt}", event)).toBe(
-      `At ${formatMt(event.scheduledAt)}`
+      `At ${formatStamp(event.scheduledAt)}`
     );
   });
 

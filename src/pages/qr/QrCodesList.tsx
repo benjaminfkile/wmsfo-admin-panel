@@ -25,7 +25,7 @@ import ResponsiveTable, {
 } from "../../components/list/ResponsiveTable";
 import { useNotify } from "../../hooks/useNotify";
 import { useAuth } from "../../auth/AuthProvider";
-import { formatMt, formatMtDate } from "../../lib/time";
+import { formatStamp, formatStampDate } from "../../lib/time";
 import type { Place, QrCode } from "../../api/types";
 import PrintSheetDialog from "./PrintSheetDialog";
 import AttachDialog from "./AttachDialog";
@@ -169,10 +169,10 @@ export default function QrCodesList() {
       role: "line",
       label: "Last scan",
       render: (row) => (
-        <Tooltip title={formatMt(row.scans.lastScanAt) || ""}>
+        <Tooltip title={formatStamp(row.scans.lastScanAt) || ""}>
           <span>
             {row.scans.lastScanAt
-              ? formatMtDate(row.scans.lastScanAt)
+              ? formatStampDate(row.scans.lastScanAt)
               : "never"}
           </span>
         </Tooltip>
@@ -183,7 +183,7 @@ export default function QrCodesList() {
       header: "Printed",
       role: "line",
       label: "Printed",
-      render: (row) => `Batch ${row.batchNo} · ${formatMtDate(row.printedAt)}`,
+      render: (row) => `Batch ${row.batchNo} · ${formatStampDate(row.printedAt)}`,
     },
   ];
 

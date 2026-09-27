@@ -1,5 +1,5 @@
 import type { StatusId } from "../api/types";
-import { formatMt } from "./time";
+import { formatStamp } from "./time";
 
 // The stock paragraph the API's email template ({{customMessage}}) uses
 // when the admin does not type a custom message on a status change or
@@ -17,7 +17,7 @@ export function stockParagraph(
       return `${name} is on the calendar. A specific time will be announced when it is known.`;
     case 2:
       return scheduledAt
-        ? `${name} is scheduled. Lift-off is planned for ${formatMt(scheduledAt)} Mountain time.`
+        ? `${name} is scheduled. Lift-off is planned for ${formatStamp(scheduledAt)}.`
         : `${name} is scheduled.`;
     case 3:
       return `${name} is live. Watch Santa's flight now.`;

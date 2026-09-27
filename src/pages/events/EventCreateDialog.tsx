@@ -21,7 +21,7 @@ import AppDialog from "../../components/AppDialog";
 import type { Event, Route } from "../../api/types";
 import type { CreateEventBody } from "../../api/resources/events";
 import ErrorAlert from "../../components/ErrorAlert";
-import { fromLocalInputValue, formatMt } from "../../lib/time";
+import { fromLocalInputValue, formatStamp } from "../../lib/time";
 
 type RouteChoice = "inherit" | "choose" | "none";
 
@@ -149,7 +149,7 @@ export default function EventCreateDialog({
             InputLabelProps={{ shrink: true }}
             helperText={
               scheduledAt
-                ? formatMt(fromLocalInputValue(scheduledAt))
+                ? formatStamp(fromLocalInputValue(scheduledAt))
                 : "Optional"
             }
             fullWidth

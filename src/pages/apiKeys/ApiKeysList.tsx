@@ -23,7 +23,7 @@ import ResponsiveTable, {
 } from "../../components/list/ResponsiveTable";
 import { useNotify } from "../../hooks/useNotify";
 import { useNow } from "../../hooks/useNow";
-import { ageS, formatAgeS, formatMt } from "../../lib/time";
+import { ageS, formatAgeS, formatStamp } from "../../lib/time";
 import type { ApiKey, ApiKeyMinted } from "../../api/types";
 import ApiKeyCreateDialog, { CAPABILITY_LABELS } from "./ApiKeyCreateDialog";
 
@@ -166,7 +166,7 @@ export default function ApiKeysList() {
               color: s === "expired" ? "error.main" : "text.primary",
             }}
           >
-            {formatMt(k.expiresAt)}
+            {formatStamp(k.expiresAt)}
           </Box>
         ) : (
           <Box component="span" sx={{ color: "text.secondary" }}>
@@ -180,7 +180,7 @@ export default function ApiKeysList() {
       header: "Last used",
       role: "line",
       render: (k) => (
-        <span title={formatMt(k.lastUsedAt) || undefined}>
+        <span title={formatStamp(k.lastUsedAt) || undefined}>
           {formatAgeS(ageS(k.lastUsedAt ?? null, now)) || "never"}
         </span>
       ),
@@ -195,7 +195,7 @@ export default function ApiKeysList() {
       key: "createdAt",
       header: "Created",
       role: "line",
-      render: (k) => formatMt(k.createdAt),
+      render: (k) => formatStamp(k.createdAt),
     },
   ];
 

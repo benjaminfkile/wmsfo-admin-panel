@@ -31,7 +31,7 @@ import PageHeader from "../../components/layout/PageHeader";
 import ResponsiveTable, {
   type Column,
 } from "../../components/list/ResponsiveTable";
-import { formatMt } from "../../lib/time";
+import { formatStamp } from "../../lib/time";
 import { useNotify } from "../../hooks/useNotify";
 import RouteUploadDialog from "../events/RouteUploadDialog";
 import type { Event, Route } from "../../api/types";
@@ -121,7 +121,7 @@ export default function RoutesList() {
       key: "created",
       header: "Created",
       role: "line",
-      render: (r) => formatMt(r.createdAt),
+      render: (r) => formatStamp(r.createdAt),
     },
     {
       key: "uploadedBy",
@@ -334,7 +334,7 @@ function BuildFromEventDialog({
           {selected ? (
             <Typography variant="body2" color="text.secondary">
               Building from {selected.name}
-              {selected.endedAt ? ` (ended ${formatMt(selected.endedAt)})` : ""}
+              {selected.endedAt ? ` (ended ${formatStamp(selected.endedAt)})` : ""}
             </Typography>
           ) : null}
           <Box />

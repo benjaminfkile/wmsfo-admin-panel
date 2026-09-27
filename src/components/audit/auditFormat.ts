@@ -1,4 +1,4 @@
-import { formatMt } from "../../lib/time";
+import { formatStamp } from "../../lib/time";
 import type { AuditEntry, AuditStamp } from "../../api/types";
 
 // "person:foo@bar" -> "foo@bar"; "key:my-key" -> "key my-key";
@@ -38,7 +38,7 @@ export function stampText(audit: AuditStamp | null | undefined): string {
   if (!audit) return "No changes recorded since the audit log began";
   const action = formatAction(audit.action);
   const actor = formatActor(audit.by);
-  const at = formatMt(audit.at);
+  const at = formatStamp(audit.at);
   return `${action} by ${actor} · ${at}`;
 }
 

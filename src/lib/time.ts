@@ -1,61 +1,92 @@
-// All displayed times are Mountain (America/Denver) labelled "MT".
-// datetime-local inputs are in the browser zone; the helper here
-// converts back and forth without pulling in a full date library.
+// Displayed times render in the viewer's browser zone (or an explicit
+// `timeZone`, which tests pass) followed by that zone's short name, for
+// example "CST". datetime-local inputs are in the browser zone too; the
+// helpers here convert back and forth without pulling in a full date
+// library.
 
-const TZ = "America/Denver";
-const MT_LABEL = "MT";
+type Parts = Intl.DateTimeFormatPart[];
 
-const fmt = new Intl.DateTimeFormat("en-US", {
-  timeZone: TZ,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-});
-
-const dateFmt = new Intl.DateTimeFormat("en-US", {
-  timeZone: TZ,
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-});
-
-const timeFmt = new Intl.DateTimeFormat("en-US", {
-  timeZone: TZ,
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-});
-
-// Format an RFC 3339 timestamp as Mountain time with a "MT" suffix.
-// Returns "" for null/invalid.
-export function formatMt(iso: string | null | undefined): string {
-  if (!iso) return "";
+function parse(iso: string | null | undefined): Date | null {
+  if (!iso) return null;
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const parts = fmt.formatToParts(d);
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function partsOf(
+  d: Date,
+  options: Intl.DateTimeFormatOptions,
+  timeZone: string | undefined
+): Parts {
+  return new Intl.DateTimeFormat("en-US", {
+    ...options,
+    timeZone,
+    timeZoneName: "short",
+  }).formatToParts(d);
+}
+
+function part(parts: Parts, type: Intl.DateTimeFormatPartTypes): string {
+  return parts.find((p) => p.type === type)?.value ?? "";
+}
+
+// "yyyy-MM-dd HH:mm:ss <zone>" for an RFC 3339 timestamp; "" for
+// null or invalid.
+export function formatStamp(
+  iso: string | null | undefined,
+  timeZone?: string
+): string {
+  const d = parse(iso);
+  if (!d) return "";
+  const parts = partsOf(
+    d,
+    {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    },
+    timeZone
+  );
+  const get = (t: Intl.DateTimeFormatPartTypes) => part(parts, t);
   return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get(
     "minute"
-  )}:${get("second")} ${MT_LABEL}`;
+  )}:${get("second")} ${get("timeZoneName")}`;
 }
 
-export function formatMtDate(iso: string | null | undefined): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return `${dateFmt.format(d)} ${MT_LABEL}`;
+// "Dec 21, 2026 <zone>"; "" for null or invalid.
+export function formatStampDate(
+  iso: string | null | undefined,
+  timeZone?: string
+): string {
+  const d = parse(iso);
+  if (!d) return "";
+  const parts = partsOf(
+    d,
+    { year: "numeric", month: "short", day: "numeric" },
+    timeZone
+  );
+  const get = (t: Intl.DateTimeFormatPartTypes) => part(parts, t);
+  return `${get("month")} ${get("day")}, ${get("year")} ${get("timeZoneName")}`;
 }
 
-export function formatMtTime(iso: string | null | undefined): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return `${timeFmt.format(d)} ${MT_LABEL}`;
+// "HH:mm:ss <zone>"; "" for null or invalid.
+export function formatStampTime(
+  iso: string | null | undefined,
+  timeZone?: string
+): string {
+  const d = parse(iso);
+  if (!d) return "";
+  const parts = partsOf(
+    d,
+    { hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" },
+    timeZone
+  );
+  const get = (t: Intl.DateTimeFormatPartTypes) => part(parts, t);
+  return `${get("hour")}:${get("minute")}:${get("second")} ${get(
+    "timeZoneName"
+  )}`;
 }
 
 // Convert a UTC ISO string to a value suitable for <input

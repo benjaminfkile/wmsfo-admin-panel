@@ -19,7 +19,7 @@ import EmailQuotaNotice from "../../components/EmailQuotaNotice";
 import { ApiError } from "../../api/errors";
 import { statusName } from "../../lib/statusNames";
 import { stockParagraph } from "../../lib/statusCopy";
-import { ageS, formatAgeS, formatMt } from "../../lib/time";
+import { ageS, formatAgeS, formatStamp } from "../../lib/time";
 import { useCompact } from "../../hooks/useCompact";
 
 interface Props {
@@ -53,8 +53,8 @@ function noHealthyBeaconMessage(err: unknown): string | null {
   if (!beacon) return "No beacon is active";
   const parts: string[] = [];
   parts.push(beacon.name ?? "the active beacon");
-  if (beacon.lastSeenAt) parts.push(`last seen ${formatMt(beacon.lastSeenAt)}`);
-  if (beacon.staleSince) parts.push(`stale since ${formatMt(beacon.staleSince)}`);
+  if (beacon.lastSeenAt) parts.push(`last seen ${formatStamp(beacon.lastSeenAt)}`);
+  if (beacon.staleSince) parts.push(`stale since ${formatStamp(beacon.staleSince)}`);
   return parts.join(", ");
 }
 

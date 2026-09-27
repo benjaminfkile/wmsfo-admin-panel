@@ -1,6 +1,6 @@
 import { Box, Stack, Typography } from "@mui/material";
 import type { Beacon, Heartbeat } from "../../api/types";
-import { ageS, formatAgeS, formatMt } from "../../lib/time";
+import { ageS, formatAgeS, formatStamp } from "../../lib/time";
 import { beaconFlags, type BeaconFlag } from "../../lib/beaconFlags";
 import { ThemedJsonView } from "../../components/ThemedJsonView";
 
@@ -75,7 +75,7 @@ export default function TelemetryPanel({
             <Box component="span" sx={{ color: "text.secondary", mr: 1 }}>
               sentAt:
             </Box>
-            {formatMt(sentAtIso)}
+            {formatStamp(sentAtIso)}
             <Box component="span" sx={{ color: "text.secondary", ml: 1 }}>
               ({formatAgeS(sentAge)} ago)
             </Box>

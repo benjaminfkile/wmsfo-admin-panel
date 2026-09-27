@@ -21,7 +21,7 @@ import ResponsiveTable, {
   type Column,
 } from "../../components/list/ResponsiveTable";
 import { useNotify } from "../../hooks/useNotify";
-import { formatMt } from "../../lib/time";
+import { formatStamp } from "../../lib/time";
 import type { ContactMessage } from "../../api/types";
 
 export default function ContactMessages() {
@@ -75,7 +75,7 @@ export default function ContactMessages() {
       header: "Created at",
       label: "Created",
       role: "line",
-      render: (m) => formatMt(m.createdAt) || "none",
+      render: (m) => formatStamp(m.createdAt) || "none",
     },
     {
       key: "clientIp",

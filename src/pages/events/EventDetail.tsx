@@ -33,7 +33,7 @@ import {
   ageS,
   formatAgeS,
   fromLocalInputValue,
-  formatMt,
+  formatStamp,
   toLocalInputValue,
 } from "../../lib/time";
 import MessagesSection from "./MessagesSection";
@@ -242,7 +242,7 @@ export default function EventDetail() {
       return `${active.name ?? "the active beacon"} is revoked`;
     }
     if (active.staleSince !== null && active.staleSince !== undefined) {
-      return `${active.name ?? "the active beacon"} is stale since ${formatMt(active.staleSince)}`;
+      return `${active.name ?? "the active beacon"} is stale since ${formatStamp(active.staleSince)}`;
     }
     if (active.lastHeartbeatAt === null || active.lastHeartbeatAt === undefined) {
       return `${active.name ?? "the active beacon"} has never been heard from`;
@@ -331,7 +331,7 @@ export default function EventDetail() {
                   InputLabelProps={{ shrink: true }}
                   helperText={
                     form.wentLiveAt
-                      ? formatMt(fromLocalInputValue(form.wentLiveAt))
+                      ? formatStamp(fromLocalInputValue(form.wentLiveAt))
                       : ""
                   }
                   fullWidth
@@ -344,7 +344,7 @@ export default function EventDetail() {
                   InputLabelProps={{ shrink: true }}
                   helperText={
                     form.endedAt
-                      ? formatMt(fromLocalInputValue(form.endedAt))
+                      ? formatStamp(fromLocalInputValue(form.endedAt))
                       : ""
                   }
                   fullWidth
@@ -609,7 +609,7 @@ function StatusHistorySection({ items }: { items: StatusHistory[] }) {
       header: "When",
       role: "line",
       label: "when",
-      render: (h) => formatMt(h.changedAt),
+      render: (h) => formatStamp(h.changedAt),
     },
     {
       key: "notified",
@@ -669,7 +669,7 @@ function ScheduledField({
         error={!!error}
         helperText={
           error ??
-          (value ? formatMt(fromLocalInputValue(value)) : "")
+          (value ? formatStamp(fromLocalInputValue(value)) : "")
         }
         fullWidth
       />

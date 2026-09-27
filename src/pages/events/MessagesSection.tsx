@@ -25,7 +25,7 @@ import EmailQuotaNotice from "../../components/EmailQuotaNotice";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import {
   fromLocalInputValue,
-  formatMt,
+  formatStamp,
   toLocalInputValue,
 } from "../../lib/time";
 import type { EventMessage } from "../../api/types";
@@ -161,7 +161,7 @@ export default function MessagesSection({ eventId }: Props) {
               onChange={(e) => setEventTime(e.target.value)}
               InputLabelProps={{ shrink: true }}
               helperText={
-                eventTime ? formatMt(fromLocalInputValue(eventTime)) : "Optional"
+                eventTime ? formatStamp(fromLocalInputValue(eventTime)) : "Optional"
               }
             />
             {eventTime ? (
@@ -233,8 +233,8 @@ export default function MessagesSection({ eventId }: Props) {
                         {m.body}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {m.eventTime ? formatMt(m.eventTime) + " · " : ""}
-                        {m.createdBy} · {formatMt(m.createdAt)}
+                        {m.eventTime ? formatStamp(m.eventTime) + " · " : ""}
+                        {m.createdBy} · {formatStamp(m.createdAt)}
                       </Typography>
                     </Box>
                     <IconButton

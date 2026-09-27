@@ -24,7 +24,7 @@ import ErrorAlert from "../../components/ErrorAlert";
 import ResponsiveTable, {
   type Column,
 } from "../../components/list/ResponsiveTable";
-import { formatMt } from "../../lib/time";
+import { formatStamp } from "../../lib/time";
 import { useNotify } from "../../hooks/useNotify";
 import PageHeader from "../../components/layout/PageHeader";
 import EventCreateDialog from "./EventCreateDialog";
@@ -147,7 +147,7 @@ export default function EventsList() {
       key: "scheduledAt",
       header: "Scheduled at",
       role: "line",
-      render: (e) => formatMt(e.scheduledAt) || "none",
+      render: (e) => formatStamp(e.scheduledAt) || "none",
     },
     {
       key: "route",

@@ -23,7 +23,7 @@ import {
 } from "../../api/resources/events";
 import { beacons as beaconsApi } from "../../api/resources/beacons";
 import { keys } from "../../queries/keys";
-import { formatMt } from "../../lib/time";
+import { formatStamp } from "../../lib/time";
 import { downloadBlob } from "../../lib/download";
 import { useNotify } from "../../hooks/useNotify";
 import type { Event } from "../../api/types";
@@ -183,7 +183,7 @@ export default function LocationsSection({ event }: Props) {
                       <TableCell>{String(row.seq)}</TableCell>
                       <TableCell>{String(row.beaconId)}</TableCell>
                       <TableCell>{row.published ? "yes" : "no"}</TableCell>
-                      <TableCell>{formatMt(row.recordedAt)}</TableCell>
+                      <TableCell>{formatStamp(row.recordedAt)}</TableCell>
                       <TableCell>{String(row.lat)}</TableCell>
                       <TableCell>{String(row.lng)}</TableCell>
                     </TableRow>

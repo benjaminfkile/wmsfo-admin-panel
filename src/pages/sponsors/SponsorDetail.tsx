@@ -32,7 +32,7 @@ import ResponsiveTable, {
 } from "../../components/list/ResponsiveTable";
 import { ApiError } from "../../api/errors";
 import { useNotify } from "../../hooks/useNotify";
-import { formatMt } from "../../lib/time";
+import { formatStamp } from "../../lib/time";
 import {
   toSponsorBody,
   validateSponsor,
@@ -569,7 +569,7 @@ function YearsTable({ years, onEdit, onMenu }: YearsTableProps) {
       key: "registered",
       header: "Registered",
       role: "line",
-      render: (y) => formatMt(y.registeredAt) || "none",
+      render: (y) => formatStamp(y.registeredAt) || "none",
     },
   ];
 

@@ -252,10 +252,16 @@ describe("InlineText preview uses the current event", () => {
 });
 
 describe("renderInlinePreview parses contracts 1.3a", () => {
-  function draw(text: string, event: InlineEventContext = null) {
+  function draw(
+    text: string,
+    event: InlineEventContext = null,
+    timeZone?: string
+  ) {
     return render(
       <Harness>
-        <div data-testid="preview">{renderInlinePreview(text, event)}</div>
+        <div data-testid="preview">
+          {renderInlinePreview(text, event, timeZone)}
+        </div>
       </Harness>
     );
   }
@@ -332,7 +338,23 @@ describe("renderInlinePreview parses contracts 1.3a", () => {
     const text = preview.textContent ?? "";
     expect(text).toContain("Santa Flyover 2026");
     expect(text).toContain("2026");
-    expect(text).toContain("MT");
+  });
+
+  it("fills {event:scheduledAt} in the given zone with its short name", () => {
+    const event = {
+      name: "Santa Flyover 2026",
+      year: 2026,
+      scheduledAt: "2026-12-22T01:00:00.000Z",
+    };
+    const { unmount } = draw("at {event:scheduledAt}", event, "America/Chicago");
+    expect(screen.getByTestId("preview").textContent).toBe(
+      "at 2026-12-21 19:00:00 CST"
+    );
+    unmount();
+    draw("at {event:scheduledAt}", event, "America/New_York");
+    expect(screen.getByTestId("preview").textContent).toBe(
+      "at 2026-12-21 20:00:00 EST"
+    );
   });
 
   it("leaves placeholders blank without a current event", () => {

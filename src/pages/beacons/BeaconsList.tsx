@@ -34,7 +34,7 @@ import ResponsiveTable, {
 } from "../../components/list/ResponsiveTable";
 import { useNotify } from "../../hooks/useNotify";
 import { useNow } from "../../hooks/useNow";
-import { ageS, formatAgeS, formatMt } from "../../lib/time";
+import { ageS, formatAgeS, formatStamp } from "../../lib/time";
 import { beaconFlags } from "../../lib/beaconFlags";
 import type { Beacon } from "../../api/types";
 import PageHeader from "../../components/layout/PageHeader";
@@ -265,7 +265,7 @@ export default function BeaconsList() {
       header: "Last seen",
       role: "line",
       render: (b) => (
-        <span title={formatMt(b.lastSeenAt) || undefined}>
+        <span title={formatStamp(b.lastSeenAt) || undefined}>
           {formatAgeS(ageS(b.lastSeenAt ?? null, now)) || "never"}
         </span>
       ),
@@ -275,7 +275,7 @@ export default function BeaconsList() {
       header: "Last heartbeat",
       role: "line",
       render: (b) => (
-        <span title={formatMt(b.lastHeartbeatAt) || undefined}>
+        <span title={formatStamp(b.lastHeartbeatAt) || undefined}>
           {formatAgeS(ageS(b.lastHeartbeatAt ?? null, now)) || "never"}
         </span>
       ),
@@ -285,7 +285,7 @@ export default function BeaconsList() {
       header: "Last location",
       role: "line",
       render: (b) => (
-        <span title={formatMt(b.lastLocationAt) || undefined}>
+        <span title={formatStamp(b.lastLocationAt) || undefined}>
           {formatAgeS(ageS(b.lastLocationAt ?? null, now)) || "never"}
         </span>
       ),
@@ -344,7 +344,7 @@ export default function BeaconsList() {
       header: "Last seen",
       role: "line",
       render: (b) => (
-        <span title={formatMt(b.lastSeenAt) || undefined}>
+        <span title={formatStamp(b.lastSeenAt) || undefined}>
           {formatAgeS(ageS(b.lastSeenAt ?? null, now)) || "never"}
         </span>
       ),
@@ -354,7 +354,7 @@ export default function BeaconsList() {
       header: "Last heartbeat",
       role: "line",
       render: (b) => (
-        <span title={formatMt(b.lastHeartbeatAt) || undefined}>
+        <span title={formatStamp(b.lastHeartbeatAt) || undefined}>
           {formatAgeS(ageS(b.lastHeartbeatAt ?? null, now)) || "never"}
         </span>
       ),
@@ -364,7 +364,7 @@ export default function BeaconsList() {
       header: "Last location",
       role: "line",
       render: (b) => (
-        <span title={formatMt(b.lastLocationAt) || undefined}>
+        <span title={formatStamp(b.lastLocationAt) || undefined}>
           {formatAgeS(ageS(b.lastLocationAt ?? null, now)) || "never"}
         </span>
       ),
