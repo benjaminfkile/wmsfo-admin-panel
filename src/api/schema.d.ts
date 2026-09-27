@@ -5339,6 +5339,7 @@ export interface components {
         IconValue: {
             source?: string;
             id?: string;
+            display?: null | components["schemas"]["JsonElement"];
         };
         ImpactGroupDto: {
             entity?: string;
@@ -5524,6 +5525,8 @@ export interface components {
                 [key: string]: string;
             };
             dziUrl?: null | string;
+            darkMediaId?: null | string;
+            invertInDark?: boolean;
             uploadedBy?: string;
             /** Format: date-time */
             createdAt?: string;
@@ -5534,6 +5537,12 @@ export interface components {
             /** Format: date-time */
             orphanedAt?: null | string;
             audit?: null | components["schemas"]["AuditStampDto"];
+        };
+        MediaDarkEntry: {
+            url?: string;
+            variants?: {
+                [key: string]: string;
+            };
         };
         MediaEntry: {
             url?: string;
@@ -5547,10 +5556,15 @@ export interface components {
                 [key: string]: string;
             };
             dzi?: null | string;
+            dark?: null | components["schemas"]["MediaDarkEntry"];
+            invertInDark?: boolean;
         };
         MediaPatchRequest: {
             alt?: null | string;
             title?: null | string;
+            /** Format: uuid */
+            darkMediaId?: null | string;
+            invertInDark?: null | boolean;
         };
         MediaUploadUrlRequest: {
             filename?: string;
@@ -5572,6 +5586,11 @@ export interface components {
             sponsors?: components["schemas"]["MediaUsageSponsorRef"][];
             cookieTypes?: components["schemas"]["MediaUsageCookieTypeRef"][];
             siteSettings?: boolean;
+            darkVersionOf?: components["schemas"]["MediaUsageMediaRef"][];
+        };
+        MediaUsageMediaRef: {
+            id?: string;
+            filename?: string;
         };
         MediaUsagePageRef: {
             /** Format: int64 */

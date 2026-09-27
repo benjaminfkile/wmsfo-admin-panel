@@ -4,9 +4,12 @@ import {
   Button,
   Divider,
   Drawer,
+  FormControlLabel,
+  FormHelperText,
   IconButton,
   Link,
   Stack,
+  Switch,
   TextField,
   Typography,
 } from "@mui/material";
@@ -22,6 +25,8 @@ import DeleteDialog from "../DeleteDialog";
 import ErrorAlert from "../ErrorAlert";
 import { useNotify } from "../../hooks/useNotify";
 import UsageList from "./UsageList";
+import MediaPicker from "../content/MediaPicker";
+import MediaPreview from "../content/MediaPreview";
 
 interface Props {
   asset: MediaAsset | null;
@@ -41,11 +46,16 @@ export default function MediaDetailDrawer({
   const [alt, setAlt] = useState("");
   const [title, setTitle] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [darkMediaId, setDarkMediaId] = useState<string | null>(null);
+  const [invertInDark, setInvertInDark] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     if (asset) {
       setAlt(asset.alt ?? "");
       setTitle(asset.title ?? "");
+      setDarkMediaId(asset.darkMediaId ?? null);
+      setInvertInDark(asset.invertInDark === true);
     }
   }, [asset]);
 
@@ -75,6 +85,23 @@ export default function MediaDetailDrawer({
       void qc.invalidateQueries({ queryKey: ["media"] });
     },
     onError: () => notify("Save failed", "error"),
+  });
+
+  // The dark mode version and the invert switch save as soon as they
+  // change; the drawer shows what the API returns.
+  const darkMut = useMutation({
+    mutationFn: (
+      b: { darkMediaId: string | null } | { invertInDark: boolean }
+    ) => mediaApi.patch(asset!.id!, b),
+    onSuccess: (updated, b) => {
+      if ("darkMediaId" in b) {
+        setDarkMediaId(updated?.darkMediaId ?? b.darkMediaId);
+      } else {
+        setInvertInDark(updated?.invertInDark ?? b.invertInDark);
+      }
+      notify("Saved");
+      void qc.invalidateQueries({ queryKey: ["media"] });
+    },
   });
 
   const deleteMut = useMutation({
@@ -171,6 +198,54 @@ export default function MediaDetailDrawer({
               ) : null}
             </Box>
             <Divider />
+            <Stack spacing={1} data-testid="media-dark-mode">
+              <Typography variant="subtitle2">Dark mode</Typography>
+              <Typography variant="body2">Dark mode version</Typography>
+              {darkMediaId ? (
+                <MediaPreview mediaId={darkMediaId} />
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  None
+                </Typography>
+              )}
+              <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setPickerOpen(true)}
+                  disabled={darkMut.isPending}
+                >
+                  Choose
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => darkMut.mutate({ darkMediaId: null })}
+                  disabled={darkMut.isPending || !darkMediaId}
+                >
+                  Clear
+                </Button>
+              </Stack>
+              <Box>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={invertInDark}
+                      onChange={(e) =>
+                        darkMut.mutate({ invertInDark: e.target.checked })
+                      }
+                      disabled={darkMut.isPending}
+                    />
+                  }
+                  label="Invert in dark mode"
+                />
+                <FormHelperText sx={{ mt: 0 }}>
+                  For one-colour images: flips the colours when the site is
+                  dark. Ignored when a dark version is set.
+                </FormHelperText>
+              </Box>
+              {darkMut.error ? <ErrorAlert error={darkMut.error} /> : null}
+            </Stack>
+            <Divider />
             <Stack spacing={1}>
               <Typography variant="subtitle2">Variants</Typography>
               {asset.url ? (
@@ -213,6 +288,17 @@ export default function MediaDetailDrawer({
               </Button>
             </Box>
           </Stack>
+          <MediaPicker
+            open={pickerOpen}
+            title="Choose the dark mode version"
+            excludeIds={asset.id ? [asset.id] : []}
+            onCancel={() => setPickerOpen(false)}
+            onPick={(picked) => {
+              setPickerOpen(false);
+              if (!picked.id || picked.id === asset.id) return;
+              darkMut.mutate({ darkMediaId: picked.id });
+            }}
+          />
           {confirmOpen && asset.id ? (
             <DeleteDialog
               open

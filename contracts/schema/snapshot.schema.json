@@ -210,7 +210,8 @@
               },
               "id": {
                 "type": "string"
-              }
+              },
+              "display": true
             },
             "additionalProperties": false
           },
@@ -259,6 +260,27 @@
               "string",
               "null"
             ]
+          },
+          "dark": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "url": {
+                "type": "string"
+              },
+              "variants": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "invertInDark": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
