@@ -48,7 +48,8 @@ export default function MediaDetailDrawer({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [darkMediaId, setDarkMediaId] = useState<string | null>(null);
   const [invertInDark, setInvertInDark] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [smallMediaId, setSmallMediaId] = useState<string | null>(null);
+  const [picking, setPicking] = useState<"dark" | "small" | null>(null);
 
   useEffect(() => {
     if (asset) {
@@ -56,6 +57,7 @@ export default function MediaDetailDrawer({
       setTitle(asset.title ?? "");
       setDarkMediaId(asset.darkMediaId ?? null);
       setInvertInDark(asset.invertInDark === true);
+      setSmallMediaId(asset.smallMediaId ?? null);
     }
   }, [asset]);
 
@@ -99,6 +101,18 @@ export default function MediaDetailDrawer({
       } else {
         setInvertInDark(updated?.invertInDark ?? b.invertInDark);
       }
+      notify("Saved");
+      void qc.invalidateQueries({ queryKey: ["media"] });
+    },
+  });
+
+  // The small screen version saves as soon as it changes, like the dark
+  // mode version.
+  const smallMut = useMutation({
+    mutationFn: (b: { smallMediaId: string | null }) =>
+      mediaApi.patch(asset!.id!, b),
+    onSuccess: (updated, b) => {
+      setSmallMediaId(updated?.smallMediaId ?? b.smallMediaId);
       notify("Saved");
       void qc.invalidateQueries({ queryKey: ["media"] });
     },
@@ -212,7 +226,7 @@ export default function MediaDetailDrawer({
                 <Button
                   variant="outlined"
                   size="small"
-                  onClick={() => setPickerOpen(true)}
+                  onClick={() => setPicking("dark")}
                   disabled={darkMut.isPending}
                 >
                   Choose
@@ -244,6 +258,37 @@ export default function MediaDetailDrawer({
                 </FormHelperText>
               </Box>
               {darkMut.error ? <ErrorAlert error={darkMut.error} /> : null}
+            </Stack>
+            <Stack spacing={1} data-testid="media-small-screen">
+              <Typography variant="body2">Small screen version</Typography>
+              {smallMediaId ? (
+                <MediaPreview mediaId={smallMediaId} />
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  None
+                </Typography>
+              )}
+              <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setPicking("small")}
+                  disabled={smallMut.isPending}
+                >
+                  Choose
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => smallMut.mutate({ smallMediaId: null })}
+                  disabled={smallMut.isPending || !smallMediaId}
+                >
+                  Clear
+                </Button>
+              </Stack>
+              <FormHelperText sx={{ mt: 0 }}>
+                {"Drawn in this image's place on screens under 760 px wide."}
+              </FormHelperText>
+              {smallMut.error ? <ErrorAlert error={smallMut.error} /> : null}
             </Stack>
             <Divider />
             <Stack spacing={1}>
@@ -289,14 +334,23 @@ export default function MediaDetailDrawer({
             </Box>
           </Stack>
           <MediaPicker
-            open={pickerOpen}
-            title="Choose the dark mode version"
+            open={picking !== null}
+            title={
+              picking === "small"
+                ? "Choose the small screen version"
+                : "Choose the dark mode version"
+            }
             excludeIds={asset.id ? [asset.id] : []}
-            onCancel={() => setPickerOpen(false)}
+            onCancel={() => setPicking(null)}
             onPick={(picked) => {
-              setPickerOpen(false);
+              const target = picking;
+              setPicking(null);
               if (!picked.id || picked.id === asset.id) return;
-              darkMut.mutate({ darkMediaId: picked.id });
+              if (target === "small") {
+                smallMut.mutate({ smallMediaId: picked.id });
+              } else {
+                darkMut.mutate({ darkMediaId: picked.id });
+              }
             }}
           />
           {confirmOpen && asset.id ? (

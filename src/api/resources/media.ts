@@ -28,6 +28,7 @@ export const media = {
       title: string;
       darkMediaId: string | null;
       invertInDark: boolean;
+      smallMediaId: string | null;
     }>
   ) =>
     patch<MediaAsset>(`/admin/media/${id}`, b),
