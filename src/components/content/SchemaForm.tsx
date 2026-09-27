@@ -4,7 +4,11 @@ import Form from "@rjsf/mui";
 import { getDefaultRegistry } from "@rjsf/core";
 import validator from "@rjsf/validator-ajv8";
 import type { ErrorSchema, RJSFSchema, UiSchema } from "@rjsf/utils";
-import type { FieldProps, RegistryFieldsType } from "@rjsf/utils";
+import type {
+  FieldProps,
+  RegistryFieldsType,
+  RegistryWidgetsType,
+} from "@rjsf/utils";
 import { RJSF_REF_KEY } from "@rjsf/utils";
 import { deriveDraftSchema } from "../../schemas/draft";
 import { bundleSchema } from "../../schemas/bundle";
@@ -17,6 +21,7 @@ import LinkListField from "./fields/LinkListField";
 import PresentationPanelField from "./fields/PresentationPanelField";
 import OptionalField, { extractOptional } from "./fields/OptionalField";
 import ThemeField from "./fields/ThemeField";
+import DefaultedSelectWidget from "./fields/DefaultedSelectWidget";
 import { labelsFor, orderFor, type FieldLabels } from "./labels";
 
 // The `$ref` values we route to custom fields. Matches the local
@@ -91,6 +96,8 @@ const FIELDS: RegistryFieldsType = {
   SchemaField: RoutedSchemaField,
   ThemeField,
 };
+
+const WIDGETS: RegistryWidgetsType = { DefaultedSelectWidget };
 
 interface Props<T> {
   schema: RJSFSchema;
@@ -229,6 +236,13 @@ function buildUiSchemaFromLabels(
     if (entry.options !== undefined) {
       patch["ui:enumNames"] = entry.options;
       patch["ui:options"] = { enumNames: entry.options };
+      if (entry.unset !== undefined) {
+        patch["ui:widget"] = "DefaultedSelectWidget";
+        patch["ui:options"] = {
+          enumNames: entry.options,
+          unsetLabel: entry.options[entry.unset] ?? entry.unset,
+        };
+      }
     }
     assignPath(out, uiPathParts(schema, path), patch);
   }
@@ -274,6 +288,7 @@ export default function SchemaForm<T>({
       formData={formData}
       validator={validator}
       fields={FIELDS}
+      widgets={WIDGETS}
       onChange={(e) => onChange(e.formData as T)}
       onBlur={onBlur ? () => onBlur() : undefined}
       liveValidate={liveValidate}

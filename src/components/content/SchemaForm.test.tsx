@@ -193,6 +193,30 @@ describe("SchemaForm: human labels from labels.ts", () => {
     expect(last.iconSize).toBe("xl");
   });
 
+  it("shows the hero Icon size as Small when unset and writes nothing until picked", () => {
+    const kind = (
+      kindsJson as { kinds: Array<{ kind: string; defaults: unknown }> }
+    ).kinds.find((k) => k.kind === "hero");
+    const defaults = { ...(kind!.defaults as Record<string, unknown>) };
+    delete defaults.iconSize;
+    const seen: Array<Record<string, unknown>> = [];
+    render(
+      <Providers>
+        <SchemaForm
+          schema={hero as Sch}
+          kind="hero"
+          formData={defaults}
+          onChange={(d) => {
+            seen.push(d as Record<string, unknown>);
+          }}
+        />
+      </Providers>
+    );
+    const sizeCombo = screen.getByRole("combobox", { name: /icon size/i });
+    expect(sizeCombo).toHaveTextContent("Small");
+    expect(seen.every((d) => d.iconSize == null)).toBe(true);
+  });
+
   it("shows Small, Medium, Large in the icon_row size select", () => {
     const kind = (
       kindsJson as { kinds: Array<{ kind: string; defaults: unknown }> }

@@ -15,6 +15,9 @@ export interface FieldLabel {
   label: string;
   help?: string;
   options?: Record<string, string>;
+  // The option an absent or null value stands for; the select shows its
+  // label instead of a blank box.
+  unset?: string;
 }
 
 export type FieldLabels = Record<string, FieldLabel>;
@@ -40,6 +43,7 @@ const SECTION: Record<string, FieldLabels> = {
       label: "Icon size",
       help: "How big the icon above the title is",
       options: { sm: "Small", md: "Medium", lg: "Large", xl: "Extra large" },
+      unset: "sm",
     },
     links: { label: "Call-to-action links" },
     height: {
