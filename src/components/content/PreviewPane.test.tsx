@@ -6,6 +6,8 @@
 //     shows the expiry
 //   - without a clipboard the URL shows in a read-only field
 //   - the pane's own mint sends no body
+//   - the page select reads "Start at" with the click-around hint; without
+//     the select neither shows and the frame stays on the given page
 
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
@@ -27,7 +29,7 @@ import {
   testConfig,
 } from "../../test/renderWithProviders";
 
-function Harness() {
+function Harness({ showPageSelector = true }: { showPageSelector?: boolean }) {
   const client = new QueryClient({
     defaultOptions: {
       queries: { retry: false, staleTime: 0, gcTime: 0 },
@@ -42,7 +44,11 @@ function Harness() {
           <MemoryRouter initialEntries={["/pages/3"]}>
             <NotifyProvider>
               <div style={{ height: 600 }}>
-                <PreviewPane active={true} initialSlug="about" />
+                <PreviewPane
+                  active={true}
+                  initialSlug="about"
+                  showPageSelector={showPageSelector}
+                />
               </div>
             </NotifyProvider>
           </MemoryRouter>
@@ -201,5 +207,26 @@ describe("PreviewPane Share", () => {
     expect(
       within(menu).getByText("The link follows your draft live while it is open.")
     ).toBeInTheDocument();
+  });
+});
+
+describe("PreviewPane Start at", () => {
+  it("labels the page select Start at and shows the hint", async () => {
+    render(<Harness />);
+    await screen.findByTestId("preview-iframe");
+    const select = screen.getByTestId("preview-page-select");
+    expect(within(select).getByText("Start at", { selector: "label" })).toBeInTheDocument();
+    expect(within(select).getByRole("combobox")).toHaveTextContent("about");
+    expect(
+      screen.getByText("Click around: every page shows your draft.")
+    ).toBeInTheDocument();
+  });
+
+  it("without the select the frame starts at the given page and shows no hint", async () => {
+    render(<Harness showPageSelector={false} />);
+    const iframe = await screen.findByTestId("preview-iframe");
+    expect(iframe.getAttribute("src")).toMatch(/[?&]page=about(?:$|&)/);
+    expect(screen.queryByTestId("preview-page-select")).toBeNull();
+    expect(screen.queryByTestId("preview-site-hint")).toBeNull();
   });
 });

@@ -13,9 +13,9 @@ import { useCompact } from "../../hooks/useCompact";
 interface Props {
   open: boolean;
   onClose: () => void;
-  // Slug of the page to preview; when undefined the frame shows "/".
+  // Slug of the page the preview opens at; when null the frame shows "/".
   initialSlug?: string | null;
-  // Show the page selector? Defaults to true.
+  // Show the "Start at" page select and the hint? Defaults to true.
   showPageSelector?: boolean;
   title?: string;
   // Passed to PreviewPane: each change schedules one debounced reload.

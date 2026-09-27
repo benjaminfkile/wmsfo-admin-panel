@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import { MemoryRouter } from "react-router-dom";
@@ -354,7 +354,7 @@ describe("SiteSettings", () => {
     ).toBeInTheDocument();
   });
 
-  it("opens the preview dialog and mints a token", async () => {
+  it("Preview site opens the preview dialog at home and mints a token", async () => {
     const user = userEvent.setup();
     let tokens = 0;
     server.use(
@@ -370,9 +370,17 @@ describe("SiteSettings", () => {
     await waitFor(() =>
       expect(screen.getByTestId("theme-field")).toBeInTheDocument()
     );
-    await user.click(screen.getByTestId("site-settings-preview"));
+    const button = screen.getByTestId("site-settings-preview");
+    expect(button).toHaveTextContent(/^Preview site$/);
+    await user.click(button);
     await waitFor(() => expect(tokens).toBeGreaterThan(0));
-    expect(await screen.findByTestId("preview-iframe")).toBeInTheDocument();
+    const iframe = await screen.findByTestId("preview-iframe");
+    expect(iframe.getAttribute("src")).not.toMatch(/[?&]page=/);
+    expect(
+      within(screen.getByTestId("preview-page-select")).getByText("Start at", {
+      selector: "label",
+    })
+    ).toBeInTheDocument();
   });
 
   it("shows human labels, help, and no schema names or descriptions", async () => {

@@ -37,8 +37,8 @@ const UI_SCHEMA: UiSchema = {
 // Site settings page (admin.md 6.16). One SchemaForm over the vendored
 // site-settings schema, labelled from `SITE_SETTINGS`, with the shared
 // custom fields plus ThemeField for the theme object. Save PUTs the
-// whole document; problems from GET render inline. Preview opens the
-// site's home page.
+// whole document; problems from GET render inline. "Preview site" opens
+// the preview dialog at the home page.
 export default function SiteSettings() {
   const qc = useQueryClient();
   const notify = useNotify();
@@ -80,7 +80,7 @@ export default function SiteSettings() {
               onClick={() => setPreviewOpen(true)}
               data-testid="site-settings-preview"
             >
-              Preview
+              Preview site
             </Button>
             <Button
               variant="contained"
@@ -130,7 +130,7 @@ export default function SiteSettings() {
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
         initialSlug={null}
-        title="Preview site settings"
+        title="Preview site"
       />
     </>
   );

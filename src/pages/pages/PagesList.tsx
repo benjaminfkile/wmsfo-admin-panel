@@ -22,6 +22,7 @@ import ErrorAlert from "../../components/ErrorAlert";
 import CommentBox from "../../components/CommentBox";
 import DeleteDialog from "../../components/DeleteDialog";
 import PageHeader from "../../components/layout/PageHeader";
+import PreviewFrame from "../../components/content/PreviewFrame";
 import ResponsiveTable, {
   type Column,
 } from "../../components/list/ResponsiveTable";
@@ -57,12 +58,14 @@ function statusRoleLabel(role: string): string {
 
 // The Pages index (admin.md 6.13). Two groups: status pages in status
 // order (locked from delete/reorder), and content ("none") pages in
-// nav order with reorder handles.
+// nav order with reorder handles. "Preview site" opens the preview dialog
+// at the home page.
 export default function PagesList() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const notify = useNotify();
   const [createOpen, setCreateOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [settingsFor, setSettingsFor] = useState<PageAdmin | null>(null);
   const [deleteFor, setDeleteFor] = useState<PageAdmin | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<{
@@ -256,9 +259,18 @@ export default function PagesList() {
       <PageHeader
         title="Pages"
         actions={
-          <Button variant="contained" onClick={() => setCreateOpen(true)}>
-            New page
-          </Button>
+          <>
+            <Button
+              variant="outlined"
+              onClick={() => setPreviewOpen(true)}
+              data-testid="pages-preview-site"
+            >
+              Preview site
+            </Button>
+            <Button variant="contained" onClick={() => setCreateOpen(true)}>
+              New page
+            </Button>
+          </>
         }
       />
 
@@ -398,6 +410,12 @@ export default function PagesList() {
         </Menu>
       ) : null}
 
+      <PreviewFrame
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        initialSlug={null}
+        title="Preview site"
+      />
       <PageCreateDialog
         open={createOpen}
         onCancel={() => setCreateOpen(false)}
