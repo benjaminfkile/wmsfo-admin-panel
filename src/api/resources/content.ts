@@ -21,5 +21,10 @@ export const content = {
     ),
   restore: (id: number) =>
     post<ContentStatus>(`/admin/content/versions/${id}/restore`),
-  previewToken: () => post<PreviewToken>("/admin/content/preview-token"),
+  // Sends `{ ttlMinutes }` (15 to 1440) when given; with no body the API
+  // mints its default 15 minute token.
+  previewToken: (ttlMinutes?: number) =>
+    ttlMinutes === undefined
+      ? post<PreviewToken>("/admin/content/preview-token")
+      : post<PreviewToken>("/admin/content/preview-token", { ttlMinutes }),
 };

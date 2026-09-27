@@ -19,6 +19,7 @@ import { keys } from "../../queries/keys";
 import ErrorAlert from "../ErrorAlert";
 import { useCompact } from "../../hooks/useCompact";
 import type { PreviewToken } from "../../api/types";
+import PreviewShare from "./PreviewShare";
 
 export type PreviewDevice = "phone" | "tablet" | "desktop";
 export type PreviewTheme = "site" | "light" | "dark";
@@ -75,7 +76,7 @@ function buildSrc(
 
 // The preview site framed with a minted token (admin.md 6.17): a toolbar
 // (page select, device select, Light / Dark / Site default theme toggle,
-// token countdown, New token, Reload) over an iframe that fills the rest
+// token countdown, New token, Share, Reload) over an iframe that fills the rest
 // of the pane's height. The parent gives the pane its size.
 export default function PreviewPane({
   active,
@@ -259,6 +260,7 @@ export default function PreviewPane({
         <Button size="small" onClick={mintNewToken} data-testid="preview-new-token">
           New token
         </Button>
+        <PreviewShare buildUrl={(url) => buildSrc(url, slug, theme, 0)} />
         <Tooltip title="Reload preview">
           <IconButton
             aria-label="Reload preview"
