@@ -6,7 +6,10 @@ import {
   formatStampDate,
   formatStampTime,
   fromLocalInputValue,
+  timeZoneOptions,
   toLocalInputValue,
+  utcToWallTime,
+  wallTimeToUtc,
 } from "./time";
 
 describe("formatStamp", () => {
@@ -90,6 +93,71 @@ describe("datetime-local round trip", () => {
     expect(fromLocalInputValue(null)).toBeNull();
     expect(fromLocalInputValue("not a date")).toBeNull();
     expect(toLocalInputValue("")).toBe("");
+  });
+});
+
+describe("wallTimeToUtc and utcToWallTime", () => {
+  const denver = "America/Denver";
+
+  const roundTrips = (wall: string, iso: string, zone: string) => {
+    expect(wallTimeToUtc(wall, zone)).toBe(iso);
+    expect(utcToWallTime(iso, zone)).toBe(wall);
+  };
+
+  it("round-trips across the spring forward of 2026-03-08 in Denver", () => {
+    roundTrips("2026-03-07T12:00", "2026-03-07T19:00:00.000Z", denver);
+    roundTrips("2026-03-08T01:59", "2026-03-08T08:59:00.000Z", denver);
+    roundTrips("2026-03-08T03:00", "2026-03-08T09:00:00.000Z", denver);
+    roundTrips("2026-03-09T12:00", "2026-03-09T18:00:00.000Z", denver);
+  });
+
+  it("reads a skipped spring forward wall time past the change", () => {
+    expect(wallTimeToUtc("2026-03-08T02:30", denver)).toBe(
+      "2026-03-08T09:30:00.000Z"
+    );
+    expect(utcToWallTime("2026-03-08T09:30:00.000Z", denver)).toBe(
+      "2026-03-08T03:30"
+    );
+  });
+
+  it("round-trips across the fall back of 2026-11-01 in Denver", () => {
+    roundTrips("2026-10-31T12:00", "2026-10-31T18:00:00.000Z", denver);
+    roundTrips("2026-11-01T00:30", "2026-11-01T06:30:00.000Z", denver);
+    roundTrips("2026-11-01T01:30", "2026-11-01T07:30:00.000Z", denver);
+    roundTrips("2026-11-01T02:00", "2026-11-01T09:00:00.000Z", denver);
+    roundTrips("2026-11-02T12:00", "2026-11-02T19:00:00.000Z", denver);
+  });
+
+  it("reads a repeated fall back wall time as its first occurrence", () => {
+    expect(utcToWallTime("2026-11-01T08:30:00.000Z", denver)).toBe(
+      "2026-11-01T01:30"
+    );
+    expect(wallTimeToUtc("2026-11-01T01:30", denver)).toBe(
+      "2026-11-01T07:30:00.000Z"
+    );
+  });
+
+  it("round-trips in UTC, midnight included", () => {
+    roundTrips("2026-03-08T02:30", "2026-03-08T02:30:00.000Z", "UTC");
+    roundTrips("2026-11-01T01:30", "2026-11-01T01:30:00.000Z", "UTC");
+    roundTrips("2026-07-04T00:00", "2026-07-04T00:00:00.000Z", "UTC");
+  });
+
+  it("returns empty for missing, malformed, or unknown input", () => {
+    expect(wallTimeToUtc("", denver)).toBeNull();
+    expect(wallTimeToUtc(null, denver)).toBeNull();
+    expect(wallTimeToUtc("2026-03-08 02:30", denver)).toBeNull();
+    expect(wallTimeToUtc("2026-03-08T02:30", "Not/AZone")).toBeNull();
+    expect(utcToWallTime(null, denver)).toBe("");
+    expect(utcToWallTime("not a date", denver)).toBe("");
+    expect(utcToWallTime("2026-03-08T09:30:00.000Z", "Not/AZone")).toBe("");
+  });
+
+  it("lists zones with UTC and any extra zone included", () => {
+    const zones = timeZoneOptions("Etc/GMT+7");
+    expect(zones).toContain("UTC");
+    expect(zones).toContain("Etc/GMT+7");
+    expect(zones).toContain(denver);
   });
 });
 

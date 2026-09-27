@@ -16,12 +16,14 @@ export type CreateEventBody = {
   fundsPercent: number;
   routeId: number | null;
   inheritRoute: boolean;
+  scheduleTimeZone: string | null;
 };
 
 export type PatchEventBody = Partial<{
   name: string;
   year: number;
   scheduledAt: string | null;
+  scheduleTimeZone: string | null;
   wentLiveAt: string | null;
   endedAt: string | null;
   fundsPercent: number;

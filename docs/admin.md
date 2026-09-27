@@ -1117,7 +1117,7 @@ PNG `89 50 4E 47 0D 0A 1A 0A`; JPEG `FF D8 FF`; WebP `RIFF` at 0 and `WEBP` at 8
 
 ### 7.5 Dates
 
-Inputs are MUI `TextField type="datetime-local"`; they read and fill in the browser's zone, and the value sent to the API is UTC. Every displayed time renders in the viewer's browser zone followed by that zone's short name from `Intl.DateTimeFormat.formatToParts` with `timeZoneName: "short"` (for example CST or EDT). There is no fixed zone. Conversion:
+Inputs are MUI `TextField type="datetime-local"`; they read and fill in the browser's zone, except the event schedule fields below, and the value sent to the API is UTC. Every displayed time renders in the viewer's browser zone followed by that zone's short name from `Intl.DateTimeFormat.formatToParts` with `timeZoneName: "short"` (for example CST or EDT). There is no fixed zone. Conversion:
 
 ```ts
 // src/lib/time.ts
@@ -1126,11 +1126,17 @@ export function formatStampDate(iso: string | null | undefined, timeZone?: strin
 export function formatStampTime(iso: string | null | undefined, timeZone?: string): string;   // "19:31:07 CST"
 export function toLocalInputValue(iso: string | null | undefined): string;      // yyyy-MM-ddTHH:mm in the browser zone, "" for null
 export function fromLocalInputValue(value: string | null | undefined): string | null;   // RFC 3339, UTC, milliseconds, Z; null for empty or invalid
+export function wallTimeToUtc(value: string | null | undefined, zone: string): string | null;   // "yyyy-MM-ddTHH:mm" read in the IANA zone to RFC 3339 UTC; null for empty, malformed, or an unknown zone
+export function utcToWallTime(iso: string | null | undefined, zone: string): string;   // yyyy-MM-ddTHH:mm in the IANA zone, "" for null, invalid, or an unknown zone
+export function browserTimeZone(): string;   // the browser's IANA zone
+export function timeZoneOptions(...extra: Array<string | null | undefined>): string[];   // Intl.supportedValuesOf("timeZone") plus UTC and the extras, sorted
 export function ageS(iso: string | null | undefined, nowMs: number): number | null;
 export function formatAgeS(seconds: number | null): string;   // "12s", "3m", "1h 5m", "2d"; "" for null; negative ages render as "0s"
 ```
 
 `timeZone` is an IANA zone name; omitted, the formatters use the browser's zone (tests pass one explicitly). Every datetime input shows `formatStamp(fromLocalInputValue(value))` as helper text, the stored UTC instant shown in the viewer's zone with its abbreviation. Every displayed timestamp uses `formatStamp`; every "last X" uses `formatAgeS` (rendered as "<age> ago" or bare) with the absolute value in a title or tooltip where the table has room.
+
+**Event schedule timezone.** The New event dialog and the event detail form each have one "Timezone" select (`components/TimeZoneSelect.tsx`, a filterable MUI Autocomplete over `timeZoneOptions()`). It defaults to the event's stored `scheduleTimeZone`, else the browser's zone (always the browser's zone in the New event dialog). The admin types the wall time the event happens at in that zone: the scheduled field (both forms) and the went live and ended fields (detail form) are read with `wallTimeToUtc(value, zone)` and filled with `utcToWallTime(iso, zone)`. The conversion resolves the zone's offset through `Intl.DateTimeFormat(...).formatToParts`, so it is correct across daylight saving changes: a wall time repeated when clocks fall back reads as its first occurrence, and one skipped when clocks spring forward reads as the same distance past the change (02:30 reads as 03:30). The helper text under each of these fields is `formatStamp(wallTimeToUtc(value, zone))`, the instant in the viewer's zone, so the admin sees both. What is stored is the UTC instant plus the picked zone: create sends `scheduledAt` (UTC) and `scheduleTimeZone`; the detail form's PATCH sends each time whose wall time or zone changed, plus `scheduleTimeZone` when the zone differs from the stored one and the zone or a time changed. On the next edit the stored zone comes back as the select's default and the times are shown as wall times in it.
 
 ---
 

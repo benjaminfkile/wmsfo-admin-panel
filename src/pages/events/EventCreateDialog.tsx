@@ -21,7 +21,8 @@ import AppDialog from "../../components/AppDialog";
 import type { Event, Route } from "../../api/types";
 import type { CreateEventBody } from "../../api/resources/events";
 import ErrorAlert from "../../components/ErrorAlert";
-import { fromLocalInputValue, formatStamp } from "../../lib/time";
+import TimeZoneSelect from "../../components/TimeZoneSelect";
+import { browserTimeZone, formatStamp, wallTimeToUtc } from "../../lib/time";
 
 type RouteChoice = "inherit" | "choose" | "none";
 
@@ -47,6 +48,7 @@ export default function EventCreateDialog({
   const [year, setYear] = useState("");
   const [name, setName] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
+  const [timeZone, setTimeZone] = useState(browserTimeZone);
   const [fundsPercent, setFundsPercent] = useState("0");
   const [routeChoice, setRouteChoice] = useState<RouteChoice>("inherit");
   const [routeId, setRouteId] = useState<number | "">("");
@@ -57,6 +59,7 @@ export default function EventCreateDialog({
       setYear(String(new Date().getFullYear()));
       setName("");
       setScheduledAt("");
+      setTimeZone(browserTimeZone());
       setFundsPercent("0");
       setRouteChoice("inherit");
       setRouteId("");
@@ -98,7 +101,8 @@ export default function EventCreateDialog({
       body: {
         year: y,
         name: trimmedName,
-        scheduledAt: fromLocalInputValue(scheduledAt),
+        scheduledAt: wallTimeToUtc(scheduledAt, timeZone),
+        scheduleTimeZone: timeZone,
         fundsPercent: fp,
         routeId:
           routeChoice === "choose" ? Number(routeId) : null,
@@ -141,6 +145,11 @@ export default function EventCreateDialog({
             helperText={errors.name ?? ""}
             fullWidth
           />
+          <TimeZoneSelect
+            value={timeZone}
+            onChange={setTimeZone}
+            helperText="The scheduled time below is in this zone"
+          />
           <TextField
             label="Scheduled at"
             type="datetime-local"
@@ -149,7 +158,7 @@ export default function EventCreateDialog({
             InputLabelProps={{ shrink: true }}
             helperText={
               scheduledAt
-                ? formatStamp(fromLocalInputValue(scheduledAt))
+                ? formatStamp(wallTimeToUtc(scheduledAt, timeZone))
                 : "Optional"
             }
             fullWidth

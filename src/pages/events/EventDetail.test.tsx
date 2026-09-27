@@ -1,5 +1,11 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -739,5 +745,86 @@ describe("EventDetail on compact (admin.md 6.3)", () => {
     // Details actions row wraps (flexWrap on the Stack container).
     const actions = await screen.findByTestId("event-details-actions");
     expect(actions).toHaveStyle({ "flex-wrap": "wrap" });
+  });
+});
+
+describe("EventDetail: the schedule timezone (admin.md 7.5)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("defaults the zone to the stored one and reads the wall time in it", async () => {
+    const user = userEvent.setup();
+    const patches: unknown[] = [];
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
+        HttpResponse.json({ ...f.events[0]!, scheduleTimeZone: "Asia/Tokyo" })
+      ),
+      http.patch(
+        `${testConfig.apiBaseUrl}/admin/events/:id`,
+        async ({ request }) => {
+          patches.push(await request.json());
+          return HttpResponse.json(f.events[0]);
+        }
+      )
+    );
+    render(<Harness id={Number(f.events[0]!.id)} />);
+
+    const zone = await screen.findByRole("combobox", { name: /timezone/i });
+    await waitFor(() => expect(zone).toHaveValue("Asia/Tokyo"));
+    const scheduled = screen.getByLabelText(/scheduled at/i);
+    // 01:00 UTC is 10:00 in Tokyo.
+    expect(scheduled).toHaveValue("2026-12-22T10:00");
+    expect(screen.getByLabelText(/went live at/i)).toHaveValue(
+      "2026-12-22T10:02"
+    );
+    expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled();
+
+    fireEvent.change(scheduled, { target: { value: "2026-12-22T12:00" } });
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => expect(patches.length).toBe(1));
+    expect(patches[0]).toEqual({ scheduledAt: "2026-12-22T03:00:00.000Z" });
+  });
+
+  it("defaults to the browser zone when none is stored and sends it with the times", async () => {
+    const real = Intl.DateTimeFormat.prototype.resolvedOptions;
+    vi.spyOn(
+      Intl.DateTimeFormat.prototype,
+      "resolvedOptions"
+    ).mockImplementation(function (this: Intl.DateTimeFormat) {
+      return { ...real.call(this), timeZone: "America/Denver" };
+    });
+    const user = userEvent.setup();
+    const patches: unknown[] = [];
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
+        HttpResponse.json({ ...f.events[0]!, scheduleTimeZone: null })
+      ),
+      http.patch(
+        `${testConfig.apiBaseUrl}/admin/events/:id`,
+        async ({ request }) => {
+          patches.push(await request.json());
+          return HttpResponse.json(f.events[0]);
+        }
+      )
+    );
+    render(<Harness id={Number(f.events[0]!.id)} />);
+
+    const zone = await screen.findByRole("combobox", { name: /timezone/i });
+    const scheduled = screen.getByLabelText(/scheduled at/i);
+    // 01:00 UTC on Dec 22 is 18:00 MST on Dec 21.
+    await waitFor(() => expect(scheduled).toHaveValue("2026-12-21T18:00"));
+    expect(zone).toHaveValue("America/Denver");
+    expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled();
+
+    fireEvent.change(scheduled, { target: { value: "2026-12-21T19:00" } });
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => expect(patches.length).toBe(1));
+    expect(patches[0]).toEqual({
+      scheduledAt: "2026-12-22T02:00:00.000Z",
+      scheduleTimeZone: "America/Denver",
+    });
   });
 });
