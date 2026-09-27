@@ -827,4 +827,46 @@ describe("EventDetail: the schedule timezone (admin.md 7.5)", () => {
       scheduleTimeZone: "America/Denver",
     });
   });
+
+  it("switching the zone re-renders the wall times and keeps the instant", async () => {
+    const real = Intl.DateTimeFormat.prototype.resolvedOptions;
+    vi.spyOn(
+      Intl.DateTimeFormat.prototype,
+      "resolvedOptions"
+    ).mockImplementation(function (this: Intl.DateTimeFormat) {
+      return { ...real.call(this), timeZone: "America/Denver" };
+    });
+    const user = userEvent.setup();
+    const patches: unknown[] = [];
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
+        HttpResponse.json({ ...f.events[0]!, scheduleTimeZone: null })
+      ),
+      http.patch(
+        `${testConfig.apiBaseUrl}/admin/events/:id`,
+        async ({ request }) => {
+          patches.push(await request.json());
+          return HttpResponse.json(f.events[0]);
+        }
+      )
+    );
+    render(<Harness id={Number(f.events[0]!.id)} />);
+
+    const zone = await screen.findByRole("combobox", { name: /timezone/i });
+    const scheduled = screen.getByLabelText(/scheduled at/i);
+    await waitFor(() => expect(scheduled).toHaveValue("2026-12-21T18:00"));
+
+    await user.click(zone);
+    await user.clear(zone);
+    await user.type(zone, "America/Chicago");
+    await user.click(await screen.findByRole("option", { name: "America/Chicago" }));
+
+    // Same instant, one hour later on the wall.
+    await waitFor(() => expect(scheduled).toHaveValue("2026-12-21T19:00"));
+
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+    await waitFor(() => expect(patches.length).toBe(1));
+    // The instants are untouched, so only the zone is patched.
+    expect(patches[0]).toEqual({ scheduleTimeZone: "America/Chicago" });
+  });
 });

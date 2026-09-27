@@ -8,6 +8,7 @@ import {
   fromLocalInputValue,
   timeZoneOptions,
   toLocalInputValue,
+  shiftWallZone,
   utcToWallTime,
   wallTimeToUtc,
 } from "./time";
@@ -141,6 +142,28 @@ describe("wallTimeToUtc and utcToWallTime", () => {
     roundTrips("2026-03-08T02:30", "2026-03-08T02:30:00.000Z", "UTC");
     roundTrips("2026-11-01T01:30", "2026-11-01T01:30:00.000Z", "UTC");
     roundTrips("2026-07-04T00:00", "2026-07-04T00:00:00.000Z", "UTC");
+  });
+
+  it("shiftWallZone keeps the instant across a zone switch", () => {
+    expect(shiftWallZone("2026-12-19T19:00", "America/Chicago", denver)).toBe(
+      "2026-12-19T18:00"
+    );
+    expect(shiftWallZone("2026-12-19T18:00", denver, "UTC")).toBe(
+      "2026-12-20T01:00"
+    );
+    expect(shiftWallZone("2026-12-19T18:00", denver, denver)).toBe(
+      "2026-12-19T18:00"
+    );
+  });
+
+  it("shiftWallZone leaves empty or unparseable text as typed", () => {
+    expect(shiftWallZone("", "America/Chicago", denver)).toBe("");
+    expect(shiftWallZone("2026-12-19T1", "America/Chicago", denver)).toBe(
+      "2026-12-19T1"
+    );
+    expect(shiftWallZone("2026-12-19T19:00", "Not/AZone", denver)).toBe(
+      "2026-12-19T19:00"
+    );
   });
 
   it("returns empty for missing, malformed, or unknown input", () => {

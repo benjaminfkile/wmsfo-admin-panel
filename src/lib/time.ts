@@ -218,6 +218,23 @@ export function utcToWallTime(
   }
 }
 
+// Re-express a "yyyy-MM-ddTHH:mm" wall time in another zone, keeping the
+// instant it names: "18:00 in America/Chicago" becomes "17:00 in
+// America/Denver". A zone switch in a form goes through this so the
+// stored instants never change silently; empty or unparseable input is
+// returned as it is, so half-typed text survives a zone switch.
+export function shiftWallZone(
+  wall: string,
+  fromZone: string,
+  toZone: string
+): string {
+  if (!wall || fromZone === toZone) return wall;
+  const iso = wallTimeToUtc(wall, fromZone);
+  if (iso === null) return wall;
+  const shifted = utcToWallTime(iso, toZone);
+  return shifted || wall;
+}
+
 // Difference between two RFC 3339 timestamps in whole seconds; null
 // when either is missing or unparseable.
 export function ageS(iso: string | null | undefined, nowMs: number): number | null {

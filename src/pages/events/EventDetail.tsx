@@ -34,6 +34,7 @@ import {
   browserTimeZone,
   formatAgeS,
   formatStamp,
+  shiftWallZone,
   utcToWallTime,
   wallTimeToUtc,
 } from "../../lib/time";
@@ -187,11 +188,21 @@ export default function EventDetail() {
     // reads as differs from the stored one.
     const initialZone = event.scheduleTimeZone || browserTimeZone();
     const zoneChanged = form.timeZone !== initialZone;
+    // The inputs hold minutes, so a stored instant is compared at minute
+    // precision: an untouched field never patches just because a zone
+    // switch round-tripped it through its wall time.
+    const minuteIso = (v: string | null | undefined) => {
+      if (!v) return null;
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return null;
+      d.setUTCSeconds(0, 0);
+      return d.toISOString();
+    };
     const instant = (wall: string, stored: string | null | undefined) => {
       const edited =
         zoneChanged || wall !== utcToWallTime(stored, initialZone);
       const iso = wallTimeToUtc(wall, form.timeZone);
-      return edited && iso !== (stored ?? null) ? iso : undefined;
+      return edited && iso !== minuteIso(stored) ? iso : undefined;
     };
     const scheduledIso = instant(form.scheduledAt, event.scheduledAt);
     if (scheduledIso !== undefined) changes.scheduledAt = scheduledIso;
@@ -340,7 +351,17 @@ export default function EventDetail() {
                 />
                 <TimeZoneSelect
                   value={form.timeZone}
-                  onChange={(z) => setForm({ ...form, timeZone: z })}
+                  onChange={(z) =>
+                    // Keep the instants: the wall texts re-render in the new
+                    // zone instead of silently meaning a different moment.
+                    setForm({
+                      ...form,
+                      timeZone: z,
+                      scheduledAt: shiftWallZone(form.scheduledAt, form.timeZone, z),
+                      wentLiveAt: shiftWallZone(form.wentLiveAt, form.timeZone, z),
+                      endedAt: shiftWallZone(form.endedAt, form.timeZone, z),
+                    })
+                  }
                   helperText="The times below are in this zone"
                 />
                 <ScheduledField

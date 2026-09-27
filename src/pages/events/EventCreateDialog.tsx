@@ -22,7 +22,7 @@ import type { Event, Route } from "../../api/types";
 import type { CreateEventBody } from "../../api/resources/events";
 import ErrorAlert from "../../components/ErrorAlert";
 import TimeZoneSelect from "../../components/TimeZoneSelect";
-import { browserTimeZone, formatStamp, wallTimeToUtc } from "../../lib/time";
+import { browserTimeZone, formatStamp, shiftWallZone, wallTimeToUtc } from "../../lib/time";
 
 type RouteChoice = "inherit" | "choose" | "none";
 
@@ -147,7 +147,11 @@ export default function EventCreateDialog({
           />
           <TimeZoneSelect
             value={timeZone}
-            onChange={setTimeZone}
+            onChange={(z) => {
+              // Keep the instant a typed time names when the zone changes.
+              setScheduledAt((wall) => shiftWallZone(wall, timeZone, z));
+              setTimeZone(z);
+            }}
             helperText="The scheduled time below is in this zone"
           />
           <TextField
