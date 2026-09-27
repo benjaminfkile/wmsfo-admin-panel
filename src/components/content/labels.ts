@@ -36,6 +36,11 @@ const SECTION: Record<string, FieldLabels> = {
     title: { label: "Title" },
     tagline: { label: "Tagline" },
     icon: { label: "Icon" },
+    iconSize: {
+      label: "Icon size",
+      help: "How big the icon above the title is",
+      options: { sm: "Small", md: "Medium", lg: "Large", xl: "Extra large" },
+    },
     links: { label: "Call-to-action links" },
     height: {
       label: "Height",
@@ -368,6 +373,19 @@ export const SITE_SETTINGS: FieldLabels = {
 export function labelsFor(kind: string, isItem: boolean): FieldLabels {
   const table = isItem ? ITEM : SECTION;
   return table[kind] ?? {};
+}
+
+// The field order of a section form where it differs from the schema's
+// property order; "*" stands for every field not named. The hero's
+// Icon size sits right after its Icon.
+const SECTION_ORDER: Record<string, string[]> = {
+  hero: ["title", "tagline", "icon", "iconSize", "*"],
+};
+
+// The top-level field order for a kind's form, or undefined to keep the
+// schema's order.
+export function orderFor(kind: string, isItem: boolean): string[] | undefined {
+  return isItem ? undefined : SECTION_ORDER[kind];
 }
 
 // The labels for the site settings form.

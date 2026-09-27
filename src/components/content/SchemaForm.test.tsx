@@ -158,6 +158,41 @@ describe("SchemaForm: human labels from labels.ts", () => {
     expect(text).not.toMatch(/hero section/);
   });
 
+  it("shows the hero Icon size right after Icon and writes iconSize", () => {
+    const kind = (
+      kindsJson as { kinds: Array<{ kind: string; defaults: unknown }> }
+    ).kinds.find((k) => k.kind === "hero");
+    let last: Record<string, unknown> = {};
+    const { container } = render(
+      <Providers>
+        <SchemaForm
+          schema={hero as Sch}
+          kind="hero"
+          formData={kind!.defaults}
+          onChange={(d) => {
+            last = d as Record<string, unknown>;
+          }}
+        />
+      </Providers>
+    );
+    const text = container.textContent ?? "";
+    const iconAt = text.indexOf("Icon");
+    const sizeAt = text.indexOf("Icon size");
+    const linksAt = text.indexOf("Call-to-action links");
+    const heightAt = text.indexOf("Height");
+    expect(iconAt).toBeGreaterThanOrEqual(0);
+    expect(sizeAt).toBeGreaterThan(iconAt);
+    expect(text.slice(iconAt, sizeAt)).not.toContain("Call-to-action links");
+    expect(linksAt).toBeGreaterThan(sizeAt);
+    expect(heightAt).toBeGreaterThan(sizeAt);
+    expect(text).toContain("How big the icon above the title is");
+    const sizeCombo = screen.getByRole("combobox", { name: /icon size/i });
+    fireEvent.mouseDown(sizeCombo);
+    const listbox = screen.getByRole("listbox");
+    fireEvent.click(within(listbox).getByText("Extra large"));
+    expect(last.iconSize).toBe("xl");
+  });
+
   it("shows Small, Medium, Large in the icon_row size select", () => {
     const kind = (
       kindsJson as { kinds: Array<{ kind: string; defaults: unknown }> }
