@@ -217,6 +217,69 @@ describe("SchemaForm: human labels from labels.ts", () => {
     expect(seen.every((d) => d.iconSize == null)).toBe(true);
   });
 
+  it("places the hero site logo switch after Icon and before Icon size", () => {
+    const kind = (
+      kindsJson as { kinds: Array<{ kind: string; defaults: unknown }> }
+    ).kinds.find((k) => k.kind === "hero");
+    const defaults = { ...(kind!.defaults as Record<string, unknown>) };
+    delete defaults.showLogo;
+    let last: Record<string, unknown> = {};
+    const { container } = render(
+      <Providers>
+        <SchemaForm
+          schema={hero as Sch}
+          kind="hero"
+          formData={defaults}
+          onChange={(d) => {
+            last = d as Record<string, unknown>;
+          }}
+        />
+      </Providers>
+    );
+    const text = container.textContent ?? "";
+    const iconAt = text.indexOf("Icon");
+    const logoAt = text.indexOf("Show the site logo instead of the icon");
+    const sizeAt = text.indexOf("Icon size");
+    expect(logoAt).toBeGreaterThan(iconAt);
+    expect(sizeAt).toBeGreaterThan(logoAt);
+    expect(text).toContain("Uses the logo from Site settings");
+    expect(text).not.toContain("Not shown while the site logo is on");
+    const sw = screen.getByRole("switch", {
+      name: "Show the site logo instead of the icon",
+    });
+    expect(sw).not.toBeChecked();
+    fireEvent.click(sw);
+    expect(last.showLogo).toBe(true);
+  });
+
+  it("with the hero site logo on, hints on Icon and relabels Icon size", () => {
+    const kind = (
+      kindsJson as { kinds: Array<{ kind: string; defaults: unknown }> }
+    ).kinds.find((k) => k.kind === "hero");
+    const { container } = render(
+      <Providers>
+        <SchemaForm
+          schema={hero as Sch}
+          kind="hero"
+          formData={{
+            ...(kind!.defaults as Record<string, unknown>),
+            showLogo: true,
+          }}
+          onChange={() => undefined}
+        />
+      </Providers>
+    );
+    expect(screen.getByTestId("icon-field-hint")).toHaveTextContent(
+      "Not shown while the site logo is on"
+    );
+    const text = container.textContent ?? "";
+    expect(text).toContain("Icon or logo size");
+    expect(text).not.toContain("Icon size");
+    expect(
+      screen.getByRole("combobox", { name: /icon or logo size/i })
+    ).toBeInTheDocument();
+  });
+
   it("shows Small, Medium, Large in the icon_row size select", () => {
     const kind = (
       kindsJson as { kinds: Array<{ kind: string; defaults: unknown }> }

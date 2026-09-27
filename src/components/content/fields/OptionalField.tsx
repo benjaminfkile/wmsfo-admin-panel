@@ -86,7 +86,8 @@ function titleCase(text: string): string {
 
 // A `oneOf` of a routed primitive `$ref` and `{ type: "null" }`. A
 // switch labelled with the field's label; off writes null and hides the
-// editor, on shows the primitive's editor at its empty value.
+// editor, on shows the primitive's editor at its empty value. The
+// field's help (`ui:description`) shows under the switch.
 export default function OptionalField(props: FieldProps) {
   const optional = useMemo(() => extractOptional(props.schema), [props.schema]);
   if (!optional) return null;
@@ -108,6 +109,11 @@ export default function OptionalField(props: FieldProps) {
         : typeof props.name === "string" && props.name.length > 0
           ? titleCase(props.name)
           : "Value";
+
+  const uiHelp = (props.uiSchema as { "ui:description"?: unknown } | undefined)?.[
+    "ui:description"
+  ];
+  const help = typeof uiHelp === "string" ? uiHelp : "";
 
   const toggle = (next: boolean) => {
     if (next === isOn) return;
@@ -138,6 +144,11 @@ export default function OptionalField(props: FieldProps) {
             <Typography variant="body2">{rawLabel}</Typography>
           }
         />
+        {help ? (
+          <Typography variant="caption" color="text.secondary">
+            {help}
+          </Typography>
+        ) : null}
         {isOn ? <Comp {...innerProps} /> : null}
       </Stack>
     </Box>

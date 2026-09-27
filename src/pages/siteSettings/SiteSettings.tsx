@@ -12,7 +12,7 @@ import { keys } from "../../queries/keys";
 import CommentBox from "../../components/CommentBox";
 import ErrorAlert from "../../components/ErrorAlert";
 import SchemaForm from "../../components/content/SchemaForm";
-import { SITE_SETTINGS } from "../../components/content/labels";
+import { SITE_SETTINGS, SITE_SETTINGS_ORDER } from "../../components/content/labels";
 import PreviewFrame from "../../components/content/PreviewFrame";
 import ProblemList from "../../components/content/ProblemList";
 import PageHeader from "../../components/layout/PageHeader";
@@ -22,11 +22,12 @@ import type { Problem } from "../../api/types";
 
 const SCHEMA = siteSettingsSchema as Record<string, unknown>;
 
-// UiSchema hands the theme object off to the ThemeField, gives the
-// heavier text areas some room, and names each entry of the link
-// lists. SchemaForm merges it over the uiSchema it builds from the
+// UiSchema puts the logo fields after the site name, hands the theme
+// object off to the ThemeField, gives the heavier text areas some room,
+// and names each entry of the link lists. SchemaForm merges it over the uiSchema it builds from the
 // `SITE_SETTINGS` labels.
 const UI_SCHEMA: UiSchema = {
+  "ui:order": SITE_SETTINGS_ORDER,
   theme: { "ui:field": "ThemeField" },
   navExtraLinks: { items: { "ui:title": "Menu link" } },
   footerLinks: { items: { "ui:title": "Footer link" } },

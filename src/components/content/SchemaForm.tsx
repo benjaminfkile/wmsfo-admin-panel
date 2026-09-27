@@ -22,6 +22,7 @@ import PresentationPanelField from "./fields/PresentationPanelField";
 import OptionalField, { extractOptional } from "./fields/OptionalField";
 import ThemeField from "./fields/ThemeField";
 import DefaultedSelectWidget from "./fields/DefaultedSelectWidget";
+import DefaultedSwitchWidget from "./fields/DefaultedSwitchWidget";
 import { labelsFor, orderFor, type FieldLabels } from "./labels";
 
 // The `$ref` values we route to custom fields. Matches the local
@@ -97,7 +98,10 @@ const FIELDS: RegistryFieldsType = {
   ThemeField,
 };
 
-const WIDGETS: RegistryWidgetsType = { DefaultedSelectWidget };
+const WIDGETS: RegistryWidgetsType = {
+  DefaultedSelectWidget,
+  DefaultedSwitchWidget,
+};
 
 interface Props<T> {
   schema: RJSFSchema;
@@ -244,9 +248,42 @@ function buildUiSchemaFromLabels(
         };
       }
     }
+    if (entry.switchDefault !== undefined) {
+      patch["ui:widget"] = "DefaultedSwitchWidget";
+      patch["ui:options"] = { switchDefault: entry.switchDefault };
+    }
     assignPath(out, uiPathParts(schema, path), patch);
   }
   return (extra ? mergeUi(out, extra as JsonNode) : out) as UiSchema;
+}
+
+// Applies each entry's `when` rule against the current form value: the
+// entry's field is disabled, gets a hint (`ui:options.hint`), or a new
+// label while the named top-level field is unset or on.
+function applyConditions(
+  ui: UiSchema,
+  labels: FieldLabels,
+  schema: JsonNode,
+  formData: unknown
+): UiSchema {
+  const value = asNode(formData) ?? {};
+  let out = ui as JsonNode;
+  for (const [path, entry] of Object.entries(labels)) {
+    const rule = entry.when;
+    if (!rule) continue;
+    const other = value[rule.field];
+    const holds =
+      rule.is === "unset" ? other === null || other === undefined : other === true;
+    if (!holds) continue;
+    const patch: JsonNode = {};
+    if (rule.disabled) patch["ui:disabled"] = true;
+    if (rule.label !== undefined) patch["ui:title"] = rule.label;
+    if (rule.hint !== undefined) patch["ui:options"] = { hint: rule.hint };
+    const target: JsonNode = {};
+    assignPath(target, uiPathParts(schema, path), patch);
+    out = mergeUi(out, target);
+  }
+  return out as UiSchema;
 }
 
 // A thin wrapper over `@rjsf/mui` that (a) inlines the primitives,
@@ -255,7 +292,8 @@ function buildUiSchemaFromLabels(
 // six primitive `$ref` paths to the panel's custom fields, and (c)
 // builds a uiSchema from the kind's `labels.ts` entries so every
 // field shows a plain-English label, non-obvious fields carry help
-// text, and enum values display their names.
+// text, and enum values display their names; `when` rules in the
+// labels adjust fields from the current form value.
 export default function SchemaForm<T>({
   schema,
   uiSchema,
@@ -276,11 +314,18 @@ export default function SchemaForm<T>({
       deriveDraftSchema(bundleSchema(schema))
     ) as JsonNode;
   }, [schema]);
-  const composedUi = useMemo(() => {
-    const table = labels ?? (kind ? labelsFor(kind, isItem) : {});
+  const table = useMemo(
+    () => labels ?? (kind ? labelsFor(kind, isItem) : {}),
+    [labels, kind, isItem]
+  );
+  const baseUi = useMemo(() => {
     const order = !labels && kind ? orderFor(kind, isItem) : undefined;
     return buildUiSchemaFromLabels(table, prepared, uiSchema, order);
-  }, [labels, kind, isItem, prepared, uiSchema]);
+  }, [table, labels, kind, isItem, prepared, uiSchema]);
+  const composedUi = useMemo(
+    () => applyConditions(baseUi, table, prepared, formData),
+    [baseUi, table, prepared, formData]
+  );
   return (
     <Form
       schema={prepared as RJSFSchema}
