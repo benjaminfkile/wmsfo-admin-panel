@@ -17,7 +17,7 @@ import LinkListField from "./fields/LinkListField";
 import PresentationPanelField from "./fields/PresentationPanelField";
 import OptionalField, { extractOptional } from "./fields/OptionalField";
 import ThemeField from "./fields/ThemeField";
-import { labelsFor, type FieldLabels } from "./labels";
+import { labelsFor, orderFor, type FieldLabels } from "./labels";
 
 // The `$ref` values we route to custom fields. Matches the local
 // definitions bundled by `bundleSchema`.
@@ -210,14 +210,17 @@ function mergeUi(base: JsonNode, extra: JsonNode): JsonNode {
 
 // Builds a uiSchema from a labels table. Adds `ui:title`,
 // `ui:description` (the entry's help), and `ui:enumNames` per entry,
-// and hides the root form's own title so the schema title (e.g. "hero
-// section data") never appears.
+// sets `ui:order` when the kind has a field order, and hides the root
+// form's own title so the schema title (e.g. "hero section data") never
+// appears.
 function buildUiSchemaFromLabels(
   labels: FieldLabels,
   schema: JsonNode,
-  extra?: UiSchema
+  extra?: UiSchema,
+  order?: string[]
 ): UiSchema {
   const out: JsonNode = { "ui:title": "" };
+  if (order) out["ui:order"] = order;
   for (const [path, entry] of Object.entries(labels)) {
     const patch: JsonNode = { "ui:title": entry.label };
     if (entry.help !== undefined) {
@@ -261,7 +264,8 @@ export default function SchemaForm<T>({
   }, [schema]);
   const composedUi = useMemo(() => {
     const table = labels ?? (kind ? labelsFor(kind, isItem) : {});
-    return buildUiSchemaFromLabels(table, prepared, uiSchema);
+    const order = !labels && kind ? orderFor(kind, isItem) : undefined;
+    return buildUiSchemaFromLabels(table, prepared, uiSchema, order);
   }, [labels, kind, isItem, prepared, uiSchema]);
   return (
     <Form

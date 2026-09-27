@@ -265,14 +265,75 @@ describe("PresentationPanel: icons before and after", () => {
   });
 });
 
-describe("PresentationPanel: Width visibility by section kind", () => {
-  it("hides Width for rich_text", () => {
+describe("PresentationPanel: Show in a card", () => {
+  it("is on for a presentation without card and writes false then true", () => {
     render(<Harness initial={NONE_BG_PRES} sectionKind="rich_text" />);
+    const sw = within(screen.getByTestId("presentation-card")).getByRole("switch");
+    expect(sw).toBeChecked();
+    expect(screen.getByText("Cards are always the standard width")).toBeInTheDocument();
+    fireEvent.click(sw);
+    expect(readValue().card).toBe(false);
+    fireEvent.click(sw);
+    expect(readValue().card).toBe(true);
+  });
+
+  it("is hidden for the map", () => {
+    render(<Harness initial={NONE_BG_PRES} sectionKind="map" />);
+    expect(screen.queryByTestId("presentation-card")).toBeNull();
+  });
+});
+
+describe("PresentationPanel: Width shows only with the card off", () => {
+  it("hides Width while the card is on", () => {
+    render(<Harness initial={NONE_BG_PRES} sectionKind="hero" />);
     expect(screen.queryByTestId("presentation-width")).toBeNull();
   });
 
-  it("shows Width for hero", () => {
-    render(<Harness initial={NONE_BG_PRES} sectionKind="hero" />);
+  it("shows Width once the card is turned off", () => {
+    render(<Harness initial={NONE_BG_PRES} sectionKind="rich_text" />);
+    fireEvent.click(
+      within(screen.getByTestId("presentation-card")).getByRole("switch")
+    );
     expect(screen.getByTestId("presentation-width")).toBeInTheDocument();
+  });
+
+  it("shows Width for a presentation with card false", () => {
+    render(
+      <Harness initial={{ ...NONE_BG_PRES, card: false }} sectionKind="hero" />
+    );
+    expect(screen.getByTestId("presentation-width")).toBeInTheDocument();
+  });
+
+  it("never shows Width for the map", () => {
+    render(
+      <Harness initial={{ ...NONE_BG_PRES, card: false }} sectionKind="map" />
+    );
+    expect(screen.queryByTestId("presentation-width")).toBeNull();
+  });
+});
+
+describe("PresentationPanel: Icon size", () => {
+  it("is hidden when neither icon is set", () => {
+    render(<Harness initial={NONE_BG_PRES} />);
+    expect(screen.queryByTestId("presentation-icon-size")).toBeNull();
+  });
+
+  it("shows with an icon set, reads Small when absent, and writes iconSize", () => {
+    render(
+      <Harness
+        initial={{
+          ...NONE_BG_PRES,
+          iconAfter: { source: "library", id: "leaf" } as Presentation["iconAfter"],
+        }}
+      />
+    );
+    const combo = within(screen.getByTestId("presentation-panel")).getByRole(
+      "combobox",
+      { name: /icon size/i }
+    );
+    expect(combo).toHaveTextContent("Small");
+    fireEvent.mouseDown(combo);
+    fireEvent.click(screen.getByRole("option", { name: "Large" }));
+    expect(readValue().iconSize).toBe("lg");
   });
 });

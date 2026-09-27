@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import {
   Box,
   Button,
+  FormControlLabel,
   MenuItem,
   Slider,
   Stack,
+  Switch,
   TextField,
   Typography,
 } from "@mui/material";
@@ -18,8 +20,8 @@ interface Props {
   value?: Presentation | null;
   onChange: (next: Presentation) => void;
   disabled?: boolean;
-  // The section's kind; Width shows only for the four cardless kinds and
-  // is hidden for every other kind.
+  // The section's kind; the map kind never shows the card switch or
+  // Width.
   sectionKind?: string;
 }
 
@@ -54,9 +56,16 @@ const BG_TOKEN_OPTIONS: Array<[string, string]> = [
   ["night", "Night"],
 ];
 
-// The four kinds that render outside a card; the site ignores `width` on
-// every other kind (santa S31).
-const KINDS_WITH_WIDTH = new Set(["hero", "map", "divider", "countdown"]);
+const ICON_SIZE_OPTIONS: Array<[string, string]> = [
+  ["sm", "Small"],
+  ["md", "Medium"],
+  ["lg", "Large"],
+  ["xl", "Extra large"],
+];
+
+// The site never shows the map in a card, so the card switch and Width
+// are hidden for it.
+const CARDLESS_KIND = "map";
 
 const DEFAULT_PRES: Presentation = {
   width: "wide",
@@ -68,10 +77,12 @@ const DEFAULT_PRES: Presentation = {
   anchor: null,
 };
 
-// The `Presentation` primitive as an editor panel (admin.md 6.14): width
-// (four cardless kinds only), align, spacing, background (none, colour
-// token, or an image with a MediaField and a Darken slider), icon before
-// and icon after with the icon picker, and an anchor.
+// The `Presentation` primitive as an editor panel (admin.md 6.14): a
+// "Show in a card" switch (on unless `card` is false; hidden for the
+// map), width (only with the card off), align, spacing, background
+// (none, colour token, or an image with a MediaField and a Darken
+// slider), icon before and icon after with the icon picker and an icon
+// size, and an anchor.
 export default function PresentationPanel({
   value,
   onChange,
@@ -161,8 +172,10 @@ export default function PresentationPanel({
   };
 
   const bgKindValue = pendingBgKind ?? bg.kind ?? "none";
-  const showWidth =
-    sectionKind === undefined || KINDS_WITH_WIDTH.has(sectionKind);
+  const isMap = sectionKind === CARDLESS_KIND;
+  const carded = current.card !== false;
+  const showWidth = !isMap && !carded;
+  const hasIcon = Boolean(current.iconBefore) || Boolean(current.iconAfter);
 
   return (
     <Box data-testid="presentation-panel">
@@ -170,6 +183,28 @@ export default function PresentationPanel({
         Presentation
       </Typography>
       <Stack spacing={1}>
+        {isMap ? null : (
+          <Box>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={carded}
+                  onChange={(e) => patch({ card: e.target.checked })}
+                  disabled={disabled}
+                  data-testid="presentation-card"
+                />
+              }
+              label="Show in a card"
+            />
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              component="div"
+            >
+              Cards are always the standard width
+            </Typography>
+          </Box>
+        )}
         {showWidth ? (
           <TextField
             select
@@ -279,6 +314,24 @@ export default function PresentationPanel({
           disabled={disabled}
           testId="presentation-icon-after"
         />
+        {hasIcon ? (
+          <TextField
+            select
+            size="small"
+            label="Icon size"
+            value={String(current.iconSize ?? "sm")}
+            onChange={(e) => patch({ iconSize: e.target.value })}
+            disabled={disabled}
+            fullWidth
+            data-testid="presentation-icon-size"
+          >
+            {ICON_SIZE_OPTIONS.map(([v, l]) => (
+              <MenuItem key={v} value={v}>
+                {l}
+              </MenuItem>
+            ))}
+          </TextField>
+        ) : null}
         <TextField
           size="small"
           label="Anchor (for links like /page#anchor)"
