@@ -11,9 +11,11 @@ import {
 import MediaPicker from "../MediaPicker";
 import MediaPreview from "../MediaPreview";
 import InlineText from "../InlineText";
+import DisplayControls from "../DisplayControls";
+import { withDisplay } from "../display";
 import type { MediaAsset } from "../../../api/types";
 
-type MediaRef = { mediaId: string; alt: string | null };
+type MediaRef = { mediaId: string; alt: string | null; display?: unknown };
 type BlockLike = { kind: string; [k: string]: unknown };
 
 interface Props {
@@ -30,15 +32,18 @@ const SIZES: { value: string; label: string }[] = [
 function toMediaRef(v: unknown): MediaRef {
   if (v && typeof v === "object") {
     const o = v as Record<string, unknown>;
-    return {
+    const ref: MediaRef = {
       mediaId: typeof o.mediaId === "string" ? o.mediaId : "",
       alt: typeof o.alt === "string" ? o.alt : null,
     };
+    if (o.display !== undefined) ref.display = o.display;
+    return ref;
   }
   return { mediaId: "", alt: null };
 }
 
-// The media block editor. Media (preview, Choose, alt override), an
+// The media block editor. Media (preview, Choose, alt override, and with
+// media picked the collapsed Advanced section for its `display`), an
 // optional Caption (empty stores null), and a Size select.
 export default function MediaBlockEditor({ value, onChange }: Props) {
   const [open, setOpen] = useState(false);
@@ -54,7 +59,7 @@ export default function MediaBlockEditor({ value, onChange }: Props) {
     setMedia({ ...media, alt: alt === "" ? null : alt });
   const pick = (asset: MediaAsset) => {
     setOpen(false);
-    setMedia({ mediaId: asset.id ?? "", alt: media.alt });
+    setMedia({ ...media, mediaId: asset.id ?? "", alt: media.alt });
   };
 
   return (
@@ -89,6 +94,12 @@ export default function MediaBlockEditor({ value, onChange }: Props) {
         fullWidth
         inputProps={{ maxLength: 5000 }}
       />
+      {media.mediaId ? (
+        <DisplayControls
+          value={media.display}
+          onChange={(d) => setMedia(withDisplay(media, d))}
+        />
+      ) : null}
       <Box data-testid="block-media-caption">
         <InlineText
           value={caption}

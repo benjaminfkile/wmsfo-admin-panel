@@ -3,6 +3,8 @@ import { Box, Button, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import IconPicker from "../pickers/IconPicker";
 import IconPreview from "../IconPreview";
+import DisplayControls from "../DisplayControls";
+import { withDisplay } from "../display";
 import { icons as iconsApi } from "../../../api/resources/icons";
 import { media as mediaApi } from "../../../api/resources/media";
 import { keys } from "../../../queries/keys";
@@ -17,7 +19,9 @@ interface Props {
 }
 
 // The Icon control used by block editors. Preview, Choose (opens the
-// shared icon picker), and Clear (hidden when the icon is required).
+// shared icon picker), Clear (hidden when the icon is required), and,
+// with an icon set, the collapsed Advanced section (DisplayControls) for
+// its `display`, which a new pick keeps.
 export default function IconControl({
   label,
   value,
@@ -80,12 +84,18 @@ export default function IconControl({
           </Button>
         ) : null}
       </Stack>
+      {value ? (
+        <DisplayControls
+          value={value.display}
+          onChange={(d) => onChange(withDisplay(value, d))}
+        />
+      ) : null}
       <IconPicker
         open={open}
         onCancel={() => setOpen(false)}
         onPick={(next) => {
           setOpen(false);
-          onChange(next);
+          onChange(value?.display ? { ...next, display: value.display } : next);
         }}
       />
     </Box>

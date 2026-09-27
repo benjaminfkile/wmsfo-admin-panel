@@ -12,6 +12,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { Icon, IconInfo, MediaAsset } from "../../../api/types";
 import IconPicker from "../pickers/IconPicker";
 import IconPreview from "../IconPreview";
+import DisplayControls from "../DisplayControls";
+import { withDisplay } from "../display";
 import InlineText from "../InlineText";
 import { icons as iconsApi } from "../../../api/resources/icons";
 import { media as mediaApi } from "../../../api/resources/media";
@@ -38,7 +40,8 @@ export type LinkPartLabels = Partial<
 >;
 
 // The Link control used by block editors. Label (Inline), Href, an icon
-// line (preview, Choose, Clear) and an "Open in new tab" checkbox.
+// line (preview, Choose, Clear, and with an icon set the collapsed
+// Advanced section for its `display`) and an "Open in new tab" checkbox.
 export default function LinkControl({
   label,
   value,
@@ -127,6 +130,12 @@ export default function LinkControl({
             </Button>
           ) : null}
         </Stack>
+        {icon ? (
+          <DisplayControls
+            value={icon.display}
+            onChange={(d) => patch({ icon: withDisplay(icon, d) })}
+          />
+        ) : null}
         <FormControlLabel
           control={
             <Checkbox
@@ -142,7 +151,9 @@ export default function LinkControl({
         onCancel={() => setIconOpen(false)}
         onPick={(picked) => {
           setIconOpen(false);
-          patch({ icon: picked });
+          patch({
+            icon: icon?.display ? { ...picked, display: icon.display } : picked,
+          });
         }}
       />
     </Box>

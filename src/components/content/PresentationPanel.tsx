@@ -14,6 +14,8 @@ import IconPicker from "./pickers/IconPicker";
 import IconPreview from "./IconPreview";
 import MediaPicker from "./MediaPicker";
 import MediaPreview from "./MediaPreview";
+import DisplayControls from "./DisplayControls";
+import { withDisplay, type Display } from "./display";
 import type { Icon, MediaAsset, MediaRef, Presentation } from "../../api/types";
 
 interface Props {
@@ -82,7 +84,8 @@ const DEFAULT_PRES: Presentation = {
 // map), width (only with the card off), align, spacing, background
 // (none, colour token, or an image with a MediaField and a Darken
 // slider), icon before and icon after with the icon picker and an icon
-// size, and an anchor.
+// size, and an anchor. The background image and each icon carry the
+// collapsed Advanced section (DisplayControls) for their `display`.
 export default function PresentationPanel({
   value,
   onChange,
@@ -142,9 +145,10 @@ export default function PresentationPanel({
     }
     const existingAlt = bg.kind === "media" ? bg.media.alt ?? null : null;
     const existingOverlay = bg.kind === "media" ? bg.overlay : 0;
+    const existingMedia = bg.kind === "media" ? bg.media : null;
     writeBg({
       kind: "media",
-      media: { mediaId, alt: existingAlt },
+      media: { ...existingMedia, mediaId, alt: existingAlt },
       overlay: existingOverlay,
     });
     setMediaPickerOpen(false);
@@ -160,6 +164,11 @@ export default function PresentationPanel({
       ...bg,
       media: { ...bg.media, alt: alt === "" ? null : alt },
     });
+  };
+
+  const setMediaDisplay = (display: Display | undefined) => {
+    if (bg.kind !== "media") return;
+    writeBg({ ...bg, media: withDisplay(bg.media, display) });
   };
 
   const setOverlay = (overlay: number) => {
@@ -297,6 +306,7 @@ export default function PresentationPanel({
             disabled={disabled}
             onChoose={openPicker}
             onAlt={setAlt}
+            onDisplay={setMediaDisplay}
             onOverlay={setOverlay}
           />
         ) : null}
@@ -357,12 +367,14 @@ function MediaBackgroundEditor({
   disabled,
   onChoose,
   onAlt,
+  onDisplay,
   onOverlay,
 }: {
   bg: MediaBg;
   disabled?: boolean;
   onChoose: () => void;
   onAlt: (alt: string) => void;
+  onDisplay: (display: Display | undefined) => void;
   onOverlay: (overlay: number) => void;
 }) {
   const percent = Math.round((bg.overlay ?? 0) * 100);
@@ -388,6 +400,14 @@ function MediaBackgroundEditor({
         disabled={disabled}
         fullWidth
       />
+      {bg.media.mediaId ? (
+        <DisplayControls
+          value={(bg.media as { display?: unknown }).display}
+          onChange={onDisplay}
+          disabled={disabled}
+          testId="presentation-media-display"
+        />
+      ) : null}
       <Box>
         <Typography variant="caption" color="text.secondary" component="div">
           Darken the image so text stays readable ({percent}%)
@@ -450,12 +470,20 @@ function IconLine({
           </Button>
         ) : null}
       </Stack>
+      {value ? (
+        <DisplayControls
+          value={value.display}
+          onChange={(d) => onChange(withDisplay(value, d))}
+          disabled={disabled}
+          testId={`${testId}-display`}
+        />
+      ) : null}
       <IconPicker
         open={open}
         onCancel={() => setOpen(false)}
         onPick={(next) => {
           setOpen(false);
-          onChange(next);
+          onChange(value?.display ? { ...next, display: value.display } : next);
         }}
       />
     </Box>
