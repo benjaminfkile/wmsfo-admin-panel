@@ -9,6 +9,7 @@ import {
   type LayoutElement,
 } from "./posterLayout";
 import { posterSize } from "./poster";
+import { ARROW_SCALES, DEFAULT_ARROW_SCALE } from "./posterStyle";
 
 const landscape = posterSize("facebook", "landscape");
 const portrait = posterSize("poster", "portrait");
@@ -48,7 +49,7 @@ describe("the poster layout document", () => {
 
   it("round-trips each element type through JSON and onto another size", () => {
     const doc = toLayoutDocument(
-      { colour: "#aa0011", arrows: false, labels: { interval: 30, format: "elapsed" } },
+      { colour: "#aa0011", arrows: false, arrowScale: 0.75, labels: { interval: 30, format: "elapsed" } },
       PLACED.map((p) => p.el),
     );
     const parsed = parsePosterLayout(JSON.parse(JSON.stringify(doc)));
@@ -90,6 +91,22 @@ describe("the poster layout document", () => {
     ]);
     expect(parsePosterLayout(null)).toBeNull();
     expect(parsePosterLayout({ version: 2, elements: [] })).toBeNull();
+  });
+
+  it("round-trips every arrow size and reads an absent or unknown one as Large", () => {
+    for (const { value } of ARROW_SCALES) {
+      const doc = toLayoutDocument({ ...DEFAULT_ROUTE_STYLE, arrowScale: value }, []);
+      expect(doc.routeStyle.arrowScale).toBe(value);
+      expect(parsePosterLayout(JSON.parse(JSON.stringify(doc)))!.routeStyle.arrowScale).toBe(value);
+    }
+    const absent = { colour: null, arrows: true, labels: { interval: 15, format: "wall" } };
+    expect(parsePosterLayout({ version: 1, routeStyle: absent, elements: [] })!.routeStyle.arrowScale).toBe(1.5);
+    expect(
+      parsePosterLayout({ version: 1, routeStyle: { ...absent, arrowScale: 3 }, elements: [] })!.routeStyle
+        .arrowScale,
+    ).toBe(1.5);
+    expect(DEFAULT_ARROW_SCALE).toBe(1.5);
+    expect(DEFAULT_ROUTE_STYLE.arrowScale).toBe(1.5);
   });
 
   it("snaps the nearest edge or centre within the threshold", () => {

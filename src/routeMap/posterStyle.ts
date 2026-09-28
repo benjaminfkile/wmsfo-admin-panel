@@ -29,7 +29,19 @@ export const TIME_LABEL_FORMATS: readonly { value: TimeLabelFormat; label: strin
   { value: "elapsed", label: "Elapsed" },
 ];
 
+// The arrowhead sizes, as the multiplier of the style's arrow icon size
+// and spacing.
+export type ArrowScale = 0.75 | 1 | 1.5 | 2;
+
+export const ARROW_SCALES: readonly { value: ArrowScale; label: string }[] = [
+  { value: 0.75, label: "Small" },
+  { value: 1, label: "Medium" },
+  { value: 1.5, label: "Large" },
+  { value: 2, label: "Extra large" },
+];
+
 export const DEFAULT_ARROWS = true;
+export const DEFAULT_ARROW_SCALE: ArrowScale = 1.5;
 export const DEFAULT_TIME_LABEL_INTERVAL: TimeLabelInterval = 15;
 export const DEFAULT_TIME_LABEL_FORMAT: TimeLabelFormat = "wall";
 

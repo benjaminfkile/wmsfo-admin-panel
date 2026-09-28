@@ -48,7 +48,9 @@ import {
   type RouteMapData,
 } from "../../routeMap/poster";
 import {
+  ARROW_SCALES,
   DEFAULT_ARROWS,
+  DEFAULT_ARROW_SCALE,
   DEFAULT_TIME_LABEL_FORMAT,
   DEFAULT_TIME_LABEL_INTERVAL,
   TIME_LABEL_FORMATS,
@@ -57,6 +59,7 @@ import {
   isHexColor,
   posterTimeLabels,
   themeRouteColor,
+  type ArrowScale,
   type PosterStyleInput,
   type TimeLabelFormat,
   type TimeLabelInterval,
@@ -131,6 +134,7 @@ export default function PosterStudioWorkspace({ event }: Props) {
   // The hex field's text while it does not hold a complete colour.
   const [colorText, setColorText] = useState<string | null>(null);
   const [arrows, setArrows] = useState(DEFAULT_ARROWS);
+  const [arrowScale, setArrowScale] = useState<ArrowScale>(DEFAULT_ARROW_SCALE);
   const [labelInterval, setLabelInterval] = useState<TimeLabelInterval>(
     DEFAULT_TIME_LABEL_INTERVAL,
   );
@@ -164,6 +168,7 @@ export default function PosterStudioWorkspace({ event }: Props) {
       setCustomColor(saved.routeStyle.colour);
       setColorText(null);
       setArrows(saved.routeStyle.arrows);
+      setArrowScale(saved.routeStyle.arrowScale);
       setLabelInterval(saved.routeStyle.labels.interval);
       setFormat(saved.routeStyle.labels.format);
     }
@@ -198,12 +203,13 @@ export default function PosterStudioWorkspace({ event }: Props) {
       terrain: withTerrain,
       routeColor,
       arrows,
+      arrowScale,
       interval: labelInterval,
       format: labelFormat,
       scheduledAt,
       zone,
     }),
-    [theme, withTerrain, routeColor, arrows, labelInterval, labelFormat, scheduledAt, zone],
+    [theme, withTerrain, routeColor, arrows, arrowScale, labelInterval, labelFormat, scheduledAt, zone],
   );
 
   const siteSettingsResult = useQuery({
@@ -236,7 +242,7 @@ export default function PosterStudioWorkspace({ event }: Props) {
     cleared && elements.length === 0
       ? null
       : toLayoutDocument(
-          { colour: customColor, arrows, labels: { interval: labelInterval, format } },
+          { colour: customColor, arrows, arrowScale, labels: { interval: labelInterval, format } },
           elements,
         );
 
@@ -563,6 +569,22 @@ export default function PosterStudioWorkspace({ event }: Props) {
               }
               label="Arrows"
             />
+            <FormControl size="small" disabled={busy || !arrows} sx={{ minWidth: 200 }}>
+              <InputLabel id="poster-arrow-size">Arrow size</InputLabel>
+              <Select
+                labelId="poster-arrow-size"
+                label="Arrow size"
+                value={arrowScale}
+                onChange={(e) => setArrowScale(Number(e.target.value) as ArrowScale)}
+                data-testid="route-poster-arrow-size"
+              >
+                {ARROW_SCALES.map((o) => (
+                  <MenuItem key={o.value} value={o.value}>
+                    {o.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
             <Stack spacing={2}>
               <FormControl size="small" disabled={busy} sx={{ minWidth: 200 }}>
                 <InputLabel id="poster-time-labels">Time labels</InputLabel>
@@ -701,6 +723,7 @@ type PosterStyling = {
   terrain: boolean;
   routeColor: string;
   arrows: boolean;
+  arrowScale: ArrowScale;
   interval: TimeLabelInterval;
   format: TimeLabelFormat;
   scheduledAt: string | null;
@@ -721,6 +744,7 @@ function posterStyle(
     options: {
       routeColor: styling.routeColor,
       arrows: styling.arrows,
+      arrowScale: styling.arrowScale,
       timeLabels: posterTimeLabels(routeMap.timeline, {
         interval: styling.interval,
         format: styling.format,
