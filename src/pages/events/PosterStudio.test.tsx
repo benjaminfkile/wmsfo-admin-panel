@@ -529,6 +529,7 @@ describe("PosterStudio: generate from the flight recording", () => {
     );
     expect(within(studio).getByTestId("route-poster-color-reset")).toBeDisabled();
     expect(within(studio).getByLabelText("Arrows")).toBeChecked();
+    expect(within(studio).getByRole("combobox", { name: "Arrow size" })).toHaveTextContent("Large");
     expect(within(studio).getByRole("combobox", { name: "Time labels" })).toHaveTextContent(
       "Every 15 minutes",
     );
@@ -546,6 +547,53 @@ describe("PosterStudio: generate from the flight recording", () => {
     expect(hex).toHaveValue("#ff8800");
     await user.click(within(studio).getByTestId("route-poster-color-reset"));
     expect(hex).toHaveValue(ROUTE_PALETTES.dark.routeColor);
+  });
+
+  it("disables the arrow size while the arrows are off", async () => {
+    const user = userEvent.setup();
+    render(<Harness event={EVENT} />);
+    const studio = await openStudio();
+    const size = within(studio).getByRole("combobox", { name: "Arrow size" });
+    expect(size).not.toHaveAttribute("aria-disabled");
+    await user.click(within(studio).getByLabelText("Arrows"));
+    expect(size).toHaveAttribute("aria-disabled", "true");
+    await user.click(within(studio).getByLabelText("Arrows"));
+    expect(size).not.toHaveAttribute("aria-disabled");
+  });
+
+  it.each([
+    ["Small", 0.75],
+    ["Medium", 1],
+    ["Large", 1.5],
+    ["Extra large", 2],
+  ])("draws the %s arrows in the preview and the export through the shared style call", async (name, scale) => {
+    const user = userEvent.setup();
+    installFlowHandlers();
+    render(<Harness event={EVENT} />);
+    const studio = await openStudio();
+    await within(studio).findByTestId("route-poster-preview");
+    await waitFor(() => expect(previews).toHaveLength(1));
+
+    await user.click(within(studio).getByRole("combobox", { name: "Arrow size" }));
+    await user.click(await screen.findByRole("option", { name }));
+    expect(within(studio).getByRole("combobox", { name: "Arrow size" })).toHaveTextContent(name);
+    await waitFor(() =>
+      expect(vi.mocked(buildPosterStyle).mock.calls.at(-1)![1].options.arrowScale).toBe(scale),
+    );
+    const preview = previews[0]!;
+    await waitFor(() => {
+      const last = preview.styles.at(-1) as {
+        layers: Array<{ id: string; layout?: Record<string, unknown> }>;
+      };
+      expect(last.layers.find((l) => l.id === ARROWS_LAYER)!.layout!["icon-size"]).toBe(scale);
+    });
+
+    const previewCalls = vi.mocked(buildPosterStyle).mock.calls.length;
+    await user.click(within(studio).getByTestId("route-poster-generate-run"));
+    await within(studio).findByTestId("route-poster-ready");
+    const exportCalls = vi.mocked(buildPosterStyle).mock.calls.slice(previewCalls);
+    expect(exportCalls).toHaveLength(1);
+    expect(exportCalls[0]![1].options.arrowScale).toBe(scale);
   });
 
   it("locks the label format to Elapsed with a hint when the event has no scheduled time", async () => {
@@ -578,6 +626,7 @@ describe("PosterStudio: generate from the flight recording", () => {
     expect(first.options).toEqual({
       routeColor: ROUTE_PALETTES.light.routeColor,
       arrows: true,
+      arrowScale: 1.5,
       timeLabels: [
         { lat: 46.8721, lng: -114.0012, label: "7:00 PM" },
         { lat: 46.886203, lng: -114.017446, label: "7:12 PM" },
@@ -628,7 +677,7 @@ describe("PosterStudio: generate from the flight recording", () => {
 
 const SAVED_LAYOUT: PosterLayout = {
   version: 1,
-  routeStyle: { colour: "#123456", arrows: false, labels: { interval: 5, format: "elapsed" } },
+  routeStyle: { colour: "#123456", arrows: false, arrowScale: 0.75, labels: { interval: 5, format: "elapsed" } },
   elements: [
     { type: "qr", qrId: 100, tag: "qr-001", x: 0.8, y: 0.75, width: 0.15, rotation: 0, z: 1 },
     { type: "image", mediaId: f.mediaAssets[0]!.id!, x: 0.25, y: 0.5, width: 0.3, rotation: 15, z: 0 },
@@ -650,6 +699,7 @@ describe("PosterStudio: the overlay composer", () => {
 
     expect(within(studio).getByTestId("route-poster-color-hex")).toHaveValue("#123456");
     expect(within(studio).getByLabelText("Arrows")).not.toBeChecked();
+    expect(within(studio).getByRole("combobox", { name: "Arrow size" })).toHaveTextContent("Small");
     expect(within(studio).getByRole("combobox", { name: "Time labels" })).toHaveTextContent(
       "Every 5 minutes",
     );

@@ -5,12 +5,15 @@
 // one layout fits every preset and both orientations.
 
 import {
+  ARROW_SCALES,
   DEFAULT_ARROWS,
+  DEFAULT_ARROW_SCALE,
   DEFAULT_TIME_LABEL_FORMAT,
   DEFAULT_TIME_LABEL_INTERVAL,
   TIME_LABEL_FORMATS,
   TIME_LABEL_INTERVALS,
   isHexColor,
+  type ArrowScale,
   type TimeLabelFormat,
   type TimeLabelInterval,
 } from "./posterStyle";
@@ -22,6 +25,8 @@ export type LayoutRouteStyle = {
   // "#rrggbb", or null for the theme's route colour.
   colour: string | null;
   arrows: boolean;
+  // The arrowhead size multiplier; absent in a saved layout reads Large.
+  arrowScale: ArrowScale;
   labels: { interval: TimeLabelInterval; format: TimeLabelFormat };
 };
 
@@ -51,6 +56,7 @@ export type PosterLayout = {
 export const DEFAULT_ROUTE_STYLE: LayoutRouteStyle = {
   colour: null,
   arrows: DEFAULT_ARROWS,
+  arrowScale: DEFAULT_ARROW_SCALE,
   labels: { interval: DEFAULT_TIME_LABEL_INTERVAL, format: DEFAULT_TIME_LABEL_FORMAT },
 };
 
@@ -65,6 +71,7 @@ export function toLayoutDocument(
     routeStyle: {
       colour: routeStyle.colour,
       arrows: routeStyle.arrows,
+      arrowScale: routeStyle.arrowScale,
       labels: { interval: routeStyle.labels.interval, format: routeStyle.labels.format },
     },
     elements: elements.map((el, z) => cleanElement(el, z)),
@@ -105,10 +112,11 @@ function parseRouteStyle(raw: unknown): LayoutRouteStyle {
   if (!isRecord(raw)) return DEFAULT_ROUTE_STYLE;
   const colour = typeof raw.colour === "string" && isHexColor(raw.colour) ? raw.colour.toLowerCase() : null;
   const arrows = typeof raw.arrows === "boolean" ? raw.arrows : DEFAULT_ARROWS;
+  const arrowScale = ARROW_SCALES.find((o) => o.value === raw.arrowScale)?.value ?? DEFAULT_ARROW_SCALE;
   const labels = isRecord(raw.labels) ? raw.labels : {};
   const interval = TIME_LABEL_INTERVALS.find((o) => o.value === labels.interval)?.value ?? DEFAULT_TIME_LABEL_INTERVAL;
   const format = TIME_LABEL_FORMATS.find((o) => o.value === labels.format)?.value ?? DEFAULT_TIME_LABEL_FORMAT;
-  return { colour, arrows, labels: { interval, format } };
+  return { colour, arrows, arrowScale, labels: { interval, format } };
 }
 
 function parseElement(raw: unknown): LayoutElement | null {

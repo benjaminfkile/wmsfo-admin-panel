@@ -18,7 +18,9 @@
 //    ROUTE_ARROW_ICON arrowhead at an even spacing, turned along the line
 //    direction and tinted through icon-color. The icon is the SDF image
 //    makeRouteArrowImage returns; the map owner adds it under
-//    ROUTE_ARROW_ICON, the style only names it.
+//    ROUTE_ARROW_ICON, the style only names it. `arrowScale` (default 1,
+//    values at or under 0 read as 1) multiplies both the icon size and
+//    the spacing, so larger arrowheads sit further apart.
 //  - `timeLabels` adds, for each entry, a dot slightly larger than the
 //    marks at its point and its ready made `label` beside it, in Noto Sans
 //    Medium larger than the basemap's town labels, with a strong halo in
@@ -54,6 +56,7 @@ export type TimeLabel = { lat: number; lng: number; label: string };
 export type StyleOptions = {
   routeColor?: string;
   arrows?: boolean;
+  arrowScale?: number;
   timeLabels?: readonly TimeLabel[];
 };
 
@@ -72,8 +75,10 @@ const ARROW_OUTLINE: readonly (readonly [number, number])[] = [
   [9, 25],
 ];
 
-// Pixels between arrowheads along the line.
+// Pixels between arrowheads along the line, and the icon size, both at
+// an arrow scale of 1.
 const ARROW_SPACING = 140;
+const ARROW_ICON_SIZE = 1;
 
 export type RouteArrowImage = {
   data: { width: number; height: number; data: Uint8ClampedArray };
@@ -202,6 +207,8 @@ export function buildStyle(
   const palette = ROUTE_PALETTES[appearance];
   const routeColor = options.routeColor ?? palette.routeColor;
   const timeLabels = options.timeLabels ?? [];
+  const arrowScale =
+    options.arrowScale !== undefined && options.arrowScale > 0 ? options.arrowScale : 1;
   const coordinates = path.map((p) => [p.lng, p.lat]);
   const ends = path.length === 0
     ? []
@@ -294,8 +301,9 @@ export function buildStyle(
               source: ROUTE_SOURCE,
               layout: {
                 "symbol-placement": "line" as const,
-                "symbol-spacing": ARROW_SPACING,
+                "symbol-spacing": ARROW_SPACING * arrowScale,
                 "icon-image": ROUTE_ARROW_ICON,
+                "icon-size": ARROW_ICON_SIZE * arrowScale,
                 "icon-rotation-alignment": "map" as const,
                 "icon-allow-overlap": true,
                 "icon-ignore-placement": true,
