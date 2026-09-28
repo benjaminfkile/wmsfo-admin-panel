@@ -48,7 +48,7 @@ vi.mock("maplibre-gl", () => {
       removed();
     }
   }
-  return { Map, addProtocol: vi.fn() };
+  return { Map, addProtocol: vi.fn(), setWorkerUrl: vi.fn() };
 });
 
 vi.mock("pmtiles", () => ({
@@ -168,6 +168,8 @@ describe("renderRouteMap", () => {
     });
     expect(canvas.width).toBe(3300);
     expect(canvas.height).toBe(5100);
+    const maplibre = await import("maplibre-gl");
+    expect(maplibre.setWorkerUrl).toHaveBeenCalledWith(expect.any(String));
     const opts = created[0]!;
     expect(opts.pixelRatio).toBe(POSTER_PIXEL_RATIO);
     expect(opts.canvasContextAttributes.preserveDrawingBuffer).toBe(true);

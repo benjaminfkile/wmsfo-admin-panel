@@ -3,6 +3,7 @@
 // PNG with the OpenStreetMap attribution drawn into its pixels.
 
 import type { StyleSpecification } from "maplibre-gl";
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import type { Appearance } from "./flavors";
 import { OSM_ATTRIBUTION, pathBounds, terrainUrl, type LatLng } from "./style";
 
@@ -196,6 +197,9 @@ export async function renderRouteMap(opts: {
   const bounds = pathBounds(opts.path);
   if (!bounds) throw new Error("The flight recording has no path to draw.");
   const maplibre = await import("maplibre-gl");
+  // The worker file must be a build asset of this application; without the
+  // pinned URL the deployed bundle has no worker and the map never loads.
+  maplibre.setWorkerUrl(workerUrl);
   await ensurePmtilesProtocol(maplibre.addProtocol);
 
   const ratio = POSTER_PIXEL_RATIO;

@@ -52,7 +52,7 @@ vi.mock("maplibre-gl", () => {
       return undefined;
     }
   }
-  return { Map, addProtocol: () => undefined };
+  return { Map, addProtocol: () => undefined, setWorkerUrl: () => undefined };
 });
 
 // The terrain probe reads the archive header; each test sets whether it
