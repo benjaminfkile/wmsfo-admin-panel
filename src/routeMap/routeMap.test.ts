@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { buildRouteMapStyle, routeBasemapBase } from "./index";
 import {
   BASEMAP_SOURCE,
+  DETAIL_LAYERS,
   HILLSHADE_LAYER,
   ROUTE_SOURCE,
   TERRAIN_SOURCE,
@@ -60,5 +64,34 @@ describe("routeMap style builders", () => {
     const ids = shaded.layers.map((l) => l.id);
     expect(ids).toContain(HILLSHADE_LAYER);
     expect(ids.indexOf(HILLSHADE_LAYER)).toBeLessThan(ids.indexOf("water"));
+  });
+});
+
+// The SHA-256 of santa's src/routeMap/style.ts and flavors.ts at the
+// commit the copies are synced from, 1283a80.
+const SANTA_SHA256 = {
+  "style.ts": "4f9cab24003ff2bce156d8c975e4279909160ffea1d56eb2216431bbe8c2e827",
+  "flavors.ts": "7fa6af7521e6c737bcb02e4a024f609f19f7d9bb4b73e18068dc31017011ecb3",
+};
+
+describe("the copies of santa's route map style", () => {
+  it.each(Object.entries(SANTA_SHA256))("%s matches santa byte for byte", (name, sha) => {
+    const bytes = readFileSync(join(process.cwd(), "src", "routeMap", name));
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(sha);
+  });
+
+  it("drops the layers of each detail group turned off and keeps the rest", () => {
+    const all = buildStyle("light", BASE, PATH).layers.map((l) => l.id);
+    for (const id of [...DETAIL_LAYERS.placeNames, ...DETAIL_LAYERS.roadLabels]) {
+      expect(all).toContain(id);
+    }
+    for (const group of ["landmarks", "placeNames", "roadLabels"] as const) {
+      const ids = buildRouteMapStyle({ routeBasemapUrl: BASE }, "dark", PATH, [], false, {
+        details: { [group]: false },
+      }).layers.map((l) => l.id);
+      for (const id of DETAIL_LAYERS[group]) expect(ids).not.toContain(id);
+      const others = all.filter((id) => !DETAIL_LAYERS[group].includes(id));
+      expect(ids).toEqual(others);
+    }
   });
 });

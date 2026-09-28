@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_DESIGN,
+  DEFAULT_DETAILS,
   DEFAULT_MAP,
   DEFAULT_ROUTE_STYLE,
   elementPixels,
@@ -129,6 +130,7 @@ describe("the poster layout document", () => {
       orientation: "portrait",
       size: "poster",
       terrain: true,
+      details: { landmarks: false, placeNames: true, roadLabels: false },
       routeStyle: {
         colour: "#123456",
         arrows: true,
@@ -150,6 +152,27 @@ describe("the poster layout document", () => {
     });
     expect(odd).toMatchObject(DEFAULT_MAP);
     expect(odd!.routeStyle.labels).toMatchObject({ start: null, zone: null });
+  });
+
+  it("defaults every map detail on and round-trips each switch, absent meaning on", () => {
+    expect(DEFAULT_DETAILS).toEqual({ landmarks: true, placeNames: true, roadLabels: true });
+    expect(toLayoutDocument(DEFAULT_DESIGN, []).details).toEqual(DEFAULT_DETAILS);
+    for (const key of ["landmarks", "placeNames", "roadLabels"] as const) {
+      const details = { ...DEFAULT_DETAILS, [key]: false };
+      const doc = toLayoutDocument({ ...DEFAULT_DESIGN, details }, []);
+      expect(doc.details).toEqual(details);
+      expect(parsePosterLayout(JSON.parse(JSON.stringify(doc)))!.details).toEqual(details);
+    }
+    // A document saved without details, or with some of them, reads the
+    // missing switches as on; anything but false reads on.
+    expect(parsePosterLayout({ version: 1, elements: [] })!.details).toEqual(DEFAULT_DETAILS);
+    expect(
+      parsePosterLayout({ version: 1, details: { roadLabels: false }, elements: [] })!.details,
+    ).toEqual({ landmarks: true, placeNames: true, roadLabels: false });
+    expect(
+      parsePosterLayout({ version: 1, details: { landmarks: "no", placeNames: null }, elements: [] })!
+        .details,
+    ).toEqual(DEFAULT_DETAILS);
   });
 
   it("snaps the nearest edge or centre within the threshold", () => {

@@ -25,6 +25,7 @@ import {
 import { ATTRIBUTION_TEXT, resetTerrainProbes } from "../../routeMap/poster";
 import {
   ARROWS_LAYER,
+  DETAIL_LAYERS,
   HILLSHADE_LAYER,
   ROUTE_ARROW_ICON,
   ROUTE_PALETTES,
@@ -36,6 +37,7 @@ import { loadOverlayImage } from "../../routeMap/overlayImage";
 import { OVERLAY_STAGE_WIDTH } from "../../routeMap/posterOverlay";
 import {
   DEFAULT_DESIGN,
+  DEFAULT_DETAILS,
   DEFAULT_ROUTE_STYLE,
   toLayoutDocument,
   type PosterLayout,
@@ -695,6 +697,74 @@ describe("PosterEditor: generate from the flight recording", () => {
     expect(exportCalls[0]![1].options.arrowScale).toBe(scale);
   });
 
+  it("offers the three map detail switches on by default", async () => {
+    render(<Harness poster={POSTER} />);
+    const studio = await openStudio();
+    const group = within(studio).getByTestId("poster-map-details");
+    expect(within(group).getByText("Map details")).toBeInTheDocument();
+    for (const label of ["Landmarks", "Town names", "Road labels"]) {
+      expect(within(group).getByLabelText(label)).toBeChecked();
+    }
+    await waitFor(() =>
+      expect(vi.mocked(buildPosterStyle).mock.calls.at(-1)![1].options.details).toEqual(DEFAULT_DETAILS),
+    );
+  });
+
+  it("feeds the detail switches to the preview and the export through the shared style call and saves them", async () => {
+    const user = userEvent.setup();
+    const { patches } = installFlowHandlers();
+    render(<Harness poster={POSTER} />);
+    const studio = await openStudio();
+    await within(studio).findByTestId("route-poster-preview");
+    await waitFor(() => expect(previews).toHaveLength(1));
+    const preview = previews[0]!;
+    const ids = () => (preview.styles.at(-1) as { layers: Array<{ id: string }> }).layers.map((l) => l.id);
+    for (const id of [...DETAIL_LAYERS.placeNames, ...DETAIL_LAYERS.roadLabels]) {
+      expect(ids()).toContain(id);
+    }
+
+    await user.click(within(studio).getByLabelText("Town names"));
+    await user.click(within(studio).getByLabelText("Road labels"));
+    await user.click(within(studio).getByLabelText("Landmarks"));
+    const details = { landmarks: false, placeNames: false, roadLabels: false };
+    await waitFor(() =>
+      expect(vi.mocked(buildPosterStyle).mock.calls.at(-1)![1].options.details).toEqual(details),
+    );
+    await waitFor(() => {
+      for (const id of [...DETAIL_LAYERS.placeNames, ...DETAIL_LAYERS.roadLabels]) {
+        expect(ids()).not.toContain(id);
+      }
+    });
+    await user.click(within(studio).getByLabelText("Landmarks"));
+    const kept = { ...details, landmarks: true };
+    await waitFor(() =>
+      expect(vi.mocked(buildPosterStyle).mock.calls.at(-1)![1].options.details).toEqual(kept),
+    );
+
+    const previewCalls = vi.mocked(buildPosterStyle).mock.calls.length;
+    const previewInput = vi.mocked(buildPosterStyle).mock.calls.at(-1)!;
+    await user.click(within(studio).getByTestId("route-poster-generate-run"));
+    await within(studio).findByTestId("route-poster-ready");
+    const exportCalls = vi.mocked(buildPosterStyle).mock.calls.slice(previewCalls);
+    expect(exportCalls).toHaveLength(1);
+    expect(exportCalls[0]).toEqual(previewInput);
+    expect(exportCalls[0]![1].options.details).toEqual(kept);
+    expect(mapOptions[0]!.style).toEqual(preview.styles.at(-1));
+    expect(patches).toEqual([
+      { name: "Main street", routeId: 4, layout: { ...DEFAULT_LAYOUT, details: kept } },
+    ]);
+  });
+
+  it("opens a layout saved without details with every detail on", async () => {
+    const { details: _omitted, ...withoutDetails } = DEFAULT_LAYOUT;
+    void _omitted;
+    render(<Harness poster={{ ...POSTER, layout: withoutDetails }} />);
+    const studio = await openStudio();
+    for (const label of ["Landmarks", "Town names", "Road labels"]) {
+      expect(within(studio).getByLabelText(label)).toBeChecked();
+    }
+  });
+
   it("locks the label format to Elapsed with a hint while no start time is set", async () => {
     render(<Harness poster={POSTER} />);
     const studio = await openStudio();
@@ -730,6 +800,7 @@ describe("PosterEditor: generate from the flight recording", () => {
     // entry, on the wall clock from the start time in its zone.
     const first = vi.mocked(buildPosterStyle).mock.calls.at(-1)![1];
     expect(first.options).toEqual({
+      details: { landmarks: true, placeNames: true, roadLabels: true },
       routeColor: ROUTE_PALETTES.light.routeColor,
       arrows: true,
       arrowScale: 1.5,
@@ -812,6 +883,7 @@ describe("PosterEditor: opening restores the poster document", () => {
       orientation: "portrait",
       size: "flyer",
       terrain: true,
+      details: { landmarks: true, placeNames: false, roadLabels: false },
       routeStyle: {
         colour: "#abcdef",
         arrows: true,
@@ -828,6 +900,9 @@ describe("PosterEditor: opening restores the poster document", () => {
     expect(await within(studio).findByLabelText("Terrain")).toBeChecked();
     expect(within(studio).getByTestId("route-poster-color-hex")).toHaveValue("#abcdef");
     expect(within(studio).getByLabelText("Arrows")).toBeChecked();
+    expect(within(studio).getByLabelText("Landmarks")).toBeChecked();
+    expect(within(studio).getByLabelText("Town names")).not.toBeChecked();
+    expect(within(studio).getByLabelText("Road labels")).not.toBeChecked();
     expect(within(studio).getByRole("combobox", { name: "Arrow size" })).toHaveTextContent("Extra large");
     expect(within(studio).getByRole("combobox", { name: "Time labels" })).toHaveTextContent(
       "Every 10 minutes",
@@ -846,6 +921,7 @@ describe("PosterEditor: opening restores the poster document", () => {
       expect(input.theme).toBe("dark");
       expect(input.terrain).toBe(true);
       expect(input.options.arrowScale).toBe(2);
+      expect(input.options.details).toEqual({ landmarks: true, placeNames: false, roadLabels: false });
       expect(input.options.timeLabels?.[0]?.label).toBe("6:00 PM");
     });
 
@@ -1045,5 +1121,104 @@ describe("PosterEditor: the overlay composer", () => {
     expect(within(studio).getByTestId("route-poster-generate-run")).toHaveTextContent(/try again/i);
     await user.click(screen.getByTestId("poster-back"));
     expect(await screen.findByTestId("posters-page")).toBeInTheDocument();
+  });
+});
+
+describe("PosterEditor: attach a generated poster to an event", () => {
+  const EVENTS = [
+    f.events[1]!,
+    { ...f.events[0]!, id: 9, year: 2027, name: "Santa Flyover 2027" },
+    f.events[0]!,
+  ];
+
+  function installAttachHandlers(fail: Record<number, number> = {}) {
+    const attached: Array<{ id: number; body: unknown }> = [];
+    server.use(
+      http.get(`${API}/admin/events`, () => HttpResponse.json({ items: EVENTS })),
+      http.patch(`${API}/admin/events/:id`, async ({ params, request }) => {
+        const id = Number(params.id);
+        const body = await request.json();
+        attached.push({ id, body });
+        const status = fail[id];
+        if (status) {
+          return HttpResponse.json(
+            { code: "media_not_ready", message: "The media is not ready.", details: null, requestId: "r9" },
+            { status },
+          );
+        }
+        return HttpResponse.json({ ...EVENTS.find((e) => e.id === id), ...(body as object) });
+      }),
+    );
+    return attached;
+  }
+
+  async function generated(user: ReturnType<typeof userEvent.setup>) {
+    const studio = await openStudio();
+    expect(within(studio).queryByTestId("poster-attach")).toBeNull();
+    await user.click(within(studio).getByTestId("route-poster-generate-run"));
+    const ready = await within(studio).findByTestId("route-poster-ready");
+    return within(ready).getByTestId("poster-attach");
+  }
+
+  async function pick(user: ReturnType<typeof userEvent.setup>, attach: HTMLElement, name: string) {
+    await user.click(within(attach).getByRole("combobox", { name: "Event" }));
+    await user.click(await screen.findByRole("option", { name }));
+  }
+
+  it("lists the events newest year first and attaches the image to one, then another", async () => {
+    const user = userEvent.setup();
+    installFlowHandlers();
+    const attached = installAttachHandlers();
+    render(<Harness poster={POSTER} />);
+    const attach = await generated(user);
+    const run = within(attach).getByTestId("poster-attach-run");
+    expect(run).toHaveTextContent("Attach to an event");
+    expect(run).toBeDisabled();
+
+    await user.click(within(attach).getByRole("combobox", { name: "Event" }));
+    const options = await screen.findAllByRole("option");
+    expect(options.map((o) => o.textContent)).toEqual([
+      "Santa Flyover 2027 (2027)",
+      "Santa Flyover 2026 (2026)",
+      "Santa Flyover 2025 (2025)",
+    ]);
+    await user.click(options[1]!);
+    await user.click(run);
+    expect(await within(attach).findByTestId("poster-attach-success")).toHaveTextContent(
+      "Attached to Santa Flyover 2026 as its route poster.",
+    );
+    expect(attached).toEqual([{ id: 7, body: { routeImageMediaId: "poster-asset-1" } }]);
+
+    // The button stays for the same image and another event.
+    expect(within(attach).getByTestId("poster-attach-run")).toBeEnabled();
+    await pick(user, attach, "Santa Flyover 2025 (2025)");
+    await user.click(within(attach).getByTestId("poster-attach-run"));
+    await waitFor(() =>
+      expect(within(attach).getByTestId("poster-attach-success")).toHaveTextContent(
+        "Attached to Santa Flyover 2025 as its route poster.",
+      ),
+    );
+    expect(attached[1]).toEqual({ id: 6, body: { routeImageMediaId: "poster-asset-1" } });
+  });
+
+  it("shows a readable message when the attach fails and lets another try", async () => {
+    const user = userEvent.setup();
+    installFlowHandlers();
+    const attached = installAttachHandlers({ 9: 409 });
+    render(<Harness poster={POSTER} />);
+    const attach = await generated(user);
+    await pick(user, attach, "Santa Flyover 2027 (2027)");
+    await user.click(within(attach).getByTestId("poster-attach-run"));
+    const error = await within(attach).findByTestId("poster-attach-error");
+    expect(error).toHaveTextContent(/^The poster could not be attached to Santa Flyover 2027\. \S/);
+    expect(within(attach).queryByTestId("poster-attach-success")).toBeNull();
+    expect(attached).toEqual([{ id: 9, body: { routeImageMediaId: "poster-asset-1" } }]);
+
+    await pick(user, attach, "Santa Flyover 2026 (2026)");
+    await user.click(within(attach).getByTestId("poster-attach-run"));
+    expect(await within(attach).findByTestId("poster-attach-success")).toHaveTextContent(
+      "Attached to Santa Flyover 2026",
+    );
+    expect(within(attach).queryByTestId("poster-attach-error")).toBeNull();
   });
 });

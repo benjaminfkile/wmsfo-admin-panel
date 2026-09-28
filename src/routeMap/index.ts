@@ -18,6 +18,7 @@ export {
   terrainUrl,
   tilesUrl,
   ARROWS_LAYER,
+  DETAIL_LAYERS,
   HILLSHADE_LAYER,
   OSM_ATTRIBUTION,
   ROUTE_ARROW_ICON,
@@ -27,6 +28,7 @@ export {
   TIME_LABELS_SOURCE,
   type LatLng,
   type RouteArrowImage,
+  type StyleDetails,
   type StyleOptions,
   type TimeLabel,
 } from "./style";
@@ -38,7 +40,7 @@ export function routeBasemapBase(config: Pick<Config, "routeBasemapUrl">): strin
 
 // The route map style over the configured basemap, with the hillshade
 // over `<base>/terrain.pmtiles` when `terrain` is set and the route
-// colour, arrows, and time labels of `options`. Throws when
+// colour, arrows, time labels, and basemap details of `options`. Throws when
 // VITE_ROUTE_BASEMAP_URL is unset.
 export function buildRouteMapStyle(
   config: Pick<Config, "routeBasemapUrl">,

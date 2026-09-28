@@ -64,6 +64,7 @@ import {
   DEFAULT_DESIGN,
   elementLabel,
   toLayoutDocument,
+  type LayoutDetails,
   type LayoutElement,
   type PosterLayout,
 } from "../../routeMap/posterLayout";
@@ -71,6 +72,7 @@ import { renderOverlayCanvas } from "../../routeMap/posterOverlay";
 import RoutePosterPreview, { PREVIEW_MAX_HEIGHT } from "./RoutePosterPreview";
 import PosterOverlayComposer, { type EditorElement } from "./PosterOverlayComposer";
 import PosterOverlayControls from "./PosterOverlayControls";
+import AttachToEvent from "./AttachToEvent";
 import { OverlayLoadError, sourceKey, useOverlaySources } from "./overlaySources";
 
 interface Props {
@@ -96,6 +98,13 @@ export const SIZE_LIMIT_MESSAGE =
 export const NO_START_HINT =
   "Without a start time the labels show the time since the start.";
 
+// The Map details switches in the rail, in order.
+const DETAIL_SWITCHES: readonly { key: keyof LayoutDetails; label: string }[] = [
+  { key: "landmarks", label: "Landmarks" },
+  { key: "placeNames", label: "Town names" },
+  { key: "roadLabels", label: "Road labels" },
+];
+
 // The width of a new overlay element over the poster's width.
 const NEW_ELEMENT_WIDTH: Record<LayoutElement["type"], number> = {
   image: 0.25,
@@ -107,14 +116,16 @@ const NEW_ELEMENT_WIDTH: Record<LayoutElement["type"], number> = {
 // working column holds a large live preview of the recording's route map
 // at the chosen theme, orientation, size, and route styling (colour,
 // arrows, time labels), with the hillshade when Terrain is checked
-// (offered only once the probe finds `<base>/terrain.pmtiles`), and the
+// (offered only once the probe finds `<base>/terrain.pmtiles`) and the
+// basemap details the Map details switches keep, and the
 // overlay composer over it (images, the site logo, QR codes). The controls
 // sit in a rail on the right on desktop and stack under the preview below
 // md. Mounting restores `initialLayout` once; every change of the design
 // goes to `onLayoutChange`. Generate renders the same style offscreen,
 // draws the overlays over it at the print scale and the attribution last,
 // uploads the JPEG through the media upload flow, saves the poster, and
-// links the ready asset in the media library.
+// links the ready asset in the media library and offers to attach it to
+// an event.
 export default function PosterStudioWorkspace({
   posterName,
   routeId,
@@ -134,6 +145,7 @@ export default function PosterStudioWorkspace({
   const [preset, setPreset] = useState<PosterPresetId>(initial.size);
   const [terrain, setTerrain] = useState(initial.terrain);
   const [terrainAvailable, setTerrainAvailable] = useState(false);
+  const [details, setDetails] = useState<LayoutDetails>(initial.details);
   // The picked route colour, or null for the theme's.
   const [customColor, setCustomColor] = useState<string | null>(initial.routeStyle.colour);
   // The hex field's text while it does not hold a complete colour.
@@ -188,6 +200,7 @@ export default function PosterStudioWorkspace({
     () => ({
       theme,
       terrain: withTerrain,
+      details,
       routeColor,
       arrows,
       arrowScale,
@@ -196,7 +209,7 @@ export default function PosterStudioWorkspace({
       scheduledAt,
       zone,
     }),
-    [theme, withTerrain, routeColor, arrows, arrowScale, labelInterval, labelFormat, scheduledAt, zone],
+    [theme, withTerrain, details, routeColor, arrows, arrowScale, labelInterval, labelFormat, scheduledAt, zone],
   );
 
   const siteSettingsResult = useQuery({
@@ -229,6 +242,7 @@ export default function PosterStudioWorkspace({
           orientation,
           size: preset,
           terrain,
+          details,
           routeStyle: {
             colour: customColor,
             arrows,
@@ -238,7 +252,7 @@ export default function PosterStudioWorkspace({
         },
         elements,
       ),
-    [theme, orientation, preset, terrain, customColor, arrows, arrowScale, labelInterval, format, start, startZone, elements],
+    [theme, orientation, preset, terrain, details, customColor, arrows, arrowScale, labelInterval, format, start, startZone, elements],
   );
   const onLayoutChangeRef = useRef(onLayoutChange);
   onLayoutChangeRef.current = onLayoutChange;
@@ -475,6 +489,26 @@ export default function PosterStudioWorkspace({
               label="Terrain"
             />
           ) : null}
+          <Stack component="fieldset" sx={{ border: 0, p: 0, m: 0 }} data-testid="poster-map-details">
+            <FormLabel component="legend">Map details</FormLabel>
+            {DETAIL_SWITCHES.map(({ key, label }) => (
+              <FormControlLabel
+                key={key}
+                disabled={busy}
+                control={
+                  <Switch
+                    checked={details[key]}
+                    onChange={(e) => {
+                      const on = e.target.checked;
+                      setDetails((d) => ({ ...d, [key]: on }));
+                    }}
+                    data-testid={`poster-detail-${key}`}
+                  />
+                }
+                label={label}
+              />
+            ))}
+          </Stack>
           <Stack spacing={2} component="fieldset" sx={{ border: 0, p: 0, m: 0 }} data-testid="route-poster-styling">
             <FormLabel component="legend">Route styling</FormLabel>
             <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1 }}>
@@ -657,6 +691,7 @@ export default function PosterStudioWorkspace({
                   Open in the media library
                 </Link>
               ) : null}
+              {assetId ? <AttachToEvent mediaId={assetId} disabled={busy} /> : null}
             </Stack>
           ) : null}
         </Stack>
@@ -668,6 +703,7 @@ export default function PosterStudioWorkspace({
 type PosterStyling = {
   theme: Appearance;
   terrain: boolean;
+  details: LayoutDetails;
   routeColor: string;
   arrows: boolean;
   arrowScale: ArrowScale;
@@ -689,6 +725,11 @@ function posterStyle(
     routeMap,
     terrain: styling.terrain,
     options: {
+      details: {
+        landmarks: styling.details.landmarks,
+        placeNames: styling.details.placeNames,
+        roadLabels: styling.details.roadLabels,
+      },
       routeColor: styling.routeColor,
       arrows: styling.arrows,
       arrowScale: styling.arrowScale,

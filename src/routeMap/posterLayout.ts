@@ -1,6 +1,7 @@
 // The poster layout document stored on a poster as its `layout`: the
 // whole design of the poster studio (theme, orientation, size, terrain,
-// the route styling) and the overlay elements drawn over the map. The
+// the map details, the route styling) and the overlay elements drawn over
+// the map. The
 // shape is the panel's own (admin.md 6.3, Poster studio). Every position
 // and size is a fraction of the poster's width and height, so one layout
 // fits every preset and both orientations.
@@ -57,8 +58,17 @@ export type LayoutMap = {
   terrain: boolean;
 };
 
+// The basemap detail switches: the points of interest names
+// (`landmarks`), the city, town, village, and neighbourhood names
+// (`placeNames`), and the road names (`roadLabels`). True draws the group.
+export type LayoutDetails = {
+  landmarks: boolean;
+  placeNames: boolean;
+  roadLabels: boolean;
+};
+
 // Everything in the document but the elements.
-export type PosterDesign = LayoutMap & { routeStyle: LayoutRouteStyle };
+export type PosterDesign = LayoutMap & { details: LayoutDetails; routeStyle: LayoutRouteStyle };
 
 // Where an element sits: `x` and `y` are its centre over the poster's
 // width and height, `width` is its width over the poster's width (the
@@ -101,7 +111,17 @@ export const DEFAULT_MAP: LayoutMap = {
   terrain: false,
 };
 
-export const DEFAULT_DESIGN: PosterDesign = { ...DEFAULT_MAP, routeStyle: DEFAULT_ROUTE_STYLE };
+export const DEFAULT_DETAILS: LayoutDetails = {
+  landmarks: true,
+  placeNames: true,
+  roadLabels: true,
+};
+
+export const DEFAULT_DESIGN: PosterDesign = {
+  ...DEFAULT_MAP,
+  details: DEFAULT_DETAILS,
+  routeStyle: DEFAULT_ROUTE_STYLE,
+};
 
 // The document for the design and the elements in stacking order; each
 // element's `z` is its index.
@@ -117,6 +137,11 @@ export function toLayoutDocument(
     orientation: design.orientation,
     size: design.size,
     terrain: design.terrain,
+    details: {
+      landmarks: design.details.landmarks,
+      placeNames: design.details.placeNames,
+      roadLabels: design.details.roadLabels,
+    },
     routeStyle: {
       colour: routeStyle.colour,
       arrows: routeStyle.arrows,
@@ -175,6 +200,17 @@ function parseRouteStyle(raw: unknown): LayoutRouteStyle {
   return { colour, arrows, arrowScale, labels: { interval, format, start, zone } };
 }
 
+// Each detail switch reads true unless the document holds false for it, so
+// a document without `details` draws every group.
+function parseDetails(raw: unknown): LayoutDetails {
+  const details = isRecord(raw) ? raw : {};
+  return {
+    landmarks: details.landmarks !== false,
+    placeNames: details.placeNames !== false,
+    roadLabels: details.roadLabels !== false,
+  };
+}
+
 const WALL_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
 function parseMap(raw: Record<string, unknown>): LayoutMap {
@@ -213,7 +249,7 @@ function parseElement(raw: unknown): LayoutElement | null {
 
 // Reads a saved layout. Anything that is not a version 1 document is
 // null; a missing or unknown map choice or route style value reads its
-// default, elements of an unknown type or without a placement are
+// default, a detail switch reads on unless it is false, elements of an unknown type or without a placement are
 // dropped, and the rest come back in stacking order.
 export function parsePosterLayout(raw: unknown): PosterLayout | null {
   if (!isRecord(raw) || raw.version !== POSTER_LAYOUT_VERSION) return null;
@@ -225,6 +261,7 @@ export function parsePosterLayout(raw: unknown): PosterLayout | null {
   return {
     version: POSTER_LAYOUT_VERSION,
     ...parseMap(raw),
+    details: parseDetails(raw.details),
     routeStyle: parseRouteStyle(raw.routeStyle),
     elements,
   };
