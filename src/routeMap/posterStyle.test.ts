@@ -49,8 +49,8 @@ describe("time label formats", () => {
 
   it("formats the wall clock in the event's schedule zone", () => {
     // 2026-12-24T01:00Z is 18:00 in Denver (MST) and 19:00 in Chicago (CST).
-    expect(formatWallClock("2026-12-24T01:00:00Z", 15, "America/Denver")).toBe("18:15");
-    expect(formatWallClock("2026-12-24T01:00:00Z", 15, "America/Chicago")).toBe("19:15");
+    expect(formatWallClock("2026-12-24T01:00:00Z", 15, "America/Denver")).toBe("6:15 PM");
+    expect(formatWallClock("2026-12-24T01:00:00Z", 15, "America/Chicago")).toBe("7:15 PM");
   });
 
   it("follows the zone across a daylight saving change", () => {
@@ -66,9 +66,9 @@ describe("time label formats", () => {
       zone: "America/Denver",
     };
     expect(posterTimeLabels(TIMELINE, { ...settings, format: "wall" })).toEqual([
-      { lat: 46, lng: -114, label: "18:00" },
-      { lat: 46.3, lng: -114.3, label: "18:30" },
-      { lat: 46.47, lng: -114.47, label: "18:47" },
+      { lat: 46, lng: -114, label: "6:00 PM" },
+      { lat: 46.3, lng: -114.3, label: "6:30 PM" },
+      { lat: 46.47, lng: -114.47, label: "6:47 PM" },
     ]);
     expect(
       posterTimeLabels(TIMELINE, { ...settings, format: "elapsed" }).map((l) => l.label),

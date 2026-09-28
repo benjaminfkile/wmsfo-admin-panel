@@ -69,15 +69,21 @@ export function formatElapsed(minutes: number): string {
   return `+${h}:${String(m).padStart(2, "0")}`;
 }
 
-// "HH:mm" on the wall clock of `zone` at `minutes` after `scheduledAt`,
+// "h:mm AM" on the wall clock of `zone` at `minutes` after `scheduledAt`,
 // through utcToWallTime, so daylight saving changes follow the zone; ""
-// for an invalid start or an unknown zone.
+// for an invalid start or an unknown zone. The poster reads like a flyer,
+// so the twelve hour clock, not "17:35".
 export function formatWallClock(scheduledAt: string, minutes: number, zone: string): string {
   const start = new Date(scheduledAt).getTime();
   if (Number.isNaN(start)) return "";
   const at = new Date(start + Math.round(minutes * 60_000)).toISOString();
   const wall = utcToWallTime(at, zone);
-  return wall ? wall.slice(11) : "";
+  if (!wall) return "";
+  const h = Number(wall.slice(11, 13));
+  const m = wall.slice(14, 16);
+  const half = h < 12 ? "AM" : "PM";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${m} ${half}`;
 }
 
 export type TimeLabelSettings = {
