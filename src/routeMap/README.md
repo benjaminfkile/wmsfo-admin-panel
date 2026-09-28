@@ -13,8 +13,9 @@ holds the poster generator's presets, the lazy probe of
 every poster map, and the composed JPEG with the attribution drawn into it.
 `posterStyle.ts` holds the route styling options, the time labels, and
 `buildPosterStyle`, the one style call the live preview and the export render
-share. `posterLayout.ts` holds the poster layout document saved on the event,
-with positions and sizes as fractions of the poster; `posterOverlay.ts` draws
+share. `posterLayout.ts` holds the poster layout document saved on a poster (the
+whole studio design and its overlay elements), with positions and sizes as
+fractions of the poster; `posterOverlay.ts` draws
 its elements on an offscreen Konva stage at the print scale; `overlayImage.ts`
 loads the overlay images with CORS and refuses one that would taint the
 canvas. `index.ts` reads the basemap base URL from the panel

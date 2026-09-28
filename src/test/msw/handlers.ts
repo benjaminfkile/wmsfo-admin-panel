@@ -76,6 +76,28 @@ export const handlers: HttpHandler[] = [
   ),
   http.delete("*/admin/routes/:id", () => new HttpResponse(null, { status: 204 })),
 
+  // Posters
+  http.get("*/admin/posters", () => HttpResponse.json({ items: f.posterSummaries })),
+  http.get("*/admin/posters/:id", ({ params }) => {
+    const poster = f.posters.find((p) => String(p.id) === String(params.id));
+    return poster
+      ? HttpResponse.json(poster)
+      : HttpResponse.json(
+          { code: "not_found", message: "Not found", details: null, requestId: "r1" },
+          { status: 404 }
+        );
+  }),
+  http.post("*/admin/posters", async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ ...f.posters[0], ...body, id: 99 }, { status: 201 });
+  }),
+  http.patch("*/admin/posters/:id", async ({ params, request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    const poster = f.posters.find((p) => String(p.id) === String(params.id)) ?? f.posters[0];
+    return HttpResponse.json({ ...poster, ...body });
+  }),
+  http.delete("*/admin/posters/:id", () => new HttpResponse(null, { status: 204 })),
+
   // Beacons
   http.get("*/admin/beacons", () =>
     HttpResponse.json({ items: f.beacons, staleAfterS: 45 })
@@ -446,6 +468,7 @@ export const handlers: HttpHandler[] = [
       "subscribers",
       "people",
       "contact-messages",
+      "posters",
     ] as const
   ).map((resource) =>
     http.get(`*/admin/${resource}/:id/impact`, ({ params }) => {

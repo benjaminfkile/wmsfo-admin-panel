@@ -60,6 +60,7 @@ const ENTITY_LABELS: Record<string, { singular: string; plural: string }> = {
   subscription: { singular: "subscription", plural: "subscriptions" },
   person: { singular: "person", plural: "people" },
   contact_message: { singular: "contact message", plural: "contact messages" },
+  poster: { singular: "poster", plural: "posters" },
 };
 
 function labelFor(entity: string, count: number): string {

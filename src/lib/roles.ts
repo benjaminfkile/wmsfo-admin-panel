@@ -10,6 +10,7 @@ export type NavKey =
   | "scan"
   | "pages"
   | "media"
+  | "posters"
   | "site-settings"
   | "publish"
   | "sponsors"
@@ -36,6 +37,7 @@ export const ADMIN_NAV: NavKey[] = [
   "scan",
   "pages",
   "media",
+  "posters",
   "site-settings",
   "publish",
   "sponsors",

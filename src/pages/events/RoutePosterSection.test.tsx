@@ -32,7 +32,7 @@ function Harness({ event }: { event: Event }) {
             <NotifyProvider>
               <Routes>
                 <Route path="/events/:id" element={<RoutePosterSection event={event} />} />
-                <Route path="/events/:id/poster" element={<div data-testid="studio-page" />} />
+                <Route path="/posters" element={<div data-testid="posters-page" />} />
               </Routes>
             </NotifyProvider>
           </MemoryRouter>
@@ -80,13 +80,17 @@ describe("RoutePosterSection: picking only", () => {
     expect(screen.getByTestId("route-poster-studio")).toHaveTextContent("Open poster studio");
   });
 
-  it("links to the studio even without a linked recording; the studio carries the hint", async () => {
+  it("links to the poster list, not to a studio of the event", async () => {
     const user = userEvent.setup();
     render(<Harness event={{ ...EVENT, routeId: null }} />);
     const link = screen.getByTestId("route-poster-studio");
-    expect(link).toHaveAttribute("href", `/events/${EVENT.id}/poster`);
+    expect(link.tagName).toBe("A");
+    expect(link).toHaveAttribute("href", "/posters");
+    expect(screen.queryByRole("button", { name: "Open poster studio" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /set as route poster/i })).toBeNull();
+    expect(screen.queryByTestId("poster-studio-workspace")).toBeNull();
     await user.click(link);
-    expect(await screen.findByTestId("studio-page")).toBeInTheDocument();
+    expect(await screen.findByTestId("posters-page")).toBeInTheDocument();
   });
 
   it("opens the picker with the Library and Upload tabs", async () => {

@@ -74,12 +74,18 @@ export function posterSize(
     : { width: long, height: short };
 }
 
+// "poster-<name>-<theme>-<width>x<height>.jpg", the poster's name
+// lowercased with every run of other characters as one hyphen.
 export function posterFilename(
-  year: number,
+  name: string,
   theme: Appearance,
   size: PosterSize,
 ): string {
-  return `route-poster-${year}-${theme}-${size.width}x${size.height}.jpg`;
+  const slug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `poster-${slug ? `${slug}-` : ""}${theme}-${size.width}x${size.height}.jpg`;
 }
 
 // The poster export encoding. JPEG, because the terrain hillshade makes a

@@ -41,6 +41,7 @@ const ALL_ENTRIES: Record<NavKey, NavEntry> = {
   scan: { key: "scan", label: "Scan", to: "/scan" },
   pages: { key: "pages", label: "Pages", to: "/pages" },
   media: { key: "media", label: "Media", to: "/media" },
+  posters: { key: "posters", label: "Poster studio", to: "/posters" },
   "site-settings": { key: "site-settings", label: "Site settings", to: "/site-settings" },
   publish: { key: "publish", label: "Publish", to: "/publish" },
   sponsors: { key: "sponsors", label: "Sponsors", to: "/sponsors" },

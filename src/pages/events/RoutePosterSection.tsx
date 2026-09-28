@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   CardContent,
+  Link,
   Stack,
   Typography,
 } from "@mui/material";
@@ -26,7 +27,7 @@ interface Props {
 // opens MediaPicker (raster only), which uploads or chooses from the
 // library. Sends PATCH { routeImageMediaId } (empty string to remove; null
 // leaves it unchanged). On 409 media_not_ready reopens the picker on that
-// asset. "Open poster studio" goes to /events/:id/poster.
+// asset. "Open poster studio" is a link to the poster list, /posters.
 export default function RoutePosterSection({ event }: Props) {
   const qc = useQueryClient();
   const notify = useNotify();
@@ -88,21 +89,21 @@ export default function RoutePosterSection({ event }: Props) {
                 Remove poster
               </Button>
             ) : null}
-            <Button
-              size="small"
-              variant="outlined"
-              component={RouterLink}
-              to={`/events/${Number(event.id)}/poster`}
-              data-testid="route-poster-studio"
-            >
-              Open poster studio
-            </Button>
           </Stack>
         </Stack>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
           Shown on the route page and as the route preview. Use the highest
           resolution you have; the site serves smaller copies where it can.
         </Typography>
+        <Link
+          component={RouterLink}
+          to="/posters"
+          variant="body2"
+          data-testid="route-poster-studio"
+          sx={{ display: "inline-block", mt: 1 }}
+        >
+          Open poster studio
+        </Link>
         {patchMut.error ? (
           <Box sx={{ my: 2 }}>
             <ErrorAlert error={patchMut.error} />

@@ -28,7 +28,6 @@ interface Props {
   canForward: boolean;
   canBack: boolean;
   hasElements: boolean;
-  saving: boolean;
   onAddImage: (asset: MediaAsset) => void;
   onAddLogo: (mediaId: string) => void;
   onAddQr: (code: QrCode) => void;
@@ -36,7 +35,6 @@ interface Props {
   onBack: () => void;
   onDelete: () => void;
   onClear: () => void;
-  onSave: () => void;
 }
 
 export const GIF_REFUSED = "Animated GIFs cannot be placed on a poster. Choose a raster image or an SVG.";
@@ -44,7 +42,7 @@ export const GIF_REFUSED = "Animated GIFs cannot be placed on a poster. Choose a
 // The overlay toolbar of the poster studio: add an image from the media
 // library (raster or svg), the site logo (shown only when site settings
 // have one), or a QR code; move the selected element forward or back;
-// delete it; clear the layout; and save it on the event.
+// delete it; and clear every element.
 export default function PosterOverlayControls(props: Props) {
   const { disabled, logoMediaId, selected } = props;
   const [mediaOpen, setMediaOpen] = useState(false);
@@ -86,10 +84,7 @@ export default function PosterOverlayControls(props: Props) {
           Delete
         </Button>
         <Button size="small" disabled={disabled || !props.hasElements} onClick={props.onClear} data-testid="poster-overlay-clear">
-          Clear layout
-        </Button>
-        <Button size="small" variant="outlined" disabled={disabled || props.saving} onClick={props.onSave} data-testid="poster-overlay-save">
-          Save layout
+          Clear overlays
         </Button>
       </Stack>
       {refused ? (

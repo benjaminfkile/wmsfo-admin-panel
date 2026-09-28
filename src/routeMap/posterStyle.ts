@@ -103,9 +103,9 @@ export function formatWallClock(scheduledAt: string, minutes: number, zone: stri
 export type TimeLabelSettings = {
   interval: TimeLabelInterval;
   format: TimeLabelFormat;
-  // The event's scheduled start; without it the labels are elapsed time.
+  // The flight's start instant; without it the labels are elapsed time.
   scheduledAt: string | null;
-  // The event's schedule zone, the IANA zone of the wall clock labels.
+  // The IANA zone of the wall clock labels.
   zone: string;
 };
 

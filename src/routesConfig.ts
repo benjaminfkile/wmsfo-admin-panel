@@ -16,6 +16,7 @@ export const ALL_ROUTES: RouteDef[] = [
   { key: "scan", path: "/scan", label: "Scan" },
   { key: "pages", path: "/pages", label: "Pages" },
   { key: "media", path: "/media", label: "Media" },
+  { key: "posters", path: "/posters", label: "Poster studio" },
   { key: "site-settings", path: "/site-settings", label: "Site settings" },
   { key: "publish", path: "/publish", label: "Publish" },
   { key: "sponsors", path: "/sponsors", label: "Sponsors" },
