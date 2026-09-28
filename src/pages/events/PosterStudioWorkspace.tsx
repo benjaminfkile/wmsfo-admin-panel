@@ -4,13 +4,11 @@ import {
   Box,
   Button,
   Checkbox,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   FormControl,
   FormControlLabel,
   FormLabel,
   FormHelperText,
+  Grid,
   InputLabel,
   LinearProgress,
   Link,
@@ -23,7 +21,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "../../api/errors";
 import { events as eventsApi } from "../../api/resources/events";
@@ -31,7 +29,6 @@ import { media as mediaApi } from "../../api/resources/media";
 import { siteSettings as siteSettingsApi } from "../../api/resources/siteSettings";
 import { UploadFailed, uploadToS3 } from "../../api/resources/upload";
 import type { Event, MediaAsset, QrCode } from "../../api/types";
-import AppDialog from "../../components/AppDialog";
 import { useConfig } from "../../ConfigContext";
 import { useCompact } from "../../hooks/useCompact";
 import { useNotify } from "../../hooks/useNotify";
@@ -72,15 +69,13 @@ import {
   type PosterLayout,
 } from "../../routeMap/posterLayout";
 import { renderOverlayCanvas } from "../../routeMap/posterOverlay";
-import RoutePosterPreview from "./RoutePosterPreview";
+import RoutePosterPreview, { PREVIEW_MAX_HEIGHT } from "./RoutePosterPreview";
 import PosterOverlayComposer, { type EditorElement } from "./PosterOverlayComposer";
 import PosterOverlayControls from "./PosterOverlayControls";
 import { OverlayLoadError, sourceKey, useOverlaySources } from "./overlaySources";
 
 interface Props {
   event: Event;
-  open: boolean;
-  onClose: () => void;
 }
 
 type Phase =
@@ -107,21 +102,25 @@ const NEW_ELEMENT_WIDTH: Record<LayoutElement["type"], number> = {
   qr: 0.15,
 };
 
-// The generator dialog of the route poster section (admin.md 6.3). Shows a
-// live preview of the event's route map at the chosen theme, orientation,
-// size, and route styling (colour, arrows, time labels), with the
-// hillshade when Terrain is checked (offered only once the probe finds
-// `<base>/terrain.pmtiles`), and the overlay composer over it (images, the
-// site logo, QR codes). Opening the dialog loads the event's saved poster
-// layout; Save layout and a successful Generate save it. Generate renders
-// the same style offscreen, draws the overlays over it at the print scale
-// and the attribution last, uploads the JPEG through the media upload
-// flow, and offers to set the ready asset as the route poster.
-export default function RoutePosterGenerator({ event, open, onClose }: Props) {
+// The workspace of the poster studio page (admin.md 6.3). The working
+// column holds a large live preview of the event's route map at the
+// chosen theme, orientation, size, and route styling (colour, arrows,
+// time labels), with the hillshade when Terrain is checked (offered only
+// once the probe finds `<base>/terrain.pmtiles`), and the overlay composer
+// over it (images, the site logo, QR codes). The controls sit in a rail on
+// the right on desktop and stack under the preview below md. Mounting
+// loads the event's saved poster layout; Save layout and a successful
+// Generate save it. Generate renders the same style offscreen, draws the
+// overlays over it at the print scale and the attribution last, uploads
+// the JPEG through the media upload flow, and offers to set the ready
+// asset as the route poster, which returns to the event page.
+export default function PosterStudioWorkspace({ event }: Props) {
   const config = useConfig();
   const qc = useQueryClient();
   const notify = useNotify();
+  const navigate = useNavigate();
   const compact = useCompact();
+  const previewMaxHeight = usePreviewMaxHeight();
   const [theme, setTheme] = useState<Appearance>("light");
   const [orientation, setOrientation] = useState<PosterOrientation>("landscape");
   const [preset, setPreset] = useState<PosterPresetId>("facebook");
@@ -140,7 +139,7 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [asset, setAsset] = useState<MediaAsset | null>(null);
-  // Each run gets an id; a run whose dialog was closed or restarted stops
+  // Each run gets an id; a run whose page was left or restarted stops
   // updating the state.
   const runRef = useRef(0);
   const [elements, setElements] = useState<EditorElement[]>([]);
@@ -150,23 +149,14 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
   const [savingLayout, setSavingLayout] = useState(false);
   const [layoutError, setLayoutError] = useState<string | null>(null);
   const nextKey = useRef(0);
-  // The event the dialog opened on; its layout loads once per open.
+  // The event the page opened on; its layout loads once, on mount, so a
+  // refetch after a save leaves the composer alone.
   const eventRef = useRef(event);
   eventRef.current = event;
 
   useEffect(() => {
-    if (!open) {
-      runRef.current += 1;
-      setPhase("idle");
-      setError(null);
-      setAsset(null);
-      setProgress(0);
-      return;
-    }
+    const runs = runRef;
     const saved = parsePosterLayout(eventRef.current.posterLayout);
-    setSelectedKey(null);
-    setCleared(false);
-    setLayoutError(null);
     setElements(
       (saved?.elements ?? []).map((el) => ({ ...el, key: `el-${++nextKey.current}` })),
     );
@@ -177,11 +167,14 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
       setLabelInterval(saved.routeStyle.labels.interval);
       setFormat(saved.routeStyle.labels.format);
     }
-  }, [open]);
+    return () => {
+      runs.current += 1;
+    };
+  }, []);
 
   const base = routeBasemapBase(config);
   useEffect(() => {
-    if (!open || base === null) return;
+    if (base === null) return;
     let active = true;
     void probeTerrain(base).then((found) => {
       if (active) setTerrainAvailable(found);
@@ -189,7 +182,7 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
     return () => {
       active = false;
     };
-  }, [open, base]);
+  }, [base]);
 
   const eventId = Number(event.id);
   const year = Number(event.year);
@@ -216,7 +209,6 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
   const siteSettingsResult = useQuery({
     queryKey: keys.siteSettings,
     queryFn: () => siteSettingsApi.get(),
-    enabled: open,
   });
   const logoMediaId = siteLogoId(siteSettingsResult.data?.data);
 
@@ -226,7 +218,7 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
     queryKey: keys.eventRouteMap(eventId),
     queryFn: async () => toRouteMapData((await eventsApi.routeMap(eventId)).routeMap),
   };
-  const routeMapResult = useQuery({ ...routeMapQuery, enabled: open });
+  const routeMapResult = useQuery(routeMapQuery);
   const routeMap = routeMapResult.data ?? null;
 
   const drawable = routeMap && routeMap.path.length > 0 ? routeMap : null;
@@ -395,10 +387,10 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
     }
     notify("Route poster updated");
     // The poster changes the event and the list only; the route map the
-    // dialog reads stays cached.
+    // studio reads stays cached.
     void qc.invalidateQueries({ queryKey: keys.event(eventId), exact: true });
     void qc.invalidateQueries({ queryKey: keys.events, exact: true });
-    onClose();
+    navigate(`/events/${eventId}`);
   };
 
   function fail(message: string) {
@@ -408,17 +400,58 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
 
   const assetId = asset && typeof asset.id === "string" ? asset.id : null;
 
+  const ready = asset !== null && (phase === "ready" || phase === "setting");
+
+  const preview =
+    previewStyle && drawable ? (
+      <RoutePosterPreview
+        style={previewStyle}
+        path={drawable.path}
+        size={size}
+        maxHeight={previewMaxHeight}
+        overlay={(display) => (
+          <PosterOverlayComposer
+            width={display.width}
+            height={display.height}
+            elements={elements}
+            sources={sources}
+            selectedKey={selectedKey}
+            disabled={busy}
+            touch={compact}
+            onSelect={setSelectedKey}
+            onChange={moveElement}
+            onDelete={deleteElement}
+          />
+        )}
+      />
+    ) : routeMapResult.isError ? (
+      <Alert severity="warning" data-testid="route-poster-preview-error">
+        The preview could not load. {messageOf(routeMapResult.error)}
+      </Alert>
+    ) : routeMapResult.isSuccess ? (
+      <Alert severity="warning" data-testid="route-poster-preview-error">
+        {NO_PATH_MESSAGE}
+      </Alert>
+    ) : (
+      <Status label="Loading the preview" />
+    );
+
   return (
-    <AppDialog
-      open={open}
-      onClose={onClose}
-      fullWidth
-      maxWidth="sm"
-      data-testid="route-poster-generator"
-    >
-      <DialogTitle>Generate from flight recording</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} sx={{ mt: 1 }}>
+    <Grid container spacing={3} data-testid="poster-studio-workspace">
+      <Grid size={{ xs: 12, md: 8, lg: 9 }} data-testid="poster-studio-preview-column">
+        <Stack spacing={2}>
+          {preview}
+          {failedOverlays.length > 0 ? (
+            <Alert severity="warning" data-testid="poster-overlay-failed">
+              {failedOverlays.map((m) => (
+                <div key={m}>{m}</div>
+              ))}
+            </Alert>
+          ) : null}
+        </Stack>
+      </Grid>
+      <Grid size={{ xs: 12, md: 4, lg: 3 }} data-testid="poster-studio-rail">
+        <Stack spacing={2}>
           <FormControl disabled={busy}>
             <FormLabel id="poster-theme">Theme</FormLabel>
             <RadioGroup
@@ -530,7 +563,7 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
               }
               label="Arrows"
             />
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+            <Stack spacing={2}>
               <FormControl size="small" disabled={busy} sx={{ minWidth: 200 }}>
                 <InputLabel id="poster-time-labels">Time labels</InputLabel>
                 <Select
@@ -594,55 +627,36 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
               });
             }}
           />
-          {failedOverlays.length > 0 ? (
-            <Alert severity="warning" data-testid="poster-overlay-failed">
-              {failedOverlays.map((m) => (
-                <div key={m}>{m}</div>
-              ))}
-            </Alert>
-          ) : null}
           {layoutError ? (
             <Alert severity="error" data-testid="poster-layout-error">
               {layoutError}
             </Alert>
           ) : null}
 
-          {previewStyle && drawable ? (
-            <RoutePosterPreview
-              style={previewStyle}
-              path={drawable.path}
-              size={size}
-              overlay={(display) => (
-                <PosterOverlayComposer
-                  width={display.width}
-                  height={display.height}
-                  elements={elements}
-                  sources={sources}
-                  selectedKey={selectedKey}
-                  disabled={busy}
-                  touch={compact}
-                  onSelect={setSelectedKey}
-                  onChange={moveElement}
-                  onDelete={deleteElement}
-                />
-              )}
-            />
-          ) : routeMapResult.isError ? (
-            <Alert severity="warning" data-testid="route-poster-preview-error">
-              The preview could not load. {messageOf(routeMapResult.error)}
-            </Alert>
-          ) : routeMapResult.isSuccess ? (
-            <Alert severity="warning" data-testid="route-poster-preview-error">
-              {NO_PATH_MESSAGE}
-            </Alert>
-          ) : (
-            <Status label="Loading the preview" />
-          )}
-
           <Typography variant="body2" color="text.secondary" data-testid="route-poster-output">
             {posterFilename(year, theme, size)}
           </Typography>
 
+          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
+            <Button
+              variant={asset ? "outlined" : "contained"}
+              onClick={() => void generate()}
+              disabled={busy}
+              data-testid="route-poster-generate-run"
+            >
+              {phase === "failed" ? "Try again" : asset ? "Generate another" : "Generate"}
+            </Button>
+            {ready ? (
+              <Button
+                variant="contained"
+                onClick={() => void setAsPoster()}
+                disabled={phase === "setting"}
+                data-testid="route-poster-set"
+              >
+                Set as route poster
+              </Button>
+            ) : null}
+          </Stack>
           {phase === "rendering" ? (
             <Status label="Rendering the map" />
           ) : phase === "uploading" ? (
@@ -659,7 +673,7 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
             </Alert>
           ) : null}
 
-          {asset && (phase === "ready" || phase === "setting") ? (
+          {asset && ready ? (
             <Stack spacing={1} data-testid="route-poster-ready">
               <Alert severity="success">
                 Ready: {asset.filename} ({asset.width} x {asset.height})
@@ -677,29 +691,8 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
             </Stack>
           ) : null}
         </Stack>
-      </DialogContent>
-      <DialogActions sx={{ flexWrap: "wrap", gap: 1 }}>
-        <Button onClick={onClose}>Close</Button>
-        {asset && (phase === "ready" || phase === "setting") ? (
-          <Button
-            variant="contained"
-            onClick={() => void setAsPoster()}
-            disabled={phase === "setting"}
-            data-testid="route-poster-set"
-          >
-            Set as route poster
-          </Button>
-        ) : null}
-        <Button
-          variant={asset ? "outlined" : "contained"}
-          onClick={() => void generate()}
-          disabled={busy}
-          data-testid="route-poster-generate-run"
-        >
-          {phase === "failed" ? "Try again" : asset ? "Generate another" : "Generate"}
-        </Button>
-      </DialogActions>
-    </AppDialog>
+      </Grid>
+    </Grid>
   );
 }
 
@@ -714,7 +707,7 @@ type PosterStyling = {
   zone: string;
 };
 
-// The poster style for the dialog's choices. The preview and the export
+// The poster style for the studio's choices. The preview and the export
 // both draw through this one call.
 function posterStyle(
   config: Parameters<typeof buildPosterStyle>[0],
@@ -737,6 +730,27 @@ function posterStyle(
     },
   };
   return buildPosterStyle(config, input);
+}
+
+// The space the shell's bar and the page header take above the preview,
+// in CSS pixels.
+const PREVIEW_CHROME = 200;
+
+// The preview's height cap: the viewport's height under the bar and the
+// header, never under the default cap, so the preview fills the working
+// column and follows a window resize.
+function usePreviewMaxHeight(): number {
+  const [height, setHeight] = useState(previewMaxHeight);
+  useEffect(() => {
+    const update = () => setHeight(previewMaxHeight());
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+  return height;
+}
+
+function previewMaxHeight(): number {
+  return Math.max(PREVIEW_MAX_HEIGHT, window.innerHeight - PREVIEW_CHROME);
 }
 
 // The site logo's media id from the site settings draft, or null.

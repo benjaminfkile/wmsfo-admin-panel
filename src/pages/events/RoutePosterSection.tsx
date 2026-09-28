@@ -7,6 +7,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { Link as RouterLink } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "../../api/errors";
 import { events as eventsApi } from "../../api/resources/events";
@@ -15,33 +16,21 @@ import { keys } from "../../queries/keys";
 import { useNotify } from "../../hooks/useNotify";
 import ErrorAlert from "../../components/ErrorAlert";
 import MediaPicker from "../../components/content/MediaPicker";
-import { useConfig } from "../../ConfigContext";
-import { routeBasemapBase } from "../../routeMap";
-import RoutePosterGenerator from "./RoutePosterGenerator";
 
 interface Props {
   event: Event;
 }
 
-// Route poster section on the event detail page (admin.md 6.3).
-// Shows the current routeImage asset or "No poster"; opens
-// MediaPicker (raster only). Sends PATCH { routeImageMediaId }
-// (empty string to remove; null leaves it unchanged). On
-// 409 media_not_ready reopens the picker on that asset. "Generate from
-// flight recording" opens RoutePosterGenerator; it is disabled with a hint
-// while the event has no linked recording or the basemap URL is unset.
+// Route poster section on the event detail page (admin.md 6.3): picking
+// only. Shows the current routeImage asset or "No poster"; "Choose poster"
+// opens MediaPicker (raster only), which uploads or chooses from the
+// library. Sends PATCH { routeImageMediaId } (empty string to remove; null
+// leaves it unchanged). On 409 media_not_ready reopens the picker on that
+// asset. "Open poster studio" goes to /events/:id/poster.
 export default function RoutePosterSection({ event }: Props) {
   const qc = useQueryClient();
   const notify = useNotify();
-  const config = useConfig();
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [generatorOpen, setGeneratorOpen] = useState(false);
-  const generateHint =
-    event.routeId === null || event.routeId === undefined
-      ? "Link a flight recording to this event to generate a poster."
-      : routeBasemapBase(config) === null
-        ? "Poster generation needs VITE_ROUTE_BASEMAP_URL, which is not set."
-        : null;
 
   const patchMut = useMutation({
     mutationFn: (routeImageMediaId: string) =>
@@ -88,15 +77,6 @@ export default function RoutePosterSection({ event }: Props) {
             >
               Choose poster
             </Button>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => setGeneratorOpen(true)}
-              disabled={generateHint !== null}
-              data-testid="route-poster-generate"
-            >
-              Generate from flight recording
-            </Button>
             {posterId ? (
               <Button
                 size="small"
@@ -108,23 +88,21 @@ export default function RoutePosterSection({ event }: Props) {
                 Remove poster
               </Button>
             ) : null}
+            <Button
+              size="small"
+              variant="outlined"
+              component={RouterLink}
+              to={`/events/${Number(event.id)}/poster`}
+              data-testid="route-poster-studio"
+            >
+              Open poster studio
+            </Button>
           </Stack>
         </Stack>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
           Shown on the route page and as the route preview. Use the highest
           resolution you have; the site serves smaller copies where it can.
         </Typography>
-        {generateHint ? (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            component="p"
-            sx={{ mt: 0.5 }}
-            data-testid="route-poster-generate-hint"
-          >
-            {generateHint}
-          </Typography>
-        ) : null}
         {patchMut.error ? (
           <Box sx={{ my: 2 }}>
             <ErrorAlert error={patchMut.error} />
@@ -150,11 +128,6 @@ export default function RoutePosterSection({ event }: Props) {
         }}
         kind="raster"
         title="Choose route poster"
-      />
-      <RoutePosterGenerator
-        event={event}
-        open={generatorOpen}
-        onClose={() => setGeneratorOpen(false)}
       />
     </Card>
   );

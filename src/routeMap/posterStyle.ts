@@ -1,4 +1,4 @@
-// The route styling of the poster generator: the options the dialog
+// The route styling of the poster studio: the options the studio
 // offers, the time labels drawn from the route map timeline, and the one
 // style building call that both the live preview and the export render go
 // through, so the two always draw the same map.
@@ -61,12 +61,14 @@ export function timeLabelEntries(
   return [...picked, last];
 }
 
-// "+h:mm" of the minutes since the start.
+// The minutes since the start in the site's form: minutes only under an
+// hour ("45m"), hours plus minutes from one hour ("1h 15m", "2h 0m").
 export function formatElapsed(minutes: number): string {
   const total = Math.max(0, Math.round(minutes));
+  if (total < 60) return `${total}m`;
   const h = Math.floor(total / 60);
   const m = total % 60;
-  return `+${h}:${String(m).padStart(2, "0")}`;
+  return `${h}h ${m}m`;
 }
 
 // "h:mm AM" on the wall clock of `zone` at `minutes` after `scheduledAt`,

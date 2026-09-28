@@ -41,10 +41,14 @@ describe("time label entries", () => {
 });
 
 describe("time label formats", () => {
-  it("formats elapsed time as +h:mm", () => {
-    expect(formatElapsed(0)).toBe("+0:00");
-    expect(formatElapsed(47)).toBe("+0:47");
-    expect(formatElapsed(65)).toBe("+1:05");
+  it("formats elapsed time as minutes under an hour and hours plus minutes from one", () => {
+    expect(formatElapsed(0)).toBe("0m");
+    expect(formatElapsed(45)).toBe("45m");
+    expect(formatElapsed(59.6)).toBe("1h 0m");
+    expect(formatElapsed(60)).toBe("1h 0m");
+    expect(formatElapsed(75)).toBe("1h 15m");
+    expect(formatElapsed(125)).toBe("2h 5m");
+    expect(formatElapsed(-3)).toBe("0m");
   });
 
   it("formats the wall clock in the event's schedule zone", () => {
@@ -72,7 +76,7 @@ describe("time label formats", () => {
     ]);
     expect(
       posterTimeLabels(TIMELINE, { ...settings, format: "elapsed" }).map((l) => l.label),
-    ).toEqual(["+0:00", "+0:30", "+0:47"]);
+    ).toEqual(["0m", "30m", "47m"]);
   });
 
   it("falls back to elapsed labels without a scheduled time", () => {
@@ -83,7 +87,7 @@ describe("time label formats", () => {
         scheduledAt: null,
         zone: "America/Denver",
       }).map((l) => l.label),
-    ).toEqual(["+0:00", "+0:30", "+0:47"]);
+    ).toEqual(["0m", "30m", "47m"]);
   });
 });
 
@@ -104,7 +108,7 @@ describe("buildPosterStyle", () => {
         options: {
           routeColor: "#ff0000",
           arrows: true,
-          timeLabels: [{ lat: 46, lng: -114, label: "+0:00" }],
+          timeLabels: [{ lat: 46, lng: -114, label: "0m" }],
         },
       },
     );
