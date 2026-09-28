@@ -790,6 +790,41 @@ export interface paths {
         };
         trace?: never;
     };
+    "/admin/events/{id}/route-map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RouteMapResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/events/{id}/current": {
         parameters: {
             query?: never;
@@ -6136,6 +6171,30 @@ export interface components {
         };
         RouteFromEventRequest: {
             name?: string;
+        };
+        RouteMap: {
+            path?: components["schemas"]["RouteMapPoint"][];
+            timeline?: components["schemas"]["RouteMapTimelineEntry"][];
+            /** Format: int32 */
+            durationMinutes?: number | string;
+            timed?: boolean;
+        };
+        RouteMapPoint: {
+            /** Format: double */
+            lat?: number | string;
+            /** Format: double */
+            lng?: number | string;
+        };
+        RouteMapResponse: {
+            routeMap?: null | components["schemas"]["RouteMap"];
+        };
+        RouteMapTimelineEntry: {
+            /** Format: int32 */
+            minutes?: number | string;
+            /** Format: double */
+            lat?: number | string;
+            /** Format: double */
+            lng?: number | string;
         };
         RouteUploadPoint: {
             /** Format: double */

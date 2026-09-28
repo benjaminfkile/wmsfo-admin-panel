@@ -61,3 +61,23 @@ describe("loadConfig", () => {
     }
   });
 });
+
+describe("loadConfig: VITE_ROUTE_BASEMAP_URL", () => {
+  it("surfaces the route basemap URL without a trailing slash", () => {
+    const result = loadConfig(
+      envFrom({ VITE_ROUTE_BASEMAP_URL: "https://basemap.example.com/v4/" })
+    );
+    expect("config" in result).toBe(true);
+    if ("config" in result) {
+      expect(result.config.routeBasemapUrl).toBe("https://basemap.example.com/v4");
+    }
+  });
+
+  it("is optional and reads as empty when unset", () => {
+    const result = loadConfig(envFrom({}));
+    expect("config" in result).toBe(true);
+    if ("config" in result) {
+      expect(result.config.routeBasemapUrl).toBe("");
+    }
+  });
+});

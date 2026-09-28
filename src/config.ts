@@ -8,6 +8,9 @@ export type Config = {
   cognitoDomain: string;
   cognitoClientId: string;
   googleMapsKey: string;
+  // The route map basemap base URL; empty when unset, since only the
+  // route map needs it.
+  routeBasemapUrl: string;
 };
 
 const NAMES = [
@@ -43,6 +46,7 @@ export function loadConfig(env: ImportMetaEnv = import.meta.env): ConfigResult {
       cognitoDomain: strip(env.VITE_COGNITO_DOMAIN),
       cognitoClientId: env.VITE_COGNITO_CLIENT_ID,
       googleMapsKey: env.VITE_GOOGLE_MAPS_KEY,
+      routeBasemapUrl: strip((env.VITE_ROUTE_BASEMAP_URL ?? "").trim()),
     },
   };
 }

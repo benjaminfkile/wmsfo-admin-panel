@@ -88,6 +88,7 @@ const KEY_CONFIG: Config = {
   cognitoDomain: "https://auth.test",
   cognitoClientId: "client-test",
   googleMapsKey: "test-maps-key",
+  routeBasemapUrl: "https://basemap.test",
 };
 
 const NO_KEY_CONFIG: Config = { ...KEY_CONFIG, googleMapsKey: "" };

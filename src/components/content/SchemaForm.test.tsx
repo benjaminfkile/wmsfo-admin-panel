@@ -645,3 +645,57 @@ describe("SchemaForm: primitive routing", () => {
     expect(input).not.toBeNull();
   });
 });
+
+describe("SchemaForm: the route_preview style select", () => {
+  type RouteValue = { style: string } & Record<string, unknown>;
+
+  function Controlled({ initial }: { initial: RouteValue }) {
+    const [value, setValue] = useState<RouteValue>(initial);
+    return (
+      <>
+        <SchemaForm
+          schema={routePreview as Sch}
+          kind="route_preview"
+          formData={value}
+          onChange={(next) => setValue(next as RouteValue)}
+        />
+        <pre data-testid="style">{value.style}</pre>
+      </>
+    );
+  }
+
+  function routeDefaults(): RouteValue {
+    const kind = (
+      kindsJson as { kinds: Array<{ kind: string; defaults: unknown }> }
+    ).kinds.find((k) => k.kind === "route_preview");
+    return structuredClone(kind!.defaults) as RouteValue;
+  }
+
+  it("offers Image, Pan and zoom viewer, and Map and writes map", () => {
+    render(
+      <Providers>
+        <Controlled initial={routeDefaults()} />
+      </Providers>
+    );
+    const combo = screen.getByRole("combobox", { name: /style/i });
+    fireEvent.mouseDown(combo);
+    const listbox = screen.getByRole("listbox");
+    const options = within(listbox)
+      .getAllByRole("option")
+      .map((o) => o.textContent)
+      .filter((t) => t !== "");
+    expect(options).toEqual(["Image", "Pan and zoom viewer", "Map"]);
+    fireEvent.click(within(listbox).getByRole("option", { name: "Map" }));
+    expect(screen.getByTestId("style").textContent).toBe("map");
+    expect(screen.getByRole("combobox", { name: /style/i })).toHaveTextContent("Map");
+  });
+
+  it("shows a stored map style as Map", () => {
+    render(
+      <Providers>
+        <Controlled initial={{ ...routeDefaults(), style: "map" }} />
+      </Providers>
+    );
+    expect(screen.getByRole("combobox", { name: /style/i })).toHaveTextContent("Map");
+  });
+});

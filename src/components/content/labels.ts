@@ -297,7 +297,7 @@ const SECTION: Record<string, FieldLabels> = {
     heading: { label: "Heading" },
     style: {
       label: "Style",
-      options: { image: "Image", viewer: "Pan and zoom viewer" },
+      options: { image: "Image", viewer: "Pan and zoom viewer", map: "Map" },
     },
     disclaimer: { label: "Disclaimer" },
     emptyText: {
