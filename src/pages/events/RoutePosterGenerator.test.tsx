@@ -6,7 +6,7 @@ import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import RoutePosterSection from "./RoutePosterSection";
-import { SIZE_LIMIT_MESSAGE } from "./RoutePosterGenerator";
+import { NO_SCHEDULE_HINT, SIZE_LIMIT_MESSAGE } from "./RoutePosterGenerator";
 import { ConfigProvider } from "../../ConfigContext";
 import type { Config } from "../../config";
 import { NotifyProvider } from "../../hooks/useNotify";
@@ -21,20 +21,42 @@ import {
   testConfig,
 } from "../../test/renderWithProviders";
 import { ATTRIBUTION_TEXT, resetTerrainProbes } from "../../routeMap/poster";
-import { HILLSHADE_LAYER, TERRAIN_SOURCE } from "../../routeMap";
+import {
+  ARROWS_LAYER,
+  HILLSHADE_LAYER,
+  ROUTE_ARROW_ICON,
+  ROUTE_PALETTES,
+  TERRAIN_SOURCE,
+  TIME_LABELS_SOURCE,
+} from "../../routeMap";
+import { buildPosterStyle } from "../../routeMap/posterStyle";
 
 vi.setConfig({ testTimeout: 15_000 });
 
 // Every step of the flow appends here so the tests can check the order.
 const calls: string[] = [];
+// The offscreen export maps.
 const mapOptions: Array<{ pixelRatio: number; style: unknown }> = [];
+// The preview maps: the style they were created with, every style set
+// on them since, and the images added to them.
+type PreviewMap = { styles: unknown[]; images: string[] };
+const previews: PreviewMap[] = [];
+const exportImages: string[][] = [];
 
 vi.mock("maplibre-gl", () => {
   class Map {
     private canvas = document.createElement("canvas");
+    private images: string[] = [];
+    private preview: PreviewMap | null = null;
     constructor(opts: { container: HTMLElement; pixelRatio: number; style: unknown }) {
-      calls.push("render");
-      mapOptions.push(opts);
+      if (opts.container.style.left === "-100000px") {
+        calls.push("render");
+        mapOptions.push(opts);
+        exportImages.push(this.images);
+      } else {
+        this.preview = { styles: [opts.style], images: this.images };
+        previews.push(this.preview);
+      }
       this.canvas.width = Math.floor(parseFloat(opts.container.style.width) * opts.pixelRatio);
       this.canvas.height = Math.floor(parseFloat(opts.container.style.height) * opts.pixelRatio);
     }
@@ -45,6 +67,24 @@ vi.mock("maplibre-gl", () => {
     on() {
       return this;
     }
+    hasImage(id: string) {
+      return this.images.includes(id);
+    }
+    addImage(id: string) {
+      this.images.push(id);
+    }
+    setStyle(style: unknown) {
+      this.preview?.styles.push(style);
+    }
+    setPixelRatio() {
+      return undefined;
+    }
+    resize() {
+      return this;
+    }
+    fitBounds() {
+      return this;
+    }
     getCanvas() {
       return this.canvas;
     }
@@ -53,6 +93,13 @@ vi.mock("maplibre-gl", () => {
     }
   }
   return { Map, addProtocol: () => undefined, setWorkerUrl: () => undefined };
+});
+
+// The shared style call, wrapped so the tests can compare what the preview
+// and the export pass it.
+vi.mock("../../routeMap/posterStyle", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../routeMap/posterStyle")>();
+  return { ...actual, buildPosterStyle: vi.fn(actual.buildPosterStyle) };
 });
 
 // The terrain probe reads the archive header; each test sets whether it
@@ -195,6 +242,9 @@ beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
   calls.length = 0;
   mapOptions.length = 0;
+  previews.length = 0;
+  exportImages.length = 0;
+  vi.mocked(buildPosterStyle).mockClear();
   ctx.fillText.mockClear();
   ctx.drawImage.mockClear();
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
@@ -211,6 +261,7 @@ beforeEach(() => {
     makeUser({ email: "admin@example.com", "cognito:groups": ["admin"] }),
   );
   installClient({ config: testConfig, userManager: um, onMfaRequired: () => undefined });
+  server.use(http.get(`${API}/admin/events/:id/route-map`, () => HttpResponse.json(ROUTE_MAP)));
 });
 
 afterEach(() => {
@@ -367,5 +418,116 @@ describe("RoutePosterSection: Generate from flight recording", () => {
       url: `pmtiles://${testConfig.routeBasemapUrl}/terrain.pmtiles`,
     });
     expect(shaded.layers.map((l) => l.id)).toContain(HILLSHADE_LAYER);
+  });
+
+  it("offers the route styling with its defaults and resets the colour to the theme's", async () => {
+    const user = userEvent.setup();
+    render(<Harness event={EVENT} />);
+    await user.click(screen.getByTestId("route-poster-generate"));
+    const dialog = await screen.findByRole("dialog");
+    const hex = within(dialog).getByTestId("route-poster-color-hex");
+    expect(hex).toHaveValue(ROUTE_PALETTES.light.routeColor);
+    expect(within(dialog).getByTestId("route-poster-color")).toHaveValue(
+      ROUTE_PALETTES.light.routeColor,
+    );
+    expect(within(dialog).getByTestId("route-poster-color-reset")).toBeDisabled();
+    expect(within(dialog).getByLabelText("Arrows")).toBeChecked();
+    expect(within(dialog).getByRole("combobox", { name: "Time labels" })).toHaveTextContent(
+      "Every 15 minutes",
+    );
+    expect(within(dialog).getByRole("combobox", { name: "Label format" })).toHaveTextContent(
+      "Wall clock",
+    );
+    expect(within(dialog).queryByTestId("route-poster-format-hint")).toBeNull();
+
+    await user.click(within(dialog).getByLabelText("Dark"));
+    expect(hex).toHaveValue(ROUTE_PALETTES.dark.routeColor);
+
+    await user.clear(hex);
+    await user.type(hex, "#FF8800");
+    await user.tab();
+    expect(hex).toHaveValue("#ff8800");
+    await user.click(within(dialog).getByTestId("route-poster-color-reset"));
+    expect(hex).toHaveValue(ROUTE_PALETTES.dark.routeColor);
+  });
+
+  it("locks the label format to Elapsed with a hint when the event has no scheduled time", async () => {
+    const user = userEvent.setup();
+    render(<Harness event={{ ...EVENT, scheduledAt: null }} />);
+    await user.click(screen.getByTestId("route-poster-generate"));
+    const dialog = await screen.findByRole("dialog");
+    const format = within(dialog).getByRole("combobox", { name: "Label format" });
+    expect(format).toHaveTextContent("Elapsed");
+    expect(format).toHaveAttribute("aria-disabled", "true");
+    expect(within(dialog).getByTestId("route-poster-format-hint")).toHaveTextContent(
+      NO_SCHEDULE_HINT,
+    );
+    await waitFor(() => expect(previews).toHaveLength(1));
+    const labels = vi.mocked(buildPosterStyle).mock.calls.at(-1)![1].options.timeLabels;
+    expect(labels?.map((l) => l.label)).toEqual(["+0:00", "+0:12"]);
+  });
+
+  it("previews the styling live and exports it through the same style call", async () => {
+    const user = userEvent.setup();
+    installFlowHandlers();
+    render(<Harness event={{ ...EVENT, scheduleTimeZone: "America/Chicago" }} />);
+    await user.click(screen.getByTestId("route-poster-generate"));
+    const dialog = await screen.findByRole("dialog");
+    await within(dialog).findByTestId("route-poster-preview");
+    await waitFor(() => expect(previews).toHaveLength(1));
+    const preview = previews[0]!;
+    expect(preview.images).toEqual([ROUTE_ARROW_ICON]);
+
+    // The defaults: arrows on, a label every 15 minutes plus the final
+    // entry, on the wall clock of the event's zone (01:00Z is 19:00 CST).
+    const first = vi.mocked(buildPosterStyle).mock.calls.at(-1)![1];
+    expect(first.options).toEqual({
+      routeColor: ROUTE_PALETTES.light.routeColor,
+      arrows: true,
+      timeLabels: [
+        { lat: 46.8721, lng: -114.0012, label: "19:00" },
+        { lat: 46.886203, lng: -114.017446, label: "19:12" },
+      ],
+    });
+
+    const hex = within(dialog).getByTestId("route-poster-color-hex");
+    await user.clear(hex);
+    await user.type(hex, "#aa0011");
+    await user.click(within(dialog).getByLabelText("Arrows"));
+    await user.click(within(dialog).getByRole("combobox", { name: "Time labels" }));
+    await user.click(await screen.findByRole("option", { name: "Every 5 minutes" }));
+    await user.click(within(dialog).getByRole("combobox", { name: "Label format" }));
+    await user.click(await screen.findByRole("option", { name: "Elapsed" }));
+
+    await waitFor(() => {
+      const last = preview.styles.at(-1) as { sources: Record<string, unknown> };
+      expect(last.sources[TIME_LABELS_SOURCE]).toMatchObject({
+        data: { features: expect.arrayContaining([expect.anything()]) },
+      });
+      const labels = (
+        last.sources[TIME_LABELS_SOURCE] as {
+          data: { features: Array<{ properties: { label: string } }> };
+        }
+      ).data.features.map((feature) => feature.properties.label);
+      expect(labels).toEqual(["+0:00", "+0:05", "+0:10", "+0:12"]);
+    });
+    const previewStyle = preview.styles.at(-1) as {
+      layers: Array<{ id: string; paint?: Record<string, unknown> }>;
+    };
+    expect(previewStyle.layers.map((l) => l.id)).not.toContain(ARROWS_LAYER);
+    expect(previewStyle.layers.find((l) => l.id === "route-line")!.paint!["line-color"]).toBe(
+      "#aa0011",
+    );
+
+    const previewCalls = vi.mocked(buildPosterStyle).mock.calls.length;
+    const previewInput = vi.mocked(buildPosterStyle).mock.calls.at(-1)!;
+    await user.click(within(dialog).getByTestId("route-poster-generate-run"));
+    await within(dialog).findByTestId("route-poster-ready");
+
+    const exportCalls = vi.mocked(buildPosterStyle).mock.calls.slice(previewCalls);
+    expect(exportCalls).toHaveLength(1);
+    expect(exportCalls[0]).toEqual(previewInput);
+    expect(mapOptions[0]!.style).toEqual(previewStyle);
+    expect(exportImages[0]).toEqual([ROUTE_ARROW_ICON]);
   });
 });

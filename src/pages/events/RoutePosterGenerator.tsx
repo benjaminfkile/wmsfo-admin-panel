@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Box,
@@ -10,15 +10,21 @@ import {
   FormControl,
   FormControlLabel,
   FormLabel,
+  FormHelperText,
+  InputLabel,
   LinearProgress,
   Link,
+  MenuItem,
   Radio,
   RadioGroup,
+  Select,
   Stack,
+  Switch,
+  TextField,
   Typography,
 } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "../../api/errors";
 import { events as eventsApi } from "../../api/resources/events";
 import { media as mediaApi } from "../../api/resources/media";
@@ -29,10 +35,10 @@ import { useConfig } from "../../ConfigContext";
 import { useNotify } from "../../hooks/useNotify";
 import { keys } from "../../queries/keys";
 import { RASTER_MAX_BYTES } from "../../validation/image";
-import { buildRouteMapStyle, routeBasemapBase, type Appearance } from "../../routeMap";
+import { browserTimeZone } from "../../lib/time";
+import { routeBasemapBase, type Appearance } from "../../routeMap";
 import {
   POSTER_PRESETS,
-  fiveMinuteMarks,
   posterFilename,
   posterSize,
   probeTerrain,
@@ -42,6 +48,21 @@ import {
   type PosterPresetId,
   type RouteMapData,
 } from "../../routeMap/poster";
+import {
+  DEFAULT_ARROWS,
+  DEFAULT_TIME_LABEL_FORMAT,
+  DEFAULT_TIME_LABEL_INTERVAL,
+  TIME_LABEL_FORMATS,
+  TIME_LABEL_INTERVALS,
+  buildPosterStyle,
+  isHexColor,
+  posterTimeLabels,
+  themeRouteColor,
+  type PosterStyleInput,
+  type TimeLabelFormat,
+  type TimeLabelInterval,
+} from "../../routeMap/posterStyle";
+import RoutePosterPreview from "./RoutePosterPreview";
 
 interface Props {
   event: Event;
@@ -58,15 +79,21 @@ type Phase =
   | "setting"
   | "failed";
 
+const NO_PATH_MESSAGE = "The linked flight recording has no path to draw.";
+
 export const SIZE_LIMIT_MESSAGE =
   "The poster image is over the 20 MB limit for images. Choose a smaller size or the other theme and generate again.";
 
-// The generator dialog of the route poster section (admin.md 6.3). Renders
-// the event's route map at the chosen theme, orientation, and size, with
-// the hillshade when Terrain is checked (offered only once the probe finds
-// `<base>/terrain.pmtiles`), uploads
-// the PNG through the media upload flow, and offers to set the ready asset
-// as the route poster.
+export const NO_SCHEDULE_HINT =
+  "The event has no scheduled time, so the labels show the time since the start.";
+
+// The generator dialog of the route poster section (admin.md 6.3). Shows a
+// live preview of the event's route map at the chosen theme, orientation,
+// size, and route styling (colour, arrows, time labels), with the
+// hillshade when Terrain is checked (offered only once the probe finds
+// `<base>/terrain.pmtiles`); Generate renders the same style offscreen,
+// uploads the JPEG through the media upload flow, and offers to set the
+// ready asset as the route poster.
 export default function RoutePosterGenerator({ event, open, onClose }: Props) {
   const config = useConfig();
   const qc = useQueryClient();
@@ -76,6 +103,15 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
   const [preset, setPreset] = useState<PosterPresetId>("facebook");
   const [terrain, setTerrain] = useState(false);
   const [terrainAvailable, setTerrainAvailable] = useState(false);
+  // The picked route colour, or null for the theme's.
+  const [customColor, setCustomColor] = useState<string | null>(null);
+  // The hex field's text while it does not hold a complete colour.
+  const [colorText, setColorText] = useState<string | null>(null);
+  const [arrows, setArrows] = useState(DEFAULT_ARROWS);
+  const [labelInterval, setLabelInterval] = useState<TimeLabelInterval>(
+    DEFAULT_TIME_LABEL_INTERVAL,
+  );
+  const [format, setFormat] = useState<TimeLabelFormat>(DEFAULT_TIME_LABEL_FORMAT);
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +144,38 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
 
   const eventId = Number(event.id);
   const year = Number(event.year);
-  const size = posterSize(preset, orientation);
+  const size = useMemo(() => posterSize(preset, orientation), [preset, orientation]);
+  const routeColor = customColor ?? themeRouteColor(theme);
+  const scheduledAt = event.scheduledAt ?? null;
+  const labelFormat: TimeLabelFormat = scheduledAt ? format : "elapsed";
+  const zone = event.scheduleTimeZone || browserTimeZone();
+  const withTerrain = terrain && terrainAvailable;
+  const styling = useMemo<PosterStyling>(
+    () => ({
+      theme,
+      terrain: withTerrain,
+      routeColor,
+      arrows,
+      interval: labelInterval,
+      format: labelFormat,
+      scheduledAt,
+      zone,
+    }),
+    [theme, withTerrain, routeColor, arrows, labelInterval, labelFormat, scheduledAt, zone],
+  );
+
+  const routeMapQuery = {
+    queryKey: keys.eventRouteMap(eventId),
+    queryFn: async () => toRouteMapData((await eventsApi.routeMap(eventId)).routeMap),
+  };
+  const routeMapResult = useQuery({ ...routeMapQuery, enabled: open });
+  const routeMap = routeMapResult.data ?? null;
+
+  const drawable = routeMap && routeMap.path.length > 0 ? routeMap : null;
+  const previewStyle = useMemo(
+    () => (drawable && base !== null ? posterStyle(config, drawable, styling) : null),
+    [drawable, base, config, styling],
+  );
   const busy =
     phase === "rendering" ||
     phase === "uploading" ||
@@ -124,19 +191,12 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
     setPhase("rendering");
     let blob: Blob;
     try {
-      const res = await eventsApi.routeMap(eventId);
-      const routeMap = toRouteMapData(res.routeMap);
-      if (!routeMap || routeMap.path.length === 0) {
-        throw new Error("The linked flight recording has no path to draw.");
+      const data = routeMap ?? (await qc.fetchQuery(routeMapQuery));
+      if (!data || data.path.length === 0) {
+        throw new Error(NO_PATH_MESSAGE);
       }
-      const style = buildRouteMapStyle(
-        config,
-        theme,
-        routeMap.path,
-        fiveMinuteMarks(routeMap),
-        terrain && terrainAvailable,
-      );
-      blob = await renderPosterImage({ style, path: routeMap.path, size, theme });
+      const style = posterStyle(config, data, styling);
+      blob = await renderPosterImage({ style, path: data.path, size, theme });
     } catch (e) {
       if (live()) fail(`The poster could not be drawn. ${messageOf(e)}`);
       return;
@@ -193,8 +253,10 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
       return;
     }
     notify("Route poster updated");
-    void qc.invalidateQueries({ queryKey: keys.event(eventId) });
-    void qc.invalidateQueries({ queryKey: keys.events });
+    // The poster changes the event and the list only; the route map the
+    // dialog reads stays cached.
+    void qc.invalidateQueries({ queryKey: keys.event(eventId), exact: true });
+    void qc.invalidateQueries({ queryKey: keys.events, exact: true });
     onClose();
   };
 
@@ -273,6 +335,117 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
               label="Terrain"
             />
           ) : null}
+          <Stack spacing={2} component="fieldset" sx={{ border: 0, p: 0, m: 0 }} data-testid="route-poster-styling">
+            <FormLabel component="legend">Route styling</FormLabel>
+            <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1 }}>
+              <Box
+                component="input"
+                type="color"
+                aria-label="Route colour"
+                data-testid="route-poster-color"
+                value={routeColor}
+                disabled={busy}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  setCustomColor(e.target.value.toLowerCase());
+                  setColorText(null);
+                }}
+                sx={{ width: 48, height: 40, p: 0, border: 0, bgcolor: "transparent", cursor: "pointer" }}
+              />
+              <TextField
+                label="Hex"
+                size="small"
+                disabled={busy}
+                value={colorText ?? routeColor}
+                error={colorText !== null && !isHexColor(colorText)}
+                onChange={(e) => {
+                  const text = e.target.value.trim();
+                  setColorText(text);
+                  if (isHexColor(text)) setCustomColor(text.toLowerCase());
+                }}
+                onBlur={() => setColorText(null)}
+                slotProps={{ htmlInput: { "data-testid": "route-poster-color-hex", maxLength: 7 } }}
+                sx={{ width: 120 }}
+              />
+              <Button
+                size="small"
+                disabled={busy || customColor === null}
+                onClick={() => {
+                  setCustomColor(null);
+                  setColorText(null);
+                }}
+                data-testid="route-poster-color-reset"
+              >
+                Reset
+              </Button>
+            </Stack>
+            <FormControlLabel
+              disabled={busy}
+              control={
+                <Switch
+                  checked={arrows}
+                  onChange={(e) => setArrows(e.target.checked)}
+                  data-testid="route-poster-arrows"
+                />
+              }
+              label="Arrows"
+            />
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+              <FormControl size="small" disabled={busy} sx={{ minWidth: 200 }}>
+                <InputLabel id="poster-time-labels">Time labels</InputLabel>
+                <Select
+                  labelId="poster-time-labels"
+                  label="Time labels"
+                  value={labelInterval}
+                  onChange={(e) => setLabelInterval(Number(e.target.value) as TimeLabelInterval)}
+                  data-testid="route-poster-time-labels"
+                >
+                  {TIME_LABEL_INTERVALS.map((o) => (
+                    <MenuItem key={o.value} value={o.value}>
+                      {o.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl
+                size="small"
+                disabled={busy || labelInterval === 0 || !scheduledAt}
+                sx={{ minWidth: 200 }}
+              >
+                <InputLabel id="poster-label-format">Label format</InputLabel>
+                <Select
+                  labelId="poster-label-format"
+                  label="Label format"
+                  value={labelFormat}
+                  onChange={(e) => setFormat(e.target.value as TimeLabelFormat)}
+                  data-testid="route-poster-label-format"
+                >
+                  {TIME_LABEL_FORMATS.map((o) => (
+                    <MenuItem key={o.value} value={o.value}>
+                      {o.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+                {!scheduledAt ? (
+                  <FormHelperText data-testid="route-poster-format-hint">{NO_SCHEDULE_HINT}</FormHelperText>
+                ) : null}
+              </FormControl>
+            </Stack>
+          </Stack>
+
+          {previewStyle && drawable ? (
+            <RoutePosterPreview style={previewStyle} path={drawable.path} size={size} />
+          ) : routeMapResult.isError ? (
+            <Alert severity="warning" data-testid="route-poster-preview-error">
+              The preview could not load. {messageOf(routeMapResult.error)}
+            </Alert>
+          ) : routeMapResult.isSuccess ? (
+            <Alert severity="warning" data-testid="route-poster-preview-error">
+              {NO_PATH_MESSAGE}
+            </Alert>
+          ) : (
+            <Status label="Loading the preview" />
+          )}
+
           <Typography variant="body2" color="text.secondary" data-testid="route-poster-output">
             {posterFilename(year, theme, size)}
           </Typography>
@@ -335,6 +508,42 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
       </DialogActions>
     </AppDialog>
   );
+}
+
+type PosterStyling = {
+  theme: Appearance;
+  terrain: boolean;
+  routeColor: string;
+  arrows: boolean;
+  interval: TimeLabelInterval;
+  format: TimeLabelFormat;
+  scheduledAt: string | null;
+  zone: string;
+};
+
+// The poster style for the dialog's choices. The preview and the export
+// both draw through this one call.
+function posterStyle(
+  config: Parameters<typeof buildPosterStyle>[0],
+  routeMap: RouteMapData,
+  styling: PosterStyling,
+) {
+  const input: PosterStyleInput = {
+    theme: styling.theme,
+    routeMap,
+    terrain: styling.terrain,
+    options: {
+      routeColor: styling.routeColor,
+      arrows: styling.arrows,
+      timeLabels: posterTimeLabels(routeMap.timeline, {
+        interval: styling.interval,
+        format: styling.format,
+        scheduledAt: styling.scheduledAt,
+        zone: styling.zone,
+      }),
+    },
+  };
+  return buildPosterStyle(config, input);
 }
 
 function Status({ label, value }: { label: string; value?: number }) {

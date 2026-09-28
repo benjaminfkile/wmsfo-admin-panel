@@ -5,7 +5,15 @@
 import type { StyleSpecification } from "maplibre-gl";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import type { Appearance } from "./flavors";
-import { OSM_ATTRIBUTION, pathBounds, terrainUrl, type LatLng } from "./style";
+import {
+  OSM_ATTRIBUTION,
+  ROUTE_ARROW_ICON,
+  makeRouteArrowImage,
+  pathBounds,
+  terrainUrl,
+  type LatLng,
+  type RouteArrowImage,
+} from "./style";
 
 export type PosterPresetId = "facebook" | "flyer" | "poster";
 export type PosterOrientation = "portrait" | "landscape";
@@ -33,6 +41,18 @@ export const DECODE_CEILING_PIXELS = 40_000_000;
 export const POSTER_PIXEL_RATIO = 2;
 
 export type PosterSize = { width: number; height: number };
+
+// The CSS size of the poster map: the chosen size over POSTER_PIXEL_RATIO.
+export function posterCssSize(size: PosterSize): PosterSize {
+  return { width: size.width / POSTER_PIXEL_RATIO, height: size.height / POSTER_PIXEL_RATIO };
+}
+
+// The padding around the fitted path, in CSS pixels: 8% of the shorter
+// side of the poster map.
+export function posterFitPadding(size: PosterSize): number {
+  const css = posterCssSize(size);
+  return Math.round(Math.min(css.width, css.height) * 0.08);
+}
 
 export function posterPreset(id: PosterPresetId): PosterPreset {
   const preset = POSTER_PRESETS.find((p) => p.id === id);
@@ -155,6 +175,24 @@ export function canvasToPosterBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
+let arrowImage: RouteArrowImage | null = null;
+
+type ArrowImageHost = Pick<import("maplibre-gl").Map, "addImage" | "hasImage" | "on">;
+
+// Adds the route arrowhead under ROUTE_ARROW_ICON to a new map, and adds it
+// again whenever a style replacement leaves the map without it.
+export function addRouteArrowImage(map: ArrowImageHost): void {
+  const add = () => {
+    if (map.hasImage(ROUTE_ARROW_ICON)) return;
+    arrowImage ??= makeRouteArrowImage();
+    map.addImage(ROUTE_ARROW_ICON, arrowImage.data, arrowImage.options);
+  };
+  add();
+  map.on("styleimagemissing", (e: { id: string }) => {
+    if (e.id === ROUTE_ARROW_ICON) add();
+  });
+}
+
 let protocolReady: Promise<void> | null = null;
 
 // Registers the pmtiles:// protocol with MapLibre once per page.
@@ -196,8 +234,19 @@ export function resetTerrainProbes(): void {
 
 export const RENDER_TIMEOUT_MS = 60_000;
 
+// Loads maplibre-gl on demand with its worker and the pmtiles:// protocol.
+export async function loadMaplibre(): Promise<typeof import("maplibre-gl")> {
+  const maplibre = await import("maplibre-gl");
+  // The worker file must be a build asset of this application; without the
+  // pinned URL the deployed bundle has no worker and the map never loads.
+  maplibre.setWorkerUrl(workerUrl);
+  await ensurePmtilesProtocol(maplibre.addProtocol);
+  return maplibre;
+}
+
 // Renders the style into an offscreen map whose canvas is exactly the
-// chosen size, fitted to the path with padding, and resolves with the map
+// chosen size, fitted to the path with padding, with the route arrowhead
+// image added on create, and resolves with the map
 // canvas once the map is idle. The caller composes it before calling the
 // returned dispose.
 export async function renderRouteMap(opts: {
@@ -207,15 +256,10 @@ export async function renderRouteMap(opts: {
 }): Promise<{ canvas: HTMLCanvasElement; dispose: () => void }> {
   const bounds = pathBounds(opts.path);
   if (!bounds) throw new Error("The flight recording has no path to draw.");
-  const maplibre = await import("maplibre-gl");
-  // The worker file must be a build asset of this application; without the
-  // pinned URL the deployed bundle has no worker and the map never loads.
-  maplibre.setWorkerUrl(workerUrl);
-  await ensurePmtilesProtocol(maplibre.addProtocol);
+  const maplibre = await loadMaplibre();
 
   const ratio = POSTER_PIXEL_RATIO;
-  const cssW = opts.size.width / ratio;
-  const cssH = opts.size.height / ratio;
+  const { width: cssW, height: cssH } = posterCssSize(opts.size);
   const container = document.createElement("div");
   container.setAttribute("aria-hidden", "true");
   Object.assign(container.style, {
@@ -236,7 +280,7 @@ export async function renderRouteMap(opts: {
   };
 
   try {
-    const padding = Math.round(Math.min(cssW, cssH) * 0.08);
+    const padding = posterFitPadding(opts.size);
     const created = new maplibre.Map({
       container,
       style: opts.style,
@@ -250,6 +294,7 @@ export async function renderRouteMap(opts: {
       fitBoundsOptions: { padding },
     });
     map = created;
+    addRouteArrowImage(created);
     await new Promise<void>((resolve, reject) => {
       const timer = setTimeout(
         () => reject(new Error("The map took too long to load.")),
