@@ -15,6 +15,9 @@ import { keys } from "../../queries/keys";
 import { useNotify } from "../../hooks/useNotify";
 import ErrorAlert from "../../components/ErrorAlert";
 import MediaPicker from "../../components/content/MediaPicker";
+import { useConfig } from "../../ConfigContext";
+import { routeBasemapBase } from "../../routeMap";
+import RoutePosterGenerator from "./RoutePosterGenerator";
 
 interface Props {
   event: Event;
@@ -24,11 +27,21 @@ interface Props {
 // Shows the current routeImage asset or "No poster"; opens
 // MediaPicker (raster only). Sends PATCH { routeImageMediaId }
 // (empty string to remove; null leaves it unchanged). On
-// 409 media_not_ready reopens the picker on that asset.
+// 409 media_not_ready reopens the picker on that asset. "Generate from
+// flight recording" opens RoutePosterGenerator; it is disabled with a hint
+// while the event has no linked recording or the basemap URL is unset.
 export default function RoutePosterSection({ event }: Props) {
   const qc = useQueryClient();
   const notify = useNotify();
+  const config = useConfig();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [generatorOpen, setGeneratorOpen] = useState(false);
+  const generateHint =
+    event.routeId === null || event.routeId === undefined
+      ? "Link a flight recording to this event to generate a poster."
+      : routeBasemapBase(config) === null
+        ? "Poster generation needs VITE_ROUTE_BASEMAP_URL, which is not set."
+        : null;
 
   const patchMut = useMutation({
     mutationFn: (routeImageMediaId: string) =>
@@ -75,6 +88,15 @@ export default function RoutePosterSection({ event }: Props) {
             >
               Choose poster
             </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => setGeneratorOpen(true)}
+              disabled={generateHint !== null}
+              data-testid="route-poster-generate"
+            >
+              Generate from flight recording
+            </Button>
             {posterId ? (
               <Button
                 size="small"
@@ -92,6 +114,17 @@ export default function RoutePosterSection({ event }: Props) {
           Shown on the route page and as the route preview. Use the highest
           resolution you have; the site serves smaller copies where it can.
         </Typography>
+        {generateHint ? (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            component="p"
+            sx={{ mt: 0.5 }}
+            data-testid="route-poster-generate-hint"
+          >
+            {generateHint}
+          </Typography>
+        ) : null}
         {patchMut.error ? (
           <Box sx={{ my: 2 }}>
             <ErrorAlert error={patchMut.error} />
@@ -117,6 +150,11 @@ export default function RoutePosterSection({ event }: Props) {
         }}
         kind="raster"
         title="Choose route poster"
+      />
+      <RoutePosterGenerator
+        event={event}
+        open={generatorOpen}
+        onClose={() => setGeneratorOpen(false)}
       />
     </Card>
   );
