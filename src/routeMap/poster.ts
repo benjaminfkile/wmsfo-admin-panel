@@ -1,6 +1,7 @@
 // Route poster generation: the size presets, the marks drawn on the path,
 // the offscreen MapLibre render at an exact pixel size, and the composed
-// PNG with the OpenStreetMap attribution drawn into its pixels.
+// JPEG: the map, then the overlays, then the OpenStreetMap attribution
+// drawn into its pixels.
 
 import type { StyleSpecification } from "maplibre-gl";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
@@ -145,12 +146,14 @@ export function drawAttribution(
   ctx.restore();
 }
 
-// Draws the map canvas onto a fresh 2D canvas of the chosen size and the
-// attribution chip over it.
+// Draws the map canvas onto a fresh 2D canvas of the chosen size, the
+// overlay canvas (when there is one) over it at the same size, and the
+// attribution chip last, so nothing covers it.
 export function composePoster(
   mapCanvas: HTMLCanvasElement,
   size: PosterSize,
   theme: Appearance,
+  overlay: CanvasImageSource | null = null,
 ): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = size.width;
@@ -158,6 +161,7 @@ export function composePoster(
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("This browser cannot draw the poster image.");
   ctx.drawImage(mapCanvas, 0, 0, size.width, size.height);
+  if (overlay) ctx.drawImage(overlay, 0, 0, size.width, size.height);
   drawAttribution(ctx, size, theme);
   return canvas;
 }
@@ -323,16 +327,17 @@ export async function renderRouteMap(opts: {
 }
 
 // Renders, composes, and encodes the poster image at exactly the chosen
-// size.
+// size, with the overlay canvas (already at the print scale) over the map.
 export async function renderPosterImage(opts: {
   style: StyleSpecification;
   path: readonly LatLng[];
   size: PosterSize;
   theme: Appearance;
+  overlay?: CanvasImageSource | null;
 }): Promise<Blob> {
   const { canvas, dispose } = await renderRouteMap(opts);
   try {
-    const composed = composePoster(canvas, opts.size, opts.theme);
+    const composed = composePoster(canvas, opts.size, opts.theme, opts.overlay ?? null);
     return await canvasToPosterBlob(composed);
   } finally {
     dispose();

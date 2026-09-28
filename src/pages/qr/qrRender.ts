@@ -23,3 +23,21 @@ export function renderPngDataUrlMm(text: string, mm: number): Promise<string> {
   const pixels = Math.round((mm / 25.4) * 300);
   return QRCode.toDataURL(text, { ...COMMON, type: "image/png", width: pixels });
 }
+
+// The quiet zone of a QR code on a poster, in modules: the four module
+// border a scanner needs, drawn white as part of the card.
+export const QR_CARD_QUIET_ZONE = 4;
+
+// The QR code as an opaque white card with its quiet zone and black
+// modules, as an SVG string `width` pixels square. The poster overlay
+// draws this over the map, so the code scans in print whatever is under
+// it.
+export function renderQrCard(text: string, width: number): Promise<string> {
+  return QRCode.toString(text, {
+    ...COMMON,
+    margin: QR_CARD_QUIET_ZONE,
+    color: { dark: "#000000ff", light: "#ffffffff" },
+    type: "svg",
+    width,
+  });
+}

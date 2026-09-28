@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Box,
@@ -28,10 +28,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "../../api/errors";
 import { events as eventsApi } from "../../api/resources/events";
 import { media as mediaApi } from "../../api/resources/media";
+import { siteSettings as siteSettingsApi } from "../../api/resources/siteSettings";
 import { UploadFailed, uploadToS3 } from "../../api/resources/upload";
-import type { Event, MediaAsset } from "../../api/types";
+import type { Event, MediaAsset, QrCode } from "../../api/types";
 import AppDialog from "../../components/AppDialog";
 import { useConfig } from "../../ConfigContext";
+import { useCompact } from "../../hooks/useCompact";
 import { useNotify } from "../../hooks/useNotify";
 import { keys } from "../../queries/keys";
 import { RASTER_MAX_BYTES } from "../../validation/image";
@@ -62,7 +64,18 @@ import {
   type TimeLabelFormat,
   type TimeLabelInterval,
 } from "../../routeMap/posterStyle";
+import {
+  elementLabel,
+  parsePosterLayout,
+  toLayoutDocument,
+  type LayoutElement,
+  type PosterLayout,
+} from "../../routeMap/posterLayout";
+import { renderOverlayCanvas } from "../../routeMap/posterOverlay";
 import RoutePosterPreview from "./RoutePosterPreview";
+import PosterOverlayComposer, { type EditorElement } from "./PosterOverlayComposer";
+import PosterOverlayControls from "./PosterOverlayControls";
+import { OverlayLoadError, sourceKey, useOverlaySources } from "./overlaySources";
 
 interface Props {
   event: Event;
@@ -87,17 +100,28 @@ export const SIZE_LIMIT_MESSAGE =
 export const NO_SCHEDULE_HINT =
   "The event has no scheduled time, so the labels show the time since the start.";
 
+// The width of a new overlay element over the poster's width.
+const NEW_ELEMENT_WIDTH: Record<LayoutElement["type"], number> = {
+  image: 0.25,
+  logo: 0.2,
+  qr: 0.15,
+};
+
 // The generator dialog of the route poster section (admin.md 6.3). Shows a
 // live preview of the event's route map at the chosen theme, orientation,
 // size, and route styling (colour, arrows, time labels), with the
 // hillshade when Terrain is checked (offered only once the probe finds
-// `<base>/terrain.pmtiles`); Generate renders the same style offscreen,
-// uploads the JPEG through the media upload flow, and offers to set the
-// ready asset as the route poster.
+// `<base>/terrain.pmtiles`), and the overlay composer over it (images, the
+// site logo, QR codes). Opening the dialog loads the event's saved poster
+// layout; Save layout and a successful Generate save it. Generate renders
+// the same style offscreen, draws the overlays over it at the print scale
+// and the attribution last, uploads the JPEG through the media upload
+// flow, and offers to set the ready asset as the route poster.
 export default function RoutePosterGenerator({ event, open, onClose }: Props) {
   const config = useConfig();
   const qc = useQueryClient();
   const notify = useNotify();
+  const compact = useCompact();
   const [theme, setTheme] = useState<Appearance>("light");
   const [orientation, setOrientation] = useState<PosterOrientation>("landscape");
   const [preset, setPreset] = useState<PosterPresetId>("facebook");
@@ -119,6 +143,16 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
   // Each run gets an id; a run whose dialog was closed or restarted stops
   // updating the state.
   const runRef = useRef(0);
+  const [elements, setElements] = useState<EditorElement[]>([]);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  // Set by Clear layout; with no elements left, saving sends null.
+  const [cleared, setCleared] = useState(false);
+  const [savingLayout, setSavingLayout] = useState(false);
+  const [layoutError, setLayoutError] = useState<string | null>(null);
+  const nextKey = useRef(0);
+  // The event the dialog opened on; its layout loads once per open.
+  const eventRef = useRef(event);
+  eventRef.current = event;
 
   useEffect(() => {
     if (!open) {
@@ -127,6 +161,21 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
       setError(null);
       setAsset(null);
       setProgress(0);
+      return;
+    }
+    const saved = parsePosterLayout(eventRef.current.posterLayout);
+    setSelectedKey(null);
+    setCleared(false);
+    setLayoutError(null);
+    setElements(
+      (saved?.elements ?? []).map((el) => ({ ...el, key: `el-${++nextKey.current}` })),
+    );
+    if (saved) {
+      setCustomColor(saved.routeStyle.colour);
+      setColorText(null);
+      setArrows(saved.routeStyle.arrows);
+      setLabelInterval(saved.routeStyle.labels.interval);
+      setFormat(saved.routeStyle.labels.format);
     }
   }, [open]);
 
@@ -164,6 +213,15 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
     [theme, withTerrain, routeColor, arrows, labelInterval, labelFormat, scheduledAt, zone],
   );
 
+  const siteSettingsResult = useQuery({
+    queryKey: keys.siteSettings,
+    queryFn: () => siteSettingsApi.get(),
+    enabled: open,
+  });
+  const logoMediaId = siteLogoId(siteSettingsResult.data?.data);
+
+  const { states: sources, whenReady } = useOverlaySources(elements, config.siteBaseUrl);
+
   const routeMapQuery = {
     queryKey: keys.eventRouteMap(eventId),
     queryFn: async () => toRouteMapData((await eventsApi.routeMap(eventId)).routeMap),
@@ -182,6 +240,82 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
     phase === "confirming" ||
     phase === "setting";
 
+  const layoutDocument = (): PosterLayout | null =>
+    cleared && elements.length === 0
+      ? null
+      : toLayoutDocument(
+          { colour: customColor, arrows, labels: { interval: labelInterval, format } },
+          elements,
+        );
+
+  // PATCHes the layout on the event; resolves whether it was saved.
+  const saveLayout = async (): Promise<boolean> => {
+    setLayoutError(null);
+    setSavingLayout(true);
+    try {
+      await eventsApi.patch(eventId, { posterLayout: layoutDocument() });
+    } catch (e) {
+      setLayoutError(`The poster layout could not be saved. ${messageOf(e)}`);
+      return false;
+    } finally {
+      setSavingLayout(false);
+    }
+    void qc.invalidateQueries({ queryKey: keys.event(eventId), exact: true });
+    return true;
+  };
+
+  const addElement = (el: LayoutElement) => {
+    const key = `el-${++nextKey.current}`;
+    setElements((list) => [...list, { ...el, key }]);
+    setSelectedKey(key);
+    setCleared(false);
+  };
+  const placeNew = (type: LayoutElement["type"]) => ({
+    x: 0.5,
+    y: 0.5,
+    width: NEW_ELEMENT_WIDTH[type],
+    rotation: 0,
+    z: elements.length,
+  });
+  const addImage = (picked: MediaAsset) => {
+    if (typeof picked.id !== "string") return;
+    qc.setQueryData(keys.mediaAsset(picked.id), picked);
+    addElement({ type: "image", mediaId: picked.id, ...placeNew("image") });
+  };
+  const addLogo = (mediaId: string) => addElement({ type: "logo", mediaId, ...placeNew("logo") });
+  const addQr = (code: QrCode) =>
+    addElement({ type: "qr", qrId: code.id, tag: code.tag, ...placeNew("qr") });
+  const moveElement = (key: string, placement: Pick<LayoutElement, "x" | "y" | "width" | "rotation">) =>
+    setElements((list) => list.map((el) => (el.key === key ? { ...el, ...placement } : el)));
+  const deleteElement = useCallback((key: string) => {
+    setElements((list) => list.filter((el) => el.key !== key));
+    setSelectedKey((k) => (k === key ? null : k));
+  }, []);
+  const selectedIndex = elements.findIndex((el) => el.key === selectedKey);
+  const shift = (by: 1 | -1) => {
+    const to = selectedIndex + by;
+    if (selectedIndex < 0 || to < 0 || to >= elements.length) return;
+    setElements((list) => {
+      const next = [...list];
+      [next[selectedIndex], next[to]] = [next[to]!, next[selectedIndex]!];
+      return next;
+    });
+  };
+  const clearLayout = () => {
+    setElements([]);
+    setSelectedKey(null);
+    setCleared(true);
+  };
+  const failedOverlays = elements.flatMap((el) => {
+    const state = sources[sourceKey(el)];
+    if (state?.status !== "failed") return [];
+    const filename =
+      el.type === "image"
+        ? (qc.getQueryData<MediaAsset>(keys.mediaAsset(el.mediaId))?.filename ?? null)
+        : null;
+    return [`The overlay ${elementLabel(el, filename)} could not load. ${state.error}`];
+  });
+
   const generate = async () => {
     const run = ++runRef.current;
     const live = () => runRef.current === run;
@@ -195,10 +329,15 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
       if (!data || data.path.length === 0) {
         throw new Error(NO_PATH_MESSAGE);
       }
+      const loaded = await whenReady(elements);
+      if (!live()) return;
+      const overlay = elements.length > 0 ? renderOverlayCanvas(elements, loaded, size) : null;
       const style = posterStyle(config, data, styling);
-      blob = await renderPosterImage({ style, path: data.path, size, theme });
+      blob = await renderPosterImage({ style, path: data.path, size, theme, overlay });
     } catch (e) {
-      if (live()) fail(`The poster could not be drawn. ${messageOf(e)}`);
+      if (live()) {
+        fail(e instanceof OverlayLoadError ? e.message : `The poster could not be drawn. ${messageOf(e)}`);
+      }
       return;
     }
     if (!live()) return;
@@ -232,6 +371,8 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
       if (live()) fail(uploadMessage(e));
       return;
     }
+    if (!live()) return;
+    await saveLayout();
     if (!live()) return;
     setAsset(ready);
     setPhase("ready");
@@ -432,8 +573,60 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
             </Stack>
           </Stack>
 
+          <PosterOverlayControls
+            disabled={busy}
+            logoMediaId={logoMediaId}
+            selected={selectedIndex >= 0}
+            canForward={selectedIndex >= 0 && selectedIndex < elements.length - 1}
+            canBack={selectedIndex > 0}
+            hasElements={elements.length > 0}
+            saving={savingLayout}
+            onAddImage={addImage}
+            onAddLogo={addLogo}
+            onAddQr={addQr}
+            onForward={() => shift(1)}
+            onBack={() => shift(-1)}
+            onDelete={() => (selectedKey ? deleteElement(selectedKey) : undefined)}
+            onClear={clearLayout}
+            onSave={() => {
+              void saveLayout().then((saved) => {
+                if (saved) notify("Poster layout saved");
+              });
+            }}
+          />
+          {failedOverlays.length > 0 ? (
+            <Alert severity="warning" data-testid="poster-overlay-failed">
+              {failedOverlays.map((m) => (
+                <div key={m}>{m}</div>
+              ))}
+            </Alert>
+          ) : null}
+          {layoutError ? (
+            <Alert severity="error" data-testid="poster-layout-error">
+              {layoutError}
+            </Alert>
+          ) : null}
+
           {previewStyle && drawable ? (
-            <RoutePosterPreview style={previewStyle} path={drawable.path} size={size} />
+            <RoutePosterPreview
+              style={previewStyle}
+              path={drawable.path}
+              size={size}
+              overlay={(display) => (
+                <PosterOverlayComposer
+                  width={display.width}
+                  height={display.height}
+                  elements={elements}
+                  sources={sources}
+                  selectedKey={selectedKey}
+                  disabled={busy}
+                  touch={compact}
+                  onSelect={setSelectedKey}
+                  onChange={moveElement}
+                  onDelete={deleteElement}
+                />
+              )}
+            />
           ) : routeMapResult.isError ? (
             <Alert severity="warning" data-testid="route-poster-preview-error">
               The preview could not load. {messageOf(routeMapResult.error)}
@@ -544,6 +737,15 @@ function posterStyle(
     },
   };
   return buildPosterStyle(config, input);
+}
+
+// The site logo's media id from the site settings draft, or null.
+function siteLogoId(data: unknown): string | null {
+  if (typeof data !== "object" || data === null) return null;
+  const logo = (data as { logoMedia?: unknown }).logoMedia;
+  if (typeof logo !== "object" || logo === null) return null;
+  const id = (logo as { mediaId?: unknown }).mediaId;
+  return typeof id === "string" && id ? id : null;
 }
 
 function Status({ label, value }: { label: string; value?: number }) {

@@ -6,13 +6,18 @@ holds the canonical copy: every change to the route map style is made there
 first and synced here by copying both files unchanged. Never edit them in this
 repository.
 
-`index.ts`, `poster.ts`, and `posterStyle.ts` belong to the panel. `poster.ts`
+`index.ts`, `poster.ts`, `posterStyle.ts`, `posterLayout.ts`, `posterOverlay.ts`,
+and `overlayImage.ts` belong to the panel. `poster.ts`
 holds the poster generator's presets, the lazy probe of
 `<base>/terrain.pmtiles`, the offscreen render, the arrowhead image added to
 every poster map, and the composed JPEG with the attribution drawn into it.
 `posterStyle.ts` holds the route styling options, the time labels, and
 `buildPosterStyle`, the one style call the live preview and the export render
-share. `index.ts` reads the basemap base URL from the panel
+share. `posterLayout.ts` holds the poster layout document saved on the event,
+with positions and sizes as fractions of the poster; `posterOverlay.ts` draws
+its elements on an offscreen Konva stage at the print scale; `overlayImage.ts`
+loads the overlay images with CORS and refuses one that would taint the
+canvas. `index.ts` reads the basemap base URL from the panel
 config (`VITE_ROUTE_BASEMAP_URL`, read by `loadConfig` in `src/config.ts` into
 `routeBasemapUrl`) and builds the style over it, so the tiles resolve at
 `<base>/tiles.pmtiles` and the glyphs at `<base>/glyphs/{fontstack}/{range}.pbf`.

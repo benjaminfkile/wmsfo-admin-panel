@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Alert, Box } from "@mui/material";
 import type { Map as MaplibreMap, StyleSpecification } from "maplibre-gl";
 import { pathBounds, type LatLng } from "../../routeMap";
@@ -14,6 +14,8 @@ interface Props {
   style: StyleSpecification;
   path: readonly LatLng[];
   size: PosterSize;
+  // Drawn over the map at the preview's display size.
+  overlay?: (display: PosterSize) => ReactNode;
 }
 
 // The tallest the preview grows, in CSS pixels.
@@ -26,8 +28,9 @@ const FALLBACK_WIDTH = 480;
 // ratio lowered to match, so zoom, line widths, arrows, and label
 // placement are the ones the export draws. Every new style goes to the
 // map through setStyle; a size change resizes the map and fits the path
-// again with the export's padding. The map takes no input.
-export default function RoutePosterPreview({ style, path, size }: Props) {
+// again with the export's padding. The map takes no input; `overlay`
+// draws over it at the display size, which has the poster's aspect.
+export default function RoutePosterPreview({ style, path, size, overlay }: Props) {
   const outerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MaplibreMap | null>(null);
@@ -146,6 +149,7 @@ export default function RoutePosterPreview({ style, path, size }: Props) {
               pointerEvents: "none",
             }}
           />
+          {overlay ? overlay({ width: displayWidth, height: displayHeight }) : null}
         </Box>
       )}
     </Box>
