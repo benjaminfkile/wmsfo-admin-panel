@@ -55,8 +55,8 @@ describe("time label formats", () => {
 
   it("follows the zone across a daylight saving change", () => {
     // Denver falls back at 02:00 MDT on 2026-11-01 (08:00Z).
-    expect(formatWallClock("2026-11-01T07:30:00Z", 0, "America/Denver")).toBe("01:30");
-    expect(formatWallClock("2026-11-01T07:30:00Z", 45, "America/Denver")).toBe("01:15");
+    expect(formatWallClock("2026-11-01T07:30:00Z", 0, "America/Denver")).toBe("1:30 AM");
+    expect(formatWallClock("2026-11-01T07:30:00Z", 45, "America/Denver")).toBe("1:15 AM");
   });
 
   it("labels the entries as wall clock or elapsed", () => {

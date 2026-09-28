@@ -530,8 +530,8 @@ describe("RoutePosterSection: Generate from flight recording", () => {
       routeColor: ROUTE_PALETTES.light.routeColor,
       arrows: true,
       timeLabels: [
-        { lat: 46.8721, lng: -114.0012, label: "19:00" },
-        { lat: 46.886203, lng: -114.017446, label: "19:12" },
+        { lat: 46.8721, lng: -114.0012, label: "7:00 PM" },
+        { lat: 46.886203, lng: -114.017446, label: "7:12 PM" },
       ],
     });
 
