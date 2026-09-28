@@ -163,6 +163,23 @@ describe("composePoster", () => {
     expect(y).toBeGreaterThan(768);
     expect(y).toBeLessThan(1536);
   });
+
+  it("draws the map, then the overlay canvas, then the attribution", () => {
+    const ctx = fakeContext();
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
+      ctx as unknown as CanvasRenderingContext2D,
+    );
+    const map = document.createElement("canvas");
+    const overlay = document.createElement("canvas");
+    composePoster(map, { width: 2550, height: 3300 }, "dark", overlay);
+    expect(ctx.drawImage.mock.calls).toEqual([
+      [map, 0, 0, 2550, 3300],
+      [overlay, 0, 0, 2550, 3300],
+    ]);
+    const [mapAt, overlayAt] = ctx.drawImage.mock.invocationCallOrder;
+    expect(mapAt!).toBeLessThan(overlayAt!);
+    expect(overlayAt!).toBeLessThan(ctx.fillText.mock.invocationCallOrder[0]!);
+  });
 });
 
 describe("renderRouteMap", () => {

@@ -30,6 +30,8 @@ export type PatchEventBody = Partial<{
   fundsPercent: number;
   routeId: number | null;
   routeImageMediaId: string;
+  // The poster layout document (admin.md 6.3), or null to clear it.
+  posterLayout: object | null;
 }>;
 
 export type CloneEventBody = {

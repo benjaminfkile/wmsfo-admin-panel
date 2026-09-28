@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import { MemoryRouter } from "react-router-dom";
@@ -30,6 +30,11 @@ import {
   TIME_LABELS_SOURCE,
 } from "../../routeMap";
 import { buildPosterStyle } from "../../routeMap/posterStyle";
+import { loadOverlayImage } from "../../routeMap/overlayImage";
+import { OVERLAY_STAGE_WIDTH } from "../../routeMap/posterOverlay";
+import { DEFAULT_ROUTE_STYLE, type PosterLayout } from "../../routeMap/posterLayout";
+import { konvaLog } from "../../test/konva/konvaMock";
+import QRCode from "qrcode";
 
 vi.setConfig({ testTimeout: 15_000 });
 
@@ -93,6 +98,24 @@ vi.mock("maplibre-gl", () => {
     }
   }
   return { Map, addProtocol: () => undefined, setWorkerUrl: () => undefined };
+});
+
+// jsdom has no canvas for Konva to draw on; the stand-ins record what the
+// composer and the export draw.
+vi.mock("konva", () => import("../../test/konva/konvaMock"));
+vi.mock("react-konva", () => import("../../test/konva/reactKonvaMock"));
+
+vi.mock("qrcode", () => ({
+  default: {
+    toString: vi.fn(async () => "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"),
+    toDataURL: vi.fn(async () => "data:image/png;base64,"),
+  },
+}));
+
+// Overlay images never load in jsdom; each test decides how they settle.
+vi.mock("../../routeMap/overlayImage", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../routeMap/overlayImage")>();
+  return { ...actual, loadOverlayImage: vi.fn() };
 });
 
 // The shared style call, wrapped so the tests can compare what the preview
@@ -245,6 +268,14 @@ beforeEach(() => {
   previews.length = 0;
   exportImages.length = 0;
   vi.mocked(buildPosterStyle).mockClear();
+  konvaLog.stages.length = 0;
+  vi.mocked(QRCode.toString).mockClear();
+  vi.mocked(loadOverlayImage).mockReset();
+  vi.mocked(loadOverlayImage).mockImplementation(async (url: string) => {
+    const image = document.createElement("img");
+    image.src = url;
+    return { image, aspect: 0.5 };
+  });
   ctx.fillText.mockClear();
   ctx.drawImage.mockClear();
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
@@ -315,7 +346,16 @@ describe("RoutePosterSection: Generate from flight recording", () => {
     await user.click(within(dialog).getByTestId("route-poster-generate-run"));
 
     await within(dialog).findByTestId("route-poster-ready");
-    expect(calls).toEqual(["route-map", "render", "compose", "encode", "upload-url", "put", "confirm"]);
+    expect(calls).toEqual([
+      "route-map",
+      "render",
+      "compose",
+      "encode",
+      "upload-url",
+      "put",
+      "confirm",
+      "patch",
+    ]);
     expect(mapOptions[0]!.pixelRatio).toBe(2);
     expect(ctx.fillText).toHaveBeenCalledWith(
       ATTRIBUTION_TEXT,
@@ -333,7 +373,12 @@ describe("RoutePosterSection: Generate from flight recording", () => {
     );
 
     await user.click(within(dialog).getByTestId("route-poster-set"));
-    await waitFor(() => expect(patches).toEqual([{ routeImageMediaId: "poster-asset-1" }]));
+    await waitFor(() =>
+      expect(patches).toEqual([
+        { posterLayout: { version: 1, routeStyle: DEFAULT_ROUTE_STYLE, elements: [] } },
+        { routeImageMediaId: "poster-asset-1" },
+      ]),
+    );
     expect(calls.at(-1)).toBe("patch");
   });
 
@@ -529,5 +574,210 @@ describe("RoutePosterSection: Generate from flight recording", () => {
     expect(exportCalls[0]).toEqual(previewInput);
     expect(mapOptions[0]!.style).toEqual(previewStyle);
     expect(exportImages[0]).toEqual([ROUTE_ARROW_ICON]);
+  });
+});
+
+const SAVED_LAYOUT: PosterLayout = {
+  version: 1,
+  routeStyle: { colour: "#123456", arrows: false, labels: { interval: 5, format: "elapsed" } },
+  elements: [
+    { type: "qr", qrId: 100, tag: "qr-001", x: 0.8, y: 0.75, width: 0.15, rotation: 0, z: 1 },
+    { type: "image", mediaId: f.mediaAssets[0]!.id!, x: 0.25, y: 0.5, width: 0.3, rotation: 15, z: 0 },
+  ],
+};
+
+async function openDialog(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByTestId("route-poster-generate"));
+  return screen.findByRole("dialog");
+}
+
+function overlayNames(dialog: HTMLElement): string[] {
+  return within(dialog)
+    .queryAllByTestId("poster-overlay-image")
+    .map((el) => el.getAttribute("data-name") ?? "");
+}
+
+describe("RoutePosterGenerator: the overlay composer", () => {
+  it("opens with the saved layout and a successful Generate saves it", async () => {
+    const user = userEvent.setup();
+    const { patches } = installFlowHandlers();
+    render(<Harness event={{ ...EVENT, posterLayout: SAVED_LAYOUT }} />);
+    const dialog = await openDialog(user);
+
+    expect(within(dialog).getByTestId("route-poster-color-hex")).toHaveValue("#123456");
+    expect(within(dialog).getByLabelText("Arrows")).not.toBeChecked();
+    expect(within(dialog).getByRole("combobox", { name: "Time labels" })).toHaveTextContent(
+      "Every 5 minutes",
+    );
+    // Stacking order: the image (z 0) under the QR code (z 1), placed by
+    // fractions of the 480 x 360 preview.
+    await waitFor(() => expect(overlayNames(dialog)).toEqual(["overlay-image", "overlay-qr"]));
+    const [image, qr] = within(dialog).getAllByTestId("poster-overlay-image");
+    expect(image).toHaveAttribute("data-src", f.mediaAssets[0]!.url);
+    expect(Number(image!.getAttribute("data-x"))).toBeCloseTo(0.25 * 480);
+    expect(Number(image!.getAttribute("data-y"))).toBeCloseTo(0.5 * 360);
+    expect(Number(image!.getAttribute("data-width"))).toBeCloseTo(0.3 * 480);
+    expect(image).toHaveAttribute("data-rotation", "15");
+    expect(qr!.getAttribute("data-src")).toMatch(/^data:image\/svg\+xml/);
+
+    await user.click(within(dialog).getByTestId("route-poster-generate-run"));
+    await within(dialog).findByTestId("route-poster-ready");
+    expect(calls.slice(-2)).toEqual(["confirm", "patch"]);
+    // Saved in stacking order, each z its index.
+    expect(patches).toEqual([
+      {
+        posterLayout: {
+          ...SAVED_LAYOUT,
+          elements: [SAVED_LAYOUT.elements[1], SAVED_LAYOUT.elements[0]],
+        },
+      },
+    ]);
+  });
+
+  it("draws the map, then the overlays at the print scale, then the attribution", async () => {
+    const user = userEvent.setup();
+    installFlowHandlers();
+    const layout: PosterLayout = {
+      ...SAVED_LAYOUT,
+      elements: [{ type: "logo", mediaId: "logo-1", x: 0.5, y: 0.25, width: 0.2, rotation: 0, z: 0 }],
+    };
+    render(<Harness event={{ ...EVENT, posterLayout: layout }} />);
+    const dialog = await openDialog(user);
+    await user.click(within(dialog).getByTestId("route-poster-generate-run"));
+    await within(dialog).findByTestId("route-poster-ready");
+
+    const stage = konvaLog.stages.at(-1)!;
+    expect(stage.pixelRatio).toBeCloseTo(2048 / OVERLAY_STAGE_WIDTH);
+    expect(stage.canvas).toMatchObject({ width: 2048, height: 1536 });
+    expect(stage.images).toHaveLength(1);
+    expect(stage.images[0]).toMatchObject({ x: 0.5 * OVERLAY_STAGE_WIDTH, width: 0.2 * OVERLAY_STAGE_WIDTH });
+    expect(stage.images[0]!.y).toBeCloseTo(0.25 * OVERLAY_STAGE_WIDTH * (1536 / 2048));
+
+    const draws = ctx.drawImage.mock.calls as unknown as unknown[][];
+    expect(draws).toHaveLength(2);
+    expect(draws[0]![0]).not.toBe(stage.canvas);
+    expect(draws[1]![0]).toBe(stage.canvas);
+    const attributionAt = ctx.fillText.mock.invocationCallOrder.at(-1)!;
+    const [mapAt, overlayAt] = ctx.drawImage.mock.invocationCallOrder;
+    expect(mapAt!).toBeLessThan(overlayAt!);
+    expect(overlayAt!).toBeLessThan(attributionAt);
+    expect(ctx.fillText.mock.calls.at(-1)![0]).toBe(ATTRIBUTION_TEXT);
+  });
+
+  it("adds a QR code drawn as a quiet zone card and saves its id and tag", async () => {
+    const user = userEvent.setup();
+    const { patches } = installFlowHandlers();
+    render(<Harness event={EVENT} />);
+    const dialog = await openDialog(user);
+    await user.click(within(dialog).getByTestId("poster-overlay-add-qr"));
+    const picker = await screen.findByRole("dialog", { name: "Choose a QR code" });
+    await user.type(within(picker).getByTestId("poster-qr-search"), "southgate");
+    expect(within(picker).queryByText("qr-002")).toBeNull();
+    await user.click(within(picker).getByText("qr-001"));
+
+    await waitFor(() => expect(overlayNames(dialog)).toEqual(["overlay-qr"]));
+    expect(QRCode.toString).toHaveBeenCalledWith(
+      "https://site.test/q/qr-001",
+      expect.objectContaining({
+        type: "svg",
+        margin: 4,
+        errorCorrectionLevel: "M",
+        color: { dark: "#000000ff", light: "#ffffffff" },
+      }),
+    );
+    expect(vi.mocked(loadOverlayImage).mock.calls[0]![0]).toMatch(/^data:image\/svg\+xml/);
+
+    await user.click(within(dialog).getByTestId("poster-overlay-save"));
+    await waitFor(() => expect(patches).toHaveLength(1));
+    expect(patches[0]).toEqual({
+      posterLayout: {
+        version: 1,
+        routeStyle: DEFAULT_ROUTE_STYLE,
+        elements: [{ type: "qr", qrId: 100, tag: "qr-001", x: 0.5, y: 0.5, width: 0.15, rotation: 0, z: 0 }],
+      },
+    });
+  });
+
+  it("offers the site logo only when one is set, and reorders and deletes elements", async () => {
+    const user = userEvent.setup();
+    render(<Harness event={EVENT} />);
+    let dialog = await openDialog(user);
+    await waitFor(() => expect(within(dialog).getByTestId("poster-overlay-add-qr")).toBeEnabled());
+    expect(within(dialog).queryByTestId("poster-overlay-add-logo")).toBeNull();
+    await user.click(within(dialog).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+    server.use(
+      http.get(`${API}/admin/site-settings`, () =>
+        HttpResponse.json({
+          ...f.siteSettingsDraft,
+          data: { ...(f.siteSettingsDraft.data as object), logoMedia: { mediaId: "logo-1", alt: null } },
+        }),
+      ),
+    );
+    dialog = await openDialog(user);
+    await user.click(await within(dialog).findByTestId("poster-overlay-add-logo"));
+    await user.click(within(dialog).getByTestId("poster-overlay-add-qr"));
+    const picker = await screen.findByRole("dialog", { name: "Choose a QR code" });
+    await user.click(within(picker).getByText("qr-002"));
+    await waitFor(() => expect(overlayNames(dialog)).toEqual(["overlay-logo", "overlay-qr"]));
+
+    // The QR code, added last, is selected: it is at the front.
+    expect(within(dialog).getByTestId("poster-overlay-forward")).toBeDisabled();
+    await user.click(within(dialog).getByTestId("poster-overlay-back"));
+    expect(overlayNames(dialog)).toEqual(["overlay-qr", "overlay-logo"]);
+    await user.click(within(dialog).getByTestId("poster-overlay-forward"));
+    expect(overlayNames(dialog)).toEqual(["overlay-logo", "overlay-qr"]);
+
+    // Select the logo and delete it from the keyboard.
+    fireEvent.mouseDown(within(dialog).getAllByTestId("poster-overlay-image")[0]!);
+    fireEvent.keyDown(window, { key: "Delete" });
+    expect(overlayNames(dialog)).toEqual(["overlay-qr"]);
+    expect(within(dialog).getByTestId("poster-overlay-delete")).toBeDisabled();
+    fireEvent.mouseDown(within(dialog).getAllByTestId("poster-overlay-image")[0]!);
+    await user.click(within(dialog).getByTestId("poster-overlay-delete"));
+    expect(overlayNames(dialog)).toEqual([]);
+  });
+
+  it("Clear layout removes every element and Save sends null", async () => {
+    const user = userEvent.setup();
+    const { patches } = installFlowHandlers();
+    render(<Harness event={{ ...EVENT, posterLayout: SAVED_LAYOUT }} />);
+    const dialog = await openDialog(user);
+    await waitFor(() => expect(overlayNames(dialog)).toHaveLength(2));
+    await user.click(within(dialog).getByTestId("poster-overlay-clear"));
+    expect(overlayNames(dialog)).toEqual([]);
+    await user.click(within(dialog).getByTestId("poster-overlay-save"));
+    await waitFor(() => expect(patches).toEqual([{ posterLayout: null }]));
+  });
+
+  it("names a failed or tainted overlay image and keeps the dialog usable", async () => {
+    const user = userEvent.setup();
+    installFlowHandlers();
+    vi.mocked(loadOverlayImage).mockImplementation(async (url: string) => {
+      if (url === f.mediaAssets[0]!.url) {
+        throw new Error("The image host does not allow the image on a canvas (no cross-origin access).");
+      }
+      const image = document.createElement("img");
+      image.src = url;
+      return { image, aspect: 1 };
+    });
+    render(<Harness event={{ ...EVENT, posterLayout: SAVED_LAYOUT }} />);
+    const dialog = await openDialog(user);
+    expect(await within(dialog).findByTestId("poster-overlay-failed")).toHaveTextContent(
+      "The overlay image hangar.jpg could not load. The image host does not allow the image on a canvas",
+    );
+    expect(within(dialog).getAllByTestId("poster-overlay-placeholder")).toHaveLength(1);
+
+    await user.click(within(dialog).getByTestId("route-poster-generate-run"));
+    expect(await within(dialog).findByTestId("route-poster-error")).toHaveTextContent(
+      "The overlay image hangar.jpg could not be drawn. The image host does not allow the image on a canvas",
+    );
+    expect(calls).not.toContain("render");
+    expect(calls).not.toContain("upload-url");
+    expect(within(dialog).getByTestId("route-poster-generate-run")).toBeEnabled();
+    expect(within(dialog).getByTestId("route-poster-generate-run")).toHaveTextContent(/try again/i);
+    await user.click(within(dialog).getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 });
