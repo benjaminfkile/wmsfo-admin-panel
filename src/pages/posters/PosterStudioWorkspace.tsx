@@ -21,20 +21,20 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "../../api/errors";
-import { events as eventsApi } from "../../api/resources/events";
 import { media as mediaApi } from "../../api/resources/media";
+import { routes as routesApi } from "../../api/resources/routes";
 import { siteSettings as siteSettingsApi } from "../../api/resources/siteSettings";
 import { UploadFailed, uploadToS3 } from "../../api/resources/upload";
-import type { Event, MediaAsset, QrCode } from "../../api/types";
+import type { MediaAsset, QrCode, RouteMapResponse } from "../../api/types";
 import { useConfig } from "../../ConfigContext";
+import TimeZoneSelect from "../../components/TimeZoneSelect";
 import { useCompact } from "../../hooks/useCompact";
-import { useNotify } from "../../hooks/useNotify";
 import { keys } from "../../queries/keys";
 import { RASTER_MAX_BYTES } from "../../validation/image";
-import { browserTimeZone } from "../../lib/time";
+import { browserTimeZone, wallTimeToUtc } from "../../lib/time";
 import { routeBasemapBase, type Appearance } from "../../routeMap";
 import {
   POSTER_PRESETS,
@@ -49,10 +49,6 @@ import {
 } from "../../routeMap/poster";
 import {
   ARROW_SCALES,
-  DEFAULT_ARROWS,
-  DEFAULT_ARROW_SCALE,
-  DEFAULT_TIME_LABEL_FORMAT,
-  DEFAULT_TIME_LABEL_INTERVAL,
   TIME_LABEL_FORMATS,
   TIME_LABEL_INTERVALS,
   buildPosterStyle,
@@ -65,8 +61,8 @@ import {
   type TimeLabelInterval,
 } from "../../routeMap/posterStyle";
 import {
+  DEFAULT_DESIGN,
   elementLabel,
-  parsePosterLayout,
   toLayoutDocument,
   type LayoutElement,
   type PosterLayout,
@@ -78,25 +74,27 @@ import PosterOverlayControls from "./PosterOverlayControls";
 import { OverlayLoadError, sourceKey, useOverlaySources } from "./overlaySources";
 
 interface Props {
-  event: Event;
+  // The poster's name, which names the generated file.
+  posterName: string;
+  // The flight recording the map is built from.
+  routeId: number;
+  // The design the workspace opens with; null for the defaults.
+  initialLayout: PosterLayout | null;
+  // Receives the layout document after every change of the design.
+  onLayoutChange: (layout: PosterLayout) => void;
+  // Saves the poster with this layout; resolves whether it was saved.
+  onSave: (layout: PosterLayout) => Promise<boolean>;
 }
 
-type Phase =
-  | "idle"
-  | "rendering"
-  | "uploading"
-  | "confirming"
-  | "ready"
-  | "setting"
-  | "failed";
+type Phase = "idle" | "rendering" | "uploading" | "confirming" | "ready" | "failed";
 
-const NO_PATH_MESSAGE = "The linked flight recording has no path to draw.";
+const NO_PATH_MESSAGE = "The chosen flight recording has no path to draw.";
 
 export const SIZE_LIMIT_MESSAGE =
   "The poster image is over the 20 MB limit for images. Choose a smaller size or the other theme and generate again.";
 
-export const NO_SCHEDULE_HINT =
-  "The event has no scheduled time, so the labels show the time since the start.";
+export const NO_START_HINT =
+  "Without a start time the labels show the time since the start.";
 
 // The width of a new overlay element over the poster's width.
 const NEW_ELEMENT_WIDTH: Record<LayoutElement["type"], number> = {
@@ -105,40 +103,49 @@ const NEW_ELEMENT_WIDTH: Record<LayoutElement["type"], number> = {
   qr: 0.15,
 };
 
-// The workspace of the poster studio page (admin.md 6.3). The working
-// column holds a large live preview of the event's route map at the
-// chosen theme, orientation, size, and route styling (colour, arrows,
-// time labels), with the hillshade when Terrain is checked (offered only
-// once the probe finds `<base>/terrain.pmtiles`), and the overlay composer
-// over it (images, the site logo, QR codes). The controls sit in a rail on
-// the right on desktop and stack under the preview below md. Mounting
-// loads the event's saved poster layout; Save layout and a successful
-// Generate save it. Generate renders the same style offscreen, draws the
-// overlays over it at the print scale and the attribution last, uploads
-// the JPEG through the media upload flow, and offers to set the ready
-// asset as the route poster, which returns to the event page.
-export default function PosterStudioWorkspace({ event }: Props) {
+// The workspace of the poster editor (admin.md 6.3, Poster studio). The
+// working column holds a large live preview of the recording's route map
+// at the chosen theme, orientation, size, and route styling (colour,
+// arrows, time labels), with the hillshade when Terrain is checked
+// (offered only once the probe finds `<base>/terrain.pmtiles`), and the
+// overlay composer over it (images, the site logo, QR codes). The controls
+// sit in a rail on the right on desktop and stack under the preview below
+// md. Mounting restores `initialLayout` once; every change of the design
+// goes to `onLayoutChange`. Generate renders the same style offscreen,
+// draws the overlays over it at the print scale and the attribution last,
+// uploads the JPEG through the media upload flow, saves the poster, and
+// links the ready asset in the media library.
+export default function PosterStudioWorkspace({
+  posterName,
+  routeId,
+  initialLayout,
+  onLayoutChange,
+  onSave,
+}: Props) {
   const config = useConfig();
   const qc = useQueryClient();
-  const notify = useNotify();
-  const navigate = useNavigate();
   const compact = useCompact();
   const previewMaxHeight = usePreviewMaxHeight();
-  const [theme, setTheme] = useState<Appearance>("light");
-  const [orientation, setOrientation] = useState<PosterOrientation>("landscape");
-  const [preset, setPreset] = useState<PosterPresetId>("facebook");
-  const [terrain, setTerrain] = useState(false);
+  // The design the workspace opened with; read once, on mount, so a save
+  // that refreshes the poster leaves the workspace alone.
+  const [initial] = useState(() => initialLayout ?? { ...DEFAULT_DESIGN, elements: [] });
+  const [theme, setTheme] = useState<Appearance>(initial.theme);
+  const [orientation, setOrientation] = useState<PosterOrientation>(initial.orientation);
+  const [preset, setPreset] = useState<PosterPresetId>(initial.size);
+  const [terrain, setTerrain] = useState(initial.terrain);
   const [terrainAvailable, setTerrainAvailable] = useState(false);
   // The picked route colour, or null for the theme's.
-  const [customColor, setCustomColor] = useState<string | null>(null);
+  const [customColor, setCustomColor] = useState<string | null>(initial.routeStyle.colour);
   // The hex field's text while it does not hold a complete colour.
   const [colorText, setColorText] = useState<string | null>(null);
-  const [arrows, setArrows] = useState(DEFAULT_ARROWS);
-  const [arrowScale, setArrowScale] = useState<ArrowScale>(DEFAULT_ARROW_SCALE);
+  const [arrows, setArrows] = useState(initial.routeStyle.arrows);
+  const [arrowScale, setArrowScale] = useState<ArrowScale>(initial.routeStyle.arrowScale);
   const [labelInterval, setLabelInterval] = useState<TimeLabelInterval>(
-    DEFAULT_TIME_LABEL_INTERVAL,
+    initial.routeStyle.labels.interval,
   );
-  const [format, setFormat] = useState<TimeLabelFormat>(DEFAULT_TIME_LABEL_FORMAT);
+  const [format, setFormat] = useState<TimeLabelFormat>(initial.routeStyle.labels.format);
+  const [start, setStart] = useState<string | null>(initial.routeStyle.labels.start);
+  const [startZone, setStartZone] = useState<string | null>(initial.routeStyle.labels.zone);
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -146,32 +153,14 @@ export default function PosterStudioWorkspace({ event }: Props) {
   // Each run gets an id; a run whose page was left or restarted stops
   // updating the state.
   const runRef = useRef(0);
-  const [elements, setElements] = useState<EditorElement[]>([]);
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  // Set by Clear layout; with no elements left, saving sends null.
-  const [cleared, setCleared] = useState(false);
-  const [savingLayout, setSavingLayout] = useState(false);
-  const [layoutError, setLayoutError] = useState<string | null>(null);
   const nextKey = useRef(0);
-  // The event the page opened on; its layout loads once, on mount, so a
-  // refetch after a save leaves the composer alone.
-  const eventRef = useRef(event);
-  eventRef.current = event;
+  const [elements, setElements] = useState<EditorElement[]>(() =>
+    initial.elements.map((el) => ({ ...el, key: `el-${++nextKey.current}` })),
+  );
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   useEffect(() => {
     const runs = runRef;
-    const saved = parsePosterLayout(eventRef.current.posterLayout);
-    setElements(
-      (saved?.elements ?? []).map((el) => ({ ...el, key: `el-${++nextKey.current}` })),
-    );
-    if (saved) {
-      setCustomColor(saved.routeStyle.colour);
-      setColorText(null);
-      setArrows(saved.routeStyle.arrows);
-      setArrowScale(saved.routeStyle.arrowScale);
-      setLabelInterval(saved.routeStyle.labels.interval);
-      setFormat(saved.routeStyle.labels.format);
-    }
     return () => {
       runs.current += 1;
     };
@@ -189,13 +178,11 @@ export default function PosterStudioWorkspace({ event }: Props) {
     };
   }, [base]);
 
-  const eventId = Number(event.id);
-  const year = Number(event.year);
   const size = useMemo(() => posterSize(preset, orientation), [preset, orientation]);
   const routeColor = customColor ?? themeRouteColor(theme);
-  const scheduledAt = event.scheduledAt ?? null;
+  const zone = startZone || browserTimeZone();
+  const scheduledAt = start ? wallTimeToUtc(start, zone) : null;
   const labelFormat: TimeLabelFormat = scheduledAt ? format : "elapsed";
-  const zone = event.scheduleTimeZone || browserTimeZone();
   const withTerrain = terrain && terrainAvailable;
   const styling = useMemo<PosterStyling>(
     () => ({
@@ -221,8 +208,8 @@ export default function PosterStudioWorkspace({ event }: Props) {
   const { states: sources, whenReady } = useOverlaySources(elements, config.siteBaseUrl);
 
   const routeMapQuery = {
-    queryKey: keys.eventRouteMap(eventId),
-    queryFn: async () => toRouteMapData((await eventsApi.routeMap(eventId)).routeMap),
+    queryKey: keys.routeMap(routeId),
+    queryFn: async () => toRouteMapData((await routesApi.routeMap(routeId)).routeMap),
   };
   const routeMapResult = useQuery(routeMapQuery);
   const routeMap = routeMapResult.data ?? null;
@@ -232,41 +219,37 @@ export default function PosterStudioWorkspace({ event }: Props) {
     () => (drawable && base !== null ? posterStyle(config, drawable, styling) : null),
     [drawable, base, config, styling],
   );
-  const busy =
-    phase === "rendering" ||
-    phase === "uploading" ||
-    phase === "confirming" ||
-    phase === "setting";
+  const busy = phase === "rendering" || phase === "uploading" || phase === "confirming";
 
-  const layoutDocument = (): PosterLayout | null =>
-    cleared && elements.length === 0
-      ? null
-      : toLayoutDocument(
-          { colour: customColor, arrows, arrowScale, labels: { interval: labelInterval, format } },
-          elements,
-        );
-
-  // PATCHes the layout on the event; resolves whether it was saved.
-  const saveLayout = async (): Promise<boolean> => {
-    setLayoutError(null);
-    setSavingLayout(true);
-    try {
-      await eventsApi.patch(eventId, { posterLayout: layoutDocument() });
-    } catch (e) {
-      setLayoutError(`The poster layout could not be saved. ${messageOf(e)}`);
-      return false;
-    } finally {
-      setSavingLayout(false);
-    }
-    void qc.invalidateQueries({ queryKey: keys.event(eventId), exact: true });
-    return true;
-  };
+  const layout = useMemo(
+    () =>
+      toLayoutDocument(
+        {
+          theme,
+          orientation,
+          size: preset,
+          terrain,
+          routeStyle: {
+            colour: customColor,
+            arrows,
+            arrowScale,
+            labels: { interval: labelInterval, format, start, zone: startZone },
+          },
+        },
+        elements,
+      ),
+    [theme, orientation, preset, terrain, customColor, arrows, arrowScale, labelInterval, format, start, startZone, elements],
+  );
+  const onLayoutChangeRef = useRef(onLayoutChange);
+  onLayoutChangeRef.current = onLayoutChange;
+  useEffect(() => {
+    onLayoutChangeRef.current(layout);
+  }, [layout]);
 
   const addElement = (el: LayoutElement) => {
     const key = `el-${++nextKey.current}`;
     setElements((list) => [...list, { ...el, key }]);
     setSelectedKey(key);
-    setCleared(false);
   };
   const placeNew = (type: LayoutElement["type"]) => ({
     x: 0.5,
@@ -299,10 +282,9 @@ export default function PosterStudioWorkspace({ event }: Props) {
       return next;
     });
   };
-  const clearLayout = () => {
+  const clearElements = () => {
     setElements([]);
     setSelectedKey(null);
-    setCleared(true);
   };
   const failedOverlays = elements.flatMap((el) => {
     const state = sources[sourceKey(el)];
@@ -345,15 +327,15 @@ export default function PosterStudioWorkspace({ event }: Props) {
     }
 
     setPhase("uploading");
-    const filename = posterFilename(year, theme, size);
+    const filename = posterFilename(posterName, theme, size);
     let ready: MediaAsset;
     try {
       const ticket = await mediaApi.uploadUrl({
         filename,
         contentType: POSTER_MIME,
         sizeBytes: blob.size,
-        alt: `The ${year} route map`,
-        title: `${event.name ?? year} route poster`,
+        alt: `The ${posterName} route map`,
+        title: posterName,
       });
       const mediaId = typeof ticket.media?.id === "string" ? ticket.media.id : null;
       if (!ticket.uploadUrl || !mediaId) throw new Error("Upload ticket incomplete");
@@ -370,33 +352,11 @@ export default function PosterStudioWorkspace({ event }: Props) {
       return;
     }
     if (!live()) return;
-    await saveLayout();
+    await onSave(layout);
     if (!live()) return;
     setAsset(ready);
     setPhase("ready");
     void qc.invalidateQueries({ queryKey: ["media"] });
-  };
-
-  const setAsPoster = async () => {
-    if (!asset || typeof asset.id !== "string") return;
-    const run = runRef.current;
-    setError(null);
-    setPhase("setting");
-    try {
-      await eventsApi.patch(eventId, { routeImageMediaId: asset.id });
-    } catch (e) {
-      if (runRef.current === run) {
-        setError(`The route poster could not be set. ${messageOf(e)}`);
-        setPhase("ready");
-      }
-      return;
-    }
-    notify("Route poster updated");
-    // The poster changes the event and the list only; the route map the
-    // studio reads stays cached.
-    void qc.invalidateQueries({ queryKey: keys.event(eventId), exact: true });
-    void qc.invalidateQueries({ queryKey: keys.events, exact: true });
-    navigate(`/events/${eventId}`);
   };
 
   function fail(message: string) {
@@ -406,7 +366,7 @@ export default function PosterStudioWorkspace({ event }: Props) {
 
   const assetId = asset && typeof asset.id === "string" ? asset.id : null;
 
-  const ready = asset !== null && (phase === "ready" || phase === "setting");
+  const ready = asset !== null && phase === "ready";
 
   const preview =
     previewStyle && drawable ? (
@@ -602,6 +562,16 @@ export default function PosterStudioWorkspace({ event }: Props) {
                   ))}
                 </Select>
               </FormControl>
+              <TextField
+                label="Start time"
+                type="datetime-local"
+                size="small"
+                disabled={busy || labelInterval === 0}
+                value={start ?? ""}
+                onChange={(e) => setStart(e.target.value || null)}
+                slotProps={{ inputLabel: { shrink: true }, htmlInput: { "data-testid": "route-poster-start" } }}
+              />
+              <TimeZoneSelect value={zone} onChange={(z) => setStartZone(z)} />
               <FormControl
                 size="small"
                 disabled={busy || labelInterval === 0 || !scheduledAt}
@@ -622,7 +592,7 @@ export default function PosterStudioWorkspace({ event }: Props) {
                   ))}
                 </Select>
                 {!scheduledAt ? (
-                  <FormHelperText data-testid="route-poster-format-hint">{NO_SCHEDULE_HINT}</FormHelperText>
+                  <FormHelperText data-testid="route-poster-format-hint">{NO_START_HINT}</FormHelperText>
                 ) : null}
               </FormControl>
             </Stack>
@@ -635,28 +605,17 @@ export default function PosterStudioWorkspace({ event }: Props) {
             canForward={selectedIndex >= 0 && selectedIndex < elements.length - 1}
             canBack={selectedIndex > 0}
             hasElements={elements.length > 0}
-            saving={savingLayout}
             onAddImage={addImage}
             onAddLogo={addLogo}
             onAddQr={addQr}
             onForward={() => shift(1)}
             onBack={() => shift(-1)}
             onDelete={() => (selectedKey ? deleteElement(selectedKey) : undefined)}
-            onClear={clearLayout}
-            onSave={() => {
-              void saveLayout().then((saved) => {
-                if (saved) notify("Poster layout saved");
-              });
-            }}
+            onClear={clearElements}
           />
-          {layoutError ? (
-            <Alert severity="error" data-testid="poster-layout-error">
-              {layoutError}
-            </Alert>
-          ) : null}
 
           <Typography variant="body2" color="text.secondary" data-testid="route-poster-output">
-            {posterFilename(year, theme, size)}
+            {posterFilename(posterName, theme, size)}
           </Typography>
 
           <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
@@ -668,16 +627,6 @@ export default function PosterStudioWorkspace({ event }: Props) {
             >
               {phase === "failed" ? "Try again" : asset ? "Generate another" : "Generate"}
             </Button>
-            {ready ? (
-              <Button
-                variant="contained"
-                onClick={() => void setAsPoster()}
-                disabled={phase === "setting"}
-                data-testid="route-poster-set"
-              >
-                Set as route poster
-              </Button>
-            ) : null}
           </Stack>
           {phase === "rendering" ? (
             <Status label="Rendering the map" />
@@ -685,8 +634,6 @@ export default function PosterStudioWorkspace({ event }: Props) {
             <Status label="Uploading" value={progress * 100} />
           ) : phase === "confirming" ? (
             <Status label="Processing the upload" />
-          ) : phase === "setting" ? (
-            <Status label="Setting the route poster" />
           ) : null}
 
           {error ? (
@@ -817,9 +764,7 @@ function PreviewImage({ asset }: { asset: MediaAsset }) {
   );
 }
 
-function toRouteMapData(
-  raw: Awaited<ReturnType<typeof eventsApi.routeMap>>["routeMap"],
-): RouteMapData | null {
+function toRouteMapData(raw: RouteMapResponse["routeMap"]): RouteMapData | null {
   if (!raw) return null;
   return {
     path: (raw.path ?? []).map((p) => ({ lat: Number(p.lat), lng: Number(p.lng) })),

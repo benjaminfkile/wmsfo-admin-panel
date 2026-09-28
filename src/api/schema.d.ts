@@ -1323,6 +1323,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/routes/{id}/route-map": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RouteMapResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/routes/from-event/{eventId}": {
         parameters: {
             query?: never;
@@ -4732,6 +4767,174 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/posters/{id}/impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeleteImpactDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/posters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItemsResponseOfPosterSummaryDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreatePosterRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PosterDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/posters/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PosterDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PatchPosterRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PosterDto"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/admin/snapshot": {
         parameters: {
             query?: never;
@@ -5234,6 +5437,11 @@ export interface components {
             opensPageId?: null | number | string;
             forwardUrl?: null | string;
         };
+        CreatePosterRequest: {
+            name?: string;
+            routeId?: components["schemas"]["JsonElement"];
+            layout?: components["schemas"]["JsonElement"];
+        };
         CreateSectionItemRequest: {
             data?: null | components["schemas"]["JsonElement"];
             /** Format: int32 */
@@ -5331,7 +5539,6 @@ export interface components {
             routeUrl?: null | string;
             routeImageMediaId?: null | string;
             routeImage?: null | components["schemas"]["MediaAssetDto"];
-            posterLayout?: null | components["schemas"]["JsonElement"];
             createdBy?: string;
             /** Format: date-time */
             createdAt?: string;
@@ -5431,6 +5638,9 @@ export interface components {
         };
         ItemsResponseOfPlaceDto: {
             items?: components["schemas"]["PlaceDto"][];
+        };
+        ItemsResponseOfPosterSummaryDto: {
+            items?: components["schemas"]["PosterSummaryDto"][];
         };
         ItemsResponseOfQrCodeDto: {
             items?: components["schemas"]["QrCodeDto"][];
@@ -5847,7 +6057,6 @@ export interface components {
             routeId?: null | number | string;
             routeImageMediaId?: null | string;
             scheduleTimeZone?: components["schemas"]["JsonElement"];
-            posterLayout?: components["schemas"]["JsonElement"];
         };
         PatchPageRequest: {
             slug?: null | string;
@@ -5868,6 +6077,11 @@ export interface components {
             hasOpensPageId?: boolean;
             forwardUrl?: null | string;
             hasForwardUrl?: boolean;
+        };
+        PatchPosterRequest: {
+            name?: null | string;
+            routeId?: components["schemas"]["JsonElement"];
+            layout?: components["schemas"]["JsonElement"];
         };
         PatchQrCodeRequest: {
             /** Format: int64 */
@@ -5998,6 +6212,29 @@ export interface components {
         PlaceScansDto: {
             /** Format: int32 */
             people?: number | string;
+        };
+        PosterDto: {
+            /** Format: int64 */
+            id?: number | string;
+            name?: string;
+            /** Format: int64 */
+            routeId?: null | number | string;
+            layout?: null | components["schemas"]["JsonElement"];
+            createdBy?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            audit?: null | components["schemas"]["AuditStampDto"];
+        };
+        PosterSummaryDto: {
+            /** Format: int64 */
+            id?: number | string;
+            name?: string;
+            /** Format: int64 */
+            routeId?: null | number | string;
+            /** Format: date-time */
+            updatedAt?: string;
         };
         PresentationDto: {
             width?: string;

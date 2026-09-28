@@ -116,9 +116,12 @@ describe("poster presets", () => {
     }
   });
 
-  it("names the file by year, theme, and size", () => {
-    expect(posterFilename(2026, "dark", { width: 2550, height: 3300 })).toBe(
-      "route-poster-2026-dark-2550x3300.jpg",
+  it("names the file by the poster's name, the theme, and the size", () => {
+    expect(posterFilename("Main Street, 2026!", "dark", { width: 2550, height: 3300 })).toBe(
+      "poster-main-street-2026-dark-2550x3300.jpg",
+    );
+    expect(posterFilename("***", "light", { width: 2048, height: 1536 })).toBe(
+      "poster-light-2048x1536.jpg",
     );
   });
 

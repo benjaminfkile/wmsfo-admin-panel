@@ -5,15 +5,15 @@ import { ThemeProvider, CssBaseline } from "@mui/material";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
-import PosterStudio, { NO_BASEMAP_HINT, NO_RECORDING_HINT } from "./PosterStudio";
-import { NO_SCHEDULE_HINT, SIZE_LIMIT_MESSAGE } from "./PosterStudioWorkspace";
+import PosterEditor, { NAME_REQUIRED, NO_BASEMAP_HINT, NO_RECORDING_HINT } from "./PosterEditor";
+import { NO_START_HINT, SIZE_LIMIT_MESSAGE } from "./PosterStudioWorkspace";
 import { ConfigProvider } from "../../ConfigContext";
 import type { Config } from "../../config";
 import { NotifyProvider } from "../../hooks/useNotify";
 import AuthProvider from "../../auth/AuthProvider";
 import AppRoutes from "../../AppRoutes";
 import { installClient } from "../../api/client";
-import type { Event } from "../../api/types";
+import type { Poster } from "../../api/types";
 import { buildTheme } from "../../theme/theme";
 import { server } from "../../test/msw/server";
 import * as f from "../../test/msw/fixtures";
@@ -34,7 +34,12 @@ import {
 import { buildPosterStyle } from "../../routeMap/posterStyle";
 import { loadOverlayImage } from "../../routeMap/overlayImage";
 import { OVERLAY_STAGE_WIDTH } from "../../routeMap/posterOverlay";
-import { DEFAULT_ROUTE_STYLE, type PosterLayout } from "../../routeMap/posterLayout";
+import {
+  DEFAULT_DESIGN,
+  DEFAULT_ROUTE_STYLE,
+  toLayoutDocument,
+  type PosterLayout,
+} from "../../routeMap/posterLayout";
 import { konvaLog } from "../../test/konva/konvaMock";
 import QRCode from "qrcode";
 
@@ -42,6 +47,8 @@ vi.setConfig({ testTimeout: 15_000 });
 
 // Every step of the flow appends here so the tests can check the order.
 const calls: string[] = [];
+// The recordings whose route map was read.
+const routeMapIds: number[] = [];
 // The offscreen export maps.
 const mapOptions: Array<{ pixelRatio: number; style: unknown }> = [];
 // The preview maps: the style they were created with, every style set
@@ -165,11 +172,12 @@ const ctx = {
 };
 
 const API = testConfig.apiBaseUrl;
-const EVENT: Event = { ...f.events[0]!, routeImageMediaId: null };
+const POSTER: Poster = { ...f.posters[0]!, layout: null };
+const DEFAULT_LAYOUT = toLayoutDocument(DEFAULT_DESIGN, []);
 const READY_ASSET = {
   ...f.mediaAssets[0]!,
   id: "poster-asset-1",
-  filename: "route-poster-2026-light-2048x1536.jpg",
+  filename: "poster-main-street-light-2048x1536.jpg",
   width: 2048,
   height: 1536,
   state: "ready" as const,
@@ -193,10 +201,10 @@ const ROUTE_MAP = {
   },
 };
 
-// The studio at /events/:id/poster, with the event page standing in as a
-// marker so leaving the studio shows.
-function Harness({ event, config = testConfig }: { event: Event; config?: Config }) {
-  server.use(http.get(`${API}/admin/events/:id`, () => HttpResponse.json(event)));
+// The editor at /posters/:id, with the poster list standing in as a marker
+// so leaving the editor shows.
+function Harness({ poster, config = testConfig }: { poster: Poster; config?: Config }) {
+  server.use(http.get(`${API}/admin/posters/:id`, () => HttpResponse.json(poster)));
   const client = new QueryClient({
     defaultOptions: {
       queries: { retry: false, staleTime: 0, gcTime: 0 },
@@ -208,11 +216,11 @@ function Harness({ event, config = testConfig }: { event: Event; config?: Config
       <CssBaseline />
       <ConfigProvider config={config}>
         <QueryClientProvider client={client}>
-          <MemoryRouter initialEntries={[`/events/${event.id}/poster`]}>
+          <MemoryRouter initialEntries={[`/posters/${poster.id}`]}>
             <NotifyProvider>
               <Routes>
-                <Route path="/events/:id/poster" element={<PosterStudio />} />
-                <Route path="/events/:id" element={<div data-testid="event-page" />} />
+                <Route path="/posters/:id" element={<PosterEditor />} />
+                <Route path="/posters" element={<div data-testid="posters-page" />} />
               </Routes>
             </NotifyProvider>
           </MemoryRouter>
@@ -226,8 +234,9 @@ function installFlowHandlers(opts: { uploadUrlStatus?: number } = {}) {
   const uploadBodies: Array<Record<string, unknown>> = [];
   const patches: unknown[] = [];
   server.use(
-    http.get(`${API}/admin/events/:id/route-map`, () => {
+    http.get(`${API}/admin/routes/:id/route-map`, ({ params }) => {
       calls.push("route-map");
+      routeMapIds.push(Number(params.id));
       return HttpResponse.json(ROUTE_MAP);
     }),
     http.post(`${API}/admin/media/upload-url`, async ({ request }) => {
@@ -257,10 +266,11 @@ function installFlowHandlers(opts: { uploadUrlStatus?: number } = {}) {
       calls.push("confirm");
       return HttpResponse.json(READY_ASSET);
     }),
-    http.patch(`${API}/admin/events/:id`, async ({ request }) => {
+    http.patch(`${API}/admin/posters/:id`, async ({ request }) => {
       calls.push("patch");
-      patches.push(await request.json());
-      return HttpResponse.json({ ...EVENT, routeImageMediaId: READY_ASSET.id });
+      const body = (await request.json()) as Record<string, unknown>;
+      patches.push(body);
+      return HttpResponse.json({ ...POSTER, ...body });
     }),
   );
   return { uploadBodies, patches };
@@ -272,6 +282,7 @@ beforeEach(() => {
   terrainProbe.urls.length = 0;
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
   calls.length = 0;
+  routeMapIds.length = 0;
   mapOptions.length = 0;
   previews.length = 0;
   exportImages.length = 0;
@@ -300,7 +311,7 @@ beforeEach(() => {
     makeUser({ email: "admin@example.com", "cognito:groups": ["admin"] }),
   );
   installClient({ config: testConfig, userManager: um, onMfaRequired: () => undefined });
-  server.use(http.get(`${API}/admin/events/:id/route-map`, () => HttpResponse.json(ROUTE_MAP)));
+  server.use(http.get(`${API}/admin/routes/:id/route-map`, () => HttpResponse.json(ROUTE_MAP)));
 });
 
 afterEach(() => {
@@ -312,9 +323,9 @@ async function openStudio() {
   return screen.findByTestId("poster-studio-workspace");
 }
 
-describe("PosterStudio: the page and its guards", () => {
-  it("is the page the app routes /events/:id/poster to", async () => {
-    server.use(http.get(`${API}/admin/events/:id`, () => HttpResponse.json(EVENT)));
+describe("PosterEditor: the page and its guards", () => {
+  it("is the page the app routes /posters/:id to", async () => {
+    server.use(http.get(`${API}/admin/posters/:id`, () => HttpResponse.json(POSTER)));
     const um = makeFakeUserManager(
       makeUser({ email: "admin@example.com", "cognito:groups": ["admin"] }),
     );
@@ -322,7 +333,7 @@ describe("PosterStudio: the page and its guards", () => {
       <ThemeProvider theme={buildTheme("light")}>
         <ConfigProvider config={testConfig}>
           <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-            <MemoryRouter initialEntries={[`/events/${EVENT.id}/poster`]}>
+            <MemoryRouter initialEntries={[`/posters/${POSTER.id}`]}>
               <AuthProvider userManager={um}>
                 <AppRoutes themeMode="light" onToggleTheme={() => undefined} />
               </AuthProvider>
@@ -333,50 +344,137 @@ describe("PosterStudio: the page and its guards", () => {
     );
     expect(await screen.findByTestId("poster-studio-workspace")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Poster studio" })).toBeInTheDocument();
-    expect(screen.getByTestId("poster-studio-event-link")).toHaveTextContent(EVENT.name!);
+    expect(screen.getByTestId("poster-name")).toHaveValue(POSTER.name);
   });
 
-  it("names the event in the header and links back to it", async () => {
+  it("holds the name and the recording in the header and links back to the list", async () => {
     const user = userEvent.setup();
-    render(<Harness event={EVENT} />);
+    installFlowHandlers();
+    render(<Harness poster={POSTER} />);
     const workspace = await openStudio();
     expect(screen.getByRole("heading", { name: "Poster studio" })).toBeInTheDocument();
-    const link = screen.getByTestId("poster-studio-event-link");
-    expect(link).toHaveTextContent(EVENT.name!);
-    expect(link).toHaveAttribute("href", `/events/${EVENT.id}`);
-    expect(screen.getByTestId("poster-studio-back")).toHaveAttribute("href", `/events/${EVENT.id}`);
+    expect(screen.getByTestId("poster-name")).toHaveValue("Main street");
+    expect(await screen.findByRole("combobox", { name: "Flight recording" })).toHaveTextContent(
+      f.routes[0]!.name!,
+    );
+    expect(screen.getByTestId("poster-back")).toHaveAttribute("href", "/posters");
     // The preview column comes first, the rail with the controls after it.
     const column = within(workspace).getByTestId("poster-studio-preview-column");
     const rail = within(workspace).getByTestId("poster-studio-rail");
     expect(column.compareDocumentPosition(rail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(await within(column).findByTestId("route-poster-preview")).toBeInTheDocument();
     expect(within(rail).getByTestId("route-poster-generate-run")).toBeInTheDocument();
-    expect(within(rail).getByTestId("poster-overlay-save")).toBeInTheDocument();
     expect(within(rail).getByLabelText("Dark")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).toBeNull();
-    await user.click(screen.getByTestId("poster-studio-back"));
-    expect(await screen.findByTestId("event-page")).toBeInTheDocument();
+    // The map is the chosen recording's.
+    await waitFor(() => expect(routeMapIds).toContain(4));
+    await user.click(screen.getByTestId("poster-back"));
+    expect(await screen.findByTestId("posters-page")).toBeInTheDocument();
   });
 
-  it("shows the hint in place of the workspace when the event has no linked recording", async () => {
-    render(<Harness event={{ ...EVENT, routeId: null }} />);
+  it("shows the hint in place of the workspace without a recording, and a picked one opens it", async () => {
+    const user = userEvent.setup();
+    installFlowHandlers();
+    render(<Harness poster={{ ...POSTER, routeId: null }} />);
     expect(await screen.findByTestId("poster-studio-hint")).toHaveTextContent(NO_RECORDING_HINT);
     expect(screen.queryByTestId("poster-studio-workspace")).toBeNull();
-    expect(screen.getByTestId("poster-studio-event-link")).toBeInTheDocument();
+    expect(screen.getByTestId("poster-save")).toBeEnabled();
+    const picker = screen.getByRole("combobox", { name: "Flight recording" });
+    expect(picker).toHaveTextContent("No recording");
+    await user.click(picker);
+    await user.click(await screen.findByRole("option", { name: f.routes[0]!.name! }));
+    expect(await openStudio()).toBeInTheDocument();
+    expect(screen.queryByTestId("poster-studio-hint")).toBeNull();
+    await waitFor(() => expect(routeMapIds).toEqual([4]));
+  });
+
+  it("keeps the design across a switch to no recording and back", async () => {
+    const user = userEvent.setup();
+    render(<Harness poster={POSTER} />);
+    let studio = await openStudio();
+    await user.click(within(studio).getByLabelText("Dark"));
+    await user.click(within(studio).getByLabelText("Portrait"));
+    await user.click(screen.getByRole("combobox", { name: "Flight recording" }));
+    await user.click(await screen.findByRole("option", { name: "No recording" }));
+    expect(await screen.findByTestId("poster-studio-hint")).toHaveTextContent(NO_RECORDING_HINT);
+    await user.click(screen.getByRole("combobox", { name: "Flight recording" }));
+    await user.click(await screen.findByRole("option", { name: f.routes[0]!.name! }));
+    studio = await openStudio();
+    expect(within(studio).getByLabelText("Dark")).toBeChecked();
+    expect(within(studio).getByLabelText("Portrait")).toBeChecked();
   });
 
   it("shows the hint in place of the workspace when VITE_ROUTE_BASEMAP_URL is unset", async () => {
-    render(<Harness event={EVENT} config={{ ...testConfig, routeBasemapUrl: "" }} />);
+    render(<Harness poster={POSTER} config={{ ...testConfig, routeBasemapUrl: "" }} />);
     expect(await screen.findByTestId("poster-studio-hint")).toHaveTextContent(NO_BASEMAP_HINT);
     expect(screen.getByTestId("poster-studio-hint")).toHaveTextContent(/VITE_ROUTE_BASEMAP_URL/);
     expect(screen.queryByTestId("poster-studio-workspace")).toBeNull();
   });
 });
 
-describe("PosterStudio: generate from the flight recording", () => {
+describe("PosterEditor: Save", () => {
+  it("saves the name, the recording, and the whole design", async () => {
+    const user = userEvent.setup();
+    const { patches } = installFlowHandlers();
+    render(<Harness poster={POSTER} />);
+    const studio = await openStudio();
+    const name = screen.getByTestId("poster-name");
+    await user.clear(name);
+    await user.type(name, "  Downtown  ");
+    await user.click(within(studio).getByLabelText("Dark"));
+    await user.click(within(studio).getByLabelText(/flyer/i));
+    await user.click(screen.getByTestId("poster-save"));
+    await waitFor(() => expect(patches).toHaveLength(1));
+    expect(patches[0]).toEqual({
+      name: "Downtown",
+      routeId: 4,
+      layout: { ...DEFAULT_LAYOUT, theme: "dark", size: "flyer" },
+    });
+    expect(await screen.findByText("Poster saved")).toBeInTheDocument();
+    expect(calls).not.toContain("upload-url");
+  });
+
+  it("saves a poster without a recording as null and refuses an empty name", async () => {
+    const user = userEvent.setup();
+    const { patches } = installFlowHandlers();
+    render(<Harness poster={{ ...POSTER, routeId: null }} />);
+    await screen.findByTestId("poster-studio-hint");
+    await user.clear(screen.getByTestId("poster-name"));
+    expect(screen.getByTestId("poster-save")).toBeDisabled();
+    expect(screen.getByText(NAME_REQUIRED)).toBeInTheDocument();
+    await user.type(screen.getByTestId("poster-name"), "Flyer");
+    await user.click(screen.getByTestId("poster-save"));
+    await waitFor(() =>
+      expect(patches).toEqual([{ name: "Flyer", routeId: null, layout: DEFAULT_LAYOUT }]),
+    );
+  });
+
+  it("shows a failed save and keeps the design", async () => {
+    const user = userEvent.setup();
+    installFlowHandlers();
+    server.use(
+      http.patch(`${API}/admin/posters/:id`, () =>
+        HttpResponse.json(
+          { code: "validation_failed", message: "Layout too large", details: null, requestId: "r1" },
+          { status: 400 },
+        ),
+      ),
+    );
+    render(<Harness poster={POSTER} />);
+    const studio = await openStudio();
+    await user.click(within(studio).getByLabelText("Dark"));
+    await user.click(screen.getByTestId("poster-save"));
+    expect(await screen.findByTestId("poster-save-error")).toHaveTextContent(
+      /The poster could not be saved\./,
+    );
+    expect(within(studio).getByLabelText("Dark")).toBeChecked();
+  });
+});
+
+describe("PosterEditor: generate from the flight recording", () => {
   it("lists the presets and swaps the pair with the orientation", async () => {
     const user = userEvent.setup();
-    render(<Harness event={EVENT} />);
+    render(<Harness poster={POSTER} />);
     const studio = await openStudio();
     expect(screen.queryByTestId("poster-studio-hint")).toBeNull();
     expect(within(studio).getByLabelText(/facebook post, 2048 x 1536/i)).toBeChecked();
@@ -389,14 +487,14 @@ describe("PosterStudio: generate from the flight recording", () => {
     await user.click(within(studio).getByLabelText("Dark"));
     await user.click(within(studio).getByLabelText(/flyer/i));
     expect(within(studio).getByTestId("route-poster-output")).toHaveTextContent(
-      "route-poster-2026-dark-2550x3300.jpg",
+      "poster-main-street-dark-2550x3300.jpg",
     );
   });
 
-  it("drives render, compose, upload, confirm, ready, and set as poster in order", async () => {
+  it("drives render, compose, upload, confirm, save, and ready in order", async () => {
     const user = userEvent.setup();
     const { uploadBodies, patches } = installFlowHandlers();
-    render(<Harness event={EVENT} />);
+    render(<Harness poster={POSTER} />);
     const studio = await openStudio();
     await user.click(within(studio).getByTestId("route-poster-generate-run"));
 
@@ -418,31 +516,24 @@ describe("PosterStudio: generate from the flight recording", () => {
       expect.any(Number),
     );
     expect(uploadBodies[0]).toMatchObject({
-      filename: "route-poster-2026-light-2048x1536.jpg",
+      filename: "poster-main-street-light-2048x1536.jpg",
       contentType: "image/jpeg",
       sizeBytes: 4,
+      title: "Main street",
     });
     expect(within(studio).getByTestId("route-poster-media-link")).toHaveAttribute(
       "href",
       "/media?id=poster-asset-1",
     );
-
-    await user.click(within(studio).getByTestId("route-poster-set"));
-    await waitFor(() =>
-      expect(patches).toEqual([
-        { posterLayout: { version: 1, routeStyle: DEFAULT_ROUTE_STYLE, elements: [] } },
-        { routeImageMediaId: "poster-asset-1" },
-      ]),
-    );
-    expect(calls.at(-1)).toBe("patch");
-    // Setting the poster returns to the event page.
-    expect(await screen.findByTestId("event-page")).toBeInTheDocument();
+    // A successful Generate saves the poster; nothing is set on an event.
+    expect(patches).toEqual([{ name: "Main street", routeId: 4, layout: DEFAULT_LAYOUT }]);
+    expect(screen.queryByRole("button", { name: /set as route poster/i })).toBeNull();
   });
 
   it("a 413 from the upload surfaces a readable message and the studio stays usable", async () => {
     const user = userEvent.setup();
     installFlowHandlers({ uploadUrlStatus: 413 });
-    render(<Harness event={EVENT} />);
+    render(<Harness poster={POSTER} />);
     const studio = await openStudio();
     await user.click(within(studio).getByTestId("route-poster-generate-run"));
     expect(await within(studio).findByTestId("route-poster-error")).toHaveTextContent(
@@ -457,11 +548,11 @@ describe("PosterStudio: generate from the flight recording", () => {
   it("a render failure surfaces a readable message", async () => {
     const user = userEvent.setup();
     server.use(
-      http.get(`${API}/admin/events/:id/route-map`, () =>
+      http.get(`${API}/admin/routes/:id/route-map`, () =>
         HttpResponse.json({ routeMap: null }),
       ),
     );
-    render(<Harness event={EVENT} />);
+    render(<Harness poster={POSTER} />);
     const studio = await openStudio();
     await user.click(within(studio).getByTestId("route-poster-generate-run"));
     expect(await within(studio).findByTestId("route-poster-error")).toHaveTextContent(
@@ -473,7 +564,7 @@ describe("PosterStudio: generate from the flight recording", () => {
   it("hides the Terrain checkbox when the terrain archive is missing", async () => {
     const user = userEvent.setup();
     installFlowHandlers();
-    render(<Harness event={EVENT} />);
+    render(<Harness poster={POSTER} />);
     const studio = await openStudio();
     await waitFor(() =>
       expect(terrainProbe.urls).toEqual([`${testConfig.routeBasemapUrl}/terrain.pmtiles`]),
@@ -489,7 +580,7 @@ describe("PosterStudio: generate from the flight recording", () => {
     const user = userEvent.setup();
     terrainProbe.exists = true;
     installFlowHandlers();
-    render(<Harness event={EVENT} />);
+    render(<Harness poster={POSTER} />);
     const studio = await openStudio();
     const box = await within(studio).findByLabelText("Terrain");
     expect(box).not.toBeChecked();
@@ -520,7 +611,7 @@ describe("PosterStudio: generate from the flight recording", () => {
 
   it("offers the route styling with its defaults and resets the colour to the theme's", async () => {
     const user = userEvent.setup();
-    render(<Harness event={EVENT} />);
+    render(<Harness poster={POSTER} />);
     const studio = await openStudio();
     const hex = within(studio).getByTestId("route-poster-color-hex");
     expect(hex).toHaveValue(ROUTE_PALETTES.light.routeColor);
@@ -533,6 +624,14 @@ describe("PosterStudio: generate from the flight recording", () => {
     expect(within(studio).getByRole("combobox", { name: "Time labels" })).toHaveTextContent(
       "Every 15 minutes",
     );
+    // Without a start time the format reads Elapsed, locked, with the hint.
+    expect(within(studio).getByRole("combobox", { name: "Label format" })).toHaveTextContent(
+      "Elapsed",
+    );
+    expect(within(studio).getByTestId("route-poster-format-hint")).toHaveTextContent(NO_START_HINT);
+    fireEvent.change(within(studio).getByTestId("route-poster-start"), {
+      target: { value: "2026-12-21T18:00" },
+    });
     expect(within(studio).getByRole("combobox", { name: "Label format" })).toHaveTextContent(
       "Wall clock",
     );
@@ -551,7 +650,7 @@ describe("PosterStudio: generate from the flight recording", () => {
 
   it("disables the arrow size while the arrows are off", async () => {
     const user = userEvent.setup();
-    render(<Harness event={EVENT} />);
+    render(<Harness poster={POSTER} />);
     const studio = await openStudio();
     const size = within(studio).getByRole("combobox", { name: "Arrow size" });
     expect(size).not.toHaveAttribute("aria-disabled");
@@ -569,7 +668,7 @@ describe("PosterStudio: generate from the flight recording", () => {
   ])("draws the %s arrows in the preview and the export through the shared style call", async (name, scale) => {
     const user = userEvent.setup();
     installFlowHandlers();
-    render(<Harness event={EVENT} />);
+    render(<Harness poster={POSTER} />);
     const studio = await openStudio();
     await within(studio).findByTestId("route-poster-preview");
     await waitFor(() => expect(previews).toHaveLength(1));
@@ -596,14 +695,14 @@ describe("PosterStudio: generate from the flight recording", () => {
     expect(exportCalls[0]![1].options.arrowScale).toBe(scale);
   });
 
-  it("locks the label format to Elapsed with a hint when the event has no scheduled time", async () => {
-    render(<Harness event={{ ...EVENT, scheduledAt: null }} />);
+  it("locks the label format to Elapsed with a hint while no start time is set", async () => {
+    render(<Harness poster={POSTER} />);
     const studio = await openStudio();
     const format = within(studio).getByRole("combobox", { name: "Label format" });
     expect(format).toHaveTextContent("Elapsed");
     expect(format).toHaveAttribute("aria-disabled", "true");
     expect(within(studio).getByTestId("route-poster-format-hint")).toHaveTextContent(
-      NO_SCHEDULE_HINT,
+      NO_START_HINT,
     );
     await waitFor(() => expect(previews).toHaveLength(1));
     const labels = vi.mocked(buildPosterStyle).mock.calls.at(-1)![1].options.timeLabels;
@@ -613,7 +712,14 @@ describe("PosterStudio: generate from the flight recording", () => {
   it("previews the styling live and exports it through the same style call", async () => {
     const user = userEvent.setup();
     installFlowHandlers();
-    render(<Harness event={{ ...EVENT, scheduleTimeZone: "America/Chicago" }} />);
+    const layout: PosterLayout = {
+      ...DEFAULT_LAYOUT,
+      routeStyle: {
+        ...DEFAULT_ROUTE_STYLE,
+        labels: { ...DEFAULT_ROUTE_STYLE.labels, start: "2026-12-21T19:00", zone: "America/Chicago" },
+      },
+    };
+    render(<Harness poster={{ ...POSTER, layout }} />);
     const studio = await openStudio();
     await within(studio).findByTestId("route-poster-preview");
     await waitFor(() => expect(previews).toHaveLength(1));
@@ -621,7 +727,7 @@ describe("PosterStudio: generate from the flight recording", () => {
     expect(preview.images).toEqual([ROUTE_ARROW_ICON]);
 
     // The defaults: arrows on, a label every 15 minutes plus the final
-    // entry, on the wall clock of the event's zone (01:00Z is 19:00 CST).
+    // entry, on the wall clock from the start time in its zone.
     const first = vi.mocked(buildPosterStyle).mock.calls.at(-1)![1];
     expect(first.options).toEqual({
       routeColor: ROUTE_PALETTES.light.routeColor,
@@ -676,8 +782,13 @@ describe("PosterStudio: generate from the flight recording", () => {
 });
 
 const SAVED_LAYOUT: PosterLayout = {
-  version: 1,
-  routeStyle: { colour: "#123456", arrows: false, arrowScale: 0.75, labels: { interval: 5, format: "elapsed" } },
+  ...DEFAULT_LAYOUT,
+  routeStyle: {
+    colour: "#123456",
+    arrows: false,
+    arrowScale: 0.75,
+    labels: { interval: 5, format: "elapsed", start: null, zone: null },
+  },
   elements: [
     { type: "qr", qrId: 100, tag: "qr-001", x: 0.8, y: 0.75, width: 0.15, rotation: 0, z: 1 },
     { type: "image", mediaId: f.mediaAssets[0]!.id!, x: 0.25, y: 0.5, width: 0.3, rotation: 15, z: 0 },
@@ -690,11 +801,65 @@ function overlayNames(studio: HTMLElement): string[] {
     .map((el) => el.getAttribute("data-name") ?? "");
 }
 
-describe("PosterStudio: the overlay composer", () => {
-  it("opens with the saved layout and a successful Generate saves it", async () => {
+describe("PosterEditor: opening restores the poster document", () => {
+  it("restores the theme, orientation, size, terrain, and every route style choice", async () => {
+    const user = userEvent.setup();
+    terrainProbe.exists = true;
+    const { patches } = installFlowHandlers();
+    const layout: PosterLayout = {
+      version: 1,
+      theme: "dark",
+      orientation: "portrait",
+      size: "flyer",
+      terrain: true,
+      routeStyle: {
+        colour: "#abcdef",
+        arrows: true,
+        arrowScale: 2,
+        labels: { interval: 10, format: "wall", start: "2026-12-21T18:00", zone: "America/Denver" },
+      },
+      elements: [],
+    };
+    render(<Harness poster={{ ...POSTER, layout }} />);
+    const studio = await openStudio();
+    expect(within(studio).getByLabelText("Dark")).toBeChecked();
+    expect(within(studio).getByLabelText("Portrait")).toBeChecked();
+    expect(within(studio).getByLabelText(/flyer, letter at 300 dpi, 2550 x 3300/i)).toBeChecked();
+    expect(await within(studio).findByLabelText("Terrain")).toBeChecked();
+    expect(within(studio).getByTestId("route-poster-color-hex")).toHaveValue("#abcdef");
+    expect(within(studio).getByLabelText("Arrows")).toBeChecked();
+    expect(within(studio).getByRole("combobox", { name: "Arrow size" })).toHaveTextContent("Extra large");
+    expect(within(studio).getByRole("combobox", { name: "Time labels" })).toHaveTextContent(
+      "Every 10 minutes",
+    );
+    expect(within(studio).getByRole("combobox", { name: "Label format" })).toHaveTextContent(
+      "Wall clock",
+    );
+    expect(within(studio).getByTestId("route-poster-start")).toHaveValue("2026-12-21T18:00");
+    expect(within(studio).getByRole("combobox", { name: "Timezone" })).toHaveValue("America/Denver");
+    expect(within(studio).getByTestId("route-poster-output")).toHaveTextContent(
+      "poster-main-street-dark-2550x3300.jpg",
+    );
+    // The preview draws the restored style: 18:00 in Denver is the first label.
+    await waitFor(() => {
+      const input = vi.mocked(buildPosterStyle).mock.calls.at(-1)![1];
+      expect(input.theme).toBe("dark");
+      expect(input.terrain).toBe(true);
+      expect(input.options.arrowScale).toBe(2);
+      expect(input.options.timeLabels?.[0]?.label).toBe("6:00 PM");
+    });
+
+    // Saved back unchanged.
+    await user.click(screen.getByTestId("poster-save"));
+    await waitFor(() => expect(patches).toEqual([{ name: "Main street", routeId: 4, layout }]));
+  });
+});
+
+describe("PosterEditor: the overlay composer", () => {
+  it("opens with the saved elements and a successful Generate saves them", async () => {
     const user = userEvent.setup();
     const { patches } = installFlowHandlers();
-    render(<Harness event={{ ...EVENT, posterLayout: SAVED_LAYOUT }} />);
+    render(<Harness poster={{ ...POSTER, layout: SAVED_LAYOUT }} />);
     const studio = await openStudio();
 
     expect(within(studio).getByTestId("route-poster-color-hex")).toHaveValue("#123456");
@@ -720,7 +885,9 @@ describe("PosterStudio: the overlay composer", () => {
     // Saved in stacking order, each z its index.
     expect(patches).toEqual([
       {
-        posterLayout: {
+        name: "Main street",
+        routeId: 4,
+        layout: {
           ...SAVED_LAYOUT,
           elements: [SAVED_LAYOUT.elements[1], SAVED_LAYOUT.elements[0]],
         },
@@ -735,7 +902,7 @@ describe("PosterStudio: the overlay composer", () => {
       ...SAVED_LAYOUT,
       elements: [{ type: "logo", mediaId: "logo-1", x: 0.5, y: 0.25, width: 0.2, rotation: 0, z: 0 }],
     };
-    render(<Harness event={{ ...EVENT, posterLayout: layout }} />);
+    render(<Harness poster={{ ...POSTER, layout }} />);
     const studio = await openStudio();
     await user.click(within(studio).getByTestId("route-poster-generate-run"));
     await within(studio).findByTestId("route-poster-ready");
@@ -761,7 +928,7 @@ describe("PosterStudio: the overlay composer", () => {
   it("adds a QR code drawn as a quiet zone card and saves its id and tag", async () => {
     const user = userEvent.setup();
     const { patches } = installFlowHandlers();
-    render(<Harness event={EVENT} />);
+    render(<Harness poster={POSTER} />);
     const studio = await openStudio();
     await user.click(within(studio).getByTestId("poster-overlay-add-qr"));
     const picker = await screen.findByRole("dialog", { name: "Choose a QR code" });
@@ -781,12 +948,13 @@ describe("PosterStudio: the overlay composer", () => {
     );
     expect(vi.mocked(loadOverlayImage).mock.calls[0]![0]).toMatch(/^data:image\/svg\+xml/);
 
-    await user.click(within(studio).getByTestId("poster-overlay-save"));
+    await user.click(screen.getByTestId("poster-save"));
     await waitFor(() => expect(patches).toHaveLength(1));
     expect(patches[0]).toEqual({
-      posterLayout: {
-        version: 1,
-        routeStyle: DEFAULT_ROUTE_STYLE,
+      name: "Main street",
+      routeId: 4,
+      layout: {
+        ...DEFAULT_LAYOUT,
         elements: [{ type: "qr", qrId: 100, tag: "qr-001", x: 0.5, y: 0.5, width: 0.15, rotation: 0, z: 0 }],
       },
     });
@@ -794,7 +962,7 @@ describe("PosterStudio: the overlay composer", () => {
 
   it("offers the site logo only when one is set, and reorders and deletes elements", async () => {
     const user = userEvent.setup();
-    const first = render(<Harness event={EVENT} />);
+    const first = render(<Harness poster={POSTER} />);
     let studio = await openStudio();
     await waitFor(() => expect(within(studio).getByTestId("poster-overlay-add-qr")).toBeEnabled());
     expect(within(studio).queryByTestId("poster-overlay-add-logo")).toBeNull();
@@ -808,7 +976,7 @@ describe("PosterStudio: the overlay composer", () => {
         }),
       ),
     );
-    render(<Harness event={EVENT} />);
+    render(<Harness poster={POSTER} />);
     studio = await openStudio();
     await user.click(await within(studio).findByTestId("poster-overlay-add-logo"));
     await user.click(within(studio).getByTestId("poster-overlay-add-qr"));
@@ -833,16 +1001,20 @@ describe("PosterStudio: the overlay composer", () => {
     expect(overlayNames(studio)).toEqual([]);
   });
 
-  it("Clear layout removes every element and Save sends null", async () => {
+  it("Clear overlays removes every element and Save keeps the rest of the design", async () => {
     const user = userEvent.setup();
     const { patches } = installFlowHandlers();
-    render(<Harness event={{ ...EVENT, posterLayout: SAVED_LAYOUT }} />);
+    render(<Harness poster={{ ...POSTER, layout: SAVED_LAYOUT }} />);
     const studio = await openStudio();
     await waitFor(() => expect(overlayNames(studio)).toHaveLength(2));
     await user.click(within(studio).getByTestId("poster-overlay-clear"));
     expect(overlayNames(studio)).toEqual([]);
-    await user.click(within(studio).getByTestId("poster-overlay-save"));
-    await waitFor(() => expect(patches).toEqual([{ posterLayout: null }]));
+    await user.click(screen.getByTestId("poster-save"));
+    await waitFor(() =>
+      expect(patches).toEqual([
+        { name: "Main street", routeId: 4, layout: { ...SAVED_LAYOUT, elements: [] } },
+      ]),
+    );
   });
 
   it("names a failed or tainted overlay image and keeps the studio usable", async () => {
@@ -856,7 +1028,7 @@ describe("PosterStudio: the overlay composer", () => {
       image.src = url;
       return { image, aspect: 1 };
     });
-    render(<Harness event={{ ...EVENT, posterLayout: SAVED_LAYOUT }} />);
+    render(<Harness poster={{ ...POSTER, layout: SAVED_LAYOUT }} />);
     const studio = await openStudio();
     expect(await within(studio).findByTestId("poster-overlay-failed")).toHaveTextContent(
       "The overlay image hangar.jpg could not load. The image host does not allow the image on a canvas",
@@ -871,7 +1043,7 @@ describe("PosterStudio: the overlay composer", () => {
     expect(calls).not.toContain("upload-url");
     expect(within(studio).getByTestId("route-poster-generate-run")).toBeEnabled();
     expect(within(studio).getByTestId("route-poster-generate-run")).toHaveTextContent(/try again/i);
-    await user.click(screen.getByTestId("poster-studio-back"));
-    expect(await screen.findByTestId("event-page")).toBeInTheDocument();
+    await user.click(screen.getByTestId("poster-back"));
+    expect(await screen.findByTestId("posters-page")).toBeInTheDocument();
   });
 });

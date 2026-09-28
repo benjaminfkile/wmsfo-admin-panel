@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_DESIGN,
+  DEFAULT_MAP,
   DEFAULT_ROUTE_STYLE,
   elementPixels,
   parsePosterLayout,
@@ -32,7 +34,7 @@ const PLACED: Array<{ el: LayoutElement; aspect: number }> = [
 
 describe("the poster layout document", () => {
   it("stores every element type with fractional coordinates", () => {
-    const doc = toLayoutDocument(DEFAULT_ROUTE_STYLE, PLACED.map((p) => p.el));
+    const doc = toLayoutDocument(DEFAULT_DESIGN, PLACED.map((p) => p.el));
     expect(doc.version).toBe(1);
     expect(doc.elements).toEqual([
       { type: "image", mediaId: "m-1", x: 0.25, y: 0.25, width: 0.3, rotation: 30, z: 0 },
@@ -49,7 +51,15 @@ describe("the poster layout document", () => {
 
   it("round-trips each element type through JSON and onto another size", () => {
     const doc = toLayoutDocument(
-      { colour: "#aa0011", arrows: false, arrowScale: 0.75, labels: { interval: 30, format: "elapsed" } },
+      {
+        ...DEFAULT_DESIGN,
+        routeStyle: {
+          colour: "#aa0011",
+          arrows: false,
+          arrowScale: 0.75,
+          labels: { interval: 30, format: "elapsed", start: null, zone: null },
+        },
+      },
       PLACED.map((p) => p.el),
     );
     const parsed = parsePosterLayout(JSON.parse(JSON.stringify(doc)));
@@ -85,6 +95,7 @@ describe("the poster layout document", () => {
       ],
     });
     expect(parsed!.routeStyle).toEqual(DEFAULT_ROUTE_STYLE);
+    expect(parsed).toMatchObject(DEFAULT_MAP);
     expect(parsed!.elements).toEqual([
       { type: "image", mediaId: "a", x: 0.2, y: 0.2, width: 0.2, rotation: 0, z: 0 },
       { type: "logo", mediaId: "b", x: 0.1, y: 0.1, width: 0.1, rotation: 0, z: 1 },
@@ -95,7 +106,10 @@ describe("the poster layout document", () => {
 
   it("round-trips every arrow size and reads an absent or unknown one as Large", () => {
     for (const { value } of ARROW_SCALES) {
-      const doc = toLayoutDocument({ ...DEFAULT_ROUTE_STYLE, arrowScale: value }, []);
+      const doc = toLayoutDocument(
+        { ...DEFAULT_DESIGN, routeStyle: { ...DEFAULT_ROUTE_STYLE, arrowScale: value } },
+        [],
+      );
       expect(doc.routeStyle.arrowScale).toBe(value);
       expect(parsePosterLayout(JSON.parse(JSON.stringify(doc)))!.routeStyle.arrowScale).toBe(value);
     }
@@ -107,6 +121,35 @@ describe("the poster layout document", () => {
     ).toBe(1.5);
     expect(DEFAULT_ARROW_SCALE).toBe(1.5);
     expect(DEFAULT_ROUTE_STYLE.arrowScale).toBe(1.5);
+  });
+
+  it("round-trips the whole design and defaults an unknown map choice", () => {
+    const design = {
+      theme: "dark",
+      orientation: "portrait",
+      size: "poster",
+      terrain: true,
+      routeStyle: {
+        colour: "#123456",
+        arrows: true,
+        arrowScale: 2,
+        labels: { interval: 10, format: "wall", start: "2026-12-21T18:00", zone: "America/Denver" },
+      },
+    } as const;
+    const doc = toLayoutDocument(design, []);
+    expect(doc).toEqual({ version: 1, ...design, elements: [] });
+    expect(parsePosterLayout(JSON.parse(JSON.stringify(doc)))).toEqual(doc);
+    const odd = parsePosterLayout({
+      version: 1,
+      theme: "sepia",
+      orientation: "diagonal",
+      size: "billboard",
+      terrain: "yes",
+      routeStyle: { labels: { start: "tomorrow", zone: "" } },
+      elements: [],
+    });
+    expect(odd).toMatchObject(DEFAULT_MAP);
+    expect(odd!.routeStyle.labels).toMatchObject({ start: null, zone: null });
   });
 
   it("snaps the nearest edge or centre within the threshold", () => {

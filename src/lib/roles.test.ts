@@ -19,6 +19,12 @@ describe("navFor", () => {
     expect(ADMIN_NAV[beaconsAt + 3]).toBe("scan");
   });
 
+  it("puts the Poster studio right after Media for admin only", () => {
+    expect(ADMIN_NAV[ADMIN_NAV.indexOf("media") + 1]).toBe("posters");
+    expect(EDITOR_NAV).not.toContain("posters");
+    expect(CANVASSER_NAV).not.toContain("posters");
+  });
+
   it("gives the editor QR codes, Places, and Scan alongside content", () => {
     expect(EDITOR_NAV).toContain("qr-codes");
     expect(EDITOR_NAV).toContain("places");

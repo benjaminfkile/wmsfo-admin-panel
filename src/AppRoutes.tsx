@@ -7,11 +7,12 @@ import NotAvailable from "./pages/NotAvailable";
 import Dashboard from "./pages/Dashboard";
 import EventsList from "./pages/events/EventsList";
 import EventDetail from "./pages/events/EventDetail";
-import PosterStudio from "./pages/events/PosterStudio";
 import RoutesList from "./pages/routes/RoutesList";
 import BeaconsList from "./pages/beacons/BeaconsList";
 import BeaconDetail from "./pages/beacons/BeaconDetail";
 import MediaLibrary from "./pages/media/MediaLibrary";
+import PostersList from "./pages/posters/PostersList";
+import PosterEditor from "./pages/posters/PosterEditor";
 import SponsorsList from "./pages/sponsors/SponsorsList";
 import SponsorDetail from "./pages/sponsors/SponsorDetail";
 import SponsorOrder from "./pages/sponsors/SponsorOrder";
@@ -69,6 +70,7 @@ const CUSTOM_ELEMENTS: Partial<Record<NavKey, ReactElement>> = {
   routes: <RoutesList />,
   beacons: <BeaconsList />,
   media: <MediaLibrary />,
+  posters: <PostersList />,
   sponsors: <SponsorsList />,
   "sponsors-order": <SponsorOrder />,
   "cookie-types": <CookieTypesList />,
@@ -136,13 +138,9 @@ function AuthedShell({ themeMode, onToggleTheme }: Props) {
             }
           />
           <Route
-            path="events/:id/poster"
+            path="posters/:id"
             element={
-              canAccess(role, "events") ? (
-                <PosterStudio />
-              ) : (
-                <NotAvailable />
-              )
+              canAccess(role, "posters") ? <PosterEditor /> : <NotAvailable />
             }
           />
           <Route

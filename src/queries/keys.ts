@@ -10,8 +10,10 @@ export const keys = {
   eventMessages: (id: number) => ["events", id, "messages"] as const,
   eventLocations: (id: number, q: LocationsQuery) =>
     ["events", id, "locations", q] as const,
-  eventRouteMap: (id: number) => ["events", id, "route-map"] as const,
   routes: ["routes"] as const,
+  routeMap: (id: number) => ["routes", id, "route-map"] as const,
+  posters: ["posters"] as const,
+  poster: (id: number) => ["posters", id] as const,
   beacons: ["beacons"] as const,
   beaconLogs: (id: number) => ["beacons", id, "logs"] as const,
   sponsors: ["sponsors"] as const,

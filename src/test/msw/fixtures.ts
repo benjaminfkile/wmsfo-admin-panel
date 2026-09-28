@@ -26,6 +26,8 @@ import type {
   Person,
   Place,
   PlacePin,
+  Poster,
+  PosterSummary,
   PreviewToken,
   Presentation,
   QrCode,
@@ -168,6 +170,36 @@ export const routes: Route[] = [
     createdAt: NOW,
   },
 ];
+
+export const posters: Poster[] = [
+  {
+    id: 12,
+    name: "Main street",
+    routeId: 4,
+    layout: null,
+    createdBy: AUTHOR,
+    createdAt: NOW,
+    updatedAt: "2026-11-02T18:30:00.000Z",
+    audit: null,
+  },
+  {
+    id: 11,
+    name: "Flyer without a map",
+    routeId: null,
+    layout: null,
+    createdBy: AUTHOR,
+    createdAt: NOW,
+    updatedAt: "2026-11-01T18:30:00.000Z",
+    audit: null,
+  },
+];
+
+export const posterSummaries: PosterSummary[] = posters.map((p) => ({
+  id: p.id,
+  name: p.name,
+  routeId: p.routeId,
+  updatedAt: p.updatedAt,
+}));
 
 export const beacons: Beacon[] = [
   {

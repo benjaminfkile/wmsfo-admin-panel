@@ -27,3 +27,4 @@ export type {
   QrAttachBody,
 } from "./qr";
 export { places } from "./places";
+export { posters } from "./posters";

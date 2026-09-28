@@ -1,8 +1,9 @@
-// The poster layout document saved on the event as `posterLayout`: the
-// route styling of the poster studio and the overlay elements drawn over the
-// map. The shape is the panel's own (admin.md 6.3, Poster studio). Every
-// position and size is a fraction of the poster's width and height, so
-// one layout fits every preset and both orientations.
+// The poster layout document stored on a poster as its `layout`: the
+// whole design of the poster studio (theme, orientation, size, terrain,
+// the route styling) and the overlay elements drawn over the map. The
+// shape is the panel's own (admin.md 6.3, Poster studio). Every position
+// and size is a fraction of the poster's width and height, so one layout
+// fits every preset and both orientations.
 
 import {
   ARROW_SCALES,
@@ -17,7 +18,13 @@ import {
   type TimeLabelFormat,
   type TimeLabelInterval,
 } from "./posterStyle";
-import type { PosterSize } from "./poster";
+import {
+  POSTER_PRESETS,
+  type PosterOrientation,
+  type PosterPresetId,
+  type PosterSize,
+} from "./poster";
+import type { Appearance } from "./flavors";
 
 export const POSTER_LAYOUT_VERSION = 1;
 
@@ -27,8 +34,31 @@ export type LayoutRouteStyle = {
   arrows: boolean;
   // The arrowhead size multiplier; absent in a saved layout reads Large.
   arrowScale: ArrowScale;
-  labels: { interval: TimeLabelInterval; format: TimeLabelFormat };
+  labels: LayoutLabels;
 };
+
+export type LayoutLabels = {
+  interval: TimeLabelInterval;
+  format: TimeLabelFormat;
+  // The flight's start as a "yyyy-MM-ddTHH:mm" wall time in `zone`, the
+  // origin of the wall clock labels; null when unset.
+  start: string | null;
+  // The IANA zone of the start and the wall clock labels; null for the
+  // viewer's zone.
+  zone: string | null;
+};
+
+// The map choices of the studio: the theme, the orientation, the size
+// preset, and whether the hillshade is drawn.
+export type LayoutMap = {
+  theme: Appearance;
+  orientation: PosterOrientation;
+  size: PosterPresetId;
+  terrain: boolean;
+};
+
+// Everything in the document but the elements.
+export type PosterDesign = LayoutMap & { routeStyle: LayoutRouteStyle };
 
 // Where an element sits: `x` and `y` are its centre over the poster's
 // width and height, `width` is its width over the poster's width (the
@@ -47,9 +77,8 @@ export type LogoElement = Placement & { type: "logo"; mediaId: string };
 export type QrElement = Placement & { type: "qr"; qrId: number; tag: string };
 export type LayoutElement = ImageElement | LogoElement | QrElement;
 
-export type PosterLayout = {
+export type PosterLayout = PosterDesign & {
   version: typeof POSTER_LAYOUT_VERSION;
-  routeStyle: LayoutRouteStyle;
   elements: LayoutElement[];
 };
 
@@ -57,22 +86,47 @@ export const DEFAULT_ROUTE_STYLE: LayoutRouteStyle = {
   colour: null,
   arrows: DEFAULT_ARROWS,
   arrowScale: DEFAULT_ARROW_SCALE,
-  labels: { interval: DEFAULT_TIME_LABEL_INTERVAL, format: DEFAULT_TIME_LABEL_FORMAT },
+  labels: {
+    interval: DEFAULT_TIME_LABEL_INTERVAL,
+    format: DEFAULT_TIME_LABEL_FORMAT,
+    start: null,
+    zone: null,
+  },
 };
 
-// The document for the route styling and the elements in stacking order;
-// each element's `z` is its index.
+export const DEFAULT_MAP: LayoutMap = {
+  theme: "light",
+  orientation: "landscape",
+  size: "facebook",
+  terrain: false,
+};
+
+export const DEFAULT_DESIGN: PosterDesign = { ...DEFAULT_MAP, routeStyle: DEFAULT_ROUTE_STYLE };
+
+// The document for the design and the elements in stacking order; each
+// element's `z` is its index.
 export function toLayoutDocument(
-  routeStyle: LayoutRouteStyle,
+  design: PosterDesign,
   elements: readonly LayoutElement[],
 ): PosterLayout {
+  const { routeStyle } = design;
+  const { labels } = routeStyle;
   return {
     version: POSTER_LAYOUT_VERSION,
+    theme: design.theme,
+    orientation: design.orientation,
+    size: design.size,
+    terrain: design.terrain,
     routeStyle: {
       colour: routeStyle.colour,
       arrows: routeStyle.arrows,
       arrowScale: routeStyle.arrowScale,
-      labels: { interval: routeStyle.labels.interval, format: routeStyle.labels.format },
+      labels: {
+        interval: labels.interval,
+        format: labels.format,
+        start: labels.start,
+        zone: labels.zone,
+      },
     },
     elements: elements.map((el, z) => cleanElement(el, z)),
   };
@@ -116,7 +170,23 @@ function parseRouteStyle(raw: unknown): LayoutRouteStyle {
   const labels = isRecord(raw.labels) ? raw.labels : {};
   const interval = TIME_LABEL_INTERVALS.find((o) => o.value === labels.interval)?.value ?? DEFAULT_TIME_LABEL_INTERVAL;
   const format = TIME_LABEL_FORMATS.find((o) => o.value === labels.format)?.value ?? DEFAULT_TIME_LABEL_FORMAT;
-  return { colour, arrows, arrowScale, labels: { interval, format } };
+  const start = typeof labels.start === "string" && WALL_TIME.test(labels.start) ? labels.start : null;
+  const zone = typeof labels.zone === "string" && labels.zone ? labels.zone : null;
+  return { colour, arrows, arrowScale, labels: { interval, format, start, zone } };
+}
+
+const WALL_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+
+function parseMap(raw: Record<string, unknown>): LayoutMap {
+  return {
+    theme: raw.theme === "dark" || raw.theme === "light" ? raw.theme : DEFAULT_MAP.theme,
+    orientation:
+      raw.orientation === "portrait" || raw.orientation === "landscape"
+        ? raw.orientation
+        : DEFAULT_MAP.orientation,
+    size: POSTER_PRESETS.find((p) => p.id === raw.size)?.id ?? DEFAULT_MAP.size,
+    terrain: typeof raw.terrain === "boolean" ? raw.terrain : DEFAULT_MAP.terrain,
+  };
 }
 
 function parseElement(raw: unknown): LayoutElement | null {
@@ -142,8 +212,9 @@ function parseElement(raw: unknown): LayoutElement | null {
 }
 
 // Reads a saved layout. Anything that is not a version 1 document is
-// null; elements of an unknown type or without a placement are dropped,
-// and the rest come back in stacking order.
+// null; a missing or unknown map choice or route style value reads its
+// default, elements of an unknown type or without a placement are
+// dropped, and the rest come back in stacking order.
 export function parsePosterLayout(raw: unknown): PosterLayout | null {
   if (!isRecord(raw) || raw.version !== POSTER_LAYOUT_VERSION) return null;
   const elements = (Array.isArray(raw.elements) ? raw.elements : [])
@@ -151,7 +222,12 @@ export function parsePosterLayout(raw: unknown): PosterLayout | null {
     .filter((el): el is LayoutElement => el !== null)
     .sort((a, b) => a.z - b.z)
     .map((el, z) => ({ ...el, z }));
-  return { version: POSTER_LAYOUT_VERSION, routeStyle: parseRouteStyle(raw.routeStyle), elements };
+  return {
+    version: POSTER_LAYOUT_VERSION,
+    ...parseMap(raw),
+    routeStyle: parseRouteStyle(raw.routeStyle),
+    elements,
+  };
 }
 
 export type PixelBox = { x: number; y: number; width: number; height: number; rotation: number };

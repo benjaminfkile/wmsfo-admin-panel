@@ -1,5 +1,5 @@
 import { del, get, post } from "../client";
-import type { Route } from "../types";
+import type { Route, RouteMapResponse } from "../types";
 
 export type RoutePoint = {
   lat: number;
@@ -16,4 +16,6 @@ export const routes = {
   fromEvent: (eventId: number, b: { name: string }) =>
     post<Route>(`/admin/routes/from-event/${eventId}`, b),
   remove: (id: number) => del(`/admin/routes/${id}`),
+  routeMap: (id: number) =>
+    get<RouteMapResponse>(`/admin/routes/${id}/route-map`),
 };
