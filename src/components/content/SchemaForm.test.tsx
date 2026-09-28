@@ -699,3 +699,70 @@ describe("SchemaForm: the route_preview style select", () => {
     expect(screen.getByRole("combobox", { name: /style/i })).toHaveTextContent("Map");
   });
 });
+
+describe("SchemaForm: the route_preview map buttons", () => {
+  type RouteValue = { controls?: Record<string, boolean> } & Record<string, unknown>;
+
+  function Controlled({ initial }: { initial: RouteValue }) {
+    const [value, setValue] = useState<RouteValue>(initial);
+    return (
+      <>
+        <SchemaForm
+          schema={routePreview as Sch}
+          kind="route_preview"
+          formData={value}
+          onChange={(next) => setValue(next as RouteValue)}
+        />
+        <pre data-testid="controls">{JSON.stringify(value.controls ?? {})}</pre>
+      </>
+    );
+  }
+
+  function routeDefaults(): RouteValue {
+    const kind = (
+      kindsJson as { kinds: Array<{ kind: string; defaults: unknown }> }
+    ).kinds.find((k) => k.kind === "route_preview");
+    return structuredClone(kind!.defaults) as RouteValue;
+  }
+
+  function controls(): Record<string, boolean> {
+    return JSON.parse(screen.getByTestId("controls").textContent ?? "{}") as Record<
+      string,
+      boolean
+    >;
+  }
+
+  it("shows both switches On while absent and writes only the picked value", () => {
+    render(
+      <Providers>
+        <Controlled initial={routeDefaults()} />
+      </Providers>
+    );
+    const fullscreen = screen.getByRole("switch", { name: "Fullscreen button" });
+    const terrain = screen.getByRole("switch", { name: "Terrain toggle" });
+    expect(fullscreen).toBeChecked();
+    expect(terrain).toBeChecked();
+    expect(controls()).toEqual({});
+    fireEvent.click(terrain);
+    expect(terrain).not.toBeChecked();
+    expect(fullscreen).toBeChecked();
+    expect(controls()).toEqual({ terrain: false });
+  });
+
+  it("round-trips an explicit false", () => {
+    render(
+      <Providers>
+        <Controlled
+          initial={{ ...routeDefaults(), controls: { fullscreen: false, terrain: false } }}
+        />
+      </Providers>
+    );
+    const fullscreen = screen.getByRole("switch", { name: "Fullscreen button" });
+    const terrain = screen.getByRole("switch", { name: "Terrain toggle" });
+    expect(fullscreen).not.toBeChecked();
+    expect(terrain).not.toBeChecked();
+    expect(controls()).toEqual({ fullscreen: false, terrain: false });
+    fireEvent.click(fullscreen);
+    expect(controls()).toEqual({ fullscreen: true, terrain: false });
+  });
+});

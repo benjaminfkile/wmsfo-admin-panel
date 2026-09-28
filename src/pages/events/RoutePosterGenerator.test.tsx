@@ -20,7 +20,8 @@ import {
   makeUser,
   testConfig,
 } from "../../test/renderWithProviders";
-import { ATTRIBUTION_TEXT } from "../../routeMap/poster";
+import { ATTRIBUTION_TEXT, resetTerrainProbes } from "../../routeMap/poster";
+import { HILLSHADE_LAYER, TERRAIN_SOURCE } from "../../routeMap";
 
 vi.setConfig({ testTimeout: 15_000 });
 
@@ -54,9 +55,23 @@ vi.mock("maplibre-gl", () => {
   return { Map, addProtocol: () => undefined };
 });
 
+// The terrain probe reads the archive header; each test sets whether it
+// resolves or rejects.
+const terrainProbe = { exists: false, urls: [] as string[] };
+
 vi.mock("pmtiles", () => ({
   Protocol: class {
     tile = () => undefined;
+  },
+  PMTiles: class {
+    constructor(private url: string) {
+      terrainProbe.urls.push(url);
+    }
+    getHeader() {
+      return terrainProbe.exists
+        ? Promise.resolve({ minZoom: 0, maxZoom: 12 })
+        : Promise.reject(new Error("404"));
+    }
   },
 }));
 
@@ -174,6 +189,10 @@ function installFlowHandlers(opts: { uploadUrlStatus?: number } = {}) {
 }
 
 beforeEach(() => {
+  resetTerrainProbes();
+  terrainProbe.exists = false;
+  terrainProbe.urls.length = 0;
+  vi.spyOn(console, "warn").mockImplementation(() => undefined);
   calls.length = 0;
   mapOptions.length = 0;
   ctx.fillText.mockClear();
@@ -298,5 +317,55 @@ describe("RoutePosterSection: Generate from flight recording", () => {
       /could not be drawn.*no path/i,
     );
     expect(within(dialog).getByTestId("route-poster-generate-run")).toBeEnabled();
+  });
+
+  it("hides the Terrain checkbox when the terrain archive is missing", async () => {
+    const user = userEvent.setup();
+    installFlowHandlers();
+    render(<Harness event={EVENT} />);
+    await user.click(screen.getByTestId("route-poster-generate"));
+    const dialog = await screen.findByRole("dialog");
+    await waitFor(() =>
+      expect(terrainProbe.urls).toEqual([`${testConfig.routeBasemapUrl}/terrain.pmtiles`]),
+    );
+    expect(within(dialog).queryByLabelText("Terrain")).toBeNull();
+    await user.click(within(dialog).getByTestId("route-poster-generate-run"));
+    await within(dialog).findByTestId("route-poster-ready");
+    const style = mapOptions[0]!.style as { sources: Record<string, unknown> };
+    expect(style.sources[TERRAIN_SOURCE]).toBeUndefined();
+  });
+
+  it("offers Terrain unchecked when the archive exists and draws the hillshade when checked", async () => {
+    const user = userEvent.setup();
+    terrainProbe.exists = true;
+    installFlowHandlers();
+    render(<Harness event={EVENT} />);
+    await user.click(screen.getByTestId("route-poster-generate"));
+    const dialog = await screen.findByRole("dialog");
+    const box = await within(dialog).findByLabelText("Terrain");
+    expect(box).not.toBeChecked();
+
+    await user.click(within(dialog).getByTestId("route-poster-generate-run"));
+    await within(dialog).findByTestId("route-poster-ready");
+    const plain = mapOptions[0]!.style as {
+      sources: Record<string, unknown>;
+      layers: Array<{ id: string }>;
+    };
+    expect(plain.sources[TERRAIN_SOURCE]).toBeUndefined();
+    expect(plain.layers.map((l) => l.id)).not.toContain(HILLSHADE_LAYER);
+
+    await user.click(within(dialog).getByLabelText("Terrain"));
+    expect(within(dialog).getByLabelText("Terrain")).toBeChecked();
+    await user.click(within(dialog).getByTestId("route-poster-generate-run"));
+    await waitFor(() => expect(mapOptions).toHaveLength(2));
+    const shaded = mapOptions[1]!.style as {
+      sources: Record<string, { type: string; url: string }>;
+      layers: Array<{ id: string }>;
+    };
+    expect(shaded.sources[TERRAIN_SOURCE]).toMatchObject({
+      type: "raster-dem",
+      url: `pmtiles://${testConfig.routeBasemapUrl}/terrain.pmtiles`,
+    });
+    expect(shaded.layers.map((l) => l.id)).toContain(HILLSHADE_LAYER);
   });
 });

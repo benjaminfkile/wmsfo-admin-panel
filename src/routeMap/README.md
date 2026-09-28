@@ -7,7 +7,7 @@ first and synced here by copying both files unchanged. Never edit them in this
 repository.
 
 `index.ts` and `poster.ts` belong to the panel. `poster.ts` holds the poster
-generator's presets, the offscreen render, and the composed PNG with the
+generator's presets, the lazy probe of `<base>/terrain.pmtiles`, the offscreen render, and the composed PNG with the
 attribution drawn into it. `index.ts` reads the basemap base URL from the panel
 config (`VITE_ROUTE_BASEMAP_URL`, read by `loadConfig` in `src/config.ts` into
 `routeBasemapUrl`) and builds the style over it, so the tiles resolve at

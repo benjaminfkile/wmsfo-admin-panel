@@ -81,6 +81,14 @@ afterEach(() => {
 });
 
 describe("poster presets", () => {
+  it("keeps the three presets and their pairs", () => {
+    expect(POSTER_PRESETS).toEqual([
+      { id: "facebook", label: "Facebook post", width: 2048, height: 1536 },
+      { id: "flyer", label: "Flyer, letter at 300 dpi", width: 2550, height: 3300 },
+      { id: "poster", label: "Poster, 11 x 17 at 300 dpi", width: 3300, height: 5100 },
+    ]);
+  });
+
   it("each preset and orientation produces the documented pixel size", () => {
     expect(posterSize("facebook", "landscape")).toEqual({ width: 2048, height: 1536 });
     expect(posterSize("facebook", "portrait")).toEqual({ width: 1536, height: 2048 });
