@@ -19,5 +19,7 @@
       "google.maps"
     ]
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/routeMap/style.ts", "src/routeMap/flavors.ts"],
+  "references": [{ "path": "./tsconfig.routemap.json" }]
 }

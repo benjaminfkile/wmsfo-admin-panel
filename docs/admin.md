@@ -121,6 +121,7 @@ wmsfo-admin-panel/
                           PrintSheetDialog.tsx  DailyChart.tsx  qrHelpers.ts  qrRender.ts  barcodeReader.ts
                 places/   PlacesList.tsx  PlaceDetail.tsx  PlacesMap.tsx  PlaceDialog.tsx  LocationCard.tsx
                           placeHelpers.ts  googleMaps.ts
+    routeMap/   style.ts  flavors.ts (copied from santa)  index.ts  README.md
     theme/      theme.ts  themeStorage.ts
     test/       msw/server.ts  msw/handlers.ts  msw/fixtures.ts  renderWithProviders.tsx
 ```
@@ -140,7 +141,7 @@ There are two icon pickers: `components/content/pickers/IconPicker.tsx` (Library
 | `lint` | `eslint .` |
 | `test`, `test:watch` | `vitest run`, `vitest` |
 | `gen:api-types` | `openapi-typescript contracts/openapi.json -o src/api/schema.d.ts` |
-| `check:contracts` | `node scripts/check-contracts.mjs` |
+| `check:contracts`, `contracts:check` | `node scripts/check-contracts.mjs` |
 | `e2e` | `playwright test` |
 
 Port 5174 is the origin registered on the `wmsfo-admin` Cognito client, in the API's dev `WMSFO_CORS_ORIGINS`.
@@ -190,7 +191,7 @@ export default defineConfig({
 
 ### 2.5 Environment variables
 
-Eight variables, all prefixed `VITE_`, read through `import.meta.env`:
+Nine variables, all prefixed `VITE_`, read through `import.meta.env`; the first eight are required and `VITE_ROUTE_BASEMAP_URL` is optional:
 
 | Variable | Meaning |
 |---|---|
@@ -202,8 +203,9 @@ Eight variables, all prefixed `VITE_`, read through `import.meta.env`:
 | `VITE_COGNITO_DOMAIN` | the admin pool's managed login domain |
 | `VITE_COGNITO_CLIENT_ID` | the `wmsfo-admin` app client id |
 | `VITE_GOOGLE_MAPS_KEY` | the site's browser key with the Maps and Places libraries enabled and the panel's origins in its referrers |
+| `VITE_ROUTE_BASEMAP_URL` | optional; the route map basemap base URL, the same value the site uses (`<base>/tiles.pmtiles` and `<base>/glyphs/...`); empty when unset, and only the route map (section 2.11) reads it |
 
-`.env.example` lists the eight names with empty values, plus the six `E2E_*` names section 9.3 uses, and is committed; `.env.local` is ignored. Trailing slashes are stripped from every URL.
+`.env.example` lists the nine names with empty values, plus the six `E2E_*` names section 9.3 uses, and is committed; `.env.local` is ignored. Trailing slashes are stripped from every URL.
 
 ```ts
 // src/config.ts
@@ -217,6 +219,7 @@ export type Config = {
   cognitoDomain: string;
   cognitoClientId: string;
   googleMapsKey: string;
+  routeBasemapUrl: string; // "" when VITE_ROUTE_BASEMAP_URL is unset
 };
 
 export type ConfigResult = { config: Config } | { missing: string[] };
@@ -227,9 +230,10 @@ export function loadConfig(env: ImportMetaEnv = import.meta.env): ConfigResult;
 
 ### 2.6 TypeScript configuration
 
-`tsconfig.json` is a solution file referencing three projects:
+`tsconfig.json` is a solution file referencing four projects:
 
-- `tsconfig.app.json`: `src`, target ES2022, `moduleResolution: bundler`, `jsx: react-jsx`, `strict`, `noUncheckedIndexedAccess`, `noFallthroughCasesInSwitch`, `isolatedModules`, `resolveJsonModule`, `noEmit`, types `vite/client`, `vitest/globals`, `@testing-library/jest-dom`, `google.maps`.
+- `tsconfig.routemap.json`: the two route map files copied from santa (`src/routeMap/style.ts`, `src/routeMap/flavors.ts`), `composite` with declarations only into `node_modules/.tmp/routemap`, `strict` without `noUncheckedIndexedAccess` (santa's checks), so the copies stay byte-identical.
+- `tsconfig.app.json`: `src` without those two files (it references `tsconfig.routemap.json`), target ES2022, `moduleResolution: bundler`, `jsx: react-jsx`, `strict`, `noUncheckedIndexedAccess`, `noFallthroughCasesInSwitch`, `isolatedModules`, `resolveJsonModule`, `noEmit`, types `vite/client`, `vitest/globals`, `@testing-library/jest-dom`, `google.maps`.
 - `tsconfig.node.json`: `vite.config.ts`, `scripts/`, `playwright.config.ts`, types `node`.
 - `tsconfig.e2e.json`: `e2e/`, DOM libs, types `node`.
 
@@ -265,6 +269,10 @@ Static files under `dist` are served before the rewrite applies. The eight varia
 ### 2.10 Vendored contracts
 
 `contracts/` is a byte-identical copy of the API repository's `contracts/` at the commit named in `CONTRACTS_SHA`. `scripts/check-contracts.mjs` fetches that commit's tarball from GitHub (`GITHUB_TOKEN` or `GH_TOKEN` when set, `CONTRACTS_REPO` to override the repository), extracts it, and diffs every file. Updating the contracts is one commit: copy `contracts/`, bump `CONTRACTS_SHA`, regenerate `schema.d.ts`, fix the type errors. `lib/thresholds.ts` re-declares `contracts/admin-thresholds.json` and a test keeps the two in step.
+
+### 2.11 Route map module
+
+`src/routeMap/` holds the route map style builders the poster generator draws with, on `maplibre-gl`, `pmtiles`, and `@protomaps/basemaps`. `style.ts` (`buildStyle`, `tilesUrl`, `glyphsUrl`, `pathBounds`, the source and layer ids) and `flavors.ts` (the light and dark basemap flavors and the route palettes) are byte-identical copies of the same two files in santa's `src/routeMap/`. Santa holds the canonical copy: a change to the route map style is made in santa first and synced here by copying both files unchanged, never by editing them in this repository; the module's `README.md` states the rule. `index.ts` is the panel's own: `routeBasemapBase(config)` returns `config.routeBasemapUrl` (from `VITE_ROUTE_BASEMAP_URL` through `loadConfig`, section 2.5) or null when unset, and `buildRouteMapStyle(config, appearance, path, marks)` builds the style over it, so the tiles resolve at `pmtiles://<base>/tiles.pmtiles` and the glyphs at `<base>/glyphs/{fontstack}/{range}.pbf`; it throws while the variable is unset.
 
 ---
 
@@ -929,6 +937,8 @@ Header counts from `GET /admin/subscribers/summary` as chips: verified, pending,
 
 `ThemeField` is registered by name for `uiSchema` use (6.16). Everything else (strings, numbers, booleans, enums, nested objects, arrays of scalars) is the generator's default MUI widget, so a new field in a kind schema appears in the panel with no panel change. The map section adds `MapStartView` above its `SchemaForm`: a Google map 300 px tall (`@googlemaps/js-api-loader` on the same key, `loadMaps`) showing the current `defaultCenter` and `defaultZoom`, panning or zooming writes those two values back on `idle` (centre rounded to five decimals, zoom to an integer), the three number fields under it still take exact entries and move the map when edited, and with the Maps key absent or the loader failing only the number fields remain, under a one-line note.
 
+The `route_preview` Style select offers Image (`image`), Pan and zoom viewer (`viewer`), and Map (`map`, the flight recording drawn on the route map with a time slider on the site), with the labels from `labels.ts`; the chosen value is saved with the section data like any other field and reads back after a reload.
+
 The map section's overlays list ends with "Online count" (`overlays.onlineCount`, help "How many people are watching, while the event is live and sockets are healthy"), a `DefaultedSwitchWidget` that reads on while the key is absent and writes `false` when switched off.
 
 **Labels and help text**: every content form's field labels, enum display names, and one-line help text live in `src/components/content/labels.ts`, one entry per field path per section kind (and per item schema). `SchemaForm` reads the entries for the kind it is rendering, builds a `uiSchema` with `ui:title`, `ui:description`, and `ui:enumNames`, and hides the schema-level root title so a "<kind> section data" heading never appears. The custom fields (Inline, Icon, Media, Link, Blocks, Optional) read the label from the same `uiSchema`. A vitest test walks every vendored section and item schema and fails when any field is missing from `labels.ts`. An entry with `unset` (the hero's icon size) renders through `DefaultedSelectWidget`: an absent or null value shows that option's label ("Small") and nothing is written until an option is picked. An entry with `switchDefault` (the hero's `showLogo`, the site settings' `headerShowsSiteName`) renders through `DefaultedSwitchWidget` the same way: an absent or null value shows that default and nothing is written until the switch is flipped. An entry's `when` rule names another top-level field of the same form and, while that field is unset (absent or null) or on (`true`), disables the field, adds a hint under it, or swaps its label; `SchemaForm` applies the rules to the uiSchema on every change. `OptionalField` shows the entry's help under its switch.
@@ -1236,7 +1246,8 @@ export function formatAgeS(seconds: number | null): string;   // "12s", "3m", "1
 | `api/errors.test.ts` | body parse, `fields`, `retryAfterSeconds`, 405 without body |
 | `api/types.test.ts` | `contracts/fixtures/live-object.json`, `snapshot.json`, `heartbeat.json` satisfy `LiveObject`, the snapshot version, `Heartbeat` (compile-time `satisfies` plus a runtime key check, the `socketState` leaf, the debug object verbatim) |
 | `auth/claims.test.ts` | admin, editor, canvasser, admin wins over editor, editor over canvasser, absent, not an array, unknown group; `emailOf` |
-| `config.test.ts` | the stripped config, the three env values, every missing name reported, a bogus `VITE_ENV` |
+| `config.test.ts` | the stripped config, the three env values, every missing name reported, a bogus `VITE_ENV`; `VITE_ROUTE_BASEMAP_URL` surfaces as `routeBasemapUrl` without its trailing slash and reads as empty when unset |
+| `routeMap/routeMap.test.ts` | the copied builders produce a style whose `pmtiles://` tile URL and glyph URL sit under the configured base URL; both appearances share sources and layer ids; the build refuses while the variable is unset |
 | `schemas/draft.test.ts` | derivation removes `required`, `minLength`, `minItems`, `minimum` at every level and nothing else, does not mutate, handles a nested Presentation |
 | `components/audit/auditFormat.test.ts` | actor prefixes, action capitalisation, the stamp text and its fallback, the top-level diff with arrays and objects as "changed", the entry summary for deletes and creates |
 
@@ -1253,8 +1264,8 @@ MSW handlers in `src/test/msw/handlers.ts` serve every endpoint in 4.4 from `src
 | `pages/routes/RoutesList.test.tsx` | on compact each recording is a card with the row menu (matchMedia stub) |
 | `pages/sponsors/*.test.tsx` | the year upsert sends the six fields and rejects an override outside 0 to 600 s; "Add year from…" posts copy-from with the prompted target year and opens the dialog on the new row, and `year_exists` stays on the prompt; the logo `PATCH { logoMediaId }` and the picker reopening on `409 media_not_ready`; the Audit tooltip names the last editor; the import dialog's candidates, re-filtering on the to year, and the tick list in the POST; sponsor order pin, unpin, reorder each send the whole pinned list, and the time field PUTs the year; on compact each sponsor is a card with the pencil (matchMedia stub) |
 | `pages/cookieTypes/CookieTypesList.test.tsx` | the locked banner and disabled controls while an event is live and on `409 event_live`; the icon picker offers the library and SVG assets only; on compact each cookie type is a card with the pencil and the menu (matchMedia stub) |
-| `pages/pages/*.test.tsx` | role pages render no delete; reorder sends `PUT /admin/pages/order` with every `none` id; the delete dialog names the section count; the palette greys an excluded kind; add section posts the kind's defaults; a field edit patches once after the 1 s debounce and stays quiet after the refetch; a `400` lands on the field; the problems badge; duplicate, move, hide, delete call their endpoints; items reorder sends the new order; on compact each page is a card with the pencil, the section card header wraps into two rows, and the up and down arrows sit in the card header (matchMedia stub) |
-| `components/content/SchemaForm.test.tsx` | every vendored kind schema renders from its defaults; each primitive `$ref` mounts its custom field; an unknown scalar renders the default widget |
+| `pages/pages/*.test.tsx` | role pages render no delete; reorder sends `PUT /admin/pages/order` with every `none` id; the delete dialog names the section count; the palette greys an excluded kind; add section posts the kind's defaults; a field edit patches once after the 1 s debounce and stays quiet after the refetch; a `400` lands on the field; the problems badge; duplicate, move, hide, delete call their endpoints; items reorder sends the new order; on compact each page is a card with the pencil, the section card header wraps into two rows, and the up and down arrows sit in the card header (matchMedia stub); the `route_preview` style Map saves `map` through `PATCH /admin/sections/{id}` and reads back as Map after a reload |
+| `components/content/SchemaForm.test.tsx` | every vendored kind schema renders from its defaults; each primitive `$ref` mounts its custom field; an unknown scalar renders the default widget; the `route_preview` Style select lists Image, Pan and zoom viewer, and Map and writes `map` |
 | `components/content/PreviewFrame.test.tsx` | opening mints a token and sets the frame `src` with the page; Reload keeps a valid token and mints after expiry; New token always mints; switching pages keeps the token; the countdown ticks; on compact the device select is hidden (matchMedia stub) |
 | `pages/media/MediaLibrary.test.tsx` | a 21 MB PNG and a 2 MB SVG are refused before any request; the ticket, PUT (mocked XHR with progress), confirm sequence; Retry after a failed PUT repeats the whole sequence; deleting an asset that is in use closes the drawer and reports the delete; the Deep zoom chip |
 | `pages/siteSettings/SiteSettings.test.tsx` | the form renders from the vendored schema with the two theme switches; Save sends the whole document; problems from the draft response; Preview mints a token |

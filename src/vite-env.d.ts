@@ -9,4 +9,5 @@ interface ImportMetaEnv {
   readonly VITE_COGNITO_DOMAIN: string;
   readonly VITE_COGNITO_CLIENT_ID: string;
   readonly VITE_GOOGLE_MAPS_KEY: string;
+  readonly VITE_ROUTE_BASEMAP_URL?: string;
 }
