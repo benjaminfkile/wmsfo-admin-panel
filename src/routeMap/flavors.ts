@@ -15,7 +15,15 @@
 // contrast.
 // The route palette also carries the time label pair of the poster's time
 // labels: dark text on a light halo for light, light text on a dark halo
-// for dark, so each label stands off the basemap in its own flavor.
+// for dark, so each label stands off the basemap in its own flavor. The
+// landmark labels share that pair; their dots have their own fill and
+// ring, the chrome secondary text colour ringed in the chrome background,
+// so a landmark never reads as a time label.
+// POI_COLOURS is the `pois` colour set of the @protomaps/basemaps flavor,
+// kept out of FLAVORS so the default style carries no POI layer; the
+// style adds it to the flavor only when a POI kind list is chosen. Light
+// takes Google's default POI label colours and standard.ts values, dark
+// takes night.ts's POI label colours.
 
 import type { Flavor } from "@protomaps/basemaps";
 
@@ -28,7 +36,11 @@ export type RoutePalette = {
   endFill: string;      // the end marker fill
   labelText: string;    // the time label text
   labelHalo: string;    // the halo around the time label text
+  landmarkFill: string;   // the landmark dot
+  landmarkStroke: string; // the ring around the landmark dot
 };
+
+export type PoiColours = NonNullable<Flavor["pois"]>;
 
 export type HillshadePaint = {
   "hillshade-exaggeration": number; // how strongly the relief is shaded
@@ -200,6 +212,8 @@ export const ROUTE_PALETTES: Record<Appearance, RoutePalette> = {
     endFill: "#202124",     // standard.ts chrome.text
     labelText: "#202124",   // standard.ts chrome.text
     labelHalo: "#ffffff",   // standard.ts chrome.bg
+    landmarkFill: "#5f6368",   // standard.ts chrome.fg
+    landmarkStroke: "#ffffff", // standard.ts chrome.bg
   },
   dark: {
     routeColor: "#33d6ff",  // night.ts routeColor
@@ -208,6 +222,35 @@ export const ROUTE_PALETTES: Record<Appearance, RoutePalette> = {
     endFill: "#f2f6ff",     // night.ts chrome.text
     labelText: "#f2f6ff",   // night.ts chrome.text
     labelHalo: "#0f1a2b",   // night.ts chrome.bg
+    landmarkFill: "#8fa3c2",   // night.ts chrome.fg
+    landmarkStroke: "#0f1a2b", // night.ts chrome.bg
+  },
+};
+
+// Each key colours a group of POI kinds in the package's POI layer: green
+// the parks and nature, lapis the transit, slategray the civic places,
+// blue the shops, tangerine the food and drink, pink the attractions; red
+// and turquoise are part of the set but colour no kind today.
+export const POI_COLOURS: Record<Appearance, PoiColours> = {
+  light: {
+    green: "#188038",     // Google default park label
+    lapis: "#1a56c4",     // standard.ts chrome.accent
+    slategray: "#5f6368", // standard.ts chrome.fg
+    blue: "#1a56c4",      // standard.ts chrome.accent
+    tangerine: "#e37400", // Google default food and drink label
+    pink: "#5f6368",      // standard.ts chrome.fg
+    red: "#c62828",       // standard.ts userColor
+    turquoise: "#1a56c4", // standard.ts chrome.accent
+  },
+  dark: {
+    green: "#6b9a76",     // night.ts poi.park labels.text.fill
+    lapis: "#d59563",     // night.ts transit.station labels.text.fill
+    slategray: "#d59563", // night.ts poi labels.text.fill
+    blue: "#d59563",      // night.ts poi labels.text.fill
+    tangerine: "#d59563", // night.ts poi labels.text.fill
+    pink: "#d59563",      // night.ts poi labels.text.fill
+    red: "#d59563",       // night.ts poi labels.text.fill
+    turquoise: "#d59563", // night.ts poi labels.text.fill
   },
 };
 
