@@ -7,9 +7,11 @@ import {
   composePoster,
   fiveMinuteMarks,
   posterFilename,
+  posterFitPadding,
   posterSize,
   renderRouteMap,
 } from "./poster";
+import { ROUTE_ARROW_ICON } from "./style";
 
 type MapOptions = {
   container: HTMLElement;
@@ -23,6 +25,7 @@ type MapOptions = {
 
 const created: MapOptions[] = [];
 const removed = vi.fn();
+const images: Array<{ id: string; options: unknown }> = [];
 
 vi.mock("maplibre-gl", () => {
   class Map {
@@ -40,6 +43,12 @@ vi.mock("maplibre-gl", () => {
     }
     on() {
       return this;
+    }
+    hasImage(id: string) {
+      return images.some((i) => i.id === id);
+    }
+    addImage(id: string, _data: unknown, options: unknown) {
+      images.push({ id, options });
     }
     getCanvas() {
       return this.canvas;
@@ -77,6 +86,7 @@ function fakeContext() {
 afterEach(() => {
   vi.restoreAllMocks();
   created.length = 0;
+  images.length = 0;
   removed.mockClear();
 });
 
@@ -178,7 +188,8 @@ describe("renderRouteMap", () => {
       [-114.1, 46.8],
       [-114.0, 46.9],
     ]);
-    expect(opts.fitBoundsOptions.padding).toBeGreaterThan(0);
+    expect(opts.fitBoundsOptions.padding).toBe(posterFitPadding({ width: 3300, height: 5100 }));
+    expect(images).toEqual([{ id: ROUTE_ARROW_ICON, options: { sdf: true, pixelRatio: 2 } }]);
     dispose();
     expect(removed).toHaveBeenCalled();
     expect(opts.container.isConnected).toBe(false);

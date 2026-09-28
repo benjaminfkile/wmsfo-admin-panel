@@ -13,6 +13,9 @@
 // too: a low exaggeration and shadow and highlight colours close to the
 // ground, so the relief is visible but stays well below the route line's
 // contrast.
+// The route palette also carries the time label pair of the poster's time
+// labels: dark text on a light halo for light, light text on a dark halo
+// for dark, so each label stands off the basemap in its own flavor.
 
 import type { Flavor } from "@protomaps/basemaps";
 
@@ -23,6 +26,8 @@ export type RoutePalette = {
   routeOpacity: number; // the path line opacity
   markerStroke: string; // the ring around the start and end markers
   endFill: string;      // the end marker fill
+  labelText: string;    // the time label text
+  labelHalo: string;    // the halo around the time label text
 };
 
 export type HillshadePaint = {
@@ -193,12 +198,16 @@ export const ROUTE_PALETTES: Record<Appearance, RoutePalette> = {
     routeOpacity: 0.9,      // standard.ts routeOpacity
     markerStroke: "#ffffff", // standard.ts chrome.bg
     endFill: "#202124",     // standard.ts chrome.text
+    labelText: "#202124",   // standard.ts chrome.text
+    labelHalo: "#ffffff",   // standard.ts chrome.bg
   },
   dark: {
     routeColor: "#33d6ff",  // night.ts routeColor
     routeOpacity: 0.85,     // night.ts routeOpacity
     markerStroke: "#0f1a2b", // night.ts chrome.bg
     endFill: "#f2f6ff",     // night.ts chrome.text
+    labelText: "#f2f6ff",   // night.ts chrome.text
+    labelHalo: "#0f1a2b",   // night.ts chrome.bg
   },
 };
 
