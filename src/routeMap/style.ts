@@ -26,6 +26,11 @@
 //    Medium larger than the basemap's town labels, with a strong halo in
 //    the palette's label pair. MapLibre's collision handling places the
 //    labels, so no two overlap.
+// One more option hides basemap detail: `details` turns off the POI
+// labels (`landmarks`), the city, town, village, and neighbourhood labels
+// (`placeNames`), or the road name labels (`roadLabels`) by dropping the
+// basemap layers DETAIL_LAYERS names for that group. Each absent key
+// keeps its group.
 
 import { layers } from "@protomaps/basemaps";
 import type {
@@ -58,7 +63,42 @@ export type StyleOptions = {
   arrows?: boolean;
   arrowScale?: number;
   timeLabels?: readonly TimeLabel[];
+  details?: StyleDetails;
 };
+
+export type StyleDetails = {
+  landmarks?: boolean;
+  placeNames?: boolean;
+  roadLabels?: boolean;
+};
+
+// The @protomaps/basemaps layer ids each detail switch drops, all symbol
+// layers. A package bump that renames or splits them has to be re-checked
+// against this table; the unit test reads the ids back out of the
+// generated layers and fails when they no longer match.
+//  - landmarks:  `pois`, the points of interest (parks, stations, schools,
+//                peaks, and the like) with their names. The package only
+//                generates it for a flavor with `pois` colours, which the
+//                flavors in flavors.ts do not set, so the built style
+//                carries no POI layer and this switch changes nothing.
+//  - placeNames: `places_locality`, the city, town, and village names, and
+//                `places_subplace`, the neighbourhood names. Country and
+//                region names stay.
+//  - roadLabels: `roads_labels_major` and `roads_labels_minor`, the road
+//                names drawn along the roads.
+export const DETAIL_LAYERS: Readonly<Record<keyof StyleDetails, readonly string[]>> = {
+  landmarks: ["pois"],
+  placeNames: ["places_locality", "places_subplace"],
+  roadLabels: ["roads_labels_major", "roads_labels_minor"],
+};
+
+function hiddenDetailLayers(details: StyleDetails): Set<string> {
+  const hidden = new Set<string>();
+  for (const group of Object.keys(DETAIL_LAYERS) as (keyof StyleDetails)[]) {
+    if (details[group] === false) for (const id of DETAIL_LAYERS[group]) hidden.add(id);
+  }
+  return hidden;
+}
 
 // The arrowhead image: ARROW_SIZE device pixels square at ARROW_PIXEL_RATIO,
 // a notched head pointing along +x (the line direction of a line placed
@@ -174,9 +214,14 @@ export function pathBounds(path: readonly LatLng[]): [[number, number], [number,
   return [[west, south], [east, north]];
 }
 
-function basemapLayers(appearance: Appearance, terrain: boolean): LayerSpecification[] {
+function basemapLayers(
+  appearance: Appearance,
+  terrain: boolean,
+  details: StyleDetails,
+): LayerSpecification[] {
+  const hidden = hiddenDetailLayers(details);
   const base = layers(BASEMAP_SOURCE, FLAVORS[appearance], { lang: "en" })
-    .filter((layer) => !SPRITE_ONLY_LAYERS.has(layer.id))
+    .filter((layer) => !SPRITE_ONLY_LAYERS.has(layer.id) && !hidden.has(layer.id))
     .map((layer) => {
       if (layer.type !== "symbol" || layer.layout === undefined) return layer;
       const layout = Object.fromEntries(
@@ -281,7 +326,7 @@ export function buildStyle(
         : {}),
     },
     layers: [
-      ...basemapLayers(appearance, terrain),
+      ...basemapLayers(appearance, terrain, options.details ?? {}),
       {
         id: ROUTE_LAYER,
         type: "line",
