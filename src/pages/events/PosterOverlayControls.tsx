@@ -41,7 +41,7 @@ interface Props {
 
 export const GIF_REFUSED = "Animated GIFs cannot be placed on a poster. Choose a raster image or an SVG.";
 
-// The overlay toolbar of the poster generator: add an image from the media
+// The overlay toolbar of the poster studio: add an image from the media
 // library (raster or svg), the site logo (shown only when site settings
 // have one), or a QR code; move the selected element forward or back;
 // delete it; clear the layout; and save it on the event.

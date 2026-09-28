@@ -7,6 +7,7 @@ import NotAvailable from "./pages/NotAvailable";
 import Dashboard from "./pages/Dashboard";
 import EventsList from "./pages/events/EventsList";
 import EventDetail from "./pages/events/EventDetail";
+import PosterStudio from "./pages/events/PosterStudio";
 import RoutesList from "./pages/routes/RoutesList";
 import BeaconsList from "./pages/beacons/BeaconsList";
 import BeaconDetail from "./pages/beacons/BeaconDetail";
@@ -129,6 +130,16 @@ function AuthedShell({ themeMode, onToggleTheme }: Props) {
             element={
               canAccess(role, "events") ? (
                 <EventDetail />
+              ) : (
+                <NotAvailable />
+              )
+            }
+          />
+          <Route
+            path="events/:id/poster"
+            element={
+              canAccess(role, "events") ? (
+                <PosterStudio />
               ) : (
                 <NotAvailable />
               )

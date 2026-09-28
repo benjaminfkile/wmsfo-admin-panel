@@ -2,14 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider, CssBaseline } from "@mui/material";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
-import RoutePosterSection from "./RoutePosterSection";
-import { NO_SCHEDULE_HINT, SIZE_LIMIT_MESSAGE } from "./RoutePosterGenerator";
+import PosterStudio, { NO_BASEMAP_HINT, NO_RECORDING_HINT } from "./PosterStudio";
+import { NO_SCHEDULE_HINT, SIZE_LIMIT_MESSAGE } from "./PosterStudioWorkspace";
 import { ConfigProvider } from "../../ConfigContext";
 import type { Config } from "../../config";
 import { NotifyProvider } from "../../hooks/useNotify";
+import AuthProvider from "../../auth/AuthProvider";
+import AppRoutes from "../../AppRoutes";
 import { installClient } from "../../api/client";
 import type { Event } from "../../api/types";
 import { buildTheme } from "../../theme/theme";
@@ -191,7 +193,10 @@ const ROUTE_MAP = {
   },
 };
 
+// The studio at /events/:id/poster, with the event page standing in as a
+// marker so leaving the studio shows.
 function Harness({ event, config = testConfig }: { event: Event; config?: Config }) {
+  server.use(http.get(`${API}/admin/events/:id`, () => HttpResponse.json(event)));
   const client = new QueryClient({
     defaultOptions: {
       queries: { retry: false, staleTime: 0, gcTime: 0 },
@@ -203,9 +208,12 @@ function Harness({ event, config = testConfig }: { event: Event; config?: Config
       <CssBaseline />
       <ConfigProvider config={config}>
         <QueryClientProvider client={client}>
-          <MemoryRouter>
+          <MemoryRouter initialEntries={[`/events/${event.id}/poster`]}>
             <NotifyProvider>
-              <RoutePosterSection event={event} />
+              <Routes>
+                <Route path="/events/:id/poster" element={<PosterStudio />} />
+                <Route path="/events/:id" element={<div data-testid="event-page" />} />
+              </Routes>
             </NotifyProvider>
           </MemoryRouter>
         </QueryClientProvider>
@@ -300,39 +308,87 @@ afterEach(() => {
   server.resetHandlers();
 });
 
-describe("RoutePosterSection: Generate from flight recording", () => {
-  it("is disabled with a hint when the event has no linked recording", () => {
+async function openStudio() {
+  return screen.findByTestId("poster-studio-workspace");
+}
+
+describe("PosterStudio: the page and its guards", () => {
+  it("is the page the app routes /events/:id/poster to", async () => {
+    server.use(http.get(`${API}/admin/events/:id`, () => HttpResponse.json(EVENT)));
+    const um = makeFakeUserManager(
+      makeUser({ email: "admin@example.com", "cognito:groups": ["admin"] }),
+    );
+    render(
+      <ThemeProvider theme={buildTheme("light")}>
+        <ConfigProvider config={testConfig}>
+          <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+            <MemoryRouter initialEntries={[`/events/${EVENT.id}/poster`]}>
+              <AuthProvider userManager={um}>
+                <AppRoutes themeMode="light" onToggleTheme={() => undefined} />
+              </AuthProvider>
+            </MemoryRouter>
+          </QueryClientProvider>
+        </ConfigProvider>
+      </ThemeProvider>,
+    );
+    expect(await screen.findByTestId("poster-studio-workspace")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Poster studio" })).toBeInTheDocument();
+    expect(screen.getByTestId("poster-studio-event-link")).toHaveTextContent(EVENT.name!);
+  });
+
+  it("names the event in the header and links back to it", async () => {
+    const user = userEvent.setup();
+    render(<Harness event={EVENT} />);
+    const workspace = await openStudio();
+    expect(screen.getByRole("heading", { name: "Poster studio" })).toBeInTheDocument();
+    const link = screen.getByTestId("poster-studio-event-link");
+    expect(link).toHaveTextContent(EVENT.name!);
+    expect(link).toHaveAttribute("href", `/events/${EVENT.id}`);
+    expect(screen.getByTestId("poster-studio-back")).toHaveAttribute("href", `/events/${EVENT.id}`);
+    // The preview column comes first, the rail with the controls after it.
+    const column = within(workspace).getByTestId("poster-studio-preview-column");
+    const rail = within(workspace).getByTestId("poster-studio-rail");
+    expect(column.compareDocumentPosition(rail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(await within(column).findByTestId("route-poster-preview")).toBeInTheDocument();
+    expect(within(rail).getByTestId("route-poster-generate-run")).toBeInTheDocument();
+    expect(within(rail).getByTestId("poster-overlay-save")).toBeInTheDocument();
+    expect(within(rail).getByLabelText("Dark")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await user.click(screen.getByTestId("poster-studio-back"));
+    expect(await screen.findByTestId("event-page")).toBeInTheDocument();
+  });
+
+  it("shows the hint in place of the workspace when the event has no linked recording", async () => {
     render(<Harness event={{ ...EVENT, routeId: null }} />);
-    expect(screen.getByTestId("route-poster-generate")).toBeDisabled();
-    expect(screen.getByTestId("route-poster-generate-hint")).toHaveTextContent(
-      /link a flight recording/i,
-    );
+    expect(await screen.findByTestId("poster-studio-hint")).toHaveTextContent(NO_RECORDING_HINT);
+    expect(screen.queryByTestId("poster-studio-workspace")).toBeNull();
+    expect(screen.getByTestId("poster-studio-event-link")).toBeInTheDocument();
   });
 
-  it("is disabled with a hint when VITE_ROUTE_BASEMAP_URL is unset", () => {
+  it("shows the hint in place of the workspace when VITE_ROUTE_BASEMAP_URL is unset", async () => {
     render(<Harness event={EVENT} config={{ ...testConfig, routeBasemapUrl: "" }} />);
-    expect(screen.getByTestId("route-poster-generate")).toBeDisabled();
-    expect(screen.getByTestId("route-poster-generate-hint")).toHaveTextContent(
-      /VITE_ROUTE_BASEMAP_URL/,
-    );
+    expect(await screen.findByTestId("poster-studio-hint")).toHaveTextContent(NO_BASEMAP_HINT);
+    expect(screen.getByTestId("poster-studio-hint")).toHaveTextContent(/VITE_ROUTE_BASEMAP_URL/);
+    expect(screen.queryByTestId("poster-studio-workspace")).toBeNull();
   });
+});
 
+describe("PosterStudio: generate from the flight recording", () => {
   it("lists the presets and swaps the pair with the orientation", async () => {
     const user = userEvent.setup();
     render(<Harness event={EVENT} />);
-    expect(screen.queryByTestId("route-poster-generate-hint")).toBeNull();
-    await user.click(screen.getByTestId("route-poster-generate"));
-    const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByLabelText(/facebook post, 2048 x 1536/i)).toBeChecked();
-    expect(within(dialog).getByLabelText(/flyer, letter at 300 dpi, 3300 x 2550/i)).toBeInTheDocument();
-    expect(within(dialog).getByLabelText(/poster, 11 x 17 at 300 dpi, 5100 x 3300/i)).toBeInTheDocument();
-    await user.click(within(dialog).getByLabelText("Portrait"));
-    expect(within(dialog).getByLabelText(/facebook post, 1536 x 2048/i)).toBeChecked();
-    expect(within(dialog).getByLabelText(/flyer, letter at 300 dpi, 2550 x 3300/i)).toBeInTheDocument();
-    expect(within(dialog).getByLabelText(/poster, 11 x 17 at 300 dpi, 3300 x 5100/i)).toBeInTheDocument();
-    await user.click(within(dialog).getByLabelText("Dark"));
-    await user.click(within(dialog).getByLabelText(/flyer/i));
-    expect(within(dialog).getByTestId("route-poster-output")).toHaveTextContent(
+    const studio = await openStudio();
+    expect(screen.queryByTestId("poster-studio-hint")).toBeNull();
+    expect(within(studio).getByLabelText(/facebook post, 2048 x 1536/i)).toBeChecked();
+    expect(within(studio).getByLabelText(/flyer, letter at 300 dpi, 3300 x 2550/i)).toBeInTheDocument();
+    expect(within(studio).getByLabelText(/poster, 11 x 17 at 300 dpi, 5100 x 3300/i)).toBeInTheDocument();
+    await user.click(within(studio).getByLabelText("Portrait"));
+    expect(within(studio).getByLabelText(/facebook post, 1536 x 2048/i)).toBeChecked();
+    expect(within(studio).getByLabelText(/flyer, letter at 300 dpi, 2550 x 3300/i)).toBeInTheDocument();
+    expect(within(studio).getByLabelText(/poster, 11 x 17 at 300 dpi, 3300 x 5100/i)).toBeInTheDocument();
+    await user.click(within(studio).getByLabelText("Dark"));
+    await user.click(within(studio).getByLabelText(/flyer/i));
+    expect(within(studio).getByTestId("route-poster-output")).toHaveTextContent(
       "route-poster-2026-dark-2550x3300.jpg",
     );
   });
@@ -341,11 +397,10 @@ describe("RoutePosterSection: Generate from flight recording", () => {
     const user = userEvent.setup();
     const { uploadBodies, patches } = installFlowHandlers();
     render(<Harness event={EVENT} />);
-    await user.click(screen.getByTestId("route-poster-generate"));
-    const dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getByTestId("route-poster-generate-run"));
+    const studio = await openStudio();
+    await user.click(within(studio).getByTestId("route-poster-generate-run"));
 
-    await within(dialog).findByTestId("route-poster-ready");
+    await within(studio).findByTestId("route-poster-ready");
     expect(calls).toEqual([
       "route-map",
       "render",
@@ -367,12 +422,12 @@ describe("RoutePosterSection: Generate from flight recording", () => {
       contentType: "image/jpeg",
       sizeBytes: 4,
     });
-    expect(within(dialog).getByTestId("route-poster-media-link")).toHaveAttribute(
+    expect(within(studio).getByTestId("route-poster-media-link")).toHaveAttribute(
       "href",
       "/media?id=poster-asset-1",
     );
 
-    await user.click(within(dialog).getByTestId("route-poster-set"));
+    await user.click(within(studio).getByTestId("route-poster-set"));
     await waitFor(() =>
       expect(patches).toEqual([
         { posterLayout: { version: 1, routeStyle: DEFAULT_ROUTE_STYLE, elements: [] } },
@@ -380,21 +435,22 @@ describe("RoutePosterSection: Generate from flight recording", () => {
       ]),
     );
     expect(calls.at(-1)).toBe("patch");
+    // Setting the poster returns to the event page.
+    expect(await screen.findByTestId("event-page")).toBeInTheDocument();
   });
 
-  it("a 413 from the upload surfaces a readable message and the dialog stays usable", async () => {
+  it("a 413 from the upload surfaces a readable message and the studio stays usable", async () => {
     const user = userEvent.setup();
     installFlowHandlers({ uploadUrlStatus: 413 });
     render(<Harness event={EVENT} />);
-    await user.click(screen.getByTestId("route-poster-generate"));
-    const dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getByTestId("route-poster-generate-run"));
-    expect(await within(dialog).findByTestId("route-poster-error")).toHaveTextContent(
+    const studio = await openStudio();
+    await user.click(within(studio).getByTestId("route-poster-generate-run"));
+    expect(await within(studio).findByTestId("route-poster-error")).toHaveTextContent(
       SIZE_LIMIT_MESSAGE,
     );
-    expect(within(dialog).getByTestId("route-poster-generate-run")).toBeEnabled();
-    expect(within(dialog).getByTestId("route-poster-generate-run")).toHaveTextContent(/try again/i);
-    expect(within(dialog).getByLabelText("Dark")).toBeEnabled();
+    expect(within(studio).getByTestId("route-poster-generate-run")).toBeEnabled();
+    expect(within(studio).getByTestId("route-poster-generate-run")).toHaveTextContent(/try again/i);
+    expect(within(studio).getByLabelText("Dark")).toBeEnabled();
     expect(calls).not.toContain("put");
   });
 
@@ -406,27 +462,25 @@ describe("RoutePosterSection: Generate from flight recording", () => {
       ),
     );
     render(<Harness event={EVENT} />);
-    await user.click(screen.getByTestId("route-poster-generate"));
-    const dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getByTestId("route-poster-generate-run"));
-    expect(await within(dialog).findByTestId("route-poster-error")).toHaveTextContent(
+    const studio = await openStudio();
+    await user.click(within(studio).getByTestId("route-poster-generate-run"));
+    expect(await within(studio).findByTestId("route-poster-error")).toHaveTextContent(
       /could not be drawn.*no path/i,
     );
-    expect(within(dialog).getByTestId("route-poster-generate-run")).toBeEnabled();
+    expect(within(studio).getByTestId("route-poster-generate-run")).toBeEnabled();
   });
 
   it("hides the Terrain checkbox when the terrain archive is missing", async () => {
     const user = userEvent.setup();
     installFlowHandlers();
     render(<Harness event={EVENT} />);
-    await user.click(screen.getByTestId("route-poster-generate"));
-    const dialog = await screen.findByRole("dialog");
+    const studio = await openStudio();
     await waitFor(() =>
       expect(terrainProbe.urls).toEqual([`${testConfig.routeBasemapUrl}/terrain.pmtiles`]),
     );
-    expect(within(dialog).queryByLabelText("Terrain")).toBeNull();
-    await user.click(within(dialog).getByTestId("route-poster-generate-run"));
-    await within(dialog).findByTestId("route-poster-ready");
+    expect(within(studio).queryByLabelText("Terrain")).toBeNull();
+    await user.click(within(studio).getByTestId("route-poster-generate-run"));
+    await within(studio).findByTestId("route-poster-ready");
     const style = mapOptions[0]!.style as { sources: Record<string, unknown> };
     expect(style.sources[TERRAIN_SOURCE]).toBeUndefined();
   });
@@ -436,13 +490,12 @@ describe("RoutePosterSection: Generate from flight recording", () => {
     terrainProbe.exists = true;
     installFlowHandlers();
     render(<Harness event={EVENT} />);
-    await user.click(screen.getByTestId("route-poster-generate"));
-    const dialog = await screen.findByRole("dialog");
-    const box = await within(dialog).findByLabelText("Terrain");
+    const studio = await openStudio();
+    const box = await within(studio).findByLabelText("Terrain");
     expect(box).not.toBeChecked();
 
-    await user.click(within(dialog).getByTestId("route-poster-generate-run"));
-    await within(dialog).findByTestId("route-poster-ready");
+    await user.click(within(studio).getByTestId("route-poster-generate-run"));
+    await within(studio).findByTestId("route-poster-ready");
     const plain = mapOptions[0]!.style as {
       sources: Record<string, unknown>;
       layers: Array<{ id: string }>;
@@ -450,9 +503,9 @@ describe("RoutePosterSection: Generate from flight recording", () => {
     expect(plain.sources[TERRAIN_SOURCE]).toBeUndefined();
     expect(plain.layers.map((l) => l.id)).not.toContain(HILLSHADE_LAYER);
 
-    await user.click(within(dialog).getByLabelText("Terrain"));
-    expect(within(dialog).getByLabelText("Terrain")).toBeChecked();
-    await user.click(within(dialog).getByTestId("route-poster-generate-run"));
+    await user.click(within(studio).getByLabelText("Terrain"));
+    expect(within(studio).getByLabelText("Terrain")).toBeChecked();
+    await user.click(within(studio).getByTestId("route-poster-generate-run"));
     await waitFor(() => expect(mapOptions).toHaveLength(2));
     const shaded = mapOptions[1]!.style as {
       sources: Record<string, { type: string; url: string }>;
@@ -468,57 +521,53 @@ describe("RoutePosterSection: Generate from flight recording", () => {
   it("offers the route styling with its defaults and resets the colour to the theme's", async () => {
     const user = userEvent.setup();
     render(<Harness event={EVENT} />);
-    await user.click(screen.getByTestId("route-poster-generate"));
-    const dialog = await screen.findByRole("dialog");
-    const hex = within(dialog).getByTestId("route-poster-color-hex");
+    const studio = await openStudio();
+    const hex = within(studio).getByTestId("route-poster-color-hex");
     expect(hex).toHaveValue(ROUTE_PALETTES.light.routeColor);
-    expect(within(dialog).getByTestId("route-poster-color")).toHaveValue(
+    expect(within(studio).getByTestId("route-poster-color")).toHaveValue(
       ROUTE_PALETTES.light.routeColor,
     );
-    expect(within(dialog).getByTestId("route-poster-color-reset")).toBeDisabled();
-    expect(within(dialog).getByLabelText("Arrows")).toBeChecked();
-    expect(within(dialog).getByRole("combobox", { name: "Time labels" })).toHaveTextContent(
+    expect(within(studio).getByTestId("route-poster-color-reset")).toBeDisabled();
+    expect(within(studio).getByLabelText("Arrows")).toBeChecked();
+    expect(within(studio).getByRole("combobox", { name: "Time labels" })).toHaveTextContent(
       "Every 15 minutes",
     );
-    expect(within(dialog).getByRole("combobox", { name: "Label format" })).toHaveTextContent(
+    expect(within(studio).getByRole("combobox", { name: "Label format" })).toHaveTextContent(
       "Wall clock",
     );
-    expect(within(dialog).queryByTestId("route-poster-format-hint")).toBeNull();
+    expect(within(studio).queryByTestId("route-poster-format-hint")).toBeNull();
 
-    await user.click(within(dialog).getByLabelText("Dark"));
+    await user.click(within(studio).getByLabelText("Dark"));
     expect(hex).toHaveValue(ROUTE_PALETTES.dark.routeColor);
 
     await user.clear(hex);
     await user.type(hex, "#FF8800");
     await user.tab();
     expect(hex).toHaveValue("#ff8800");
-    await user.click(within(dialog).getByTestId("route-poster-color-reset"));
+    await user.click(within(studio).getByTestId("route-poster-color-reset"));
     expect(hex).toHaveValue(ROUTE_PALETTES.dark.routeColor);
   });
 
   it("locks the label format to Elapsed with a hint when the event has no scheduled time", async () => {
-    const user = userEvent.setup();
     render(<Harness event={{ ...EVENT, scheduledAt: null }} />);
-    await user.click(screen.getByTestId("route-poster-generate"));
-    const dialog = await screen.findByRole("dialog");
-    const format = within(dialog).getByRole("combobox", { name: "Label format" });
+    const studio = await openStudio();
+    const format = within(studio).getByRole("combobox", { name: "Label format" });
     expect(format).toHaveTextContent("Elapsed");
     expect(format).toHaveAttribute("aria-disabled", "true");
-    expect(within(dialog).getByTestId("route-poster-format-hint")).toHaveTextContent(
+    expect(within(studio).getByTestId("route-poster-format-hint")).toHaveTextContent(
       NO_SCHEDULE_HINT,
     );
     await waitFor(() => expect(previews).toHaveLength(1));
     const labels = vi.mocked(buildPosterStyle).mock.calls.at(-1)![1].options.timeLabels;
-    expect(labels?.map((l) => l.label)).toEqual(["+0:00", "+0:12"]);
+    expect(labels?.map((l) => l.label)).toEqual(["0m", "12m"]);
   });
 
   it("previews the styling live and exports it through the same style call", async () => {
     const user = userEvent.setup();
     installFlowHandlers();
     render(<Harness event={{ ...EVENT, scheduleTimeZone: "America/Chicago" }} />);
-    await user.click(screen.getByTestId("route-poster-generate"));
-    const dialog = await screen.findByRole("dialog");
-    await within(dialog).findByTestId("route-poster-preview");
+    const studio = await openStudio();
+    await within(studio).findByTestId("route-poster-preview");
     await waitFor(() => expect(previews).toHaveLength(1));
     const preview = previews[0]!;
     expect(preview.images).toEqual([ROUTE_ARROW_ICON]);
@@ -535,13 +584,13 @@ describe("RoutePosterSection: Generate from flight recording", () => {
       ],
     });
 
-    const hex = within(dialog).getByTestId("route-poster-color-hex");
+    const hex = within(studio).getByTestId("route-poster-color-hex");
     await user.clear(hex);
     await user.type(hex, "#aa0011");
-    await user.click(within(dialog).getByLabelText("Arrows"));
-    await user.click(within(dialog).getByRole("combobox", { name: "Time labels" }));
+    await user.click(within(studio).getByLabelText("Arrows"));
+    await user.click(within(studio).getByRole("combobox", { name: "Time labels" }));
     await user.click(await screen.findByRole("option", { name: "Every 5 minutes" }));
-    await user.click(within(dialog).getByRole("combobox", { name: "Label format" }));
+    await user.click(within(studio).getByRole("combobox", { name: "Label format" }));
     await user.click(await screen.findByRole("option", { name: "Elapsed" }));
 
     await waitFor(() => {
@@ -554,7 +603,7 @@ describe("RoutePosterSection: Generate from flight recording", () => {
           data: { features: Array<{ properties: { label: string } }> };
         }
       ).data.features.map((feature) => feature.properties.label);
-      expect(labels).toEqual(["+0:00", "+0:05", "+0:10", "+0:12"]);
+      expect(labels).toEqual(["0m", "5m", "10m", "12m"]);
     });
     const previewStyle = preview.styles.at(-1) as {
       layers: Array<{ id: string; paint?: Record<string, unknown> }>;
@@ -566,8 +615,8 @@ describe("RoutePosterSection: Generate from flight recording", () => {
 
     const previewCalls = vi.mocked(buildPosterStyle).mock.calls.length;
     const previewInput = vi.mocked(buildPosterStyle).mock.calls.at(-1)!;
-    await user.click(within(dialog).getByTestId("route-poster-generate-run"));
-    await within(dialog).findByTestId("route-poster-ready");
+    await user.click(within(studio).getByTestId("route-poster-generate-run"));
+    await within(studio).findByTestId("route-poster-ready");
 
     const exportCalls = vi.mocked(buildPosterStyle).mock.calls.slice(previewCalls);
     expect(exportCalls).toHaveLength(1);
@@ -586,33 +635,28 @@ const SAVED_LAYOUT: PosterLayout = {
   ],
 };
 
-async function openDialog(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByTestId("route-poster-generate"));
-  return screen.findByRole("dialog");
-}
-
-function overlayNames(dialog: HTMLElement): string[] {
-  return within(dialog)
+function overlayNames(studio: HTMLElement): string[] {
+  return within(studio)
     .queryAllByTestId("poster-overlay-image")
     .map((el) => el.getAttribute("data-name") ?? "");
 }
 
-describe("RoutePosterGenerator: the overlay composer", () => {
+describe("PosterStudio: the overlay composer", () => {
   it("opens with the saved layout and a successful Generate saves it", async () => {
     const user = userEvent.setup();
     const { patches } = installFlowHandlers();
     render(<Harness event={{ ...EVENT, posterLayout: SAVED_LAYOUT }} />);
-    const dialog = await openDialog(user);
+    const studio = await openStudio();
 
-    expect(within(dialog).getByTestId("route-poster-color-hex")).toHaveValue("#123456");
-    expect(within(dialog).getByLabelText("Arrows")).not.toBeChecked();
-    expect(within(dialog).getByRole("combobox", { name: "Time labels" })).toHaveTextContent(
+    expect(within(studio).getByTestId("route-poster-color-hex")).toHaveValue("#123456");
+    expect(within(studio).getByLabelText("Arrows")).not.toBeChecked();
+    expect(within(studio).getByRole("combobox", { name: "Time labels" })).toHaveTextContent(
       "Every 5 minutes",
     );
     // Stacking order: the image (z 0) under the QR code (z 1), placed by
     // fractions of the 480 x 360 preview.
-    await waitFor(() => expect(overlayNames(dialog)).toEqual(["overlay-image", "overlay-qr"]));
-    const [image, qr] = within(dialog).getAllByTestId("poster-overlay-image");
+    await waitFor(() => expect(overlayNames(studio)).toEqual(["overlay-image", "overlay-qr"]));
+    const [image, qr] = within(studio).getAllByTestId("poster-overlay-image");
     expect(image).toHaveAttribute("data-src", f.mediaAssets[0]!.url);
     expect(Number(image!.getAttribute("data-x"))).toBeCloseTo(0.25 * 480);
     expect(Number(image!.getAttribute("data-y"))).toBeCloseTo(0.5 * 360);
@@ -620,8 +664,8 @@ describe("RoutePosterGenerator: the overlay composer", () => {
     expect(image).toHaveAttribute("data-rotation", "15");
     expect(qr!.getAttribute("data-src")).toMatch(/^data:image\/svg\+xml/);
 
-    await user.click(within(dialog).getByTestId("route-poster-generate-run"));
-    await within(dialog).findByTestId("route-poster-ready");
+    await user.click(within(studio).getByTestId("route-poster-generate-run"));
+    await within(studio).findByTestId("route-poster-ready");
     expect(calls.slice(-2)).toEqual(["confirm", "patch"]);
     // Saved in stacking order, each z its index.
     expect(patches).toEqual([
@@ -642,9 +686,9 @@ describe("RoutePosterGenerator: the overlay composer", () => {
       elements: [{ type: "logo", mediaId: "logo-1", x: 0.5, y: 0.25, width: 0.2, rotation: 0, z: 0 }],
     };
     render(<Harness event={{ ...EVENT, posterLayout: layout }} />);
-    const dialog = await openDialog(user);
-    await user.click(within(dialog).getByTestId("route-poster-generate-run"));
-    await within(dialog).findByTestId("route-poster-ready");
+    const studio = await openStudio();
+    await user.click(within(studio).getByTestId("route-poster-generate-run"));
+    await within(studio).findByTestId("route-poster-ready");
 
     const stage = konvaLog.stages.at(-1)!;
     expect(stage.pixelRatio).toBeCloseTo(2048 / OVERLAY_STAGE_WIDTH);
@@ -668,14 +712,14 @@ describe("RoutePosterGenerator: the overlay composer", () => {
     const user = userEvent.setup();
     const { patches } = installFlowHandlers();
     render(<Harness event={EVENT} />);
-    const dialog = await openDialog(user);
-    await user.click(within(dialog).getByTestId("poster-overlay-add-qr"));
+    const studio = await openStudio();
+    await user.click(within(studio).getByTestId("poster-overlay-add-qr"));
     const picker = await screen.findByRole("dialog", { name: "Choose a QR code" });
     await user.type(within(picker).getByTestId("poster-qr-search"), "southgate");
     expect(within(picker).queryByText("qr-002")).toBeNull();
     await user.click(within(picker).getByText("qr-001"));
 
-    await waitFor(() => expect(overlayNames(dialog)).toEqual(["overlay-qr"]));
+    await waitFor(() => expect(overlayNames(studio)).toEqual(["overlay-qr"]));
     expect(QRCode.toString).toHaveBeenCalledWith(
       "https://site.test/q/qr-001",
       expect.objectContaining({
@@ -687,7 +731,7 @@ describe("RoutePosterGenerator: the overlay composer", () => {
     );
     expect(vi.mocked(loadOverlayImage).mock.calls[0]![0]).toMatch(/^data:image\/svg\+xml/);
 
-    await user.click(within(dialog).getByTestId("poster-overlay-save"));
+    await user.click(within(studio).getByTestId("poster-overlay-save"));
     await waitFor(() => expect(patches).toHaveLength(1));
     expect(patches[0]).toEqual({
       posterLayout: {
@@ -700,12 +744,11 @@ describe("RoutePosterGenerator: the overlay composer", () => {
 
   it("offers the site logo only when one is set, and reorders and deletes elements", async () => {
     const user = userEvent.setup();
-    render(<Harness event={EVENT} />);
-    let dialog = await openDialog(user);
-    await waitFor(() => expect(within(dialog).getByTestId("poster-overlay-add-qr")).toBeEnabled());
-    expect(within(dialog).queryByTestId("poster-overlay-add-logo")).toBeNull();
-    await user.click(within(dialog).getByRole("button", { name: "Close" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    const first = render(<Harness event={EVENT} />);
+    let studio = await openStudio();
+    await waitFor(() => expect(within(studio).getByTestId("poster-overlay-add-qr")).toBeEnabled());
+    expect(within(studio).queryByTestId("poster-overlay-add-logo")).toBeNull();
+    first.unmount();
 
     server.use(
       http.get(`${API}/admin/site-settings`, () =>
@@ -715,43 +758,44 @@ describe("RoutePosterGenerator: the overlay composer", () => {
         }),
       ),
     );
-    dialog = await openDialog(user);
-    await user.click(await within(dialog).findByTestId("poster-overlay-add-logo"));
-    await user.click(within(dialog).getByTestId("poster-overlay-add-qr"));
+    render(<Harness event={EVENT} />);
+    studio = await openStudio();
+    await user.click(await within(studio).findByTestId("poster-overlay-add-logo"));
+    await user.click(within(studio).getByTestId("poster-overlay-add-qr"));
     const picker = await screen.findByRole("dialog", { name: "Choose a QR code" });
     await user.click(within(picker).getByText("qr-002"));
-    await waitFor(() => expect(overlayNames(dialog)).toEqual(["overlay-logo", "overlay-qr"]));
+    await waitFor(() => expect(overlayNames(studio)).toEqual(["overlay-logo", "overlay-qr"]));
 
     // The QR code, added last, is selected: it is at the front.
-    expect(within(dialog).getByTestId("poster-overlay-forward")).toBeDisabled();
-    await user.click(within(dialog).getByTestId("poster-overlay-back"));
-    expect(overlayNames(dialog)).toEqual(["overlay-qr", "overlay-logo"]);
-    await user.click(within(dialog).getByTestId("poster-overlay-forward"));
-    expect(overlayNames(dialog)).toEqual(["overlay-logo", "overlay-qr"]);
+    expect(within(studio).getByTestId("poster-overlay-forward")).toBeDisabled();
+    await user.click(within(studio).getByTestId("poster-overlay-back"));
+    expect(overlayNames(studio)).toEqual(["overlay-qr", "overlay-logo"]);
+    await user.click(within(studio).getByTestId("poster-overlay-forward"));
+    expect(overlayNames(studio)).toEqual(["overlay-logo", "overlay-qr"]);
 
     // Select the logo and delete it from the keyboard.
-    fireEvent.mouseDown(within(dialog).getAllByTestId("poster-overlay-image")[0]!);
+    fireEvent.mouseDown(within(studio).getAllByTestId("poster-overlay-image")[0]!);
     fireEvent.keyDown(window, { key: "Delete" });
-    expect(overlayNames(dialog)).toEqual(["overlay-qr"]);
-    expect(within(dialog).getByTestId("poster-overlay-delete")).toBeDisabled();
-    fireEvent.mouseDown(within(dialog).getAllByTestId("poster-overlay-image")[0]!);
-    await user.click(within(dialog).getByTestId("poster-overlay-delete"));
-    expect(overlayNames(dialog)).toEqual([]);
+    expect(overlayNames(studio)).toEqual(["overlay-qr"]);
+    expect(within(studio).getByTestId("poster-overlay-delete")).toBeDisabled();
+    fireEvent.mouseDown(within(studio).getAllByTestId("poster-overlay-image")[0]!);
+    await user.click(within(studio).getByTestId("poster-overlay-delete"));
+    expect(overlayNames(studio)).toEqual([]);
   });
 
   it("Clear layout removes every element and Save sends null", async () => {
     const user = userEvent.setup();
     const { patches } = installFlowHandlers();
     render(<Harness event={{ ...EVENT, posterLayout: SAVED_LAYOUT }} />);
-    const dialog = await openDialog(user);
-    await waitFor(() => expect(overlayNames(dialog)).toHaveLength(2));
-    await user.click(within(dialog).getByTestId("poster-overlay-clear"));
-    expect(overlayNames(dialog)).toEqual([]);
-    await user.click(within(dialog).getByTestId("poster-overlay-save"));
+    const studio = await openStudio();
+    await waitFor(() => expect(overlayNames(studio)).toHaveLength(2));
+    await user.click(within(studio).getByTestId("poster-overlay-clear"));
+    expect(overlayNames(studio)).toEqual([]);
+    await user.click(within(studio).getByTestId("poster-overlay-save"));
     await waitFor(() => expect(patches).toEqual([{ posterLayout: null }]));
   });
 
-  it("names a failed or tainted overlay image and keeps the dialog usable", async () => {
+  it("names a failed or tainted overlay image and keeps the studio usable", async () => {
     const user = userEvent.setup();
     installFlowHandlers();
     vi.mocked(loadOverlayImage).mockImplementation(async (url: string) => {
@@ -763,21 +807,21 @@ describe("RoutePosterGenerator: the overlay composer", () => {
       return { image, aspect: 1 };
     });
     render(<Harness event={{ ...EVENT, posterLayout: SAVED_LAYOUT }} />);
-    const dialog = await openDialog(user);
-    expect(await within(dialog).findByTestId("poster-overlay-failed")).toHaveTextContent(
+    const studio = await openStudio();
+    expect(await within(studio).findByTestId("poster-overlay-failed")).toHaveTextContent(
       "The overlay image hangar.jpg could not load. The image host does not allow the image on a canvas",
     );
-    expect(within(dialog).getAllByTestId("poster-overlay-placeholder")).toHaveLength(1);
+    expect(within(studio).getAllByTestId("poster-overlay-placeholder")).toHaveLength(1);
 
-    await user.click(within(dialog).getByTestId("route-poster-generate-run"));
-    expect(await within(dialog).findByTestId("route-poster-error")).toHaveTextContent(
+    await user.click(within(studio).getByTestId("route-poster-generate-run"));
+    expect(await within(studio).findByTestId("route-poster-error")).toHaveTextContent(
       "The overlay image hangar.jpg could not be drawn. The image host does not allow the image on a canvas",
     );
     expect(calls).not.toContain("render");
     expect(calls).not.toContain("upload-url");
-    expect(within(dialog).getByTestId("route-poster-generate-run")).toBeEnabled();
-    expect(within(dialog).getByTestId("route-poster-generate-run")).toHaveTextContent(/try again/i);
-    await user.click(within(dialog).getByRole("button", { name: "Close" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(within(studio).getByTestId("route-poster-generate-run")).toBeEnabled();
+    expect(within(studio).getByTestId("route-poster-generate-run")).toHaveTextContent(/try again/i);
+    await user.click(screen.getByTestId("poster-studio-back"));
+    expect(await screen.findByTestId("event-page")).toBeInTheDocument();
   });
 });

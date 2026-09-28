@@ -1,6 +1,6 @@
 // The poster layout document saved on the event as `posterLayout`: the
-// route styling of the generator and the overlay elements drawn over the
-// map. The shape is the panel's own (admin.md 6.3, Route poster). Every
+// route styling of the poster studio and the overlay elements drawn over the
+// map. The shape is the panel's own (admin.md 6.3, Poster studio). Every
 // position and size is a fraction of the poster's width and height, so
 // one layout fits every preset and both orientations.
 

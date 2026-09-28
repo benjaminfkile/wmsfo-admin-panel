@@ -16,21 +16,30 @@ interface Props {
   size: PosterSize;
   // Drawn over the map at the preview's display size.
   overlay?: (display: PosterSize) => ReactNode;
+  // The tallest the preview grows, in CSS pixels.
+  maxHeight?: number;
 }
 
-// The tallest the preview grows, in CSS pixels.
+// The tallest the preview grows when the caller sets no height, in CSS
+// pixels.
 export const PREVIEW_MAX_HEIGHT = 360;
 // The width used until the preview box has been measured.
 const FALLBACK_WIDTH = 480;
 
 // The live preview of the poster. The map is laid out at the CSS size of
-// the export render and scaled down to fit the dialog, with its pixel
-// ratio lowered to match, so zoom, line widths, arrows, and label
+// the export render and scaled down to fit its box (the full width, at
+// most `maxHeight` tall), with its pixel ratio lowered to match, so zoom, line widths, arrows, and label
 // placement are the ones the export draws. Every new style goes to the
 // map through setStyle; a size change resizes the map and fits the path
 // again with the export's padding. The map takes no input; `overlay`
 // draws over it at the display size, which has the poster's aspect.
-export default function RoutePosterPreview({ style, path, size, overlay }: Props) {
+export default function RoutePosterPreview({
+  style,
+  path,
+  size,
+  overlay,
+  maxHeight = PREVIEW_MAX_HEIGHT,
+}: Props) {
   const outerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MaplibreMap | null>(null);
@@ -53,7 +62,7 @@ export default function RoutePosterPreview({ style, path, size, overlay }: Props
   }, []);
 
   const css = posterCssSize(size);
-  const displayWidth = Math.min(width, (PREVIEW_MAX_HEIGHT * size.width) / size.height);
+  const displayWidth = Math.min(width, (maxHeight * size.width) / size.height);
   const scale = displayWidth / css.width;
   const displayHeight = css.height * scale;
   const pixelRatio = scale * (window.devicePixelRatio || 1);
