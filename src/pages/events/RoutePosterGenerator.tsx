@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -28,12 +29,13 @@ import { useConfig } from "../../ConfigContext";
 import { useNotify } from "../../hooks/useNotify";
 import { keys } from "../../queries/keys";
 import { RASTER_MAX_BYTES } from "../../validation/image";
-import { buildRouteMapStyle, type Appearance } from "../../routeMap";
+import { buildRouteMapStyle, routeBasemapBase, type Appearance } from "../../routeMap";
 import {
   POSTER_PRESETS,
   fiveMinuteMarks,
   posterFilename,
   posterSize,
+  probeTerrain,
   renderPosterPng,
   type PosterOrientation,
   type PosterPresetId,
@@ -59,7 +61,9 @@ export const SIZE_LIMIT_MESSAGE =
   "The poster image is over the 20 MB limit for images. Choose a smaller size or the other theme and generate again.";
 
 // The generator dialog of the route poster section (admin.md 6.3). Renders
-// the event's route map at the chosen theme, orientation, and size, uploads
+// the event's route map at the chosen theme, orientation, and size, with
+// the hillshade when Terrain is checked (offered only once the probe finds
+// `<base>/terrain.pmtiles`), uploads
 // the PNG through the media upload flow, and offers to set the ready asset
 // as the route poster.
 export default function RoutePosterGenerator({ event, open, onClose }: Props) {
@@ -69,6 +73,8 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
   const [theme, setTheme] = useState<Appearance>("light");
   const [orientation, setOrientation] = useState<PosterOrientation>("landscape");
   const [preset, setPreset] = useState<PosterPresetId>("facebook");
+  const [terrain, setTerrain] = useState(false);
+  const [terrainAvailable, setTerrainAvailable] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +92,18 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
       setProgress(0);
     }
   }, [open]);
+
+  const base = routeBasemapBase(config);
+  useEffect(() => {
+    if (!open || base === null) return;
+    let active = true;
+    void probeTerrain(base).then((found) => {
+      if (active) setTerrainAvailable(found);
+    });
+    return () => {
+      active = false;
+    };
+  }, [open, base]);
 
   const eventId = Number(event.id);
   const year = Number(event.year);
@@ -115,6 +133,7 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
         theme,
         routeMap.path,
         fiveMinuteMarks(routeMap),
+        terrain && terrainAvailable,
       );
       blob = await renderPosterPng({ style, path: routeMap.path, size, theme });
     } catch (e) {
@@ -240,6 +259,19 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
               })}
             </RadioGroup>
           </FormControl>
+          {terrainAvailable ? (
+            <FormControlLabel
+              disabled={busy}
+              control={
+                <Checkbox
+                  checked={terrain}
+                  onChange={(e) => setTerrain(e.target.checked)}
+                  data-testid="route-poster-terrain"
+                />
+              }
+              label="Terrain"
+            />
+          ) : null}
           <Typography variant="body2" color="text.secondary" data-testid="route-poster-output">
             {posterFilename(year, theme, size)}
           </Typography>

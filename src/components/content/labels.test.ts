@@ -161,3 +161,16 @@ describe("labels.ts: the map overlays include the online count", () => {
     expect(entry?.switchDefault).toBe(true);
   });
 });
+
+describe("labels.ts: the route_preview map buttons", () => {
+  it("labels both switches and defaults them to on", () => {
+    const paths = collectFieldPaths(routePreview as Sch);
+    expect(paths).toContain("controls.fullscreen");
+    expect(paths).toContain("controls.terrain");
+    const labels = labelsFor("route_preview", false);
+    expect(labels["controls.fullscreen"]?.label).toBe("Fullscreen button");
+    expect(labels["controls.terrain"]?.label).toBe("Terrain toggle");
+    expect(labels["controls.fullscreen"]?.switchDefault).toBe(true);
+    expect(labels["controls.terrain"]?.switchDefault).toBe(true);
+  });
+});

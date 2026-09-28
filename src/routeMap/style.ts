@@ -2,15 +2,20 @@
 // one appearance: the @protomaps/basemaps layers over the CDN basemap in
 // that appearance's flavor, then the route path as a line, the timeline
 // marks as small dots on it, and the start and end markers as circles.
-// Both appearances share every source and
-// layer id, so a switch between them is a paint-only style diff.
+// With `terrain` set, a raster-dem source over the terrain archive
+// (terrarium encoding) feeds a hillshade layer placed just under the
+// water fill, so the relief shades the ground and landuse while water,
+// water lines, roads, labels, and the route draw over it. Both
+// appearances share every source and layer id for the same terrain
+// state, so a switch between them is a paint-only style diff, and the
+// terrain toggle adds or removes one source and one layer.
 
 import { layers } from "@protomaps/basemaps";
 import type {
   LayerSpecification,
   StyleSpecification,
 } from "maplibre-gl";
-import { FLAVORS, ROUTE_PALETTES, type Appearance } from "./flavors";
+import { FLAVORS, HILLSHADE_PAINTS, ROUTE_PALETTES, type Appearance } from "./flavors";
 
 export type LatLng = { lat: number; lng: number };
 
@@ -21,6 +26,11 @@ export const MARKS_SOURCE = "route-marks";
 export const ROUTE_LAYER = "route-line";
 export const MARKS_LAYER = "route-marks";
 export const ENDS_LAYER = "route-ends";
+export const TERRAIN_SOURCE = "terrain";
+export const HILLSHADE_LAYER = "terrain-hillshade";
+
+// The basemap layer the hillshade sits directly under.
+const HILLSHADE_BEFORE = "water";
 
 export const OSM_ATTRIBUTION =
   '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>';
@@ -32,6 +42,10 @@ const SPRITE_ONLY_LAYERS = new Set(["roads_oneway", "roads_shields"]);
 
 export function tilesUrl(base: string): string {
   return `${base}/tiles.pmtiles`;
+}
+
+export function terrainUrl(base: string): string {
+  return `${base}/terrain.pmtiles`;
 }
 
 export function glyphsUrl(base: string): string {
@@ -54,8 +68,8 @@ export function pathBounds(path: readonly LatLng[]): [[number, number], [number,
   return [[west, south], [east, north]];
 }
 
-function basemapLayers(appearance: Appearance): LayerSpecification[] {
-  return layers(BASEMAP_SOURCE, FLAVORS[appearance], { lang: "en" })
+function basemapLayers(appearance: Appearance, terrain: boolean): LayerSpecification[] {
+  const base = layers(BASEMAP_SOURCE, FLAVORS[appearance], { lang: "en" })
     .filter((layer) => !SPRITE_ONLY_LAYERS.has(layer.id))
     .map((layer) => {
       if (layer.type !== "symbol" || layer.layout === undefined) return layer;
@@ -64,6 +78,16 @@ function basemapLayers(appearance: Appearance): LayerSpecification[] {
       );
       return { ...layer, layout } as LayerSpecification;
     });
+  if (!terrain) return base;
+  const hillshade: LayerSpecification = {
+    id: HILLSHADE_LAYER,
+    type: "hillshade",
+    source: TERRAIN_SOURCE,
+    paint: { ...HILLSHADE_PAINTS[appearance] },
+  };
+  const at = base.findIndex((layer) => layer.id === HILLSHADE_BEFORE);
+  const index = at === -1 ? 1 : at;
+  return [...base.slice(0, index), hillshade, ...base.slice(index)];
 }
 
 export function buildStyle(
@@ -71,6 +95,7 @@ export function buildStyle(
   base: string,
   path: readonly LatLng[],
   marks: readonly LatLng[] = [],
+  terrain = false,
 ): StyleSpecification {
   const palette = ROUTE_PALETTES[appearance];
   const coordinates = path.map((p) => [p.lng, p.lat]);
@@ -89,6 +114,15 @@ export function buildStyle(
         url: `pmtiles://${tilesUrl(base)}`,
         attribution: OSM_ATTRIBUTION,
       },
+      ...(terrain
+        ? {
+            [TERRAIN_SOURCE]: {
+              type: "raster-dem" as const,
+              url: `pmtiles://${terrainUrl(base)}`,
+              encoding: "terrarium" as const,
+            },
+          }
+        : {}),
       [ROUTE_SOURCE]: {
         type: "geojson",
         data: {
@@ -121,7 +155,7 @@ export function buildStyle(
       },
     },
     layers: [
-      ...basemapLayers(appearance),
+      ...basemapLayers(appearance, terrain),
       {
         id: ROUTE_LAYER,
         type: "line",

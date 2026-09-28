@@ -304,6 +304,20 @@ const SECTION: Record<string, FieldLabels> = {
       label: "Text shown when there is no route yet",
       help: "Shown to visitors before this year's route is set.",
     },
+    controls: {
+      label: "Map buttons",
+      help: "The buttons on the route map when the style is Map.",
+    },
+    "controls.fullscreen": {
+      label: "Fullscreen button",
+      help: "Lets visitors open the route map full screen.",
+      switchDefault: true,
+    },
+    "controls.terrain": {
+      label: "Terrain toggle",
+      help: "Lets visitors shade the hills under the route.",
+      switchDefault: true,
+    },
   },
   cookie_control: {
     heading: { label: "Heading" },

@@ -4,7 +4,7 @@
 
 import type { StyleSpecification } from "maplibre-gl";
 import type { Appearance } from "./flavors";
-import { OSM_ATTRIBUTION, pathBounds, type LatLng } from "./style";
+import { OSM_ATTRIBUTION, pathBounds, terrainUrl, type LatLng } from "./style";
 
 export type PosterPresetId = "facebook" | "flyer" | "poster";
 export type PosterOrientation = "portrait" | "landscape";
@@ -155,6 +155,31 @@ function ensurePmtilesProtocol(
     });
   }
   return protocolReady;
+}
+
+const terrainProbes = new Map<string, Promise<boolean>>();
+
+// Reads the header of `<base>/terrain.pmtiles` once per base per page
+// load, on the first call, and resolves whether the archive exists. A
+// missing or failing archive logs once and resolves false.
+export function probeTerrain(base: string): Promise<boolean> {
+  let probe = terrainProbes.get(base);
+  if (!probe) {
+    probe = import("pmtiles")
+      .then(({ PMTiles }) => new PMTiles(terrainUrl(base)).getHeader())
+      .then(() => true)
+      .catch((error: unknown) => {
+        console.warn("route poster: no terrain archive, the terrain option is hidden", error);
+        return false;
+      });
+    terrainProbes.set(base, probe);
+  }
+  return probe;
+}
+
+// Forgets every probe result (tests only).
+export function resetTerrainProbes(): void {
+  terrainProbes.clear();
 }
 
 export const RENDER_TIMEOUT_MS = 60_000;

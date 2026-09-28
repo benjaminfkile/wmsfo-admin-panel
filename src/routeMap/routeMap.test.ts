@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { buildRouteMapStyle, routeBasemapBase } from "./index";
-import { BASEMAP_SOURCE, ROUTE_SOURCE, buildStyle } from "./style";
+import {
+  BASEMAP_SOURCE,
+  HILLSHADE_LAYER,
+  ROUTE_SOURCE,
+  TERRAIN_SOURCE,
+  buildStyle,
+} from "./style";
 
 const BASE = "https://basemap.example.com/v4";
 const PATH = [
@@ -35,5 +41,24 @@ describe("routeMap style builders", () => {
 
   it("reads the base from the panel config", () => {
     expect(routeBasemapBase({ routeBasemapUrl: BASE })).toBe(BASE);
+  });
+
+  it("adds the terrain source under the configured base only when asked", () => {
+    const plain = buildRouteMapStyle({ routeBasemapUrl: BASE }, "light", PATH);
+    expect(plain.sources[TERRAIN_SOURCE]).toBeUndefined();
+    expect(plain.layers.map((l) => l.id)).not.toContain(HILLSHADE_LAYER);
+
+    const shaded = buildRouteMapStyle({ routeBasemapUrl: BASE }, "dark", PATH, [], true);
+    expect(shaded.glyphs).toBe(`${BASE}/glyphs/{fontstack}/{range}.pbf`);
+    expect(shaded.sources[BASEMAP_SOURCE]).toMatchObject({
+      url: `pmtiles://${BASE}/tiles.pmtiles`,
+    });
+    expect(shaded.sources[TERRAIN_SOURCE]).toMatchObject({
+      type: "raster-dem",
+      url: `pmtiles://${BASE}/terrain.pmtiles`,
+    });
+    const ids = shaded.layers.map((l) => l.id);
+    expect(ids).toContain(HILLSHADE_LAYER);
+    expect(ids.indexOf(HILLSHADE_LAYER)).toBeLessThan(ids.indexOf("water"));
   });
 });

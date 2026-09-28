@@ -9,6 +9,10 @@
 //    standard.ts's chrome text colours.
 //  - dark follows src/map/themes/night.ts: every colour is a value of its
 //    style array or its overlay palette.
+// The hillshade paint of the terrain view is one table per appearance
+// too: a low exaggeration and shadow and highlight colours close to the
+// ground, so the relief is visible but stays well below the route line's
+// contrast.
 
 import type { Flavor } from "@protomaps/basemaps";
 
@@ -19,6 +23,13 @@ export type RoutePalette = {
   routeOpacity: number; // the path line opacity
   markerStroke: string; // the ring around the start and end markers
   endFill: string;      // the end marker fill
+};
+
+export type HillshadePaint = {
+  "hillshade-exaggeration": number; // how strongly the relief is shaded
+  "hillshade-shadow-color": string; // slopes facing away from the light
+  "hillshade-highlight-color": string; // slopes facing the light
+  "hillshade-accent-color": string; // steep terrain edges
 };
 
 export const LIGHT_FLAVOR: Flavor = {
@@ -188,5 +199,20 @@ export const ROUTE_PALETTES: Record<Appearance, RoutePalette> = {
     routeOpacity: 0.85,     // night.ts routeOpacity
     markerStroke: "#0f1a2b", // night.ts chrome.bg
     endFill: "#f2f6ff",     // night.ts chrome.text
+  },
+};
+
+export const HILLSHADE_PAINTS: Record<Appearance, HillshadePaint> = {
+  light: {
+    "hillshade-exaggeration": 0.25,
+    "hillshade-shadow-color": "#5f6368",    // standard.ts chrome.fg
+    "hillshade-highlight-color": "#ffffff", // standard.ts chrome.bg
+    "hillshade-accent-color": "#9aa0a6",    // Google default administrative line
+  },
+  dark: {
+    "hillshade-exaggeration": 0.3,
+    "hillshade-shadow-color": "#1f2835",    // night.ts road.highway geometry.stroke
+    "hillshade-highlight-color": "#515c6d", // night.ts water labels.text.fill
+    "hillshade-accent-color": "#17263c",    // night.ts water geometry
   },
 };
