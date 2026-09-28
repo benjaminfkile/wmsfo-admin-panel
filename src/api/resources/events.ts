@@ -5,6 +5,7 @@ import type {
   EventMessage,
   LocationRow,
   Page,
+  RouteMapResponse,
   StatusHistory,
   StatusId,
 } from "../types";
@@ -99,6 +100,8 @@ export const events = {
       accept: "text/csv",
       parse: "blob",
     }),
+  routeMap: (id: number) =>
+    get<RouteMapResponse>(`/admin/events/${id}/route-map`),
   locationsImpact: (id: number) =>
     get<DeleteImpact>(`/admin/events/${id}/locations/impact`),
   clearLocations: (id: number, beaconId?: number) =>
