@@ -108,7 +108,7 @@ describe("poster presets", () => {
 
   it("names the file by year, theme, and size", () => {
     expect(posterFilename(2026, "dark", { width: 2550, height: 3300 })).toBe(
-      "route-poster-2026-dark-2550x3300.png",
+      "route-poster-2026-dark-2550x3300.jpg",
     );
   });
 

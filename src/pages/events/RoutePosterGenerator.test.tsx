@@ -97,7 +97,7 @@ const EVENT: Event = { ...f.events[0]!, routeImageMediaId: null };
 const READY_ASSET = {
   ...f.mediaAssets[0]!,
   id: "poster-asset-1",
-  filename: "route-poster-2026-light-2048x1536.png",
+  filename: "route-poster-2026-light-2048x1536.jpg",
   width: 2048,
   height: 1536,
   state: "ready" as const,
@@ -251,7 +251,7 @@ describe("RoutePosterSection: Generate from flight recording", () => {
     await user.click(within(dialog).getByLabelText("Dark"));
     await user.click(within(dialog).getByLabelText(/flyer/i));
     expect(within(dialog).getByTestId("route-poster-output")).toHaveTextContent(
-      "route-poster-2026-dark-2550x3300.png",
+      "route-poster-2026-dark-2550x3300.jpg",
     );
   });
 
@@ -272,8 +272,8 @@ describe("RoutePosterSection: Generate from flight recording", () => {
       expect.any(Number),
     );
     expect(uploadBodies[0]).toMatchObject({
-      filename: "route-poster-2026-light-2048x1536.png",
-      contentType: "image/png",
+      filename: "route-poster-2026-light-2048x1536.jpg",
+      contentType: "image/jpeg",
       sizeBytes: 4,
     });
     expect(within(dialog).getByTestId("route-poster-media-link")).toHaveAttribute(

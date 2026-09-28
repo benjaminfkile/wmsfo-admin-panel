@@ -58,8 +58,15 @@ export function posterFilename(
   theme: Appearance,
   size: PosterSize,
 ): string {
-  return `route-poster-${year}-${theme}-${size.width}x${size.height}.png`;
+  return `route-poster-${year}-${theme}-${size.width}x${size.height}.jpg`;
 }
+
+// The poster export encoding. JPEG, because the terrain hillshade makes a
+// print-size PNG pass the 20 MB media limit, while a JPEG at this quality
+// is a few MB and indistinguishable at 300 dpi. The type and quality ride
+// together into every encode and upload.
+export const POSTER_MIME = "image/jpeg";
+export const POSTER_JPEG_QUALITY = 0.92;
 
 export type RouteMapData = {
   path: readonly LatLng[];
@@ -135,12 +142,16 @@ export function composePoster(
   return canvas;
 }
 
-export function canvasToPng(canvas: HTMLCanvasElement): Promise<Blob> {
+export function canvasToPosterBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) resolve(blob);
-      else reject(new Error("The poster image could not be encoded."));
-    }, "image/png");
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("The poster image could not be encoded."));
+      },
+      POSTER_MIME,
+      POSTER_JPEG_QUALITY,
+    );
   });
 }
 
@@ -266,9 +277,9 @@ export async function renderRouteMap(opts: {
   }
 }
 
-// Renders, composes, and encodes the poster as a PNG of exactly the
-// chosen size.
-export async function renderPosterPng(opts: {
+// Renders, composes, and encodes the poster image at exactly the chosen
+// size.
+export async function renderPosterImage(opts: {
   style: StyleSpecification;
   path: readonly LatLng[];
   size: PosterSize;
@@ -277,7 +288,7 @@ export async function renderPosterPng(opts: {
   const { canvas, dispose } = await renderRouteMap(opts);
   try {
     const composed = composePoster(canvas, opts.size, opts.theme);
-    return await canvasToPng(composed);
+    return await canvasToPosterBlob(composed);
   } finally {
     dispose();
   }

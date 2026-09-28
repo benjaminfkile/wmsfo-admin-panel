@@ -36,7 +36,8 @@ import {
   posterFilename,
   posterSize,
   probeTerrain,
-  renderPosterPng,
+  renderPosterImage,
+  POSTER_MIME,
   type PosterOrientation,
   type PosterPresetId,
   type RouteMapData,
@@ -135,7 +136,7 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
         fiveMinuteMarks(routeMap),
         terrain && terrainAvailable,
       );
-      blob = await renderPosterPng({ style, path: routeMap.path, size, theme });
+      blob = await renderPosterImage({ style, path: routeMap.path, size, theme });
     } catch (e) {
       if (live()) fail(`The poster could not be drawn. ${messageOf(e)}`);
       return;
@@ -152,7 +153,7 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
     try {
       const ticket = await mediaApi.uploadUrl({
         filename,
-        contentType: "image/png",
+        contentType: POSTER_MIME,
         sizeBytes: blob.size,
         alt: `The ${year} route map`,
         title: `${event.name ?? year} route poster`,
@@ -160,7 +161,7 @@ export default function RoutePosterGenerator({ event, open, onClose }: Props) {
       const mediaId = typeof ticket.media?.id === "string" ? ticket.media.id : null;
       if (!ticket.uploadUrl || !mediaId) throw new Error("Upload ticket incomplete");
       if (!live()) return;
-      const file = new File([blob], filename, { type: "image/png" });
+      const file = new File([blob], filename, { type: POSTER_MIME });
       await uploadToS3(ticket, file, (f) => {
         if (live()) setProgress(f);
       });
