@@ -127,4 +127,60 @@ describe("PageEditor: route_preview style", () => {
     render(<Harness />);
     expect(await styleCombo()).toHaveTextContent("Map");
   }, 10000);
+
+  it("saves landmarks and the chosen points of interest and shows them after a reload", async () => {
+    let section: SectionAdmin = {
+      ...f.sampleSection,
+      kind: "route_preview",
+      data: {
+        ...structuredClone(routeKind.defaults),
+        style: "map",
+        landmarks: [
+          { name: "Caras Park", lat: 46.87, lng: -113.99 },
+          { name: "Old bridge", lat: 46.86, lng: -114.01 },
+        ],
+      },
+    };
+    const patched: Array<Record<string, unknown>> = [];
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/content/kinds`, () =>
+        HttpResponse.json({ items: [kind] })
+      ),
+      http.get(`${testConfig.apiBaseUrl}/admin/pages/:id`, () => {
+        const page: PageDetail = { ...f.pageDetail, sections: [section] };
+        return HttpResponse.json(page);
+      }),
+      http.patch(`${testConfig.apiBaseUrl}/admin/sections/:id`, async ({ request }) => {
+        const body = (await request.json()) as { data?: Record<string, unknown> };
+        if (body.data) {
+          patched.push(body.data);
+          section = { ...section, data: body.data };
+        }
+        return HttpResponse.json(section);
+      })
+    );
+
+    const first = render(<Harness />);
+    await styleCombo();
+    fireEvent.click(screen.getByRole("button", { name: "Delete Old bridge" }));
+    const pois = screen.getByTestId("pois-field");
+    fireEvent.click(within(pois).getByRole("radio", { name: "Custom" }));
+    fireEvent.click(within(pois).getByRole("checkbox", { name: "Churches" }));
+    await act(async () => {
+      await sleep(1200);
+    });
+    await waitFor(() => {
+      expect(patched.at(-1)?.pois).toEqual({ kinds: ["place_of_worship"] });
+    });
+    expect(patched.at(-1)?.landmarks).toEqual([
+      { name: "Caras Park", lat: 46.87, lng: -113.99 },
+    ]);
+    first.unmount();
+
+    render(<Harness />);
+    await styleCombo();
+    expect(screen.getByTestId("landmarks-count")).toHaveTextContent("1 of 50");
+    const again = screen.getByTestId("pois-field");
+    expect(within(again).getByRole("checkbox", { name: "Churches" })).toBeChecked();
+  }, 10000);
 });

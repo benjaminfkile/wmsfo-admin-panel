@@ -18,6 +18,8 @@ import LinkField from "./fields/LinkField";
 import InlineField from "./fields/InlineField";
 import BlocksField from "./fields/BlocksField";
 import LinkListField from "./fields/LinkListField";
+import LandmarksField from "./fields/LandmarksField";
+import PoisField from "./fields/PoisField";
 import PresentationPanelField from "./fields/PresentationPanelField";
 import OptionalField, { extractOptional } from "./fields/OptionalField";
 import ThemeField from "./fields/ThemeField";
@@ -100,11 +102,14 @@ function RoutedSchemaField(props: FieldProps) {
   return <DefaultSchemaField {...props} />;
 }
 
-// UiSchema-based custom fields (used by SiteSettings for the theme
-// object; RJSF resolves these via `ui:field: "<name>"`).
+// UiSchema-based custom fields (SiteSettings' theme object, and the
+// labels entries that name a `field`); RJSF resolves these via
+// `ui:field: "<name>"`.
 const FIELDS: RegistryFieldsType = {
   SchemaField: RoutedSchemaField,
   ThemeField,
+  LandmarksField,
+  PoisField,
 };
 
 const WIDGETS: RegistryWidgetsType = {
@@ -229,7 +234,8 @@ function mergeUi(base: JsonNode, extra: JsonNode): JsonNode {
 }
 
 // Builds a uiSchema from a labels table. Adds `ui:title`,
-// `ui:description` (the entry's help), and `ui:enumNames` per entry,
+// `ui:description` (the entry's help), `ui:enumNames`, and `ui:field`
+// per entry,
 // sets `ui:order` when the kind has a field order, and hides the root
 // form's own title so the schema title (e.g. "hero section data") never
 // appears.
@@ -260,6 +266,9 @@ function buildUiSchemaFromLabels(
     if (entry.switchDefault !== undefined) {
       patch["ui:widget"] = "DefaultedSwitchWidget";
       patch["ui:options"] = { switchDefault: entry.switchDefault };
+    }
+    if (entry.field !== undefined) {
+      patch["ui:field"] = entry.field;
     }
     assignPath(out, uiPathParts(schema, path), patch);
   }

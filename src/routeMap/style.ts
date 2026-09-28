@@ -31,13 +31,36 @@
 // (`placeNames`), or the road name labels (`roadLabels`) by dropping the
 // basemap layers DETAIL_LAYERS names for that group. Each absent key
 // keeps its group.
+// Two more options serve the site's own map and the poster alike:
+//  - `poiKinds` shows the basemap's POI labels for the listed kinds only.
+//    The site flavors carry no POI colours, so the default style has no
+//    POI layer; with a non empty list the style builds the flavor with
+//    POI_COLOURS added, which adds exactly the DETAIL_LAYERS `landmarks`
+//    layers, and each of them draws only features whose `kind` is in the
+//    list, from the zoom the tile data carries the feature (see
+//    poiLayer). A kind the package does not colour takes the flavor's
+//    slategray instead of the ground colour. An empty list leaves the
+//    style without POI layers, and `details.landmarks` false still drops
+//    them.
+//  - `landmarks` adds, for each entry, a dot in the palette's landmark
+//    fill and ring (`route-landmark-dots`) and its `label` beside it
+//    (`route-landmarks`) in Noto Sans Medium smaller than the time labels,
+//    with the same halo pair. Both are drawn at every zoom. MapLibre's
+//    collision handling places the labels; the time label layers sit
+//    above them, so a time label wins a collision with a landmark.
 
 import { layers } from "@protomaps/basemaps";
 import type {
   LayerSpecification,
   StyleSpecification,
 } from "maplibre-gl";
-import { FLAVORS, HILLSHADE_PAINTS, ROUTE_PALETTES, type Appearance } from "./flavors";
+import {
+  FLAVORS,
+  HILLSHADE_PAINTS,
+  POI_COLOURS,
+  ROUTE_PALETTES,
+  type Appearance,
+} from "./flavors";
 
 export type LatLng = { lat: number; lng: number };
 
@@ -54,9 +77,13 @@ export const ARROWS_LAYER = "route-arrows";
 export const TIME_LABELS_SOURCE = "route-time-labels";
 export const TIME_LABEL_DOTS_LAYER = "route-time-label-dots";
 export const TIME_LABELS_LAYER = "route-time-labels";
+export const LANDMARKS_SOURCE = "route-landmarks";
+export const LANDMARK_DOTS_LAYER = "route-landmark-dots";
+export const LANDMARKS_LAYER = "route-landmarks";
 export const ROUTE_ARROW_ICON = "route-arrow";
 
 export type TimeLabel = { lat: number; lng: number; label: string };
+export type Landmark = { lat: number; lng: number; label: string };
 
 export type StyleOptions = {
   routeColor?: string;
@@ -64,6 +91,8 @@ export type StyleOptions = {
   arrowScale?: number;
   timeLabels?: readonly TimeLabel[];
   details?: StyleDetails;
+  poiKinds?: readonly string[];
+  landmarks?: readonly Landmark[];
 };
 
 export type StyleDetails = {
@@ -80,7 +109,7 @@ export type StyleDetails = {
 //                peaks, and the like) with their names. The package only
 //                generates it for a flavor with `pois` colours, which the
 //                flavors in flavors.ts do not set, so the built style
-//                carries no POI layer and this switch changes nothing.
+//                carries it only when `poiKinds` lists a kind.
 //  - placeNames: `places_locality`, the city, town, and village names, and
 //                `places_subplace`, the neighbourhood names. Country and
 //                region names stay.
@@ -91,6 +120,33 @@ export const DETAIL_LAYERS: Readonly<Record<keyof StyleDetails, readonly string[
   placeNames: ["places_locality", "places_subplace"],
   roadLabels: ["roads_labels_major", "roads_labels_minor"],
 };
+
+// The tile build writes each POI into the tiles from one zoom below the
+// `min_zoom` it stores on the feature, and the package's POI layer shows
+// a feature only from that `min_zoom`. A chosen kind shows from the zoom
+// its tile data begins.
+const POI_TILE_ZOOM_LEAD = 1;
+
+// A package POI layer that keeps only the listed kinds, each from the
+// zoom its tile data begins, and colours a kind the package does not
+// name in the flavor's slategray.
+function poiLayer(
+  layer: LayerSpecification,
+  kinds: readonly string[],
+  appearance: Appearance,
+): LayerSpecification {
+  if (layer.type !== "symbol") return layer;
+  const filter = [
+    "all",
+    ["in", ["get", "kind"], ["literal", [...kinds]]],
+    [">=", ["zoom"], ["-", ["get", "min_zoom"], POI_TILE_ZOOM_LEAD]],
+  ];
+  const color = layer.paint?.["text-color"];
+  const paint = Array.isArray(color) && color[0] === "case"
+    ? { ...layer.paint, "text-color": [...color.slice(0, -1), POI_COLOURS[appearance].slategray] }
+    : layer.paint;
+  return { ...layer, filter, paint } as LayerSpecification;
+}
 
 function hiddenDetailLayers(details: StyleDetails): Set<string> {
   const hidden = new Set<string>();
@@ -218,10 +274,18 @@ function basemapLayers(
   appearance: Appearance,
   terrain: boolean,
   details: StyleDetails,
+  poiKinds: readonly string[] | undefined,
 ): LayerSpecification[] {
   const hidden = hiddenDetailLayers(details);
-  const base = layers(BASEMAP_SOURCE, FLAVORS[appearance], { lang: "en" })
+  const pois = new Set(DETAIL_LAYERS.landmarks);
+  const withPois = poiKinds !== undefined && poiKinds.length > 0;
+  const flavor = withPois
+    ? { ...FLAVORS[appearance], pois: POI_COLOURS[appearance] }
+    : FLAVORS[appearance];
+  const base = layers(BASEMAP_SOURCE, flavor, { lang: "en" })
     .filter((layer) => !SPRITE_ONLY_LAYERS.has(layer.id) && !hidden.has(layer.id))
+    .filter((layer) => poiKinds === undefined || withPois || !pois.has(layer.id))
+    .map((layer) => (withPois && pois.has(layer.id) ? poiLayer(layer, poiKinds, appearance) : layer))
     .map((layer) => {
       if (layer.type !== "symbol" || layer.layout === undefined) return layer;
       const layout = Object.fromEntries(
@@ -252,6 +316,7 @@ export function buildStyle(
   const palette = ROUTE_PALETTES[appearance];
   const routeColor = options.routeColor ?? palette.routeColor;
   const timeLabels = options.timeLabels ?? [];
+  const landmarks = options.landmarks ?? [];
   const arrowScale =
     options.arrowScale !== undefined && options.arrowScale > 0 ? options.arrowScale : 1;
   const coordinates = path.map((p) => [p.lng, p.lat]);
@@ -324,9 +389,24 @@ export function buildStyle(
             },
           }
         : {}),
+      ...(landmarks.length > 0
+        ? {
+            [LANDMARKS_SOURCE]: {
+              type: "geojson" as const,
+              data: {
+                type: "FeatureCollection" as const,
+                features: landmarks.map(({ lat, lng, label }) => ({
+                  type: "Feature" as const,
+                  properties: { label },
+                  geometry: { type: "Point" as const, coordinates: [lng, lat] },
+                })),
+              },
+            },
+          }
+        : {}),
     },
     layers: [
-      ...basemapLayers(appearance, terrain, options.details ?? {}),
+      ...basemapLayers(appearance, terrain, options.details ?? {}, options.poiKinds),
       {
         id: ROUTE_LAYER,
         type: "line",
@@ -383,6 +463,39 @@ export function buildStyle(
           "circle-stroke-width": 2,
         },
       },
+      ...(landmarks.length > 0
+        ? [
+            {
+              id: LANDMARK_DOTS_LAYER,
+              type: "circle" as const,
+              source: LANDMARKS_SOURCE,
+              paint: {
+                "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 2.5, 14, 3.5],
+                "circle-color": palette.landmarkFill,
+                "circle-stroke-color": palette.landmarkStroke,
+                "circle-stroke-width": 1,
+              },
+            } satisfies LayerSpecification,
+            {
+              id: LANDMARKS_LAYER,
+              type: "symbol" as const,
+              source: LANDMARKS_SOURCE,
+              layout: {
+                "text-field": ["get", "label"],
+                "text-font": ["Noto Sans Medium"],
+                "text-size": 14,
+                "text-variable-anchor": ["left", "right", "top", "bottom"],
+                "text-radial-offset": 0.5,
+                "text-justify": "auto",
+              },
+              paint: {
+                "text-color": palette.labelText,
+                "text-halo-color": palette.labelHalo,
+                "text-halo-width": 3,
+              },
+            } satisfies LayerSpecification,
+          ]
+        : []),
       ...(timeLabels.length > 0
         ? [
             {

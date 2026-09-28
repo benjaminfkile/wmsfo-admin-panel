@@ -24,6 +24,9 @@ export interface FieldLabel {
   // Changes to the field while another top-level field of the same form
   // is unset (absent or null) or on (true).
   when?: FieldCondition;
+  // The name of a custom field `SchemaForm` renders the value with
+  // instead of the generated one.
+  field?: "LandmarksField" | "PoisField";
 }
 
 export interface FieldCondition {
@@ -318,6 +321,17 @@ const SECTION: Record<string, FieldLabels> = {
       help: "Lets visitors shade the hills under the route.",
       switchDefault: true,
     },
+    landmarks: {
+      label: "Landmarks",
+      help: "Named spots drawn on the route map when the style is Map.",
+      field: "LandmarksField",
+    },
+    pois: {
+      label: "Points of interest",
+      help: "Default keeps the map as it is; Custom labels only the kinds of places you check.",
+      field: "PoisField",
+    },
+    "pois.kinds": { label: "Kinds of places" },
   },
   cookie_control: {
     heading: { label: "Heading" },
