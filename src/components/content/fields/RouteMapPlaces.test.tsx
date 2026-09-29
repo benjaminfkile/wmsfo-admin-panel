@@ -12,9 +12,12 @@ import {
   makeUser,
   testConfig,
 } from "../../../test/renderWithProviders";
-import kindsJson from "../../../../contracts/kinds.json";
-import { routePreviewWithGroups } from "../../../test/routeMapGroupSchemas";
-import { MAX_LANDMARK_DESCRIPTION, MAX_LANDMARKS, type Landmark } from "../landmarks";
+import {
+  MAX_LANDMARK_DESCRIPTION,
+  MAX_LANDMARKS,
+  landmarksValue,
+  type Landmark,
+} from "../landmarks";
 import { kindsFor } from "../routePreviewPois";
 
 type Handler = (e?: unknown) => void;
@@ -74,19 +77,14 @@ vi.mock("../../../pages/places/googleMaps", () => ({
   loadPlaces: vi.fn(async () => ({})),
 }));
 
-import SchemaForm from "../SchemaForm";
+import LandmarksEditor from "./LandmarksEditor";
+import PoisEditor from "./PoisEditor";
 
 type RouteValue = {
   landmarks?: Landmark[];
   pois?: { kinds: string[] };
-} & Record<string, unknown>;
+};
 
-function routeDefaults(): RouteValue {
-  const kind = (
-    kindsJson as { kinds: Array<{ kind: string; defaults: unknown }> }
-  ).kinds.find((k) => k.kind === "route_preview");
-  return structuredClone(kind!.defaults) as RouteValue;
-}
 
 function Providers({ children }: { children: ReactNode }) {
   const client = new QueryClient({
@@ -107,16 +105,24 @@ let latest: RouteValue = {};
 
 function Controlled({ initial }: { initial: RouteValue }) {
   const [value, setValue] = useState<RouteValue>(initial);
+  const write = (next: RouteValue) => {
+    latest = next;
+    setValue(next);
+  };
   return (
-    <SchemaForm
-      schema={routePreviewWithGroups}
-      kind="route_preview"
-      formData={value}
-      onChange={(next) => {
-        latest = next as RouteValue;
-        setValue(next as RouteValue);
-      }}
-    />
+    <>
+      <LandmarksEditor
+        value={value.landmarks ?? []}
+        onChange={(next) => write({ ...value, landmarks: landmarksValue(next) })}
+        title="Landmarks"
+        help="Named spots drawn on the route map."
+      />
+      <PoisEditor
+        value={value.pois}
+        onChange={(next) => write({ ...value, pois: next })}
+        title="Points of interest"
+      />
+    </>
   );
 }
 
@@ -141,9 +147,9 @@ beforeEach(() => {
   });
 });
 
-describe("the route_preview Landmarks editor", () => {
+describe("the route map Landmarks editor", () => {
   it("places a pin by a map click, names it, and writes lat, lng, and name", async () => {
-    renderForm(routeDefaults());
+    renderForm({});
     const field = screen.getByTestId("landmarks-field");
     expect(within(field).getByText("Landmarks")).toBeInTheDocument();
     expect(within(field).getByTestId("landmarks-count")).toHaveTextContent("0 of 50");
@@ -171,7 +177,6 @@ describe("the route_preview Landmarks editor", () => {
 
   it("edits, reorders, and deletes entries", async () => {
     renderForm({
-      ...routeDefaults(),
       landmarks: [
         { name: "A", lat: 1, lng: 2 },
         { name: "B", lat: 3, lng: 4 },
@@ -202,7 +207,7 @@ describe("the route_preview Landmarks editor", () => {
       lat: 1,
       lng: 1,
     }));
-    renderForm({ ...routeDefaults(), landmarks: full });
+    renderForm({ landmarks: full });
     expect(screen.getByTestId("landmarks-count")).toHaveTextContent("50 of 50");
     expect(screen.getByRole("button", { name: /add landmark/i })).toBeDisabled();
   });
@@ -210,7 +215,7 @@ describe("the route_preview Landmarks editor", () => {
 
 describe("a landmark's icon and description", () => {
   it("picks an icon, counts the description, and writes both", async () => {
-    renderForm({ ...routeDefaults(), landmarks: [{ name: "A", lat: 1, lng: 2 }] });
+    renderForm({ landmarks: [{ name: "A", lat: 1, lng: 2 }] });
     expect(screen.queryByTestId("landmark-0-icon")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Edit A" }));
     const dialog = await screen.findByRole("dialog");
@@ -258,7 +263,6 @@ describe("a landmark's icon and description", () => {
   it("opens a stored icon and description, and clearing both removes the keys", async () => {
     const icon = { source: "media" as const, id: "m1" };
     renderForm({
-      ...routeDefaults(),
       landmarks: [
         { name: "A", lat: 1, lng: 2, icon, description: "Cocoa" },
         { name: "B", lat: 3, lng: 4 },
@@ -290,9 +294,9 @@ describe("a landmark's icon and description", () => {
   });
 });
 
-describe("the route_preview Points of interest group", () => {
+describe("the route map Points of interest editor", () => {
   it("reads absent as Default and writes absent, empty, and the union", () => {
-    renderForm(routeDefaults());
+    renderForm({});
     const field = screen.getByTestId("pois-field");
     expect(within(field).getByText("Points of interest")).toBeInTheDocument();
     expect(within(field).getByRole("radio", { name: "Default" })).toBeChecked();
@@ -316,7 +320,7 @@ describe("the route_preview Points of interest group", () => {
   });
 
   it("shows a stored list as Custom with its categories checked", () => {
-    renderForm({ ...routeDefaults(), pois: { kinds: kindsFor(["churches", "health"]) } });
+    renderForm({ pois: { kinds: kindsFor(["churches", "health"]) } });
     const field = screen.getByTestId("pois-field");
     expect(within(field).getByRole("radio", { name: "Custom" })).toBeChecked();
     expect(within(field).getByRole("checkbox", { name: "Churches" })).toBeChecked();

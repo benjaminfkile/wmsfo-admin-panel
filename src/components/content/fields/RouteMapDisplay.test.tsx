@@ -1,81 +1,25 @@
-import { beforeEach, describe, it, expect } from "vitest";
+import { describe, it, expect } from "vitest";
 import { useState } from "react";
-import type { ReactNode } from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@mui/material";
-import { MemoryRouter } from "react-router-dom";
-import { http, HttpResponse } from "msw";
-import SchemaForm from "../SchemaForm";
-import { SITE_SETTINGS } from "../labels";
+import RouteMapDisplayControls from "./RouteMapDisplayControls";
 import { buildTheme } from "../../../theme/theme";
-import { installClient } from "../../../api/client";
-import { server } from "../../../test/msw/server";
-import {
-  makeFakeUserManager,
-  makeUser,
-  testConfig,
-} from "../../../test/renderWithProviders";
-import { siteSettingsDraft } from "../../../test/msw/fixtures";
-import kindsJson from "../../../../contracts/kinds.json";
-import {
-  routePreviewWithGroups,
-  siteSettingsWithRouteMap,
-} from "../../../test/routeMapGroupSchemas";
-import { resolveDisplayKey, withDisplayKey } from "../routeMapDisplay";
+import { resolveDisplayKey, withDisplayKey, type RouteMapDisplay } from "../routeMapDisplay";
 
-type Doc = Record<string, unknown>;
-
-function Providers({ children }: { children: ReactNode }) {
-  const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: 0 } },
-  });
+function Controlled({ initial, resettable }: { initial?: RouteMapDisplay; resettable?: boolean }) {
+  const [value, setValue] = useState<RouteMapDisplay | undefined>(initial);
   return (
     <ThemeProvider theme={buildTheme("light")}>
-      <QueryClientProvider client={client}>
-        <MemoryRouter>{children}</MemoryRouter>
-      </QueryClientProvider>
+      <RouteMapDisplayControls
+        value={value}
+        onChange={setValue}
+        testId="route-map-display"
+        title="Route line and labels"
+        resettable={resettable}
+      />
+      <pre data-testid="value">{JSON.stringify(value ?? null)}</pre>
     </ThemeProvider>
   );
-}
-
-function SiteForm({ initial }: { initial: Doc }) {
-  const [value, setValue] = useState<Doc>(initial);
-  return (
-    <>
-      <SchemaForm
-        schema={siteSettingsWithRouteMap}
-        labels={SITE_SETTINGS}
-        uiSchema={{ theme: { "ui:field": "ThemeField" } }}
-        formData={value}
-        onChange={(next) => setValue(next as Doc)}
-      />
-      <pre data-testid="value">{JSON.stringify(value.routeMap ?? null)}</pre>
-    </>
-  );
-}
-
-function SectionForm({ initial }: { initial: Doc }) {
-  const [value, setValue] = useState<Doc>(initial);
-  return (
-    <>
-      <SchemaForm
-        schema={routePreviewWithGroups}
-        kind="route_preview"
-        formData={value}
-        onChange={(next) => setValue(next as Doc)}
-      />
-      <pre data-testid="value">{JSON.stringify(value.display ?? null)}</pre>
-      <pre data-testid="has-display">{String("display" in value && value.display !== undefined)}</pre>
-    </>
-  );
-}
-
-function routeDefaults(): Doc {
-  const kind = (
-    kindsJson as { kinds: Array<{ kind: string; defaults: unknown }> }
-  ).kinds.find((k) => k.kind === "route_preview");
-  return structuredClone(kind!.defaults) as Doc;
 }
 
 function written(): unknown {
@@ -86,17 +30,6 @@ function pick(name: RegExp, option: string) {
   fireEvent.mouseDown(screen.getByRole("combobox", { name }));
   const listbox = screen.getByRole("listbox");
   fireEvent.click(within(listbox).getByRole("option", { name: option }));
-}
-
-function useSitewide(routeMap: Doc | undefined) {
-  server.use(
-    http.get("*/admin/site-settings", () =>
-      HttpResponse.json({
-        ...siteSettingsDraft,
-        data: routeMap ? { ...(siteSettingsDraft.data as Doc), routeMap } : siteSettingsDraft.data,
-      })
-    )
-  );
 }
 
 describe("routeMapDisplay helpers", () => {
@@ -118,15 +51,11 @@ describe("routeMapDisplay helpers", () => {
   });
 });
 
-describe("Site settings: the Route map group", () => {
+describe("RouteMapDisplayControls", () => {
   it("shows the built-in defaults while unset and writes nothing", () => {
-    render(
-      <Providers>
-        <SiteForm initial={{ siteName: "WMSFO" }} />
-      </Providers>
-    );
-    const group = screen.getByTestId("route-map-sitewide");
-    expect(within(group).getByText("Route map")).toBeInTheDocument();
+    render(<Controlled />);
+    const group = screen.getByTestId("route-map-display");
+    expect(within(group).getByText("Route line and labels")).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: /time labels/i })).toHaveTextContent(
       "Every 15 minutes"
     );
@@ -138,11 +67,7 @@ describe("Site settings: the Route map group", () => {
   });
 
   it("writes only each picked value", () => {
-    render(
-      <Providers>
-        <SiteForm initial={{ siteName: "WMSFO" }} />
-      </Providers>
-    );
+    render(<Controlled />);
     pick(/time labels/i, "Off");
     expect(written()).toEqual({ timeLabelIntervalMinutes: 0 });
     fireEvent.click(screen.getByRole("switch", { name: "Arrows" }));
@@ -160,14 +85,7 @@ describe("Site settings: the Route map group", () => {
 
   it("shows stored values", () => {
     render(
-      <Providers>
-        <SiteForm
-          initial={{
-            siteName: "WMSFO",
-            routeMap: { timeLabelIntervalMinutes: 5, arrows: false, routeWidth: "thick" },
-          }}
-        />
-      </Providers>
+      <Controlled initial={{ timeLabelIntervalMinutes: 5, arrows: false, routeWidth: "thick" }} />
     );
     expect(screen.getByRole("combobox", { name: /time labels/i })).toHaveTextContent(
       "Every 5 minutes"
@@ -175,102 +93,15 @@ describe("Site settings: the Route map group", () => {
     expect(screen.getByRole("switch", { name: "Arrows" })).not.toBeChecked();
     expect(screen.getByRole("combobox", { name: /route line/i })).toHaveTextContent("Thick");
   });
-});
 
-describe("route_preview: the Route map display override group", () => {
-  beforeEach(() => {
-    installClient({
-      config: testConfig,
-      userManager: makeFakeUserManager(
-        makeUser({ email: "editor@example.com", "cognito:groups": ["editor"] })
-      ),
-      onMfaRequired: () => undefined,
-    });
-  });
-
-  it("shows the built-in value as the site default when the site sets nothing", async () => {
-    useSitewide(undefined);
-    render(
-      <Providers>
-        <SectionForm initial={routeDefaults()} />
-      </Providers>
-    );
-    expect(await screen.findByTestId("route-map-override")).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: /time labels/i })).toHaveTextContent(
-      "Site default (Every 15 minutes)"
-    );
-    expect(screen.getByRole("combobox", { name: /^arrows/i })).toHaveTextContent(
-      "Site default (On)"
-    );
-    expect(screen.getByRole("combobox", { name: /arrow size/i })).toHaveTextContent(
-      "Site default (Medium)"
-    );
-    expect(screen.getByRole("combobox", { name: /route line/i })).toHaveTextContent(
-      "Site default (Normal)"
-    );
-    expect(screen.queryByRole("button", { name: /^clear/i })).toBeNull();
-    expect(screen.getByTestId("has-display").textContent).toBe("false");
-  });
-
-  it("shows the sitewide value as the site default", async () => {
-    useSitewide({ arrows: false, routeWidth: "thin", timeLabelIntervalMinutes: 30 });
-    render(
-      <Providers>
-        <SectionForm initial={routeDefaults()} />
-      </Providers>
-    );
-    expect(await screen.findByText("Site default (Off)")).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: /route line/i })).toHaveTextContent(
-      "Site default (Thin)"
-    );
-    expect(screen.getByRole("combobox", { name: /time labels/i })).toHaveTextContent(
-      "Site default (Every 30 minutes)"
-    );
-    expect(screen.getByRole("combobox", { name: /arrow size/i })).toHaveTextContent(
-      "Site default (Medium)"
-    );
-    expect(screen.getByTestId("has-display").textContent).toBe("false");
-  });
-
-  it("writes a pick per key and clears each key back to inherit", async () => {
-    useSitewide({ arrows: false });
-    render(
-      <Providers>
-        <SectionForm initial={routeDefaults()} />
-      </Providers>
-    );
-    await screen.findByText("Site default (Off)");
-    pick(/^arrows/i, "On");
-    expect(written()).toEqual({ arrows: true });
-    pick(/route line/i, "Extra thick");
-    expect(written()).toEqual({ arrows: true, routeWidth: "xthick" });
-    expect(screen.getByRole("combobox", { name: /route line/i })).toHaveTextContent("Extra thick");
-
-    fireEvent.click(screen.getByRole("button", { name: "Clear Arrows" }));
-    expect(written()).toEqual({ routeWidth: "xthick" });
-    expect(screen.getByRole("combobox", { name: /^arrows/i })).toHaveTextContent(
-      "Site default (Off)"
-    );
-    expect(screen.queryByRole("button", { name: "Clear Arrows" })).toBeNull();
-
-    fireEvent.click(screen.getByRole("button", { name: "Clear Route line" }));
+  it("resets a set key to the built-in default when resettable", () => {
+    render(<Controlled initial={{ routeWidth: "thick", arrows: false }} resettable />);
+    expect(screen.queryByRole("button", { name: "Default Time labels" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Default Route line" }));
+    expect(written()).toEqual({ arrows: false });
+    expect(screen.getByRole("combobox", { name: /route line/i })).toHaveTextContent("Normal");
+    fireEvent.click(screen.getByRole("button", { name: "Default Arrows" }));
     expect(written()).toBeNull();
-    expect(screen.getByTestId("has-display").textContent).toBe("false");
-  });
-
-  it("shows a stored override with its Clear", async () => {
-    useSitewide(undefined);
-    render(
-      <Providers>
-        <SectionForm
-          initial={{ ...routeDefaults(), display: { timeLabelIntervalMinutes: 10 } }}
-        />
-      </Providers>
-    );
-    expect(await screen.findByRole("combobox", { name: /time labels/i })).toHaveTextContent(
-      "Every 10 minutes"
-    );
-    expect(screen.getByRole("button", { name: "Clear Time labels" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Clear Arrow size" })).toBeNull();
+    expect(screen.getByRole("switch", { name: "Arrows" })).toBeChecked();
   });
 });

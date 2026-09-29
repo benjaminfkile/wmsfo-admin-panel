@@ -18,11 +18,6 @@ import LinkField from "./fields/LinkField";
 import InlineField from "./fields/InlineField";
 import BlocksField from "./fields/BlocksField";
 import LinkListField from "./fields/LinkListField";
-import LandmarksField from "./fields/LandmarksField";
-import PoisField from "./fields/PoisField";
-import RouteMapDisplayField, {
-  RouteMapOverrideField,
-} from "./fields/RouteMapDisplayField";
 import PresentationPanelField from "./fields/PresentationPanelField";
 import OptionalField, { extractOptional } from "./fields/OptionalField";
 import ThemeField from "./fields/ThemeField";
@@ -105,20 +100,15 @@ function RoutedSchemaField(props: FieldProps) {
   return <DefaultSchemaField {...props} />;
 }
 
-// UiSchema-based custom fields (SiteSettings' theme object, and the
-// labels entries that name a `field`); RJSF resolves these via
-// `ui:field: "<name>"`.
+// UiSchema-based custom fields (used by SiteSettings for the theme
+// object; RJSF resolves these via `ui:field: "<name>"`).
 const FIELDS: RegistryFieldsType = {
   SchemaField: RoutedSchemaField,
   ThemeField,
-  LandmarksField,
-  PoisField,
-  RouteMapDisplayField,
-  RouteMapOverrideField,
 };
 
 // A `const` inside a `oneOf` branch is never used as a default, so an
-// optional object that is a `oneOf` of shapes (a landmark's `Icon`)
+// optional object that is a `oneOf` of shapes (an `Icon`)
 // stays absent instead of being filled with the first branch's const.
 const DEFAULT_FORM_STATE = { constAsDefaults: "skipOneOf" } as const;
 
@@ -244,8 +234,7 @@ function mergeUi(base: JsonNode, extra: JsonNode): JsonNode {
 }
 
 // Builds a uiSchema from a labels table. Adds `ui:title`,
-// `ui:description` (the entry's help), `ui:enumNames`, and `ui:field`
-// per entry,
+// `ui:description` (the entry's help), and `ui:enumNames` per entry,
 // sets `ui:order` when the kind has a field order, and hides the root
 // form's own title so the schema title (e.g. "hero section data") never
 // appears.
@@ -276,9 +265,6 @@ function buildUiSchemaFromLabels(
     if (entry.switchDefault !== undefined) {
       patch["ui:widget"] = "DefaultedSwitchWidget";
       patch["ui:options"] = { switchDefault: entry.switchDefault };
-    }
-    if (entry.field !== undefined) {
-      patch["ui:field"] = entry.field;
     }
     assignPath(out, uiPathParts(schema, path), patch);
   }

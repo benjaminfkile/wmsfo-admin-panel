@@ -13,8 +13,8 @@ import { ROUTE_MAP_DISPLAY_LABELS } from "../labels";
 import {
   ROUTE_MAP_CHOICES,
   ROUTE_MAP_DISPLAY_KEYS,
+  ROUTE_MAP_DEFAULTS,
   readDisplayKey,
-  resolveDisplayKey,
   withDisplayKey,
   type RouteMapDisplay,
   type RouteMapDisplayKey,
@@ -36,28 +36,21 @@ interface Props {
   value: unknown;
   // Reports the object with the key written, or undefined once empty.
   onChange: (next: RouteMapDisplay | undefined) => void;
-  // Sitewide: each control shows the built-in default while unset.
-  // Override: each control shows "Site default (<value>)" while unset,
-  // with the value resolved from `inherited`, and a Clear once set.
-  mode: "sitewide" | "override";
-  inherited?: unknown;
   testId: string;
   title?: string;
   help?: string;
   disabled?: boolean;
-  // Sitewide only: a set key shows a "Default" button that removes it,
-  // so the control shows the built-in default again.
+  // A set key shows a "Default" button that removes it, so the control
+  // shows the built-in default again.
   resettable?: boolean;
 }
 
 // The four route map display knobs: Time labels, Arrow size, and Route
-// line selects and Arrows (a switch in sitewide mode, a select in
-// override mode), each written only once picked.
+// line selects and an Arrows switch, each showing the built-in default
+// while unset and written only once picked.
 export default function RouteMapDisplayControls({
   value: formData,
   onChange,
-  mode,
-  inherited,
   testId,
   title = "Route map",
   help,
@@ -68,7 +61,7 @@ export default function RouteMapDisplayControls({
     onChange(withDisplayKey(formData, key, next));
   };
   const resetButton = (key: RouteMapDisplayKey, label: string, set: boolean) =>
-    resettable && mode === "sitewide" && set ? (
+    resettable && set ? (
       <Button
         size="small"
         onClick={() => write(key, undefined)}
@@ -92,11 +85,11 @@ export default function RouteMapDisplayControls({
       <Stack spacing={2} sx={{ mt: 1 }}>
         {ROUTE_MAP_DISPLAY_KEYS.map((key) => {
           const value = readDisplayKey(formData, key);
-          const effective = resolveDisplayKey([inherited], key);
+          const effective = ROUTE_MAP_DEFAULTS[key];
           const entry = ROUTE_MAP_DISPLAY_LABELS[key];
           const label = entry?.label ?? key;
           const keyTestId = `${testId}-${key}`;
-          if (mode === "sitewide" && key === "arrows") {
+          if (key === "arrows") {
             return (
               <Stack key={key} direction="row" spacing={1} alignItems="flex-start">
                 <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -120,10 +113,7 @@ export default function RouteMapDisplayControls({
               </Stack>
             );
           }
-          const unsetText =
-            mode === "override"
-              ? `Site default (${displayText(key, effective)})`
-              : displayText(key, effective);
+          const unsetText = displayText(key, effective);
           return (
             <Stack
               key={key}
@@ -156,19 +146,6 @@ export default function RouteMapDisplayControls({
                 ))}
               </TextField>
               {resetButton(key, label, value !== undefined)}
-              {mode === "override" && value !== undefined ? (
-                <Button
-                  size="small"
-                  color="error"
-                  onClick={() => write(key, undefined)}
-                  disabled={disabled}
-                  aria-label={`Clear ${label}`}
-                  data-testid={`${keyTestId}-clear`}
-                  sx={{ mt: 1 }}
-                >
-                  Clear
-                </Button>
-              ) : null}
             </Stack>
           );
         })}

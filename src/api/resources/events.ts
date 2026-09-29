@@ -41,6 +41,7 @@ export type CloneEventBody = {
     sponsors: boolean;
     route: boolean;
     poster: boolean;
+    routeMapConfig: boolean;
   };
 };
 

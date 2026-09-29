@@ -1,6 +1,6 @@
-// The Points of interest choice of the route_preview form (admin.md
-// 6.14). Each category is one human label over a set of basemap POI
-// kinds; the section stores the union of the checked categories as
+// The Points of interest choice of an event's route map (admin.md 6.3).
+// Each category is one human label over a set of basemap POI kinds; the
+// event's `routeMapConfig` stores the union of the checked categories as
 // `pois.kinds`, and the site's route map labels only those kinds.
 //
 // The kinds are the `kind` values the basemap tiles carry on the `pois`

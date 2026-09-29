@@ -22,10 +22,6 @@ import routePreview from "../../../contracts/schema/sections/route_preview.schem
 import sponsorCarousel from "../../../contracts/schema/sections/sponsor_carousel.schema.json";
 import sponsorGrid from "../../../contracts/schema/sections/sponsor_grid.schema.json";
 import siteSettings from "../../../contracts/schema/site-settings.schema.json";
-import {
-  routePreviewWithGroups,
-  siteSettingsWithRouteMap,
-} from "../../test/routeMapGroupSchemas";
 import primitives from "../../../contracts/schema/primitives.schema.json";
 import {
   CARD_OPACITY_LABELS,
@@ -171,16 +167,22 @@ describe("labels.ts: the map overlays include the online count", () => {
   });
 });
 
-describe("labels.ts: the route_preview map buttons", () => {
-  it("labels both switches and defaults them to on", () => {
-    const paths = collectFieldPaths(routePreviewWithGroups);
-    expect(paths).toContain("controls.fullscreen");
-    expect(paths).toContain("controls.terrain");
-    const labels = labelsFor("route_preview", false);
-    expect(labels["controls.fullscreen"]?.label).toBe("Fullscreen button");
-    expect(labels["controls.terrain"]?.label).toBe("Terrain toggle");
-    expect(labels["controls.fullscreen"]?.switchDefault).toBe(true);
-    expect(labels["controls.terrain"]?.switchDefault).toBe(true);
+describe("labels.ts: route map settings live on the event only", () => {
+  it("gives route_preview only heading, style, disclaimer, and emptyText", () => {
+    expect(Object.keys(labelsFor("route_preview", false))).toEqual([
+      "heading",
+      "style",
+      "disclaimer",
+      "emptyText",
+    ]);
+  });
+
+  it("gives site settings no Route map group", () => {
+    expect(collectFieldPaths(siteSettings as Sch)).not.toContain("routeMap");
+    const table = siteSettingsLabels();
+    expect(Object.keys(table).filter((k) => k === "routeMap" || k.startsWith("routeMap."))).toEqual(
+      []
+    );
   });
 });
 
@@ -192,24 +194,6 @@ describe("labels.ts: the route map display knobs", () => {
 
   it("names the four knobs of RouteMapConfig display", () => {
     expect(fields).toEqual(["timeLabelIntervalMinutes", "arrows", "arrowSize", "routeWidth"]);
-  });
-
-  it("labels the sitewide routeMap group and every knob under it", () => {
-    expect(collectFieldPaths(siteSettingsWithRouteMap)).toContain("routeMap");
-    const table = siteSettingsLabels();
-    expect(table.routeMap?.label).toBe("Route map");
-    expect(table.routeMap?.field).toBe("RouteMapDisplayField");
-    const missing = fields.filter((f) => !(`routeMap.${f}` in table));
-    expect(missing, `missing site settings labels: ${missing.join(", ")}`).toEqual([]);
-  });
-
-  it("labels the route_preview display group and every knob under it", () => {
-    expect(collectFieldPaths(routePreviewWithGroups)).toContain("display");
-    const table = labelsFor("route_preview", false);
-    expect(table.display?.label).toBe("Route map display");
-    expect(table.display?.field).toBe("RouteMapOverrideField");
-    const missing = fields.filter((f) => !(`display.${f}` in table));
-    expect(missing, `missing route_preview labels: ${missing.join(", ")}`).toEqual([]);
   });
 
   it("gives each knob a label, one line of help, and a name for every value", () => {

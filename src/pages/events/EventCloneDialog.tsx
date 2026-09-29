@@ -48,6 +48,7 @@ export default function EventCloneDialog({
   const [sponsors, setSponsors] = useState(true);
   const [route, setRoute] = useState(true);
   const [poster, setPoster] = useState(true);
+  const [routeMapConfig, setRouteMapConfig] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -59,6 +60,7 @@ export default function EventCloneDialog({
     setSponsors(true);
     setRoute(true);
     setPoster(true);
+    setRouteMapConfig(true);
     setErrors({});
   }, [open, source]);
 
@@ -85,7 +87,7 @@ export default function EventCloneDialog({
       body: {
         year: y,
         name: trimmedName,
-        copy: { sponsors, route, poster },
+        copy: { sponsors, route, poster, routeMapConfig },
       },
     };
   };
@@ -156,6 +158,15 @@ export default function EventCloneDialog({
                 />
               }
               label="Route poster"
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={routeMapConfig}
+                  onChange={(_, v) => setRouteMapConfig(v)}
+                />
+              }
+              label="Route map settings"
             />
           </FormGroup>
         </Stack>

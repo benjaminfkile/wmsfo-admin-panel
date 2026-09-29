@@ -42,6 +42,7 @@ import {
 } from "../../routeMap/eventRouteMap";
 import { probeTerrain, toRouteMapData } from "../../routeMap/poster";
 import EventRouteMapPreview from "./EventRouteMapPreview";
+import RouteMapCopyFrom from "./RouteMapCopyFrom";
 
 interface Props {
   event: Event;
@@ -55,10 +56,12 @@ const NO_BASEMAP_HINT =
   "The route map preview needs VITE_ROUTE_BASEMAP_URL, which is not set.";
 
 // Configures the event's route map: a live preview of this event's route
-// beside four groups of controls (Display, Controls, Landmarks, Points of
-// interest). Full screen on phones and nearly the whole window on
-// desktop. The dialog edits a draft of `routeMapConfig`; every change
-// rebuilds the preview's style through `eventRouteMapStyle`. Save sends
+// beside "Copy from another event" and four groups of controls (Display,
+// Controls, Landmarks, Points of interest). Full screen on phones and
+// nearly the whole window on desktop. The dialog edits a draft of
+// `routeMapConfig`; every change rebuilds the preview's style through
+// `eventRouteMapStyle`. Copying replaces the whole draft with the picked
+// event's config and writes nothing until Save. Save sends
 // `PATCH { routeMapConfig }` (null when no group is set); Cancel drops the
 // draft; Clear all, after a confirm, sends `routeMapConfig: null`. With no
 // linked recording, no path, or no basemap URL the preview area holds only
@@ -211,11 +214,13 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
             data-testid="route-map-config-controls"
           >
             {saveMut.error ? <ErrorAlert error={saveMut.error} /> : null}
+            <Group title="Copy from another event">
+              <RouteMapCopyFrom eventId={id} disabled={busy} onPick={setDraft} />
+            </Group>
             <Group title="Display">
               <RouteMapDisplayControls
                 value={draft.display}
                 onChange={(next) => set("display", next)}
-                mode="sitewide"
                 resettable
                 testId="route-map-display"
                 title="Route line and labels"

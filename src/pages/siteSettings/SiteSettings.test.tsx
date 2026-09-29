@@ -436,6 +436,19 @@ describe("SiteSettings", () => {
     expect(text).not.toContain("contracts");
   });
 
+  it("carries no Route map group", async () => {
+    const { container } = render(<Harness />);
+    await waitFor(() =>
+      expect(container.textContent ?? "").toContain("Donate page address")
+    );
+    const text = container.textContent ?? "";
+    for (const gone of ["Route map", "Time labels", "Arrow size", "Route line"]) {
+      expect(text).not.toContain(gone);
+    }
+    expect(screen.queryByTestId("route-map-sitewide")).toBeNull();
+    expect(screen.queryByRole("switch", { name: "Arrows" })).toBeNull();
+  });
+
   it("the card opacity pair writes, clamps on blur, and clears its keys", async () => {
     const user = userEvent.setup();
     const captured: Array<{ body: unknown }> = [];

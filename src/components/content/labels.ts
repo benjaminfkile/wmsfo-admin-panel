@@ -24,13 +24,6 @@ export interface FieldLabel {
   // Changes to the field while another top-level field of the same form
   // is unset (absent or null) or on (true).
   when?: FieldCondition;
-  // The name of a custom field `SchemaForm` renders the value with
-  // instead of the generated one.
-  field?:
-    | "LandmarksField"
-    | "PoisField"
-    | "RouteMapDisplayField"
-    | "RouteMapOverrideField";
 }
 
 export interface FieldCondition {
@@ -54,11 +47,10 @@ const THEME_OPTIONS: Record<string, string> = {
   nebula: "Nebula",
 };
 
-// The four route map display knobs (`RouteMapDisplay` in
-// primitives.schema.json), keyed by field name. The site settings
-// `routeMap` block and the route_preview `display` object both carry
-// them; `RouteMapDisplayField` (sitewide) and `RouteMapOverrideField`
-// (per section) draw each group from these entries.
+// The four route map display knobs (`display` of RouteMapConfig in
+// primitives.schema.json), keyed by field name. The event Route map
+// dialog's `RouteMapDisplayControls` draws each control from these
+// entries.
 // `options` keys are the stored values as text.
 export const ROUTE_MAP_DISPLAY_LABELS: FieldLabels = {
   timeLabelIntervalMinutes: {
@@ -98,16 +90,6 @@ export const ROUTE_MAP_DISPLAY_LABELS: FieldLabels = {
     },
   },
 };
-
-// The route map display entries under `prefix.`, for a form's table.
-function routeMapDisplayEntries(prefix: string): FieldLabels {
-  return Object.fromEntries(
-    Object.entries(ROUTE_MAP_DISPLAY_LABELS).map(([key, entry]) => [
-      `${prefix}.${key}`,
-      entry,
-    ])
-  );
-}
 
 const SECTION: Record<string, FieldLabels> = {
   rich_text: {
@@ -366,37 +348,6 @@ const SECTION: Record<string, FieldLabels> = {
       label: "Text shown when there is no route yet",
       help: "Shown to visitors before this year's route is set.",
     },
-    controls: {
-      label: "Map buttons",
-      help: "The buttons on the route map when the style is Map.",
-    },
-    "controls.fullscreen": {
-      label: "Fullscreen button",
-      help: "Lets visitors open the route map full screen.",
-      switchDefault: true,
-    },
-    "controls.terrain": {
-      label: "Terrain toggle",
-      help: "Lets visitors shade the hills under the route.",
-      switchDefault: true,
-    },
-    landmarks: {
-      label: "Landmarks",
-      help: "Named spots drawn on the route map when the style is Map.",
-      field: "LandmarksField",
-    },
-    pois: {
-      label: "Points of interest",
-      help: "Default keeps the map as it is; Custom labels only the kinds of places you check.",
-      field: "PoisField",
-    },
-    "pois.kinds": { label: "Kinds of places" },
-    display: {
-      label: "Route map display",
-      help: "Changes the sitewide route map settings for this section when the style is Map.",
-      field: "RouteMapOverrideField",
-    },
-    ...routeMapDisplayEntries("display"),
   },
   cookie_control: {
     heading: { label: "Heading" },
@@ -521,12 +472,6 @@ export const SITE_SETTINGS: FieldLabels = {
       hint: "Set a site logo first",
     },
   },
-  routeMap: {
-    label: "Route map",
-    help: "How every route map section draws the route; a section can change each one.",
-    field: "RouteMapDisplayField",
-  },
-  ...routeMapDisplayEntries("routeMap"),
 };
 
 // The card opacity pair of a section's `Presentation`; the site

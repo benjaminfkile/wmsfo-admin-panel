@@ -1,9 +1,7 @@
-// The route map display knobs (`RouteMapDisplay` in
-// primitives.schema.json): set sitewide in the site settings `routeMap`
-// block and per section in the route_preview `display` object. Every key
-// is optional at both levels; the site resolves each key on its own, the
-// section's value first, then the sitewide value, then the built-in
-// default below.
+// The route map display knobs (`display` of RouteMapConfig in
+// primitives.schema.json), set per event in its `routeMapConfig`. Every
+// key is optional; the site resolves each key on its own, the stored
+// value first, then the built-in default below.
 export type RouteMapDisplayKey =
   | "timeLabelIntervalMinutes"
   | "arrows"
@@ -21,7 +19,7 @@ export const ROUTE_MAP_DISPLAY_KEYS: RouteMapDisplayKey[] = [
   "routeWidth",
 ];
 
-// The values the site uses where neither level sets a key.
+// The values the site uses where no level sets a key.
 export const ROUTE_MAP_DEFAULTS: Record<RouteMapDisplayKey, RouteMapDisplayValue> = {
   timeLabelIntervalMinutes: 15,
   arrows: true,
