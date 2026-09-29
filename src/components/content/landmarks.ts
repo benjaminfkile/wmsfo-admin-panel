@@ -1,10 +1,16 @@
 // The landmarks list of the route_preview form (admin.md 6.14): named
-// points the site's route map draws as a dot with the name beside it.
+// points the site's route map draws as a dot with the name beside it,
+// each with an optional icon and a short description the site opens
+// when a visitor taps the landmark.
+
+import type { Icon } from "../../api/types";
 
 export interface Landmark {
   name: string;
   lat: number;
   lng: number;
+  icon?: Icon;
+  description?: string;
 }
 
 // The schema's `maxItems` for `landmarks`.
@@ -17,23 +23,53 @@ export const DEFAULT_LANDMARK_CENTER = { lat: 46.87, lng: -114 };
 // Longest name the schema allows.
 export const MAX_LANDMARK_NAME = 80;
 
+// Longest description the schema allows.
+export const MAX_LANDMARK_DESCRIPTION = 300;
+
 // Five decimals is about a metre, finer than a click on the map.
 export function roundCoord(n: number): number {
   return Math.round(n * 100000) / 100000;
 }
 
+function isIcon(value: unknown): value is Icon {
+  if (value === null || typeof value !== "object") return false;
+  const { source, id } = value as Record<string, unknown>;
+  return (source === "library" || source === "media") && typeof id === "string";
+}
+
+// One entry with the optional keys present only when set: the icon when
+// given, the description trimmed and cut to the schema's cap when it
+// has any text left.
+export function makeLandmark(
+  base: { name: string; lat: number; lng: number },
+  icon?: Icon | null,
+  description?: string | null
+): Landmark {
+  const entry: Landmark = { name: base.name, lat: base.lat, lng: base.lng };
+  if (icon) entry.icon = icon;
+  const text = (description ?? "").trim().slice(0, MAX_LANDMARK_DESCRIPTION);
+  if (text.length > 0) entry.description = text;
+  return entry;
+}
+
 // The landmarks of a stored value; entries that are not the stored shape
-// are dropped.
+// are dropped, and an icon or description of another shape is left off
+// its entry.
 export function toLandmarks(value: unknown): Landmark[] {
   if (!Array.isArray(value)) return [];
   const out: Landmark[] = [];
   for (const v of value) {
     if (v === null || typeof v !== "object") continue;
-    const { name, lat, lng } = v as Record<string, unknown>;
+    const { name, lat, lng, icon, description } = v as Record<string, unknown>;
     if (typeof name !== "string" || typeof lat !== "number" || typeof lng !== "number") {
       continue;
     }
-    out.push({ name, lat, lng });
+    const entry: Landmark = { name, lat, lng };
+    if (isIcon(icon)) entry.icon = icon;
+    if (typeof description === "string" && description.length > 0) {
+      entry.description = description;
+    }
+    out.push(entry);
   }
   return out;
 }

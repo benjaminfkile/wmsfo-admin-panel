@@ -6,10 +6,15 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { ConfigProvider } from "../../../ConfigContext";
 import { buildTheme } from "../../../theme/theme";
-import { testConfig } from "../../../test/renderWithProviders";
+import { installClient } from "../../../api/client";
+import {
+  makeFakeUserManager,
+  makeUser,
+  testConfig,
+} from "../../../test/renderWithProviders";
 import kindsJson from "../../../../contracts/kinds.json";
 import routePreview from "../../../../contracts/schema/sections/route_preview.schema.json";
-import { MAX_LANDMARKS, type Landmark } from "../landmarks";
+import { MAX_LANDMARK_DESCRIPTION, MAX_LANDMARKS, type Landmark } from "../landmarks";
 import { kindsFor } from "../routePreviewPois";
 
 type Handler = (e?: unknown) => void;
@@ -127,6 +132,13 @@ function renderForm(initial: RouteValue) {
 beforeEach(() => {
   clickMap = null;
   lastMarker = null;
+  installClient({
+    config: testConfig,
+    userManager: makeFakeUserManager(
+      makeUser({ email: "admin@example.com", "cognito:groups": ["admin"] })
+    ),
+    onMfaRequired: () => undefined,
+  });
 });
 
 describe("the route_preview Landmarks editor", () => {
@@ -193,6 +205,88 @@ describe("the route_preview Landmarks editor", () => {
     renderForm({ ...routeDefaults(), landmarks: full });
     expect(screen.getByTestId("landmarks-count")).toHaveTextContent("50 of 50");
     expect(screen.getByRole("button", { name: /add landmark/i })).toBeDisabled();
+  });
+});
+
+describe("a landmark's icon and description", () => {
+  it("picks an icon, counts the description, and writes both", async () => {
+    renderForm({ ...routeDefaults(), landmarks: [{ name: "A", lat: 1, lng: 2 }] });
+    expect(screen.queryByTestId("landmark-0-icon")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Edit A" }));
+    const dialog = await screen.findByRole("dialog");
+    const iconControl = within(dialog).getByTestId("landmark-icon");
+    expect(within(iconControl).getByText("None")).toBeInTheDocument();
+    fireEvent.click(within(iconControl).getByRole("button", { name: "Choose" }));
+    const picker = await screen.findByRole("dialog", { name: "Choose icon" });
+    fireEvent.click(await within(picker).findByTestId("icon-tile-cookie"));
+    fireEvent.click(within(picker).getByRole("button", { name: "Choose" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Choose icon" })).toBeNull()
+    );
+    expect(within(iconControl).getByRole("button", { name: "Clear" })).toBeInTheDocument();
+
+    const count = within(dialog).getByTestId("landmark-description-count");
+    expect(count).toHaveTextContent(`0 / ${MAX_LANDMARK_DESCRIPTION}`);
+    expect(
+      within(dialog).getByText("The site shows this when a visitor taps the landmark.")
+    ).toBeInTheDocument();
+    const description = within(dialog).getByLabelText("Description");
+    fireEvent.change(description, { target: { value: "Cocoa by the fountain" } });
+    expect(count).toHaveTextContent(`21 / ${MAX_LANDMARK_DESCRIPTION}`);
+    fireEvent.change(description, { target: { value: "y".repeat(400) } });
+    expect(description).toHaveValue("y".repeat(MAX_LANDMARK_DESCRIPTION));
+    expect(count).toHaveTextContent(
+      `${MAX_LANDMARK_DESCRIPTION} / ${MAX_LANDMARK_DESCRIPTION}`
+    );
+    fireEvent.change(description, { target: { value: " Cocoa by the fountain " } });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(latest.landmarks).toEqual([
+      {
+        name: "A",
+        lat: 1,
+        lng: 2,
+        icon: { source: "library", id: "cookie" },
+        description: "Cocoa by the fountain",
+      },
+    ]);
+    const preview = screen.getByTestId("landmark-0-icon");
+    expect(await within(preview).findByTestId("icon-preview-image")).toBeInTheDocument();
+  });
+
+  it("opens a stored icon and description, and clearing both removes the keys", async () => {
+    const icon = { source: "media" as const, id: "m1" };
+    renderForm({
+      ...routeDefaults(),
+      landmarks: [
+        { name: "A", lat: 1, lng: 2, icon, description: "Cocoa" },
+        { name: "B", lat: 3, lng: 4 },
+      ],
+    });
+    expect(screen.getByTestId("landmark-0-icon")).toBeInTheDocument();
+    expect(screen.queryByTestId("landmark-1-icon")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Move B up" }));
+    expect(latest.landmarks).toEqual([
+      { name: "B", lat: 3, lng: 4 },
+      { name: "A", lat: 1, lng: 2, icon, description: "Cocoa" },
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "Edit A" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByLabelText("Description")).toHaveValue("Cocoa");
+    const iconControl = within(dialog).getByTestId("landmark-icon");
+    fireEvent.click(within(iconControl).getByRole("button", { name: "Clear" }));
+    expect(within(iconControl).getByText("None")).toBeInTheDocument();
+    fireEvent.change(within(dialog).getByLabelText("Description"), {
+      target: { value: "" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(JSON.parse(JSON.stringify(latest.landmarks))).toEqual([
+      { name: "B", lat: 3, lng: 4 },
+      { name: "A", lat: 1, lng: 2 },
+    ]);
+    expect(screen.queryByTestId("landmark-1-icon")).toBeNull();
   });
 });
 
