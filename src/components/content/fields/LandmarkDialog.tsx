@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  Box,
   Button,
   DialogActions,
   DialogContent,
@@ -9,8 +10,16 @@ import {
   Typography,
 } from "@mui/material";
 import AppDialog from "../../AppDialog";
+import IconControl from "../blocks/IconControl";
 import LandmarkPicker, { type LatLng } from "./LandmarkPicker";
-import { MAX_LANDMARK_NAME, roundCoord, type Landmark } from "../landmarks";
+import {
+  MAX_LANDMARK_DESCRIPTION,
+  MAX_LANDMARK_NAME,
+  makeLandmark,
+  roundCoord,
+  type Landmark,
+} from "../landmarks";
+import type { Icon } from "../../../api/types";
 
 interface Props {
   // The entry being edited, or null to add one.
@@ -30,13 +39,17 @@ function parseCoord(text: string, limit: number): number | null {
 
 // Adds or edits one landmark: a map where a click places the pin, the
 // Latitude and Longitude fields the pin fills (and that move it when
-// typed into), and the Name. Save is enabled once there is a name and a
-// pin, and writes the name trimmed with the point rounded to five
-// decimals.
+// typed into), the Name, the optional Icon (the shared icon picker,
+// clearable), and the optional Description with its live count. Save is
+// enabled once there is a name and a pin, and writes the name trimmed
+// with the point rounded to five decimals; the icon and the trimmed
+// description are written only when set.
 export default function LandmarkDialog({ initial, center, onCancel, onSave }: Props) {
   const [name, setName] = useState(initial?.name ?? "");
   const [latText, setLatText] = useState(initial ? String(initial.lat) : "");
   const [lngText, setLngText] = useState(initial ? String(initial.lng) : "");
+  const [icon, setIcon] = useState<Icon | null>(initial?.icon ?? null);
+  const [description, setDescription] = useState(initial?.description ?? "");
 
   const lat = parseCoord(latText, 90);
   const lng = parseCoord(lngText, 180);
@@ -87,6 +100,33 @@ export default function LandmarkDialog({ initial, center, onCancel, onSave }: Pr
             autoFocus
             fullWidth
           />
+          <IconControl
+            label="Icon"
+            value={icon}
+            onChange={setIcon}
+            testId="landmark-icon"
+          />
+          <TextField
+            label="Description"
+            value={description}
+            onChange={(e) =>
+              setDescription(e.target.value.slice(0, MAX_LANDMARK_DESCRIPTION))
+            }
+            helperText={
+              <Box
+                component="span"
+                sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}
+              >
+                <span>The site shows this when a visitor taps the landmark.</span>
+                <span data-testid="landmark-description-count">
+                  {description.length} / {MAX_LANDMARK_DESCRIPTION}
+                </span>
+              </Box>
+            }
+            multiline
+            minRows={2}
+            fullWidth
+          />
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -96,7 +136,13 @@ export default function LandmarkDialog({ initial, center, onCancel, onSave }: Pr
           disabled={!canSave}
           onClick={() => {
             if (!pin) return;
-            onSave({ name: trimmed, lat: roundCoord(pin.lat), lng: roundCoord(pin.lng) });
+            onSave(
+              makeLandmark(
+                { name: trimmed, lat: roundCoord(pin.lat), lng: roundCoord(pin.lng) },
+                icon,
+                description
+              )
+            );
           }}
         >
           Save

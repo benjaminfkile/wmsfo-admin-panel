@@ -14,6 +14,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import type { FieldProps } from "@rjsf/utils";
+import IconPreview from "../IconPreview";
 import LandmarkDialog from "./LandmarkDialog";
 import type { LatLng } from "./LandmarkPicker";
 import {
@@ -39,7 +40,8 @@ function formatPoint({ lat, lng }: Landmark): string {
 }
 
 // The route_preview `landmarks` list: one row per entry with its name and
-// point, up and down, edit, and delete; "Add landmark" opens the pin
+// point (after a small preview of its icon when one is set), up and
+// down, edit, and delete; "Add landmark" opens the pin
 // picker dialog. The count shows against the cap and Add is disabled at
 // it. An empty list removes the key.
 export default function LandmarksField(props: FieldProps) {
@@ -75,6 +77,11 @@ export default function LandmarksField(props: FieldProps) {
             data-testid={`landmark-${i}`}
           >
             <Stack direction="row" spacing={1} alignItems="center">
+              {entry.icon ? (
+                <Box data-testid={`landmark-${i}-icon`} sx={{ display: "flex" }}>
+                  <IconPreview icon={entry.icon} size={24} />
+                </Box>
+              ) : null}
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography variant="body2" noWrap>
                   {entry.name}
