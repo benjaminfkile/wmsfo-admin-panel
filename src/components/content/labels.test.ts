@@ -23,7 +23,12 @@ import sponsorCarousel from "../../../contracts/schema/sections/sponsor_carousel
 import sponsorGrid from "../../../contracts/schema/sections/sponsor_grid.schema.json";
 import siteSettings from "../../../contracts/schema/site-settings.schema.json";
 import primitives from "../../../contracts/schema/primitives.schema.json";
-import { CARD_OPACITY_LABELS, labelsFor, siteSettingsLabels } from "./labels";
+import {
+  CARD_OPACITY_LABELS,
+  ROUTE_MAP_DISPLAY_LABELS,
+  labelsFor,
+  siteSettingsLabels,
+} from "./labels";
 
 type Sch = Record<string, unknown>;
 
@@ -172,5 +177,61 @@ describe("labels.ts: the route_preview map buttons", () => {
     expect(labels["controls.terrain"]?.label).toBe("Terrain toggle");
     expect(labels["controls.fullscreen"]?.switchDefault).toBe(true);
     expect(labels["controls.terrain"]?.switchDefault).toBe(true);
+  });
+});
+
+describe("labels.ts: the route map display knobs", () => {
+  const defs = (primitives as { $defs: Record<string, Sch> }).$defs;
+  const fields = collectFieldPaths(defs.RouteMapDisplay as Sch);
+
+  it("names the four knobs of RouteMapDisplay", () => {
+    expect(fields).toEqual(["timeLabelIntervalMinutes", "arrows", "arrowSize", "routeWidth"]);
+  });
+
+  it("labels the sitewide routeMap group and every knob under it", () => {
+    expect(collectFieldPaths(siteSettings as Sch)).toContain("routeMap");
+    const table = siteSettingsLabels();
+    expect(table.routeMap?.label).toBe("Route map");
+    expect(table.routeMap?.field).toBe("RouteMapDisplayField");
+    const missing = fields.filter((f) => !(`routeMap.${f}` in table));
+    expect(missing, `missing site settings labels: ${missing.join(", ")}`).toEqual([]);
+  });
+
+  it("labels the route_preview display group and every knob under it", () => {
+    expect(collectFieldPaths(routePreview as Sch)).toContain("display");
+    const table = labelsFor("route_preview", false);
+    expect(table.display?.label).toBe("Route map display");
+    expect(table.display?.field).toBe("RouteMapOverrideField");
+    const missing = fields.filter((f) => !(`display.${f}` in table));
+    expect(missing, `missing route_preview labels: ${missing.join(", ")}`).toEqual([]);
+  });
+
+  it("gives each knob a label, one line of help, and a name for every value", () => {
+    const enums: Record<string, unknown[]> = {
+      timeLabelIntervalMinutes: [0, 5, 10, 15, 30],
+      arrows: [true, false],
+      arrowSize: ["small", "medium", "large", "xlarge"],
+      routeWidth: ["thin", "normal", "thick", "xthick"],
+    };
+    for (const f of fields) {
+      const entry = ROUTE_MAP_DISPLAY_LABELS[f];
+      expect(entry?.label).toBeTruthy();
+      expect(entry?.help).toMatch(/^[^\n]+\.$/);
+      const schemaEnum = (defs.RouteMapDisplay as { properties: Record<string, { enum?: unknown[] }> })
+        .properties[f]?.enum;
+      if (schemaEnum) expect(schemaEnum).toEqual(enums[f]);
+      for (const v of enums[f] ?? []) {
+        expect(entry?.options?.[String(v)], `${f} ${String(v)}`).toBeTruthy();
+      }
+    }
+    expect(Object.values(ROUTE_MAP_DISPLAY_LABELS).map((e) => e.label)).toEqual([
+      "Time labels",
+      "Arrows",
+      "Arrow size",
+      "Route line",
+    ]);
+    expect(ROUTE_MAP_DISPLAY_LABELS.timeLabelIntervalMinutes?.options?.["0"]).toBe("Off");
+    expect(ROUTE_MAP_DISPLAY_LABELS.arrowSize?.options?.xlarge).toBe("Extra large");
+    expect(ROUTE_MAP_DISPLAY_LABELS.routeWidth?.options?.xthick).toBe("Extra thick");
   });
 });

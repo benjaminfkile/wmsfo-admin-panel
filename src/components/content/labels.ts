@@ -26,7 +26,11 @@ export interface FieldLabel {
   when?: FieldCondition;
   // The name of a custom field `SchemaForm` renders the value with
   // instead of the generated one.
-  field?: "LandmarksField" | "PoisField";
+  field?:
+    | "LandmarksField"
+    | "PoisField"
+    | "RouteMapDisplayField"
+    | "RouteMapOverrideField";
 }
 
 export interface FieldCondition {
@@ -49,6 +53,61 @@ const THEME_OPTIONS: Record<string, string> = {
   night: "Night",
   nebula: "Nebula",
 };
+
+// The four route map display knobs (`RouteMapDisplay` in
+// primitives.schema.json), keyed by field name. The site settings
+// `routeMap` block and the route_preview `display` object both carry
+// them; `RouteMapDisplayField` (sitewide) and `RouteMapOverrideField`
+// (per section) draw each group from these entries.
+// `options` keys are the stored values as text.
+export const ROUTE_MAP_DISPLAY_LABELS: FieldLabels = {
+  timeLabelIntervalMinutes: {
+    label: "Time labels",
+    help: "How often the route shows the time along the line.",
+    options: {
+      "0": "Off",
+      "5": "Every 5 minutes",
+      "10": "Every 10 minutes",
+      "15": "Every 15 minutes",
+      "30": "Every 30 minutes",
+    },
+  },
+  arrows: {
+    label: "Arrows",
+    help: "Arrowheads along the route that show which way it goes.",
+    options: { true: "On", false: "Off" },
+  },
+  arrowSize: {
+    label: "Arrow size",
+    help: "How big the arrowheads are while arrows are on.",
+    options: {
+      small: "Small",
+      medium: "Medium",
+      large: "Large",
+      xlarge: "Extra large",
+    },
+  },
+  routeWidth: {
+    label: "Route line",
+    help: "How thick the route line is drawn.",
+    options: {
+      thin: "Thin",
+      normal: "Normal",
+      thick: "Thick",
+      xthick: "Extra thick",
+    },
+  },
+};
+
+// The route map display entries under `prefix.`, for a form's table.
+function routeMapDisplayEntries(prefix: string): FieldLabels {
+  return Object.fromEntries(
+    Object.entries(ROUTE_MAP_DISPLAY_LABELS).map(([key, entry]) => [
+      `${prefix}.${key}`,
+      entry,
+    ])
+  );
+}
 
 const SECTION: Record<string, FieldLabels> = {
   rich_text: {
@@ -332,6 +391,12 @@ const SECTION: Record<string, FieldLabels> = {
       field: "PoisField",
     },
     "pois.kinds": { label: "Kinds of places" },
+    display: {
+      label: "Route map display",
+      help: "Changes the sitewide route map settings for this section when the style is Map.",
+      field: "RouteMapOverrideField",
+    },
+    ...routeMapDisplayEntries("display"),
   },
   cookie_control: {
     heading: { label: "Heading" },
@@ -456,6 +521,12 @@ export const SITE_SETTINGS: FieldLabels = {
       hint: "Set a site logo first",
     },
   },
+  routeMap: {
+    label: "Route map",
+    help: "How every route map section draws the route; a section can change each one.",
+    field: "RouteMapDisplayField",
+  },
+  ...routeMapDisplayEntries("routeMap"),
 };
 
 // The card opacity pair of a section's `Presentation`; the site

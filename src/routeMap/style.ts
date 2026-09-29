@@ -21,6 +21,9 @@
 //    ROUTE_ARROW_ICON, the style only names it. `arrowScale` (default 1,
 //    values at or under 0 read as 1) multiplies both the icon size and
 //    the spacing, so larger arrowheads sit further apart.
+//  - `routeWidthScale` (default 1, values at or under 0 read as 1)
+//    multiplies the route line's width at every zoom stop. The line has
+//    no casing, so nothing else reads it.
 //  - `timeLabels` adds, for each entry, a dot slightly larger than the
 //    marks at its point and its ready made `label` beside it, in Noto Sans
 //    Medium larger than the basemap's town labels, with a strong halo in
@@ -47,7 +50,11 @@
 //    (`route-landmarks`) in Noto Sans Medium smaller than the time labels,
 //    with the same halo pair. Both are drawn at every zoom. MapLibre's
 //    collision handling places the labels; the time label layers sit
-//    above them, so a time label wins a collision with a landmark.
+//    above them, so a time label wins a collision with a landmark. A
+//    landmark with `badge` set has no dot (the map owner stands its own
+//    marker there) and its label sits LANDMARK_BADGE_OFFSET ems out, clear
+//    of that marker. Without a `badge` landmark both layers are exactly
+//    as above.
 
 import { layers } from "@protomaps/basemaps";
 import type {
@@ -83,12 +90,13 @@ export const LANDMARKS_LAYER = "route-landmarks";
 export const ROUTE_ARROW_ICON = "route-arrow";
 
 export type TimeLabel = { lat: number; lng: number; label: string };
-export type Landmark = { lat: number; lng: number; label: string };
+export type Landmark = { lat: number; lng: number; label: string; badge?: boolean };
 
 export type StyleOptions = {
   routeColor?: string;
   arrows?: boolean;
   arrowScale?: number;
+  routeWidthScale?: number;
   timeLabels?: readonly TimeLabel[];
   details?: StyleDetails;
   poiKinds?: readonly string[];
@@ -175,6 +183,16 @@ const ARROW_OUTLINE: readonly (readonly [number, number])[] = [
 // an arrow scale of 1.
 const ARROW_SPACING = 140;
 const ARROW_ICON_SIZE = 1;
+
+// The route line width in pixels at zoom 8 and zoom 14, at a route width
+// scale of 1.
+const ROUTE_WIDTH_Z8 = 3;
+const ROUTE_WIDTH_Z14 = 5;
+
+// The landmark label's offset in ems: beside the dot, and beside the owner's
+// marker (a badge about 28 px across) for a `badge` landmark.
+const LANDMARK_OFFSET = 0.5;
+const LANDMARK_BADGE_OFFSET = 1.3;
 
 export type RouteArrowImage = {
   data: { width: number; height: number; data: Uint8ClampedArray };
@@ -319,6 +337,11 @@ export function buildStyle(
   const landmarks = options.landmarks ?? [];
   const arrowScale =
     options.arrowScale !== undefined && options.arrowScale > 0 ? options.arrowScale : 1;
+  const routeWidthScale =
+    options.routeWidthScale !== undefined && options.routeWidthScale > 0
+      ? options.routeWidthScale
+      : 1;
+  const badges = landmarks.some((landmark) => landmark.badge === true);
   const coordinates = path.map((p) => [p.lng, p.lat]);
   const ends = path.length === 0
     ? []
@@ -395,9 +418,9 @@ export function buildStyle(
               type: "geojson" as const,
               data: {
                 type: "FeatureCollection" as const,
-                features: landmarks.map(({ lat, lng, label }) => ({
+                features: landmarks.map(({ lat, lng, label, badge }) => ({
                   type: "Feature" as const,
-                  properties: { label },
+                  properties: badge === true ? { label, badge: true } : { label },
                   geometry: { type: "Point" as const, coordinates: [lng, lat] },
                 })),
               },
@@ -415,7 +438,15 @@ export function buildStyle(
         paint: {
           "line-color": routeColor,
           "line-opacity": palette.routeOpacity,
-          "line-width": ["interpolate", ["linear"], ["zoom"], 8, 3, 14, 5],
+          "line-width": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            8,
+            ROUTE_WIDTH_Z8 * routeWidthScale,
+            14,
+            ROUTE_WIDTH_Z14 * routeWidthScale,
+          ],
         },
       },
       ...(options.arrows === true
@@ -469,6 +500,7 @@ export function buildStyle(
               id: LANDMARK_DOTS_LAYER,
               type: "circle" as const,
               source: LANDMARKS_SOURCE,
+              ...(badges ? { filter: ["!", ["has", "badge"]] } : {}),
               paint: {
                 "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 2.5, 14, 3.5],
                 "circle-color": palette.landmarkFill,
@@ -485,7 +517,9 @@ export function buildStyle(
                 "text-font": ["Noto Sans Medium"],
                 "text-size": 14,
                 "text-variable-anchor": ["left", "right", "top", "bottom"],
-                "text-radial-offset": 0.5,
+                "text-radial-offset": badges
+                  ? ["case", ["has", "badge"], LANDMARK_BADGE_OFFSET, LANDMARK_OFFSET]
+                  : LANDMARK_OFFSET,
                 "text-justify": "auto",
               },
               paint: {

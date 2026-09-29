@@ -20,6 +20,9 @@ import BlocksField from "./fields/BlocksField";
 import LinkListField from "./fields/LinkListField";
 import LandmarksField from "./fields/LandmarksField";
 import PoisField from "./fields/PoisField";
+import RouteMapDisplayField, {
+  RouteMapOverrideField,
+} from "./fields/RouteMapDisplayField";
 import PresentationPanelField from "./fields/PresentationPanelField";
 import OptionalField, { extractOptional } from "./fields/OptionalField";
 import ThemeField from "./fields/ThemeField";
@@ -110,7 +113,14 @@ const FIELDS: RegistryFieldsType = {
   ThemeField,
   LandmarksField,
   PoisField,
+  RouteMapDisplayField,
+  RouteMapOverrideField,
 };
+
+// A `const` inside a `oneOf` branch is never used as a default, so an
+// optional object that is a `oneOf` of shapes (a landmark's `Icon`)
+// stays absent instead of being filled with the first branch's const.
+const DEFAULT_FORM_STATE = { constAsDefaults: "skipOneOf" } as const;
 
 const WIDGETS: RegistryWidgetsType = {
   DefaultedSelectWidget,
@@ -359,6 +369,7 @@ export default function SchemaForm<T>({
       readonly={readonly}
       extraErrors={extraErrors}
       showErrorList={false}
+      experimental_defaultFormStateBehavior={DEFAULT_FORM_STATE}
     >
       {hideSubmit ? <span /> : undefined}
     </Form>
