@@ -6,6 +6,7 @@ import { ThemeProvider } from "@mui/material";
 import { MemoryRouter } from "react-router-dom";
 import type { ReactNode } from "react";
 import SchemaForm from "./SchemaForm";
+import { labelsFor } from "./labels";
 import { buildTheme } from "../../theme/theme";
 import kindsJson from "../../../contracts/kinds.json";
 import hero from "../../../contracts/schema/sections/hero.schema.json";
@@ -26,7 +27,6 @@ import leaderboard from "../../../contracts/schema/sections/leaderboard.schema.j
 import sponsorCarousel from "../../../contracts/schema/sections/sponsor_carousel.schema.json";
 import sponsorGrid from "../../../contracts/schema/sections/sponsor_grid.schema.json";
 import routePreview from "../../../contracts/schema/sections/route_preview.schema.json";
-import { routePreviewWithGroups } from "../../test/routeMapGroupSchemas";
 import cookieControl from "../../../contracts/schema/sections/cookie_control.schema.json";
 import alertsSignup from "../../../contracts/schema/sections/alerts_signup.schema.json";
 import contactForm from "../../../contracts/schema/sections/contact_form.schema.json";
@@ -701,69 +701,53 @@ describe("SchemaForm: the route_preview style select", () => {
   });
 });
 
-describe("SchemaForm: the route_preview map buttons", () => {
-  type RouteValue = { controls?: Record<string, boolean> } & Record<string, unknown>;
-
-  function Controlled({ initial }: { initial: RouteValue }) {
-    const [value, setValue] = useState<RouteValue>(initial);
-    return (
-      <>
-        <SchemaForm
-          schema={routePreviewWithGroups}
-          kind="route_preview"
-          formData={value}
-          onChange={(next) => setValue(next as RouteValue)}
-        />
-        <pre data-testid="controls">{JSON.stringify(value.controls ?? {})}</pre>
-      </>
-    );
-  }
-
-  function routeDefaults(): RouteValue {
+describe("SchemaForm: the route_preview section editor", () => {
+  function routeDefaults(): Record<string, unknown> {
     const kind = (
       kindsJson as { kinds: Array<{ kind: string; defaults: unknown }> }
     ).kinds.find((k) => k.kind === "route_preview");
-    return structuredClone(kind!.defaults) as RouteValue;
+    return structuredClone(kind!.defaults) as Record<string, unknown>;
   }
 
-  function controls(): Record<string, boolean> {
-    return JSON.parse(screen.getByTestId("controls").textContent ?? "{}") as Record<
-      string,
-      boolean
-    >;
-  }
-
-  it("shows both switches On while absent and writes only the picked value", () => {
+  it("renders heading, style, disclaimer, and emptyText and nothing more", () => {
     render(
       <Providers>
-        <Controlled initial={routeDefaults()} />
-      </Providers>
-    );
-    const fullscreen = screen.getByRole("switch", { name: "Fullscreen button" });
-    const terrain = screen.getByRole("switch", { name: "Terrain toggle" });
-    expect(fullscreen).toBeChecked();
-    expect(terrain).toBeChecked();
-    expect(controls()).toEqual({});
-    fireEvent.click(terrain);
-    expect(terrain).not.toBeChecked();
-    expect(fullscreen).toBeChecked();
-    expect(controls()).toEqual({ terrain: false });
-  });
-
-  it("round-trips an explicit false", () => {
-    render(
-      <Providers>
-        <Controlled
-          initial={{ ...routeDefaults(), controls: { fullscreen: false, terrain: false } }}
+        <SchemaForm
+          schema={routePreview as Sch}
+          kind="route_preview"
+          formData={{ ...routeDefaults(), style: "map" }}
+          onChange={() => undefined}
         />
       </Providers>
     );
-    const fullscreen = screen.getByRole("switch", { name: "Fullscreen button" });
-    const terrain = screen.getByRole("switch", { name: "Terrain toggle" });
-    expect(fullscreen).not.toBeChecked();
-    expect(terrain).not.toBeChecked();
-    expect(controls()).toEqual({ fullscreen: false, terrain: false });
-    fireEvent.click(fullscreen);
-    expect(controls()).toEqual({ fullscreen: true, terrain: false });
+    expect(Object.keys((routePreview as { properties: Sch }).properties)).toEqual([
+      "heading",
+      "style",
+      "disclaimer",
+      "emptyText",
+    ]);
+    expect(Object.keys(labelsFor("route_preview", false))).toEqual([
+      "heading",
+      "style",
+      "disclaimer",
+      "emptyText",
+    ]);
+    for (const label of ["Heading", "Style", "Disclaimer", "Text shown when there is no route yet"]) {
+      expect(screen.getAllByText(label).length, label).toBeGreaterThan(0);
+    }
+    for (const gone of [
+      "Map buttons",
+      "Fullscreen button",
+      "Terrain toggle",
+      "Landmarks",
+      "Points of interest",
+      "Route map display",
+      "Time labels",
+    ]) {
+      expect(screen.queryByText(gone), gone).toBeNull();
+    }
+    for (const testId of ["landmarks-field", "pois-field", "route-map-override"]) {
+      expect(screen.queryByTestId(testId), testId).toBeNull();
+    }
   });
 });

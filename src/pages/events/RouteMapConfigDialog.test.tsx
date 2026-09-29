@@ -214,6 +214,36 @@ function group(dialog: HTMLElement, name: string): HTMLElement {
   return within(dialog).getByRole("region", { name });
 }
 
+// The events list the copy picker reads: this event and three others,
+// served out of year order.
+function serveEvents(event: Event) {
+  const other = (id: number, year: number, routeMapConfig: unknown): Event =>
+    makeEvent({
+      id,
+      year,
+      name: `Santa Flyover ${year}`,
+      routeMapConfig: routeMapConfig as Event["routeMapConfig"],
+    });
+  server.use(
+    http.get(`${testConfig.apiBaseUrl}/admin/events`, () =>
+      HttpResponse.json({
+        items: [
+          other(4, 2023, { controls: { terrain: false } }),
+          event,
+          other(6, 2025, FULL_CONFIG),
+          other(5, 2024, null),
+        ],
+      })
+    )
+  );
+}
+
+async function waitForEnabledCombo(region: HTMLElement): Promise<HTMLElement> {
+  const combo = within(region).getByRole("combobox");
+  await waitFor(() => expect(combo).not.toHaveAttribute("aria-disabled", "true"));
+  return combo;
+}
+
 beforeEach(() => {
   maps.length = 0;
   patches = [];
@@ -498,6 +528,83 @@ describe("the Route map modal", () => {
     );
     const body = await save(dialog);
     expect(body).toEqual({ routeMapConfig: { controls: { fullscreen: false } } });
+  });
+
+  it("Copy from another event lists the others newest year first with a config marked", async () => {
+    const event = makeEvent({ id: 7, year: 2026, routeMapConfig: null });
+    serveEvents(event);
+    const dialog = await openDialog(event);
+    const copy = group(dialog, "Copy from another event");
+    fireEvent.mouseDown(await waitForEnabledCombo(copy));
+    const options = within(screen.getByRole("listbox")).getAllByRole("option");
+    expect(options.map((o) => o.getAttribute("data-testid"))).toEqual([
+      "route-map-copy-option-6",
+      "route-map-copy-option-5",
+      "route-map-copy-option-4",
+    ]);
+    expect(options[0]).toHaveTextContent("2025 Santa Flyover 2025");
+    expect(options[0]).toHaveTextContent("Has route map settings");
+    expect(options[1]).toHaveTextContent("No route map settings");
+    expect(options[2]).toHaveTextContent("2023 Santa Flyover 2023");
+    expect(options[2]).toHaveTextContent("Has route map settings");
+  });
+
+  it("Copy from another event loads the config into the editors without writing, and Save persists it", async () => {
+    const event = makeEvent({ id: 7, year: 2026, routeMapConfig: null });
+    serveEvents(event);
+    const dialog = await openDialog(event);
+    const copy = group(dialog, "Copy from another event");
+    fireEvent.mouseDown(await waitForEnabledCombo(copy));
+    fireEvent.click(within(screen.getByRole("listbox")).getByTestId("route-map-copy-option-6"));
+    expect(within(copy).getByTestId("route-map-copy-loaded")).toHaveTextContent(
+      "Loaded the route map settings of Santa Flyover 2025. Review them, then Save to keep them."
+    );
+
+    const display = group(dialog, "Display");
+    expect(
+      within(within(display).getByTestId("route-map-display-timeLabelIntervalMinutes")).getByRole("combobox")
+    ).toHaveTextContent("Every 10 minutes");
+    expect(within(display).getByRole("switch", { name: "Arrows" })).not.toBeChecked();
+    expect(within(group(dialog, "Controls")).getByRole("switch", { name: "Terrain toggle" })).not.toBeChecked();
+    expect(within(group(dialog, "Landmarks")).getByText("Caras Park")).toBeInTheDocument();
+    expect(within(group(dialog, "Landmarks")).getByText("Fort Missoula")).toBeInTheDocument();
+    const pois = group(dialog, "Points of interest");
+    expect(within(pois).getByRole("radio", { name: "Custom" })).toBeChecked();
+    expect(lastStyleInput().routeMapConfig).toEqual(FULL_CONFIG);
+    expectPreviewInSync();
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    expect(patches).toEqual([]);
+
+    fireEvent.click(within(group(dialog, "Landmarks")).getByRole("button", { name: "Delete Fort Missoula" }));
+    const body = await save(dialog);
+    expect(body).toEqual({
+      routeMapConfig: { ...FULL_CONFIG, landmarks: [FULL_CONFIG.landmarks[0]] },
+    });
+  });
+
+  it("copying an event with no config resets the draft to the defaults", async () => {
+    const event = makeEvent({
+      id: 7,
+      year: 2026,
+      routeMapConfig: FULL_CONFIG as unknown as Event["routeMapConfig"],
+    });
+    serveEvents(event);
+    const dialog = await openDialog(event);
+    const copy = group(dialog, "Copy from another event");
+    fireEvent.mouseDown(await waitForEnabledCombo(copy));
+    fireEvent.click(within(screen.getByRole("listbox")).getByTestId("route-map-copy-option-5"));
+    expect(within(copy).getByTestId("route-map-copy-loaded")).toHaveTextContent(
+      "Santa Flyover 2024 has no route map settings"
+    );
+    expect(within(group(dialog, "Landmarks")).queryByText("Caras Park")).toBeNull();
+    expect(patches).toEqual([]);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Route map" })).not.toBeInTheDocument()
+    );
+    expect(patches).toEqual([]);
   });
 
   it("the card on a page without a recording says the preview stays empty", () => {
