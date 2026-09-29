@@ -1,10 +1,12 @@
 import { del, get, patch, post, request } from "../client";
 import type { DeleteImpact } from "../impact";
+import type { RouteMapConfigValue } from "../../routeMap/eventRouteMap";
 import type {
   Event,
   EventMessage,
   LocationRow,
   Page,
+  RouteMapResponse,
   StatusHistory,
   StatusId,
 } from "../types";
@@ -29,6 +31,7 @@ export type PatchEventBody = Partial<{
   fundsPercent: number;
   routeId: number | null;
   routeImageMediaId: string;
+  routeMapConfig: RouteMapConfigValue | null;
 }>;
 
 export type CloneEventBody = {
@@ -69,6 +72,8 @@ export const events = {
   patch: (id: number, b: PatchEventBody) =>
     patch<Event>(`/admin/events/${id}`, b),
   remove: (id: number) => del(`/admin/events/${id}`),
+  routeMap: (id: number) =>
+    get<RouteMapResponse>(`/admin/events/${id}/route-map`),
   setCurrent: (id: number) => post<Event>(`/admin/events/${id}/current`),
   clone: (id: number, b: CloneEventBody) =>
     post<Event>(`/admin/events/${id}/clone`, b),

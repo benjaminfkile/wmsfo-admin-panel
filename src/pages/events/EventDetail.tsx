@@ -42,6 +42,7 @@ import TimeZoneSelect from "../../components/TimeZoneSelect";
 import MessagesSection from "./MessagesSection";
 import RouteSection from "./RouteSection";
 import RoutePosterSection from "./RoutePosterSection";
+import RouteMapSection from "./RouteMapSection";
 import LocationsSection from "./LocationsSection";
 import StatusDialog from "./StatusDialog";
 import NotifyDialog from "./NotifyDialog";
@@ -537,6 +538,9 @@ export default function EventDetail() {
         </Grid>
         <Grid size={12}>
           <RouteSection event={event} />
+        </Grid>
+        <Grid size={12}>
+          <RouteMapSection event={event} />
         </Grid>
         <Grid size={12}>
           <LocationsSection event={event} />

@@ -20,7 +20,7 @@ import {
   testConfig,
 } from "../../test/renderWithProviders";
 import kindsJson from "../../../contracts/kinds.json";
-import routePreview from "../../../contracts/schema/sections/route_preview.schema.json";
+import { routePreviewWithGroups } from "../../test/routeMapGroupSchemas";
 import type { KindInfo, PageDetail, SectionAdmin } from "../../api/types";
 
 function Harness() {
@@ -59,7 +59,7 @@ const kind: KindInfo = {
   kind: "route_preview",
   title: "Route preview",
   live: true,
-  schema: routePreview as KindInfo["schema"],
+  schema: routePreviewWithGroups as KindInfo["schema"],
   defaults: routeKind.defaults,
 };
 
