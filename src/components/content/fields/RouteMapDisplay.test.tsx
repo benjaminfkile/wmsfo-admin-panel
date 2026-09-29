@@ -18,11 +18,12 @@ import {
 } from "../../../test/renderWithProviders";
 import { siteSettingsDraft } from "../../../test/msw/fixtures";
 import kindsJson from "../../../../contracts/kinds.json";
-import routePreview from "../../../../contracts/schema/sections/route_preview.schema.json";
-import siteSettingsSchema from "../../../../contracts/schema/site-settings.schema.json";
+import {
+  routePreviewWithGroups,
+  siteSettingsWithRouteMap,
+} from "../../../test/routeMapGroupSchemas";
 import { resolveDisplayKey, withDisplayKey } from "../routeMapDisplay";
 
-type Sch = Record<string, unknown>;
 type Doc = Record<string, unknown>;
 
 function Providers({ children }: { children: ReactNode }) {
@@ -43,7 +44,7 @@ function SiteForm({ initial }: { initial: Doc }) {
   return (
     <>
       <SchemaForm
-        schema={siteSettingsSchema as Sch}
+        schema={siteSettingsWithRouteMap}
         labels={SITE_SETTINGS}
         uiSchema={{ theme: { "ui:field": "ThemeField" } }}
         formData={value}
@@ -59,7 +60,7 @@ function SectionForm({ initial }: { initial: Doc }) {
   return (
     <>
       <SchemaForm
-        schema={routePreview as Sch}
+        schema={routePreviewWithGroups}
         kind="route_preview"
         formData={value}
         onChange={(next) => setValue(next as Doc)}

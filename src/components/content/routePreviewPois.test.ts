@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import routePreview from "../../../contracts/schema/sections/route_preview.schema.json";
+import primitives from "../../../contracts/schema/primitives.schema.json";
 import {
   POI_CATEGORIES,
   categoriesFor,
@@ -8,7 +8,7 @@ import {
   storedKinds,
 } from "./routePreviewPois";
 
-const kindsSchema = routePreview.properties.pois.properties.kinds;
+const kindsSchema = primitives.$defs.RouteMapConfig.properties.pois.properties.kinds;
 
 describe("the POI category table", () => {
   it("has the nine human categories, each over at least one kind", () => {

@@ -5,6 +5,7 @@
 
 import type { StyleSpecification } from "maplibre-gl";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
+import type { RouteMapResponse } from "../api/types";
 import type { Appearance } from "./flavors";
 import {
   OSM_ATTRIBUTION,
@@ -100,6 +101,21 @@ export type RouteMapData = {
   timeline: readonly { minutes: number; lat: number; lng: number }[];
   durationMinutes: number;
 };
+
+// The route map of a `GET .../route-map` response with every number
+// read as a number, or null when the response has none.
+export function toRouteMapData(raw: RouteMapResponse["routeMap"]): RouteMapData | null {
+  if (!raw) return null;
+  return {
+    path: (raw.path ?? []).map((p) => ({ lat: Number(p.lat), lng: Number(p.lng) })),
+    timeline: (raw.timeline ?? []).map((t) => ({
+      minutes: Number(t.minutes),
+      lat: Number(t.lat),
+      lng: Number(t.lng),
+    })),
+    durationMinutes: Number(raw.durationMinutes ?? 0),
+  };
+}
 
 // The timeline points at every whole 5 minutes strictly between the start
 // and the end; the start and end markers stand for the two ends.

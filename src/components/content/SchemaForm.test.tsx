@@ -26,6 +26,7 @@ import leaderboard from "../../../contracts/schema/sections/leaderboard.schema.j
 import sponsorCarousel from "../../../contracts/schema/sections/sponsor_carousel.schema.json";
 import sponsorGrid from "../../../contracts/schema/sections/sponsor_grid.schema.json";
 import routePreview from "../../../contracts/schema/sections/route_preview.schema.json";
+import { routePreviewWithGroups } from "../../test/routeMapGroupSchemas";
 import cookieControl from "../../../contracts/schema/sections/cookie_control.schema.json";
 import alertsSignup from "../../../contracts/schema/sections/alerts_signup.schema.json";
 import contactForm from "../../../contracts/schema/sections/contact_form.schema.json";
@@ -708,7 +709,7 @@ describe("SchemaForm: the route_preview map buttons", () => {
     return (
       <>
         <SchemaForm
-          schema={routePreview as Sch}
+          schema={routePreviewWithGroups}
           kind="route_preview"
           formData={value}
           onChange={(next) => setValue(next as RouteValue)}

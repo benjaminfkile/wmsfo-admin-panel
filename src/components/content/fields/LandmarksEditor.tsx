@@ -1,0 +1,167 @@
+import { useState } from "react";
+import {
+  Box,
+  Button,
+  IconButton,
+  Paper,
+  Stack,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import IconPreview from "../IconPreview";
+import LandmarkDialog from "./LandmarkDialog";
+import type { LatLng } from "./LandmarkPicker";
+import {
+  DEFAULT_LANDMARK_CENTER,
+  MAX_LANDMARKS,
+  addLandmark,
+  moveLandmark,
+  removeLandmark,
+  replaceLandmark,
+  type Landmark,
+} from "../landmarks";
+
+function formatPoint({ lat, lng }: Landmark): string {
+  return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+}
+
+interface Props {
+  value: readonly Landmark[];
+  onChange: (next: Landmark[]) => void;
+  title?: string;
+  help?: string;
+  disabled?: boolean;
+  // Where the pin picker opens while the list is empty.
+  center?: LatLng;
+}
+
+// A landmarks list: one row per entry with its name and point (after a
+// small preview of its icon when one is set), up and down, edit, and
+// delete; "Add landmark" opens the pin picker dialog. The count shows
+// against the cap and Add is disabled at it. Every change reports the
+// whole list.
+export default function LandmarksEditor({
+  value: list,
+  onChange: write,
+  title = "Landmarks",
+  help,
+  disabled = false,
+  center: emptyCenter = DEFAULT_LANDMARK_CENTER,
+}: Props) {
+  // The index being edited, "new" for Add, or null when closed.
+  const [editing, setEditing] = useState<number | "new" | null>(null);
+
+  const full = list.length >= MAX_LANDMARKS;
+  const last = list[list.length - 1];
+  const center: LatLng = last ? { lat: last.lat, lng: last.lng } : emptyCenter;
+
+  return (
+    <Box sx={{ my: 1, minWidth: 0 }} data-testid="landmarks-field">
+      <Typography variant="subtitle2">{title}</Typography>
+      {help ? (
+        <Typography variant="caption" color="text.secondary" component="p">
+          {help}
+        </Typography>
+      ) : null}
+      <Stack spacing={1} sx={{ mt: 1 }} data-testid="landmarks-list">
+        {list.map((entry, i) => (
+          <Paper
+            key={`${i}-${entry.name}`}
+            variant="outlined"
+            sx={{ px: 1.5, py: 1 }}
+            data-testid={`landmark-${i}`}
+          >
+            <Stack direction="row" spacing={1} alignItems="center">
+              {entry.icon ? (
+                <Box data-testid={`landmark-${i}-icon`} sx={{ display: "flex" }}>
+                  <IconPreview icon={entry.icon} size={24} />
+                </Box>
+              ) : null}
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="body2" noWrap>
+                  {entry.name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {formatPoint(entry)}
+                </Typography>
+              </Box>
+              <IconButton
+                size="small"
+                aria-label={`Move ${entry.name} up`}
+                disabled={disabled || i === 0}
+                onClick={() => write(moveLandmark(list, i, i - 1))}
+              >
+                <ArrowUpwardIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                aria-label={`Move ${entry.name} down`}
+                disabled={disabled || i === list.length - 1}
+                onClick={() => write(moveLandmark(list, i, i + 1))}
+              >
+                <ArrowDownwardIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                aria-label={`Edit ${entry.name}`}
+                disabled={disabled}
+                onClick={() => setEditing(i)}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                aria-label={`Delete ${entry.name}`}
+                disabled={disabled}
+                onClick={() => write(removeLandmark(list, i))}
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Stack>
+          </Paper>
+        ))}
+      </Stack>
+      <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
+        <Tooltip title={full ? `Up to ${MAX_LANDMARKS} landmarks` : ""}>
+          <span>
+            <Button
+              size="small"
+              startIcon={<AddIcon />}
+              disabled={disabled || full}
+              onClick={() => setEditing("new")}
+            >
+              Add landmark
+            </Button>
+          </span>
+        </Tooltip>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          data-testid="landmarks-count"
+        >
+          {list.length} of {MAX_LANDMARKS}
+        </Typography>
+      </Stack>
+      {editing !== null ? (
+        <LandmarkDialog
+          initial={editing === "new" ? null : (list[editing] ?? null)}
+          center={center}
+          onCancel={() => setEditing(null)}
+          onSave={(entry) => {
+            write(
+              editing === "new"
+                ? addLandmark(list, entry)
+                : replaceLandmark(list, editing, entry)
+            );
+            setEditing(null);
+          }}
+        />
+      ) : null}
+    </Box>
+  );
+}

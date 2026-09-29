@@ -7,6 +7,8 @@ export const keys = {
   events: ["events"] as const,
   event: (id: number) => ["events", id] as const,
   eventHistory: (id: number) => ["events", id, "history"] as const,
+  eventRouteMap: (id: number, routeId: number | null) =>
+    ["events", id, "route-map", routeId] as const,
   eventMessages: (id: number) => ["events", id, "messages"] as const,
   eventLocations: (id: number, q: LocationsQuery) =>
     ["events", id, "locations", q] as const,

@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import routePreview from "../../../contracts/schema/sections/route_preview.schema.json";
+import primitives from "../../../contracts/schema/primitives.schema.json";
+
+const landmarksSchema = primitives.$defs.RouteMapConfig.properties.landmarks;
 import {
   MAX_LANDMARK_DESCRIPTION,
   MAX_LANDMARKS,
@@ -19,7 +21,7 @@ function make(n: number): Landmark[] {
 
 describe("the landmarks list", () => {
   it("caps at the schema's maxItems", () => {
-    expect(MAX_LANDMARKS).toBe(routePreview.properties.landmarks.maxItems);
+    expect(MAX_LANDMARKS).toBe(landmarksSchema.maxItems);
   });
 
   it("round-trips a stored list and drops entries of another shape", () => {
@@ -104,7 +106,7 @@ describe("the landmarks list", () => {
 
   it("caps the description at the schema's maxLength", () => {
     expect(MAX_LANDMARK_DESCRIPTION).toBe(
-      routePreview.properties.landmarks.items.properties.description.maxLength
+      landmarksSchema.items.properties.description.maxLength
     );
     const long = "x".repeat(MAX_LANDMARK_DESCRIPTION + 20);
     expect(makeLandmark({ name: "A", lat: 1, lng: 2 }, null, long).description).toHaveLength(

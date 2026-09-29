@@ -22,6 +22,10 @@ import routePreview from "../../../contracts/schema/sections/route_preview.schem
 import sponsorCarousel from "../../../contracts/schema/sections/sponsor_carousel.schema.json";
 import sponsorGrid from "../../../contracts/schema/sections/sponsor_grid.schema.json";
 import siteSettings from "../../../contracts/schema/site-settings.schema.json";
+import {
+  routePreviewWithGroups,
+  siteSettingsWithRouteMap,
+} from "../../test/routeMapGroupSchemas";
 import primitives from "../../../contracts/schema/primitives.schema.json";
 import {
   CARD_OPACITY_LABELS,
@@ -169,7 +173,7 @@ describe("labels.ts: the map overlays include the online count", () => {
 
 describe("labels.ts: the route_preview map buttons", () => {
   it("labels both switches and defaults them to on", () => {
-    const paths = collectFieldPaths(routePreview as Sch);
+    const paths = collectFieldPaths(routePreviewWithGroups);
     expect(paths).toContain("controls.fullscreen");
     expect(paths).toContain("controls.terrain");
     const labels = labelsFor("route_preview", false);
@@ -182,14 +186,16 @@ describe("labels.ts: the route_preview map buttons", () => {
 
 describe("labels.ts: the route map display knobs", () => {
   const defs = (primitives as { $defs: Record<string, Sch> }).$defs;
-  const fields = collectFieldPaths(defs.RouteMapDisplay as Sch);
+  const displayDef = (defs.RouteMapConfig as { properties: Record<string, Sch> }).properties
+    .display as Sch;
+  const fields = collectFieldPaths(displayDef);
 
-  it("names the four knobs of RouteMapDisplay", () => {
+  it("names the four knobs of RouteMapConfig display", () => {
     expect(fields).toEqual(["timeLabelIntervalMinutes", "arrows", "arrowSize", "routeWidth"]);
   });
 
   it("labels the sitewide routeMap group and every knob under it", () => {
-    expect(collectFieldPaths(siteSettings as Sch)).toContain("routeMap");
+    expect(collectFieldPaths(siteSettingsWithRouteMap)).toContain("routeMap");
     const table = siteSettingsLabels();
     expect(table.routeMap?.label).toBe("Route map");
     expect(table.routeMap?.field).toBe("RouteMapDisplayField");
@@ -198,7 +204,7 @@ describe("labels.ts: the route map display knobs", () => {
   });
 
   it("labels the route_preview display group and every knob under it", () => {
-    expect(collectFieldPaths(routePreview as Sch)).toContain("display");
+    expect(collectFieldPaths(routePreviewWithGroups)).toContain("display");
     const table = labelsFor("route_preview", false);
     expect(table.display?.label).toBe("Route map display");
     expect(table.display?.field).toBe("RouteMapOverrideField");
@@ -217,7 +223,7 @@ describe("labels.ts: the route map display knobs", () => {
       const entry = ROUTE_MAP_DISPLAY_LABELS[f];
       expect(entry?.label).toBeTruthy();
       expect(entry?.help).toMatch(/^[^\n]+\.$/);
-      const schemaEnum = (defs.RouteMapDisplay as { properties: Record<string, { enum?: unknown[] }> })
+      const schemaEnum = (displayDef as { properties: Record<string, { enum?: unknown[] }> })
         .properties[f]?.enum;
       if (schemaEnum) expect(schemaEnum).toEqual(enums[f]);
       for (const v of enums[f] ?? []) {

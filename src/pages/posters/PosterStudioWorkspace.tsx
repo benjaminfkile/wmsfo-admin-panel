@@ -28,7 +28,7 @@ import { media as mediaApi } from "../../api/resources/media";
 import { routes as routesApi } from "../../api/resources/routes";
 import { siteSettings as siteSettingsApi } from "../../api/resources/siteSettings";
 import { UploadFailed, uploadToS3 } from "../../api/resources/upload";
-import type { MediaAsset, QrCode, RouteMapResponse } from "../../api/types";
+import type { MediaAsset, QrCode } from "../../api/types";
 import { useConfig } from "../../ConfigContext";
 import TimeZoneSelect from "../../components/TimeZoneSelect";
 import { useCompact } from "../../hooks/useCompact";
@@ -42,6 +42,7 @@ import {
   posterSize,
   probeTerrain,
   renderPosterImage,
+  toRouteMapData,
   POSTER_MIME,
   type PosterOrientation,
   type PosterPresetId,
@@ -803,19 +804,6 @@ function PreviewImage({ asset }: { asset: MediaAsset }) {
       sx={{ maxWidth: "100%", maxHeight: 240, objectFit: "contain", alignSelf: "flex-start" }}
     />
   );
-}
-
-function toRouteMapData(raw: RouteMapResponse["routeMap"]): RouteMapData | null {
-  if (!raw) return null;
-  return {
-    path: (raw.path ?? []).map((p) => ({ lat: Number(p.lat), lng: Number(p.lng) })),
-    timeline: (raw.timeline ?? []).map((t) => ({
-      minutes: Number(t.minutes),
-      lat: Number(t.lat),
-      lng: Number(t.lng),
-    })),
-    durationMinutes: Number(raw.durationMinutes ?? 0),
-  };
 }
 
 function messageOf(e: unknown): string {

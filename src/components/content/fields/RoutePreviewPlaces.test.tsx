@@ -13,7 +13,7 @@ import {
   testConfig,
 } from "../../../test/renderWithProviders";
 import kindsJson from "../../../../contracts/kinds.json";
-import routePreview from "../../../../contracts/schema/sections/route_preview.schema.json";
+import { routePreviewWithGroups } from "../../../test/routeMapGroupSchemas";
 import { MAX_LANDMARK_DESCRIPTION, MAX_LANDMARKS, type Landmark } from "../landmarks";
 import { kindsFor } from "../routePreviewPois";
 
@@ -109,7 +109,7 @@ function Controlled({ initial }: { initial: RouteValue }) {
   const [value, setValue] = useState<RouteValue>(initial);
   return (
     <SchemaForm
-      schema={routePreview as Record<string, unknown>}
+      schema={routePreviewWithGroups}
       kind="route_preview"
       formData={value}
       onChange={(next) => {

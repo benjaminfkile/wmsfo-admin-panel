@@ -5266,6 +5266,7 @@ export interface components {
             sponsors?: boolean;
             route?: boolean;
             poster?: boolean;
+            routeMapConfig?: boolean;
         };
         CloneEventRequest: {
             /** Format: int32 */
@@ -5539,6 +5540,7 @@ export interface components {
             routeUrl?: null | string;
             routeImageMediaId?: null | string;
             routeImage?: null | components["schemas"]["MediaAssetDto"];
+            routeMapConfig?: null | components["schemas"]["RouteMapConfig"];
             createdBy?: string;
             /** Format: date-time */
             createdAt?: string;
@@ -6057,6 +6059,7 @@ export interface components {
             routeId?: null | number | string;
             routeImageMediaId?: null | string;
             scheduleTimeZone?: components["schemas"]["JsonElement"];
+            routeMapConfig?: components["schemas"]["JsonElement"];
         };
         PatchPageRequest: {
             slug?: null | string;
@@ -6418,11 +6421,40 @@ export interface components {
             durationMinutes?: number | string;
             timed?: boolean;
         };
+        RouteMapConfig: {
+            display?: null | components["schemas"]["RouteMapDisplay"];
+            controls?: null | components["schemas"]["RouteMapControls"];
+            landmarks?: null | components["schemas"]["RouteMapLandmark"][];
+            pois?: null | components["schemas"]["RouteMapPois"];
+        };
+        RouteMapControls: {
+            fullscreen?: null | boolean;
+            terrain?: null | boolean;
+        };
+        RouteMapDisplay: {
+            /** Format: int32 */
+            timeLabelIntervalMinutes?: null | number | string;
+            arrows?: null | boolean;
+            arrowSize?: null | string;
+            routeWidth?: null | string;
+        };
+        RouteMapLandmark: {
+            name?: string;
+            /** Format: double */
+            lat?: number | string;
+            /** Format: double */
+            lng?: number | string;
+            icon?: null | components["schemas"]["IconValue"];
+            description?: null | string;
+        };
         RouteMapPoint: {
             /** Format: double */
             lat?: number | string;
             /** Format: double */
             lng?: number | string;
+        };
+        RouteMapPois: {
+            kinds?: string[];
         };
         RouteMapResponse: {
             routeMap?: null | components["schemas"]["RouteMap"];
