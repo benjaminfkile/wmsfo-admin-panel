@@ -23,8 +23,10 @@ import sponsorCarousel from "../../../contracts/schema/sections/sponsor_carousel
 import sponsorGrid from "../../../contracts/schema/sections/sponsor_grid.schema.json";
 import siteSettings from "../../../contracts/schema/site-settings.schema.json";
 import primitives from "../../../contracts/schema/primitives.schema.json";
+import openapi from "../../../contracts/openapi.json";
 import {
   CARD_OPACITY_LABELS,
+  MEDIA_DETAIL_LABELS,
   ROUTE_MAP_DISPLAY_LABELS,
   labelsFor,
   siteSettingsLabels,
@@ -232,5 +234,36 @@ describe("labels.ts: the route map display knobs", () => {
     expect(ROUTE_MAP_DISPLAY_LABELS.arrowSize?.options?.xlarge).toBe("Extra large");
     expect(ROUTE_MAP_DISPLAY_LABELS.routeWidth?.options?.xthick).toBe("Extra thick");
     expect(ROUTE_MAP_DISPLAY_LABELS.labelSize?.options?.medium).toBe("Medium");
+  });
+});
+
+describe("labels.ts: the media detail text fields", () => {
+  const patchProps = (
+    openapi as unknown as {
+      components: { schemas: Record<string, { properties: Record<string, { type?: unknown }> }> };
+    }
+  ).components.schemas.MediaPatchRequest!.properties;
+  // The text fields of MediaPatchRequest; the id and switch fields have
+  // their own controls.
+  const textFields = Object.entries(patchProps)
+    .filter(([name, p]) => {
+      const types = Array.isArray(p.type) ? p.type : [p.type];
+      return types.includes("string") && !name.endsWith("MediaId");
+    })
+    .map(([name]) => name);
+
+  it("names alt, title, and credit as the text fields", () => {
+    expect(textFields).toEqual(["alt", "title", "credit"]);
+  });
+
+  it("has a label for every text field", () => {
+    const missing = textFields.filter((f) => !MEDIA_DETAIL_LABELS[f]?.label);
+    expect(missing, `missing media detail labels: ${missing.join(", ")}`).toEqual([]);
+  });
+
+  it("labels the credit with one line of help", () => {
+    expect(MEDIA_DETAIL_LABELS.credit?.label).toBe("Credit");
+    expect(MEDIA_DETAIL_LABELS.credit?.help).toBe("The site shows this under the photo.");
+    expect(MEDIA_DETAIL_LABELS.credit?.help).toMatch(/^[^\n]+\.$/);
   });
 });

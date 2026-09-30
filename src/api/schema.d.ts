@@ -5791,6 +5791,7 @@ export interface components {
             darkMediaId?: null | string;
             invertInDark?: boolean;
             smallMediaId?: null | string;
+            credit?: null | string;
             uploadedBy?: string;
             /** Format: date-time */
             createdAt?: string;
@@ -5824,6 +5825,7 @@ export interface components {
             invertInDark?: boolean;
             small?: null | components["schemas"]["MediaSmallEntry"];
             smallMediaId?: null | string;
+            credit?: null | string;
         };
         MediaPatchRequest: {
             alt?: null | string;
@@ -5833,6 +5835,7 @@ export interface components {
             invertInDark?: null | boolean;
             /** Format: uuid */
             smallMediaId?: null | string;
+            credit?: null | string;
         };
         MediaSmallEntry: {
             url?: string;

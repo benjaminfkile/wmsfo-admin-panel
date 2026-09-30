@@ -510,6 +510,17 @@ export const DISPLAY_LABELS: FieldLabels = {
   align: { label: "Alignment" },
 };
 
+// The text fields of the media detail drawer, keyed by the field name
+// the drawer PATCHes.
+export const MEDIA_DETAIL_LABELS: FieldLabels = {
+  alt: { label: "Alt" },
+  title: { label: "Title" },
+  credit: {
+    label: "Credit",
+    help: "The site shows this under the photo.",
+  },
+};
+
 export function labelsFor(kind: string, isItem: boolean): FieldLabels {
   const table = isItem ? ITEM : SECTION;
   return table[kind] ?? {};

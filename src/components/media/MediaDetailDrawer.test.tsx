@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import MediaDetailDrawer from "./MediaDetailDrawer";
 import MediaCard from "./MediaCard";
+import { CREDIT_MAX, creditValue } from "./credit";
 import { ConfigProvider } from "../../ConfigContext";
 import { NotifyProvider } from "../../hooks/useNotify";
 import { installClient } from "../../api/client";
@@ -238,6 +239,100 @@ describe("MediaDetailDrawer: small screen version", () => {
     expect(
       within(screen.getByTestId("media-dark-mode")).queryByRole("alert")
     ).toBeNull();
+  });
+});
+
+describe("MediaDetailDrawer: credit", () => {
+  function creditField() {
+    return screen.getByRole("textbox", { name: "Credit" });
+  }
+
+  it("shows the Credit field with its help, empty when unset", async () => {
+    render(<Harness asset={self} />);
+    expect(await screen.findByRole("textbox", { name: "Credit" })).toHaveValue("");
+    expect(screen.getByText("The site shows this under the photo.")).toBeInTheDocument();
+  });
+
+  it("sets a credit with Save", async () => {
+    const user = userEvent.setup();
+    render(<Harness asset={self} />);
+    await user.type(await screen.findByRole("textbox", { name: "Credit" }), "  Jane Doe ");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(patches).toHaveLength(1));
+    expect(patches[0]).toMatchObject({ credit: "Jane Doe" });
+    await waitFor(() => expect(creditField()).toHaveValue("Jane Doe"));
+  });
+
+  it("clears a credit to none", async () => {
+    const user = userEvent.setup();
+    render(<Harness asset={{ ...self, credit: "Jane Doe" }} />);
+    const field = await screen.findByRole("textbox", { name: "Credit" });
+    expect(field).toHaveValue("Jane Doe");
+    await user.clear(field);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(patches).toHaveLength(1));
+    expect(patches[0]).toMatchObject({ credit: null });
+    expect(creditField()).toHaveValue("");
+  });
+
+  it("round-trips the saved credit from the API", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.patch(`${testConfig.apiBaseUrl}/admin/media/:id`, async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        patches.push(body);
+        return HttpResponse.json({ ...self, ...body, credit: "Photo: Jane Doe" });
+      })
+    );
+    render(<Harness asset={self} />);
+    await user.type(await screen.findByRole("textbox", { name: "Credit" }), "Jane Doe");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(creditField()).toHaveValue("Photo: Jane Doe"));
+  });
+
+  it("caps the credit at 200 characters", async () => {
+    const user = userEvent.setup();
+    render(<Harness asset={self} />);
+    const field = await screen.findByRole("textbox", { name: "Credit" });
+    expect(field).toHaveAttribute("maxlength", String(CREDIT_MAX));
+    await user.click(field);
+    await user.paste("x".repeat(250));
+    expect(field).toHaveValue("x".repeat(200));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(patches).toHaveLength(1));
+    expect(patches[0]!.credit).toBe("x".repeat(200));
+  });
+});
+
+describe("creditValue", () => {
+  it("trims, caps at 200, and turns empty into null", () => {
+    expect(CREDIT_MAX).toBe(200);
+    expect(creditValue(" Jane ")).toBe("Jane");
+    expect(creditValue("")).toBeNull();
+    expect(creditValue("   ")).toBeNull();
+    expect(creditValue("y".repeat(201))).toBe("y".repeat(200));
+  });
+});
+
+describe("MediaCard: credit", () => {
+  it("shows the saved credit", () => {
+    render(
+      <ThemeProvider theme={buildTheme("light")}>
+        <MediaCard asset={{ ...self, credit: "Jane Doe" }} />
+      </ThemeProvider>
+    );
+    expect(screen.getByTestId(`media-credit-${self.id}`)).toHaveTextContent(
+      "Credit: Jane Doe"
+    );
+  });
+
+  it("shows no credit line when none is set", () => {
+    render(
+      <ThemeProvider theme={buildTheme("light")}>
+        <MediaCard asset={{ ...self, credit: null }} />
+      </ThemeProvider>
+    );
+    expect(screen.queryByTestId(`media-credit-${self.id}`)).toBeNull();
   });
 });
 
