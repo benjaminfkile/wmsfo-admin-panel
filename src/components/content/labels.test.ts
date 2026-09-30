@@ -27,6 +27,7 @@ import openapi from "../../../contracts/openapi.json";
 import {
   CARD_OPACITY_LABELS,
   MEDIA_DETAIL_LABELS,
+  PAGE_SETTINGS_LABELS,
   ROUTE_MAP_DISPLAY_LABELS,
   labelsFor,
   siteSettingsLabels,
@@ -265,5 +266,38 @@ describe("labels.ts: the media detail text fields", () => {
     expect(MEDIA_DETAIL_LABELS.credit?.label).toBe("Credit");
     expect(MEDIA_DETAIL_LABELS.credit?.help).toBe("The site shows this under the photo.");
     expect(MEDIA_DETAIL_LABELS.credit?.help).toMatch(/^[^\n]+\.$/);
+  });
+});
+
+describe("labels.ts: the page create and settings fields", () => {
+  const schemas = (
+    openapi as unknown as {
+      components: { schemas: Record<string, { properties: Record<string, unknown> }> };
+    }
+  ).components.schemas;
+  // Every field the page create and settings dialogs send; navPosition
+  // is set by the Pages list's reorder arrows.
+  const fields = [
+    ...new Set([
+      ...Object.keys(schemas.CreatePageRequest!.properties),
+      ...Object.keys(schemas.PatchPageRequest!.properties),
+    ]),
+  ].filter((f) => f !== "navPosition");
+
+  it("names icon among the page fields", () => {
+    expect(fields).toEqual(["slug", "title", "navLabel", "icon", "isHidden"]);
+  });
+
+  it("has a label for every page field", () => {
+    const missing = fields.filter((f) => !PAGE_SETTINGS_LABELS[f]?.label);
+    expect(missing, `missing page labels: ${missing.join(", ")}`).toEqual([]);
+  });
+
+  it("labels the icon Menu icon with one line of help", () => {
+    expect(PAGE_SETTINGS_LABELS.icon?.label).toBe("Menu icon");
+    expect(PAGE_SETTINGS_LABELS.icon?.help).toBe(
+      "The site shows this beside the page in the mobile menu."
+    );
+    expect(PAGE_SETTINGS_LABELS.icon?.help).toMatch(/^[^\n]+\.$/);
   });
 });

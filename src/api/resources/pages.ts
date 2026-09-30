@@ -1,10 +1,11 @@
 import { del, get, patch, post, put } from "../client";
-import type { PageAdmin, PageDetail } from "../types";
+import type { Icon, PageAdmin, PageDetail } from "../types";
 
 export type PageBody = {
   slug: string;
   title: string;
   navLabel: string | null;
+  icon?: Icon | null;
   navPosition?: number;
   isHidden?: boolean;
 };

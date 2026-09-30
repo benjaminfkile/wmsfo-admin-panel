@@ -216,6 +216,7 @@ export default function PageEditor() {
         slug: body.slug,
         title: body.title,
         navLabel: body.navLabel,
+        icon: body.icon,
         isHidden: body.isHidden,
       }),
     onSuccess: () => {

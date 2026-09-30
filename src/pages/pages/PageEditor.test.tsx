@@ -18,6 +18,7 @@
 //     every card in the stack
 //   - items render as nested cards inside the parent card, headed
 //     "Item n of m"
+//   - a role page's Page settings dialog edits the Menu icon with PATCH
 
 import {
   describe,
@@ -883,5 +884,45 @@ describe("PageEditor", () => {
       .toBe("Item 2 of 3");
     expect(within(rowThird).getByTestId(`item-title-${items[2]!.id}`).textContent)
       .toBe("Item 3 of 3");
+  });
+  it("a role page's Page settings edits the Menu icon", async () => {
+    const rolePage: PageDetail = {
+      ...f.pageDetail,
+      slug: "no-event",
+      title: "No event",
+      navLabel: null,
+      role: "no_event",
+      icon: null,
+    };
+    let body: unknown = null;
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/pages/3`, () =>
+        HttpResponse.json(rolePage)
+      ),
+      http.patch(`${testConfig.apiBaseUrl}/admin/pages/3`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json(rolePage);
+      })
+    );
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(await screen.findByRole("button", { name: "Page settings" }));
+    const dialog = await screen.findByRole("dialog", { name: "Page settings" });
+    const field = within(dialog).getByTestId("page-icon-field");
+    expect(within(field).getByText("Menu icon")).toBeInTheDocument();
+    await user.click(within(field).getByRole("button", { name: "Choose" }));
+    const picker = await screen.findByRole("dialog", { name: "Choose menu icon" });
+    await user.click(await within(picker).findByTestId("icon-tile-cookie"));
+    await user.click(within(picker).getByRole("button", { name: "Choose" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Choose menu icon" })).toBeNull()
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({
+      slug: "no-event",
+      navLabel: null,
+      icon: { source: "library", id: "cookie" },
+    });
   });
 });
