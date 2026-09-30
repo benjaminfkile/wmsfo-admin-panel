@@ -26,6 +26,7 @@ export const media = {
     b: Partial<{
       alt: string;
       title: string;
+      credit: string | null;
       darkMediaId: string | null;
       invertInDark: boolean;
       smallMediaId: string | null;

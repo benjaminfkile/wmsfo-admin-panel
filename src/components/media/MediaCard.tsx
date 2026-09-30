@@ -20,7 +20,8 @@ interface Props {
 }
 
 // Grid card. Shows the 480 px variant for raster (or the original for
-// svg/gif), plus filename, dimensions, size, kind and state chips.
+// svg/gif), plus filename, dimensions, size, the credit when set, and
+// kind and state chips.
 export default function MediaCard({ asset, onClick, selected = false }: Props) {
   const preview = previewUrlFor(asset);
   const stateChip = stateChipFor(asset);
@@ -73,6 +74,18 @@ export default function MediaCard({ asset, onClick, selected = false }: Props) {
           <Typography variant="caption" color="text.secondary" display="block">
             {dimensionsLabel(asset)} · {sizeLabel(asset.sizeBytes)}
           </Typography>
+          {typeof asset.credit === "string" && asset.credit.length > 0 ? (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+              noWrap
+              title={asset.credit}
+              data-testid={`media-credit-${asset.id}`}
+            >
+              Credit: {asset.credit}
+            </Typography>
+          ) : null}
           <Stack direction="row" spacing={0.5} sx={{ mt: 0.5, flexWrap: "wrap" }}>
             <Chip
               size="small"

@@ -27,6 +27,8 @@ import { useNotify } from "../../hooks/useNotify";
 import UsageList from "./UsageList";
 import MediaPicker from "../content/MediaPicker";
 import MediaPreview from "../content/MediaPreview";
+import { MEDIA_DETAIL_LABELS } from "../content/labels";
+import { CREDIT_MAX, creditValue } from "./credit";
 
 interface Props {
   asset: MediaAsset | null;
@@ -45,6 +47,7 @@ export default function MediaDetailDrawer({
   const qc = useQueryClient();
   const [alt, setAlt] = useState("");
   const [title, setTitle] = useState("");
+  const [credit, setCredit] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [darkMediaId, setDarkMediaId] = useState<string | null>(null);
   const [invertInDark, setInvertInDark] = useState(false);
@@ -55,6 +58,7 @@ export default function MediaDetailDrawer({
     if (asset) {
       setAlt(asset.alt ?? "");
       setTitle(asset.title ?? "");
+      setCredit(asset.credit ?? "");
       setDarkMediaId(asset.darkMediaId ?? null);
       setInvertInDark(asset.invertInDark === true);
       setSmallMediaId(asset.smallMediaId ?? null);
@@ -80,9 +84,12 @@ export default function MediaDetailDrawer({
     : [];
 
   const saveMut = useMutation({
-    mutationFn: (b: { alt: string; title: string }) =>
+    mutationFn: (b: { alt: string; title: string; credit: string | null }) =>
       mediaApi.patch(asset!.id!, b),
-    onSuccess: () => {
+    onSuccess: (updated, b) => {
+      setCredit(
+        (updated?.credit !== undefined ? updated.credit : b.credit) ?? ""
+      );
       notify("Saved");
       void qc.invalidateQueries({ queryKey: ["media"] });
     },
@@ -182,7 +189,7 @@ export default function MediaDetailDrawer({
               {asset.width ?? "?"} × {asset.height ?? "?"}
             </Typography>
             <TextField
-              label="Alt"
+              label={MEDIA_DETAIL_LABELS.alt?.label}
               value={alt}
               onChange={(e) => setAlt(e.target.value.slice(0, 500))}
               multiline
@@ -191,16 +198,26 @@ export default function MediaDetailDrawer({
               fullWidth
             />
             <TextField
-              label="Title"
+              label={MEDIA_DETAIL_LABELS.title?.label}
               value={title}
               onChange={(e) => setTitle(e.target.value.slice(0, 200))}
               inputProps={{ maxLength: 200 }}
               fullWidth
             />
+            <TextField
+              label={MEDIA_DETAIL_LABELS.credit?.label}
+              value={credit}
+              onChange={(e) => setCredit(e.target.value.slice(0, CREDIT_MAX))}
+              helperText={MEDIA_DETAIL_LABELS.credit?.help}
+              inputProps={{ maxLength: CREDIT_MAX }}
+              fullWidth
+            />
             <Box>
               <Button
                 variant="contained"
-                onClick={() => saveMut.mutate({ alt, title })}
+                onClick={() =>
+                  saveMut.mutate({ alt, title, credit: creditValue(credit) })
+                }
                 disabled={saveMut.isPending}
               >
                 Save
