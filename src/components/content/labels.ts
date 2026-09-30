@@ -89,6 +89,15 @@ export const ROUTE_MAP_DISPLAY_LABELS: FieldLabels = {
       xthick: "Extra thick",
     },
   },
+  labelSize: {
+    label: "Label size",
+    help: "How big the time labels and landmark names are drawn.",
+    options: {
+      small: "Small",
+      medium: "Medium",
+      large: "Large",
+    },
+  },
 };
 
 const SECTION: Record<string, FieldLabels> = {

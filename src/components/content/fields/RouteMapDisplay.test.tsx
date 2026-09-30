@@ -104,4 +104,30 @@ describe("RouteMapDisplayControls", () => {
     expect(written()).toBeNull();
     expect(screen.getByRole("switch", { name: "Arrows" })).toBeChecked();
   });
+
+  it("shows Label size as Medium until picked, then writes only the pick", () => {
+    render(<Controlled resettable />);
+    const select = screen.getByRole("combobox", { name: /label size/i });
+    expect(select).toHaveTextContent("Medium");
+    expect(
+      screen.getByText("How big the time labels and landmark names are drawn.")
+    ).toBeInTheDocument();
+    expect(written()).toBeNull();
+    pick(/label size/i, "Large");
+    expect(written()).toEqual({ labelSize: "large" });
+    pick(/label size/i, "Medium");
+    expect(written()).toEqual({ labelSize: "medium" });
+    fireEvent.click(screen.getByRole("button", { name: "Default Label size" }));
+    expect(written()).toBeNull();
+    expect(screen.getByRole("combobox", { name: /label size/i })).toHaveTextContent("Medium");
+  });
+
+  it("shows a stored label size and reads a value outside the contract as unset", () => {
+    const { unmount } = render(<Controlled initial={{ labelSize: "small" }} />);
+    expect(screen.getByRole("combobox", { name: /label size/i })).toHaveTextContent("Small");
+    unmount();
+    render(<Controlled initial={{ labelSize: "huge" }} />);
+    expect(screen.getByRole("combobox", { name: /label size/i })).toHaveTextContent("Medium");
+    expect(resolveDisplayKey([{ labelSize: "huge" }], "labelSize")).toBe("medium");
+  });
 });

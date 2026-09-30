@@ -45,8 +45,8 @@ interface Props {
   resettable?: boolean;
 }
 
-// The four route map display knobs: Time labels, Arrow size, and Route
-// line selects and an Arrows switch, each showing the built-in default
+// The five route map display knobs: Time labels, Arrow size, Route line,
+// and Label size selects and an Arrows switch, each showing the built-in default
 // while unset and written only once picked.
 export default function RouteMapDisplayControls({
   value: formData,

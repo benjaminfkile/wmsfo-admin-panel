@@ -6,7 +6,8 @@ export type RouteMapDisplayKey =
   | "timeLabelIntervalMinutes"
   | "arrows"
   | "arrowSize"
-  | "routeWidth";
+  | "routeWidth"
+  | "labelSize";
 
 export type RouteMapDisplayValue = number | boolean | string;
 
@@ -17,6 +18,7 @@ export const ROUTE_MAP_DISPLAY_KEYS: RouteMapDisplayKey[] = [
   "arrows",
   "arrowSize",
   "routeWidth",
+  "labelSize",
 ];
 
 // The values the site uses where no level sets a key.
@@ -25,6 +27,7 @@ export const ROUTE_MAP_DEFAULTS: Record<RouteMapDisplayKey, RouteMapDisplayValue
   arrows: true,
   arrowSize: "medium",
   routeWidth: "normal",
+  labelSize: "medium",
 };
 
 // The contract's allowed values per key, in display order.
@@ -33,6 +36,7 @@ export const ROUTE_MAP_CHOICES: Record<RouteMapDisplayKey, RouteMapDisplayValue[
   arrows: [true, false],
   arrowSize: ["small", "medium", "large", "xlarge"],
   routeWidth: ["thin", "normal", "thick", "xthick"],
+  labelSize: ["small", "medium", "large"],
 };
 
 function asRecord(v: unknown): Record<string, unknown> {

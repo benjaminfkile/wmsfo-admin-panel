@@ -192,8 +192,14 @@ describe("labels.ts: the route map display knobs", () => {
     .display as Sch;
   const fields = collectFieldPaths(displayDef);
 
-  it("names the four knobs of RouteMapConfig display", () => {
-    expect(fields).toEqual(["timeLabelIntervalMinutes", "arrows", "arrowSize", "routeWidth"]);
+  it("names the five knobs of RouteMapConfig display", () => {
+    expect(fields).toEqual([
+      "timeLabelIntervalMinutes",
+      "arrows",
+      "arrowSize",
+      "routeWidth",
+      "labelSize",
+    ]);
   });
 
   it("gives each knob a label, one line of help, and a name for every value", () => {
@@ -202,6 +208,7 @@ describe("labels.ts: the route map display knobs", () => {
       arrows: [true, false],
       arrowSize: ["small", "medium", "large", "xlarge"],
       routeWidth: ["thin", "normal", "thick", "xthick"],
+      labelSize: ["small", "medium", "large"],
     };
     for (const f of fields) {
       const entry = ROUTE_MAP_DISPLAY_LABELS[f];
@@ -219,9 +226,11 @@ describe("labels.ts: the route map display knobs", () => {
       "Arrows",
       "Arrow size",
       "Route line",
+      "Label size",
     ]);
     expect(ROUTE_MAP_DISPLAY_LABELS.timeLabelIntervalMinutes?.options?.["0"]).toBe("Off");
     expect(ROUTE_MAP_DISPLAY_LABELS.arrowSize?.options?.xlarge).toBe("Extra large");
     expect(ROUTE_MAP_DISPLAY_LABELS.routeWidth?.options?.xthick).toBe("Extra thick");
+    expect(ROUTE_MAP_DISPLAY_LABELS.labelSize?.options?.medium).toBe("Medium");
   });
 });
