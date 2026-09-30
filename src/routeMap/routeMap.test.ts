@@ -68,9 +68,9 @@ describe("routeMap style builders", () => {
 });
 
 // The SHA-256 of santa's src/routeMap/style.ts and flavors.ts at the
-// commit the copies are synced from, 0454a6d.
+// commit the copies are synced from, fc01bc6.
 const SANTA_SHA256 = {
-  "style.ts": "feebcb740abe3563940f59f49cc43ca312d641f3ff6024be2e1c4728d5f93cd8",
+  "style.ts": "7a5f2b4d7e04c0f91299bccff72974e33ee993010f153b613f17314d21a39375",
   "flavors.ts": "0287e6ade9f9c75b074b7215a6ded11729bff0c09317ae95e8b70cd6d3852048",
 };
 

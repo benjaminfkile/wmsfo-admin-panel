@@ -18,6 +18,8 @@ import {
   testConfig,
 } from "../../test/renderWithProviders";
 import { eventRouteMapStyle } from "../../routeMap/eventRouteMap";
+import { buildRouteMapStyle } from "../../routeMap";
+import { LANDMARKS_LAYER } from "../../routeMap/style";
 import { kindsFor } from "../../components/content/routePreviewPois";
 
 vi.setConfig({ testTimeout: 20_000 });
@@ -87,12 +89,18 @@ vi.mock("../../routeMap/eventRouteMap", async (importOriginal) => {
   return { ...actual, eventRouteMapStyle: vi.fn(actual.eventRouteMapStyle) };
 });
 
+vi.mock("../../routeMap", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../routeMap")>();
+  return { ...actual, buildRouteMapStyle: vi.fn(actual.buildRouteMapStyle) };
+});
+
 const FULL_CONFIG = {
   display: {
     timeLabelIntervalMinutes: 10,
     arrows: false,
     arrowSize: "large",
     routeWidth: "thick",
+    labelSize: "small",
   },
   controls: { fullscreen: false, terrain: false },
   landmarks: [
@@ -291,6 +299,7 @@ describe("the Route map card", () => {
       "Arrows: Off",
       "Arrow size: Large",
       "Route line: Thick",
+      "Label size: Small",
       "Fullscreen button: Off",
       "Terrain toggle: Off",
       "Points of interest: Custom",
@@ -455,6 +464,50 @@ describe("the Route map modal", () => {
 
     const body = await save(dialog);
     expect(body).toEqual({ routeMapConfig: null });
+  });
+
+  it("shows Label size as Medium until picked, passes the mapped scale to the preview, and saves the pick", async () => {
+    const dialog = await openDialog(makeEvent({ routeMapConfig: null }));
+    const display = group(dialog, "Display");
+    const combo = within(within(display).getByTestId("route-map-display-labelSize")).getByRole(
+      "combobox"
+    );
+    expect(combo).toHaveTextContent("Medium");
+    expect(
+      within(display).getByText("How big the time labels and landmark names are drawn.")
+    ).toBeInTheDocument();
+    const lastScale = () => vi.mocked(buildRouteMapStyle).mock.calls.at(-1)![5]?.labelScale;
+    expect(lastScale()).toBe(1);
+
+    pickOption(dialog, "route-map-display-labelSize", "Large");
+    expect(combo).toHaveTextContent("Large");
+    expect(lastStyleInput().routeMapConfig).toEqual({ display: { labelSize: "large" } });
+    expect(lastScale()).toBe(1.3);
+    expectPreviewInSync();
+    pickOption(dialog, "route-map-display-labelSize", "Small");
+    expect(lastScale()).toBe(0.8);
+    expectPreviewInSync();
+
+    const body = await save(dialog);
+    expect(body).toEqual({ routeMapConfig: { display: { labelSize: "small" } } });
+  });
+
+  it("draws a stored label size at its scale in the preview", async () => {
+    await openDialog(
+      makeEvent({ routeMapConfig: FULL_CONFIG as unknown as Event["routeMapConfig"] })
+    );
+    expect(vi.mocked(buildRouteMapStyle).mock.calls.at(-1)![5]?.labelScale).toBe(0.8);
+    const style = maps.at(-1)!.styles.at(-1) as { layers: { id: string; layout?: Record<string, unknown> }[] };
+    const landmarks = style.layers.find((l) => l.id === LANDMARKS_LAYER);
+    expect(landmarks?.layout?.["text-size"]).toEqual([
+      "interpolate",
+      ["linear"],
+      ["zoom"],
+      12,
+      7.467,
+      16,
+      11.2,
+    ]);
   });
 
   it("reads each control on while absent and writes the flipped value", async () => {

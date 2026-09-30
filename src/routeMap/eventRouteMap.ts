@@ -57,9 +57,11 @@ export const ROUTE_MAP_CONTROL_LABELS: Record<RouteMapControlKey, { label: strin
 export const DISPLAY_SCALES: {
   arrowSize: Readonly<Record<string, number>>;
   routeWidth: Readonly<Record<string, number>>;
+  labelSize: Readonly<Record<string, number>>;
 } = {
   arrowSize: { small: 0.75, medium: 1, large: 1.5, xlarge: 2 },
   routeWidth: { thin: 0.75, normal: 1, thick: 1.5, xthick: 2 },
+  labelSize: { small: 0.8, medium: 1, large: 1.3 },
 };
 
 function asRecord(v: unknown): Record<string, unknown> | null {
@@ -146,6 +148,7 @@ export interface ResolvedRouteMapConfig {
   arrows: boolean;
   arrowScale: number;
   routeWidthScale: number;
+  labelScale: number;
   controls: Record<RouteMapControlKey, boolean>;
   landmarks: Landmark[] | undefined;
   poiKinds: string[] | undefined;
@@ -160,6 +163,7 @@ export function resolveRouteMapConfig(config: RouteMapConfigValue): ResolvedRout
     arrowScale: DISPLAY_SCALES.arrowSize[String(resolveDisplayKey(levels, "arrowSize"))] ?? 1,
     routeWidthScale:
       DISPLAY_SCALES.routeWidth[String(resolveDisplayKey(levels, "routeWidth"))] ?? 1,
+    labelScale: DISPLAY_SCALES.labelSize[String(resolveDisplayKey(levels, "labelSize"))] ?? 1,
     controls: {
       fullscreen: readControl(config.controls, "fullscreen"),
       terrain: readControl(config.controls, "terrain"),
@@ -212,12 +216,13 @@ export function eventRouteMapOptions(
     ...(resolved.arrows ? { arrows: true } : {}),
     arrowScale: resolved.arrowScale,
     routeWidthScale: resolved.routeWidthScale,
+    labelScale: resolved.labelScale,
   };
 }
 
 // The site's route map for the event: the path with every timeline point
-// as a mark, the time labels, landmarks, POI kinds, arrows, and widths of
-// the config, and the hillshade when `terrain` is set and the config
+// as a mark, the time labels, landmarks, POI kinds, arrows, widths, and
+// label scale of the config, and the hillshade when `terrain` is set and the config
 // keeps the terrain toggle.
 export function eventRouteMapStyle(
   config: Pick<Config, "routeBasemapUrl">,

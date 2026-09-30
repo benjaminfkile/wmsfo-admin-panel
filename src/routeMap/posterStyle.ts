@@ -10,7 +10,7 @@ import type { Appearance } from "./flavors";
 import { ROUTE_PALETTES } from "./flavors";
 import { buildRouteMapStyle } from "./index";
 import { fiveMinuteMarks, type RouteMapData } from "./poster";
-import type { StyleOptions, TimeLabel } from "./style";
+import { POSTER_LABELS, type StyleOptions, type TimeLabel } from "./style";
 
 // 0 turns the time labels off; the others are minutes between labels.
 export type TimeLabelInterval = 0 | 5 | 10 | 15 | 30;
@@ -132,8 +132,9 @@ export type PosterStyleInput = {
 };
 
 // The poster's style: the route map over the path with the 5 minute marks,
-// the hillshade when `terrain` is set, and the route styling options. The
-// preview and the export render both call this with the same input.
+// the hillshade when `terrain` is set, and the route styling options, with
+// the labels at POSTER_LABELS (their full sizes at every zoom). The preview
+// and the export render both call this with the same input.
 export function buildPosterStyle(
   config: Pick<Config, "routeBasemapUrl">,
   input: PosterStyleInput,
@@ -144,6 +145,6 @@ export function buildPosterStyle(
     input.routeMap.path,
     fiveMinuteMarks(input.routeMap),
     input.terrain,
-    input.options,
+    { ...input.options, ...POSTER_LABELS },
   );
 }

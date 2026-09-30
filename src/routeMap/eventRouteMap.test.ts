@@ -43,7 +43,13 @@ describe("toRouteMapConfig", () => {
   it("keeps contract values and drops the rest", () => {
     expect(
       toRouteMapConfig({
-        display: { timeLabelIntervalMinutes: 7, arrows: false, arrowSize: "huge", routeWidth: "thin" },
+        display: {
+          timeLabelIntervalMinutes: 7,
+          arrows: false,
+          arrowSize: "huge",
+          routeWidth: "thin",
+          labelSize: "tiny",
+        },
         controls: { fullscreen: "no", terrain: false },
         landmarks: [{ name: "A", lat: 1, lng: 2 }, { name: "B" }],
         pois: { kinds: ["park", 3] },
@@ -96,6 +102,7 @@ describe("resolveRouteMapConfig", () => {
       arrows: true,
       arrowScale: 1,
       routeWidthScale: 1,
+      labelScale: 1,
       controls: { fullscreen: true, terrain: true },
       landmarks: undefined,
       poiKinds: undefined,
@@ -106,6 +113,9 @@ describe("resolveRouteMapConfig", () => {
     const r = resolveRouteMapConfig({ display: { arrowSize: "xlarge", routeWidth: "thin" } });
     expect(r.arrowScale).toBe(2);
     expect(r.routeWidthScale).toBe(0.75);
+    expect(resolveRouteMapConfig({ display: { labelSize: "small" } }).labelScale).toBe(0.8);
+    expect(resolveRouteMapConfig({ display: { labelSize: "medium" } }).labelScale).toBe(1);
+    expect(resolveRouteMapConfig({ display: { labelSize: "large" } }).labelScale).toBe(1.3);
   });
 });
 
@@ -127,6 +137,8 @@ describe("eventRouteMapOptions and eventRouteMapStyle", () => {
     expect(options.arrows).toBeUndefined();
     expect(options.arrowScale).toBe(1.5);
     expect(options.routeWidthScale).toBe(1.5);
+    expect(options.labelScale).toBe(1);
+    expect(eventRouteMapOptions(routeMap, { display: { labelSize: "large" } }).labelScale).toBe(1.3);
     expect(options.timeLabels?.map((l) => l.label)).toEqual(["30m"]);
     expect(options.landmarks).toEqual([{ lat: 1.1, lng: 1.1, label: "Depot" }]);
     expect(options.poiKinds).toEqual(["park"]);
@@ -134,6 +146,8 @@ describe("eventRouteMapOptions and eventRouteMapStyle", () => {
     expect(defaults.arrows).toBe(true);
     expect(defaults.landmarks).toBeUndefined();
     expect(defaults.poiKinds).toBeUndefined();
+    expect(defaults.labelScale).toBe(1);
+    expect(defaults.labelCurve).toBeUndefined();
   });
 
   it("draws the hillshade only while the config keeps the terrain toggle", () => {
@@ -156,7 +170,7 @@ describe("routeMapConfigSummary", () => {
     expect(routeMapConfigSummary({})).toEqual({ landmarks: 0, changed: [] });
     expect(
       routeMapConfigSummary({
-        display: { timeLabelIntervalMinutes: 15, arrowSize: "small" },
+        display: { timeLabelIntervalMinutes: 15, arrowSize: "small", labelSize: "large" },
         controls: { fullscreen: true, terrain: false },
         landmarks: [{ name: "A", lat: 1, lng: 2 }],
         pois: { kinds: [] },
@@ -165,6 +179,7 @@ describe("routeMapConfigSummary", () => {
       landmarks: 1,
       changed: [
         { label: "Arrow size", value: "Small" },
+        { label: "Label size", value: "Large" },
         { label: "Terrain toggle", value: "Off" },
         { label: "Points of interest", value: "Custom" },
       ],

@@ -26,8 +26,8 @@
 //    no casing, so nothing else reads it.
 //  - `timeLabels` adds, for each entry, a dot slightly larger than the
 //    marks at its point and its ready made `label` beside it, in Noto Sans
-//    Medium larger than the basemap's town labels, with a strong halo in
-//    the palette's label pair. MapLibre's collision handling places the
+//    Medium (20 px at full size, see the label sizes below), with a strong
+//    halo in the palette's label pair. MapLibre's collision handling places the
 //    labels, so no two overlap.
 // One more option hides basemap detail: `details` turns off the POI
 // labels (`landmarks`), the city, town, village, and neighbourhood labels
@@ -55,9 +55,20 @@
 //    marker there) and its label sits LANDMARK_BADGE_OFFSET ems out, clear
 //    of that marker. Without a `badge` landmark both layers are exactly
 //    as above.
+// The time label and landmark sizes (the text and the dots under it)
+// follow the zoom: LABEL_CURVE multiplies each by LABEL_MIN_FACTOR at
+// LABEL_ZOOM_LOW and under (the fitted view of a whole route) and grows
+// it linearly to its full size at LABEL_ZOOM_HIGH and over (street
+// level). `labelScale` (default 1, values at or under 0 read as 1)
+// multiplies every one of those sizes at every zoom. `labelCurve` "flat"
+// drops the zoom factor, so the text sizes are single numbers (20 and 14
+// times the scale) and the dots keep their own zoom stops times the
+// scale; POSTER_LABELS (a scale of 1 on the flat curve) gives exactly
+// the poster's label sizes.
 
 import { layers } from "@protomaps/basemaps";
 import type {
+  ExpressionSpecification,
   LayerSpecification,
   StyleSpecification,
 } from "maplibre-gl";
@@ -101,6 +112,17 @@ export type StyleOptions = {
   details?: StyleDetails;
   poiKinds?: readonly string[];
   landmarks?: readonly Landmark[];
+  labelScale?: number;
+  labelCurve?: LabelCurve;
+};
+
+export type LabelCurve = "zoom" | "flat";
+
+// The label options the poster passes: its text and dots at the sizes
+// its renders have always used, at every zoom.
+export const POSTER_LABELS: Readonly<Pick<StyleOptions, "labelScale" | "labelCurve">> = {
+  labelScale: 1,
+  labelCurve: "flat",
 };
 
 export type StyleDetails = {
@@ -193,6 +215,63 @@ const ROUTE_WIDTH_Z14 = 5;
 // marker (a badge about 28 px across) for a `badge` landmark.
 const LANDMARK_OFFSET = 0.5;
 const LANDMARK_BADGE_OFFSET = 1.3;
+
+// The full label sizes: the text in pixels, and the dot radius in pixels
+// as [zoom, radius] stops.
+const TIME_LABEL_TEXT_SIZE = 20;
+const LANDMARK_TEXT_SIZE = 14;
+const TIME_LABEL_DOT_STOPS: readonly Stop[] = [[8, 3.5], [14, 4.5]];
+const LANDMARK_DOT_STOPS: readonly Stop[] = [[8, 2.5], [14, 3.5]];
+
+// The zoom curve of the label sizes: LABEL_MIN_FACTOR of the full size at
+// LABEL_ZOOM_LOW and under, the full size at LABEL_ZOOM_HIGH and over, and
+// linear between.
+const LABEL_ZOOM_LOW = 12;
+const LABEL_ZOOM_HIGH = 16;
+const LABEL_MIN_FACTOR = 2 / 3;
+export const LABEL_CURVE: readonly Stop[] = [
+  [LABEL_ZOOM_LOW, LABEL_MIN_FACTOR],
+  [LABEL_ZOOM_HIGH, 1],
+];
+
+type Stop = readonly [zoom: number, value: number];
+
+// The value of piecewise linear stops at a zoom, held flat past either end.
+function atZoom(stops: readonly Stop[], zoom: number): number {
+  if (zoom <= stops[0][0]) return stops[0][1];
+  for (let i = 1; i < stops.length; i++) {
+    const [z1, v1] = stops[i];
+    if (zoom <= z1) {
+      const [z0, v0] = stops[i - 1];
+      return v0 + ((v1 - v0) * (zoom - z0)) / (z1 - z0);
+    }
+  }
+  return stops[stops.length - 1][1];
+}
+
+function round(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+
+// A label size: the base stops (one stop for a text size) times the zoom
+// curve and the scale, as a zoom interpolation over every stop of both;
+// on the flat curve a single base stop stays a plain number.
+function labelSize(
+  base: readonly Stop[],
+  scale: number,
+  curve: LabelCurve,
+): number | ExpressionSpecification {
+  if (curve === "flat" && base.length === 1) return round(base[0][1] * scale);
+  const baseZooms = base.length === 1 ? [] : base.map(([zoom]) => zoom);
+  const zooms = curve === "flat"
+    ? baseZooms
+    : [...new Set([...baseZooms, LABEL_ZOOM_LOW, LABEL_ZOOM_HIGH])].sort((a, b) => a - b);
+  const stops = zooms.flatMap((zoom) => [
+    zoom,
+    round(atZoom(base, zoom) * (curve === "flat" ? 1 : atZoom(LABEL_CURVE, zoom)) * scale),
+  ]);
+  return ["interpolate", ["linear"], ["zoom"], ...stops] as ExpressionSpecification;
+}
 
 export type RouteArrowImage = {
   data: { width: number; height: number; data: Uint8ClampedArray };
@@ -341,6 +420,9 @@ export function buildStyle(
     options.routeWidthScale !== undefined && options.routeWidthScale > 0
       ? options.routeWidthScale
       : 1;
+  const labelScale =
+    options.labelScale !== undefined && options.labelScale > 0 ? options.labelScale : 1;
+  const labelCurve: LabelCurve = options.labelCurve === "flat" ? "flat" : "zoom";
   const badges = landmarks.some((landmark) => landmark.badge === true);
   const coordinates = path.map((p) => [p.lng, p.lat]);
   const ends = path.length === 0
@@ -502,7 +584,7 @@ export function buildStyle(
               source: LANDMARKS_SOURCE,
               ...(badges ? { filter: ["!", ["has", "badge"]] } : {}),
               paint: {
-                "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 2.5, 14, 3.5],
+                "circle-radius": labelSize(LANDMARK_DOT_STOPS, labelScale, labelCurve),
                 "circle-color": palette.landmarkFill,
                 "circle-stroke-color": palette.landmarkStroke,
                 "circle-stroke-width": 1,
@@ -515,7 +597,7 @@ export function buildStyle(
               layout: {
                 "text-field": ["get", "label"],
                 "text-font": ["Noto Sans Medium"],
-                "text-size": 14,
+                "text-size": labelSize([[0, LANDMARK_TEXT_SIZE]], labelScale, labelCurve),
                 "text-variable-anchor": ["left", "right", "top", "bottom"],
                 "text-radial-offset": badges
                   ? ["case", ["has", "badge"], LANDMARK_BADGE_OFFSET, LANDMARK_OFFSET]
@@ -537,7 +619,7 @@ export function buildStyle(
               type: "circle" as const,
               source: TIME_LABELS_SOURCE,
               paint: {
-                "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 3.5, 14, 4.5],
+                "circle-radius": labelSize(TIME_LABEL_DOT_STOPS, labelScale, labelCurve),
                 "circle-color": routeColor,
                 "circle-stroke-color": palette.markerStroke,
                 "circle-stroke-width": 1.5,
@@ -550,7 +632,7 @@ export function buildStyle(
               layout: {
                 "text-field": ["get", "label"],
                 "text-font": ["Noto Sans Medium"],
-                "text-size": 20,
+                "text-size": labelSize([[0, TIME_LABEL_TEXT_SIZE]], labelScale, labelCurve),
                 "text-variable-anchor": ["left", "right", "top", "bottom"],
                 "text-radial-offset": 0.6,
                 "text-justify": "auto",

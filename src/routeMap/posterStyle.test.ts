@@ -9,7 +9,15 @@ import {
   timeLabelEntries,
 } from "./posterStyle";
 import { ROUTE_PALETTES } from "./flavors";
-import { ARROWS_LAYER, ROUTE_LAYER, TIME_LABELS_LAYER, TIME_LABELS_SOURCE } from "./style";
+import {
+  ARROWS_LAYER,
+  LANDMARKS_LAYER,
+  LANDMARK_DOTS_LAYER,
+  ROUTE_LAYER,
+  TIME_LABELS_LAYER,
+  TIME_LABELS_SOURCE,
+  TIME_LABEL_DOTS_LAYER,
+} from "./style";
 
 const BASE = "https://basemap.example.com/v4";
 
@@ -128,6 +136,47 @@ describe("buildPosterStyle", () => {
     const ids = style.layers.map((l) => l.id);
     expect(ids).not.toContain(ARROWS_LAYER);
     expect(ids).not.toContain(TIME_LABELS_LAYER);
+  });
+});
+
+describe("the poster's label sizes", () => {
+  const routeMap = {
+    path: TIMELINE.map(({ lat, lng }) => ({ lat, lng })),
+    timeline: TIMELINE,
+    durationMinutes: 47,
+  };
+
+  // The poster's labels: 20 px times and 14 px landmark names at every
+  // zoom, their dots on their own zoom stops.
+  it("keeps the full label sizes at every zoom whatever label options it is given", () => {
+    for (const extra of [{}, { labelScale: 1.3 }, { labelCurve: "zoom" as const }]) {
+      const style = buildPosterStyle(
+        { routeBasemapUrl: BASE },
+        {
+          theme: "light",
+          routeMap,
+          terrain: false,
+          options: {
+            timeLabels: [{ lat: 46, lng: -114, label: "0m" }],
+            landmarks: [{ lat: 46.1, lng: -114.1, label: "Depot" }],
+            ...extra,
+          },
+        },
+      );
+      const layer = (id: string) =>
+        style.layers.find((l) => l.id === id) as {
+          layout?: Record<string, unknown>;
+          paint?: Record<string, unknown>;
+        };
+      expect(layer(TIME_LABELS_LAYER).layout?.["text-size"]).toBe(20);
+      expect(layer(LANDMARKS_LAYER).layout?.["text-size"]).toBe(14);
+      expect(layer(TIME_LABEL_DOTS_LAYER).paint?.["circle-radius"]).toEqual([
+        "interpolate", ["linear"], ["zoom"], 8, 3.5, 14, 4.5,
+      ]);
+      expect(layer(LANDMARK_DOTS_LAYER).paint?.["circle-radius"]).toEqual([
+        "interpolate", ["linear"], ["zoom"], 8, 2.5, 14, 3.5,
+      ]);
+    }
   });
 });
 
