@@ -23,6 +23,7 @@ import CommentBox from "../../components/CommentBox";
 import DeleteDialog from "../../components/DeleteDialog";
 import PageHeader from "../../components/layout/PageHeader";
 import PreviewFrame from "../../components/content/PreviewFrame";
+import IconPreview from "../../components/content/IconPreview";
 import ResponsiveTable, {
   type Column,
 } from "../../components/list/ResponsiveTable";
@@ -33,7 +34,7 @@ import PageCreateDialog, {
 import PageSettingsDialog, {
   type PageSettingsSubmit,
 } from "./PageSettingsDialog";
-import type { PageAdmin } from "../../api/types";
+import type { Icon, PageAdmin } from "../../api/types";
 
 const STATUS_ORDER = ["no_event", "planned", "scheduled", "live", "ended", "cancelled"];
 
@@ -58,7 +59,8 @@ function statusRoleLabel(role: string): string {
 
 // The Pages index (admin.md 6.13). Two groups: status pages in status
 // order (locked from delete/reorder), and content ("none") pages in
-// nav order with reorder handles. "Preview site" opens the preview dialog
+// nav order with reorder handles. A page with a Menu icon shows a small
+// preview of it before its title. "Preview site" opens the preview dialog
 // at the home page.
 export default function PagesList() {
   const qc = useQueryClient();
@@ -99,6 +101,7 @@ export default function PagesList() {
         slug: body.slug,
         title: body.title,
         navLabel: body.navLabel,
+        icon: body.icon,
       } satisfies PageBody),
     onSuccess: (created) => {
       notify("Page created");
@@ -134,6 +137,7 @@ export default function PagesList() {
         slug: body.slug,
         title: body.title,
         navLabel: body.navLabel,
+        icon: body.icon,
         isHidden: body.isHidden,
       }),
     onSuccess: () => {
@@ -174,6 +178,26 @@ export default function PagesList() {
     orderMut.mutate(next.map((p) => Number(p.id ?? 0)));
   };
 
+  // The title link, after a small preview of the page's Menu icon when
+  // one is set.
+  const titleCell = (p: PageAdmin) => {
+    const icon = (p.icon as Icon | null | undefined) ?? null;
+    const link = <RouterLink to={`/pages/${p.id}`}>{p.title}</RouterLink>;
+    if (!icon) return link;
+    return (
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="center"
+        component="span"
+        data-testid={`page-icon-${p.id}`}
+      >
+        <IconPreview icon={icon} size={20} />
+        {link}
+      </Stack>
+    );
+  };
+
   const problemsChip = (p: PageAdmin) =>
     Number(p.problemCount ?? 0) > 0 ? (
       <Chip size="small" color="error" label={`${p.problemCount} problems`} />
@@ -184,7 +208,7 @@ export default function PagesList() {
       key: "title",
       header: "Title",
       role: "title",
-      render: (p) => <RouterLink to={`/pages/${p.id}`}>{p.title}</RouterLink>,
+      render: titleCell,
     },
     {
       key: "role",
@@ -216,7 +240,7 @@ export default function PagesList() {
       key: "title",
       header: "Title",
       role: "title",
-      render: (p) => <RouterLink to={`/pages/${p.id}`}>{p.title}</RouterLink>,
+      render: titleCell,
     },
     {
       key: "slug",

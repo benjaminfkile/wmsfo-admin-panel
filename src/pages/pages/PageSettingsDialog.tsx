@@ -10,14 +10,17 @@ import {
   TextField,
 } from "@mui/material";
 import AppDialog from "../../components/AppDialog";
-import type { PageAdmin, PageDetail } from "../../api/types";
+import type { Icon, PageAdmin, PageDetail } from "../../api/types";
 import ErrorAlert from "../../components/ErrorAlert";
+import { PAGE_SETTINGS_LABELS as L } from "../../components/content/labels";
+import PageIconField from "./PageIconField";
 import { validatePage, type PageErrors } from "../../validation/page";
 
 export interface PageSettingsSubmit {
   slug: string;
   title: string;
   navLabel: string | null;
+  icon: Icon | null;
   isHidden: boolean;
 }
 
@@ -31,7 +34,8 @@ interface Props {
 }
 
 // Page settings dialog (admin.md 6.13). Edits slug, title, navLabel with
-// the "in navigation" toggle, and `isHidden`.
+// the "in navigation" toggle, the Menu icon, and `isHidden`. Save sends
+// `icon` every time, null when cleared.
 export default function PageSettingsDialog({
   open,
   page,
@@ -44,6 +48,7 @@ export default function PageSettingsDialog({
   const [title, setTitle] = useState("");
   const [inNav, setInNav] = useState(true);
   const [navLabel, setNavLabel] = useState("");
+  const [icon, setIcon] = useState<Icon | null>(null);
   const [isHidden, setIsHidden] = useState(false);
   const [errors, setErrors] = useState<PageErrors>({});
 
@@ -53,6 +58,7 @@ export default function PageSettingsDialog({
     setTitle(page.title ?? "");
     setInNav(page.navLabel !== null && page.navLabel !== undefined);
     setNavLabel(page.navLabel ?? "");
+    setIcon((page.icon as Icon | null | undefined) ?? null);
     setIsHidden(Boolean(page.isHidden));
     setErrors({});
   }, [open, page]);
@@ -70,6 +76,7 @@ export default function PageSettingsDialog({
       slug: slug.trim(),
       title: title.trim(),
       navLabel: inNav ? effectiveNav : null,
+      icon,
       isHidden,
     });
   };
@@ -81,7 +88,7 @@ export default function PageSettingsDialog({
         {error ? <ErrorAlert error={error} /> : null}
         <Stack spacing={2} sx={{ mt: 1 }}>
           <TextField
-            label="Slug"
+            label={L.slug?.label}
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
             error={Boolean(errors.slug)}
@@ -90,7 +97,7 @@ export default function PageSettingsDialog({
             fullWidth
           />
           <TextField
-            label="Title"
+            label={L.title?.label}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             error={Boolean(errors.title)}
@@ -109,14 +116,15 @@ export default function PageSettingsDialog({
           />
           {inNav ? (
             <TextField
-              label="Nav label"
+              label={L.navLabel?.label}
               value={navLabel}
               onChange={(e) => setNavLabel(e.target.value)}
               error={Boolean(errors.navLabel)}
-              helperText={errors.navLabel ?? "Defaults to the page title"}
+              helperText={errors.navLabel ?? L.navLabel?.help}
               fullWidth
             />
           ) : null}
+          <PageIconField value={icon} onChange={setIcon} />
           <FormControlLabel
             control={
               <Checkbox
@@ -124,7 +132,7 @@ export default function PageSettingsDialog({
                 onChange={(e) => setIsHidden(e.target.checked)}
               />
             }
-            label="Hidden"
+            label={L.isHidden?.label}
           />
         </Stack>
       </DialogContent>

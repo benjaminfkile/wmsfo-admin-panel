@@ -4,6 +4,11 @@
 //     in the new order
 //   - the delete confirmation names the page's section count
 //   - "Preview site" opens the preview dialog at the home page with Share
+// admin.md 6.13, the Menu icon:
+//   - a page with an icon shows a small preview before its title; a
+//     page without one shows none
+//   - New page sends the picked icon; the settings dialog sends the
+//     edited icon with PATCH
 
 import {
   describe,
@@ -263,5 +268,93 @@ describe("PagesList", () => {
     expect(dialog.textContent).toMatch(/Delete About/i);
     expect(dialog.textContent).toMatch(/also deleted/i);
     expect(dialog.textContent).toMatch(/2 sections/i);
+  });
+  it("a page with a Menu icon shows a small preview; one without shows none", async () => {
+    const withIcon: PageAdmin = {
+      ...(f.pageAdmin[1] as PageAdmin),
+      icon: { source: "library", id: "cookie" },
+    };
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/pages`, () =>
+        HttpResponse.json({ items: [f.pageAdmin[0], withIcon] })
+      )
+    );
+    render(<Harness />);
+    const row = await screen.findByTestId(`page-row-${3}`);
+    const preview = await within(row).findByTestId("page-icon-3");
+    const img = await within(preview).findByTestId("icon-preview-image");
+    expect(img).toHaveAttribute("src", "https://cdn.example/icons/bb22.svg");
+    expect(img).toHaveStyle({ width: "20px" });
+    expect(within(preview).getByRole("link", { name: "About" })).toBeInTheDocument();
+    const statusRow = screen.getByTestId(`page-row-${1}`);
+    expect(within(statusRow).queryByTestId("page-icon-1")).toBeNull();
+    expect(within(statusRow).queryByTestId("icon-preview-image")).toBeNull();
+  });
+
+  it("New page sends the picked Menu icon", async () => {
+    let body: unknown = null;
+    server.use(
+      http.post(`${testConfig.apiBaseUrl}/admin/pages`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json(f.pageAdmin[1], { status: 201 });
+      })
+    );
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(await screen.findByRole("button", { name: "New page" }));
+    const dialog = await screen.findByRole("dialog", { name: "New page" });
+    await user.type(within(dialog).getByLabelText(/^Title/), "Donate");
+    await user.click(
+      within(within(dialog).getByTestId("page-icon-field")).getByRole("button", {
+        name: "Choose",
+      })
+    );
+    const picker = await screen.findByRole("dialog", { name: "Choose menu icon" });
+    await user.click(await within(picker).findByTestId("icon-tile-cookie"));
+    await user.click(within(picker).getByRole("button", { name: "Choose" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Choose menu icon" })).toBeNull()
+    );
+    await user.click(screen.getByRole("button", { name: "Create" }));
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toEqual({
+      slug: "donate",
+      title: "Donate",
+      navLabel: "Donate",
+      icon: { source: "library", id: "cookie" },
+    });
+  });
+
+  it("the settings dialog clears the Menu icon with PATCH icon null", async () => {
+    const withIcon: PageAdmin = {
+      ...(f.pageAdmin[1] as PageAdmin),
+      icon: { source: "library", id: "cookie" },
+    };
+    let body: unknown = null;
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/pages`, () =>
+        HttpResponse.json({ items: [f.pageAdmin[0], withIcon] })
+      ),
+      http.patch(`${testConfig.apiBaseUrl}/admin/pages/3`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ ...withIcon, icon: null });
+      })
+    );
+    const user = userEvent.setup();
+    render(<Harness />);
+    const row = await screen.findByTestId(`page-row-${3}`);
+    await user.click(within(row).getByRole("button", { name: /settings for about/i }));
+    const dialog = await screen.findByRole("dialog", { name: "Page settings" });
+    const field = within(dialog).getByTestId("page-icon-field");
+    await user.click(within(field).getByRole("button", { name: "Clear" }));
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toEqual({
+      slug: "about",
+      title: "About",
+      navLabel: "About",
+      icon: null,
+      isHidden: false,
+    });
   });
 });

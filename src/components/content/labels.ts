@@ -521,6 +521,23 @@ export const MEDIA_DETAIL_LABELS: FieldLabels = {
   },
 };
 
+// The fields of the page create and settings dialogs, keyed by the
+// field name the dialogs send (`CreatePageRequest`, `PatchPageRequest`).
+// `navPosition` has no entry: the Pages list's reorder arrows set it.
+export const PAGE_SETTINGS_LABELS: FieldLabels = {
+  slug: {
+    label: "Slug",
+    help: "Lowercase letters, digits, and single hyphens",
+  },
+  title: { label: "Title" },
+  navLabel: { label: "Nav label", help: "Defaults to the page title" },
+  icon: {
+    label: "Menu icon",
+    help: "The site shows this beside the page in the mobile menu.",
+  },
+  isHidden: { label: "Hidden" },
+};
+
 export function labelsFor(kind: string, isItem: boolean): FieldLabels {
   const table = isItem ? ITEM : SECTION;
   return table[kind] ?? {};
