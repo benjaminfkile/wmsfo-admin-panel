@@ -17,6 +17,7 @@ import ErrorAlert from "../../components/ErrorAlert";
 import EmailQuotaNotice from "../../components/EmailQuotaNotice";
 import { stockParagraph } from "../../lib/statusCopy";
 import MessageHelper from "./MessageHelper";
+import DefaultMessageNotice from "./DefaultMessageNotice";
 import { statusName } from "../../lib/statusNames";
 
 interface Props {
@@ -31,7 +32,9 @@ interface Props {
 // Announce-again dialog opened from the "Notify subscribers" button on
 // the status card when nobody was told about the current status
 // (admin.md 6.3). POSTs to /admin/events/{id}/notify with the typed
-// message, null when empty; the API posts it as the event's latest message.
+// message, null when empty; the API posts it as the event's latest message,
+// or the status' stock paragraph when it is null, which the default
+// message notice shows.
 export default function NotifyDialog({
   open,
   event,
@@ -79,6 +82,12 @@ export default function NotifyDialog({
             InputLabelProps={{ shrink: true }}
             fullWidth
           />
+          {trimmed.length === 0 ? (
+            <DefaultMessageNotice
+              lead="No message typed. This default message will be emailed:"
+              paragraph={placeholder}
+            />
+          ) : null}
           <EmailQuotaNotice />
         </Stack>
       </DialogContent>

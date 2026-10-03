@@ -20,6 +20,7 @@ import { ApiError } from "../../api/errors";
 import { statusName } from "../../lib/statusNames";
 import { stockParagraph } from "../../lib/statusCopy";
 import MessageHelper from "./MessageHelper";
+import DefaultMessageNotice from "./DefaultMessageNotice";
 import { ageS, formatAgeS, formatStamp } from "../../lib/time";
 import { useCompact } from "../../hooks/useCompact";
 
@@ -46,6 +47,9 @@ type NoHealthyBeaconDetail = {
   } | null;
 };
 
+const DEFAULT_LEAD =
+  "No message typed. This default message will be posted on the site";
+
 function noHealthyBeaconMessage(err: unknown): string | null {
   if (!(err instanceof ApiError)) return null;
   if (err.code !== "no_healthy_beacon") return null;
@@ -63,7 +67,8 @@ function noHealthyBeaconMessage(err: unknown): string | null {
 // (admin.md 6.3). The admin picks Change and notify (sends notify: true)
 // or Change without notifying (sends notify: false through a nested
 // confirmation). Both paths send the typed message, null when empty; the
-// API posts it as the event's latest message.
+// API posts it as the event's latest message, or the target status' stock
+// paragraph when it is null, which the default message notice shows.
 export default function StatusDialog({
   open,
   event,
@@ -156,6 +161,12 @@ export default function StatusDialog({
               InputLabelProps={{ shrink: true }}
               fullWidth
             />
+            {messageToSend === null ? (
+              <DefaultMessageNotice
+                lead={`${DEFAULT_LEAD}, and emailed to subscribers:`}
+                paragraph={placeholder}
+              />
+            ) : null}
             <DialogContentText>{consequence}</DialogContentText>
             {beaconLine ? (
               <Typography
@@ -206,10 +217,19 @@ export default function StatusDialog({
       >
         <DialogTitle>Change the status without telling subscribers?</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            The message posts on the site now. You can notify subscribers later
-            from the event page.
-          </DialogContentText>
+          <Stack spacing={2}>
+            <DialogContentText>
+              {messageToSend === null
+                ? "The default message posts on the site now. You can notify subscribers later from the event page."
+                : "The message posts on the site now. You can notify subscribers later from the event page."}
+            </DialogContentText>
+            {messageToSend === null ? (
+              <DefaultMessageNotice
+                lead={`${DEFAULT_LEAD}:`}
+                paragraph={placeholder}
+              />
+            ) : null}
+          </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAskSilent(false)}>Cancel</Button>

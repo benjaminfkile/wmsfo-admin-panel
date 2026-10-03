@@ -199,6 +199,53 @@ describe("StatusDialog", () => {
     expect(onConfirm).toHaveBeenCalledTimes(2);
   });
 
+  it("shows the default message notice with the paragraph while the field is empty and hides it on typing", async () => {
+    const user = userEvent.setup();
+    render(
+      <Harness event={f.events[0]!} target={4 as StatusId} onConfirm={vi.fn()} />
+    );
+    const paragraph = stockParagraph(
+      4,
+      f.events[0]!.name ?? "",
+      f.events[0]!.scheduledAt ?? null
+    );
+    const notice = screen.getByTestId("default-message-notice");
+    expect(notice).toHaveTextContent(
+      "No message typed. This default message will be posted on the site, and emailed to subscribers:"
+    );
+    expect(notice).toHaveTextContent(paragraph);
+    expect(notice.querySelector("blockquote")).toHaveTextContent(paragraph);
+    await user.type(screen.getByLabelText(/message/i), "S");
+    expect(screen.queryByTestId("default-message-notice")).not.toBeInTheDocument();
+    await user.clear(screen.getByLabelText(/message/i));
+    expect(screen.getByTestId("default-message-notice")).toBeInTheDocument();
+  });
+
+  it("the nested confirmation says the default message posts when the field is empty", async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn();
+    render(
+      <Harness event={f.events[0]!} target={4 as StatusId} onConfirm={onConfirm} />
+    );
+    await user.click(
+      screen.getByRole("button", { name: /^change without notifying$/i })
+    );
+    expect(
+      await screen.findByText(
+        "The default message posts on the site now. You can notify subscribers later from the event page."
+      )
+    ).toBeInTheDocument();
+    const notice = await screen.findByTestId("default-message-notice");
+    expect(notice).toHaveTextContent(
+      "No message typed. This default message will be posted on the site:"
+    );
+    expect(notice).not.toHaveTextContent(/emailed/);
+    await user.click(
+      screen.getByRole("button", { name: /^change without notifying$/i })
+    );
+    expect(onConfirm).toHaveBeenCalledWith({ notify: false, message: null });
+  });
+
   it("shows the target status' stock paragraph as the placeholder", async () => {
     render(
       <Harness
