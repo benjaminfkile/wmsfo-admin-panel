@@ -25,6 +25,8 @@ export function stockParagraph(
       return `${name} has ended. Thanks for flying along.`;
     case 5:
       return `${name} has been cancelled.`;
+    case 6:
+      return `${name} is postponed. A new time will be announced when it is known.`;
   }
 }
 

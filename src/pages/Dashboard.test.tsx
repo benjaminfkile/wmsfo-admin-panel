@@ -312,4 +312,15 @@ describe("Dashboard", () => {
       restoreCompact();
     }
   });
+
+  it("the Change status menu offers Postponed and opens the status dialog for it", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await screen.findByText(f.events[0]!.name!);
+    await user.click(screen.getByRole("button", { name: /change status/i }));
+    const item = await screen.findByRole("menuitem", { name: "Postponed" });
+    expect(item).not.toHaveAttribute("aria-disabled", "true");
+    await user.click(item);
+    expect(await screen.findByRole("dialog")).toHaveTextContent(/postponed/i);
+  });
 });

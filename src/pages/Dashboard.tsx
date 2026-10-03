@@ -47,6 +47,7 @@ import type {
   LiveObject,
   LiveState,
   SnapshotInfo,
+  StatusId,
 } from "../api/types";
 import { resolvePublishedState } from "../lib/publishedState";
 import StatusDialog from "./events/StatusDialog";
@@ -131,7 +132,7 @@ export default function Dashboard() {
       message,
     }: {
       id: number;
-      statusId: 1 | 2 | 3 | 4 | 5;
+      statusId: StatusId;
       notify: boolean;
       message: string | null;
     }) => eventsApi.setStatus(id, { statusId, notify: doNotify, message }),
@@ -192,9 +193,9 @@ export default function Dashboard() {
   previousMismatched.current = resolvedPublished.mismatchedNow;
 
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
-  const [statusTarget, setStatusTarget] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
+  const [statusTarget, setStatusTarget] = useState<StatusId | null>(null);
 
-  const openStatus = (target: 1 | 2 | 3 | 4 | 5) => {
+  const openStatus = (target: StatusId) => {
     setStatusTarget(target);
     setStatusDialogOpen(true);
   };
@@ -352,7 +353,7 @@ function CurrentEventCard({
   event: Event | null;
   error: unknown;
   loading: boolean;
-  onOpenStatus: (id: 1 | 2 | 3 | 4 | 5) => void;
+  onOpenStatus: (id: StatusId) => void;
 }) {
   const [statusMenuAnchor, setStatusMenuAnchor] = useState<HTMLElement | null>(null);
   return (

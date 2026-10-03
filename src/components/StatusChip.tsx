@@ -2,13 +2,14 @@ import { Chip } from "@mui/material";
 import type { ChipProps } from "@mui/material";
 import { statusName } from "../lib/statusNames";
 
-// MUI Chip variant for the five event statuses (admin.md 6.2).
+// MUI Chip variant for the six event statuses (admin.md 6.2).
 const COLOR: Record<number, ChipProps["color"]> = {
   1: "default",
   2: "info",
   3: "success",
   4: "default",
   5: "warning",
+  6: "warning",
 };
 
 export default function StatusChip({

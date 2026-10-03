@@ -1083,3 +1083,31 @@ describe("EventDetail: the Route map card (admin.md 6.3)", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("EventDetail: the Postponed status", () => {
+  it("offers an enabled Postponed button and posts statusId 6", async () => {
+    const user = userEvent.setup();
+    const posts: unknown[] = [];
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
+        HttpResponse.json({ ...f.events[0]!, statusId: 1, isCurrent: false, scheduledAt: null })
+      ),
+      http.post(
+        `${testConfig.apiBaseUrl}/admin/events/:id/status`,
+        async ({ request }) => {
+          posts.push(await request.json());
+          return HttpResponse.json({ ...f.events[0]!, statusId: 6 });
+        }
+      )
+    );
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    const btn = await screen.findByRole("button", { name: /^postponed$/i });
+    expect(btn).toBeEnabled();
+    await user.click(btn);
+    await user.click(
+      await screen.findByRole("button", { name: /^change and notify$/i })
+    );
+    await waitFor(() => expect(posts.length).toBe(1));
+    expect(posts[0]).toMatchObject({ statusId: 6, notify: true });
+  });
+});
