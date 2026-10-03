@@ -19,6 +19,7 @@ import EmailQuotaNotice from "../../components/EmailQuotaNotice";
 import { ApiError } from "../../api/errors";
 import { statusName } from "../../lib/statusNames";
 import { stockParagraph } from "../../lib/statusCopy";
+import MessageHelper from "./MessageHelper";
 import { ageS, formatAgeS, formatStamp } from "../../lib/time";
 import { useCompact } from "../../hooks/useCompact";
 
@@ -59,9 +60,10 @@ function noHealthyBeaconMessage(err: unknown): string | null {
 }
 
 // Shared status-change dialog for the event page and the dashboard
-// (admin.md 6.3). The admin picks Change and notify (sends notify: true
-// with the message when typed) or Change without notifying (sends
-// notify: false through a nested confirmation).
+// (admin.md 6.3). The admin picks Change and notify (sends notify: true)
+// or Change without notifying (sends notify: false through a nested
+// confirmation). Both paths send the typed message, null when empty; the
+// API posts it as the event's latest message.
 export default function StatusDialog({
   open,
   event,
@@ -150,7 +152,7 @@ export default function StatusDialog({
               onChange={(e) => setMessage(e.target.value.slice(0, 1000))}
               placeholder={placeholder}
               inputProps={{ maxLength: 1000 }}
-              helperText={`${message.length} / 1000`}
+              helperText={<MessageHelper length={message.length} />}
               InputLabelProps={{ shrink: true }}
               fullWidth
             />
@@ -205,7 +207,8 @@ export default function StatusDialog({
         <DialogTitle>Change the status without telling subscribers?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            You can notify them later from the event page.
+            The message posts on the site now. You can notify subscribers later
+            from the event page.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

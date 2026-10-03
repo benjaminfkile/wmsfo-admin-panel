@@ -16,6 +16,7 @@ import { subscribers as subsApi } from "../../api/resources/subscribers";
 import ErrorAlert from "../../components/ErrorAlert";
 import EmailQuotaNotice from "../../components/EmailQuotaNotice";
 import { stockParagraph } from "../../lib/statusCopy";
+import MessageHelper from "./MessageHelper";
 import { statusName } from "../../lib/statusNames";
 
 interface Props {
@@ -29,7 +30,8 @@ interface Props {
 
 // Announce-again dialog opened from the "Notify subscribers" button on
 // the status card when nobody was told about the current status
-// (admin.md 6.3). POSTs to /admin/events/{id}/notify.
+// (admin.md 6.3). POSTs to /admin/events/{id}/notify with the typed
+// message, null when empty; the API posts it as the event's latest message.
 export default function NotifyDialog({
   open,
   event,
@@ -73,7 +75,7 @@ export default function NotifyDialog({
             onChange={(e) => setMessage(e.target.value.slice(0, 1000))}
             placeholder={placeholder}
             inputProps={{ maxLength: 1000 }}
-            helperText={`${message.length} / 1000`}
+            helperText={<MessageHelper length={message.length} />}
             InputLabelProps={{ shrink: true }}
             fullWidth
           />

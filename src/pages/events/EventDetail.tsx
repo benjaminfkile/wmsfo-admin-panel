@@ -98,6 +98,7 @@ export default function EventDetail() {
       notify("Status changed");
       void qc.invalidateQueries({ queryKey: keys.event(id) });
       void qc.invalidateQueries({ queryKey: keys.eventHistory(id) });
+      void qc.invalidateQueries({ queryKey: keys.eventMessages(id) });
       void qc.invalidateQueries({ queryKey: keys.events });
     },
     onError: (e) => {
@@ -112,6 +113,7 @@ export default function EventDetail() {
       notify("Subscribers notified");
       void qc.invalidateQueries({ queryKey: keys.event(id) });
       void qc.invalidateQueries({ queryKey: keys.eventHistory(id) });
+      void qc.invalidateQueries({ queryKey: keys.eventMessages(id) });
     },
     onError: (e) =>
       notify(e instanceof Error ? e.message : "Notify failed", "error"),
