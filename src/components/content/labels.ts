@@ -443,6 +443,14 @@ export const SITE_SETTINGS: FieldLabels = {
   "navExtraLinks.href": { label: "Web address" },
   "navExtraLinks.icon": { label: "Icon" },
   "navExtraLinks.newTab": { label: "Open in new tab" },
+  headerLinks: {
+    label: "Header links",
+    help: "Prominent links shown in the site header on every page, up to three, such as the Facebook page.",
+  },
+  "headerLinks.label": { label: "Link text" },
+  "headerLinks.href": { label: "Web address" },
+  "headerLinks.icon": { label: "Icon" },
+  "headerLinks.newTab": { label: "Open in new tab" },
   footerLinks: {
     label: "Footer links",
     help: "Links shown at the bottom of every page, up to ten.",
@@ -569,11 +577,19 @@ export function orderFor(kind: string, isItem: boolean): string[] | undefined {
 }
 
 // The top-level field order of the site settings form: the logo fields
-// sit right after the site name.
+// sit right after the site name, and the header links right after the
+// extra menu links.
 export const SITE_SETTINGS_ORDER = [
   "siteName",
   "logoMedia",
   "headerShowsSiteName",
+  "tagline",
+  "homeNavLabel",
+  "logo",
+  "favicon",
+  "theme",
+  "navExtraLinks",
+  "headerLinks",
   "*",
 ];
 

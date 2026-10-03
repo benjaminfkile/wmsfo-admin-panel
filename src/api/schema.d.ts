@@ -5154,6 +5154,7 @@ export interface components {
             /** Format: int64 */
             messageId?: null | number | string;
             subject?: string;
+            message?: null | string;
             /** Format: date-time */
             sentAt?: string;
         };
