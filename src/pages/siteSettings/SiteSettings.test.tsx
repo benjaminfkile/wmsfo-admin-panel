@@ -436,6 +436,72 @@ describe("SiteSettings", () => {
     expect(text).not.toContain("contracts");
   });
 
+  it("renders the Header links list after the menu links and saves it", async () => {
+    const user = userEvent.setup();
+    const captured: Array<Record<string, unknown>> = [];
+    const facebook = {
+      label: "Facebook",
+      href: "https://facebook.com/wmsfo",
+      icon: null,
+      newTab: true,
+    };
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/site-settings`, () =>
+        HttpResponse.json({
+          ...f.siteSettingsDraft,
+          data: { ...FULL_DRAFT, headerLinks: [facebook] },
+        })
+      ),
+      http.put(
+        `${testConfig.apiBaseUrl}/admin/site-settings`,
+        async ({ request }) => {
+          const body = (await request.json()) as { data: Record<string, unknown> };
+          captured.push(body.data);
+          return HttpResponse.json({ ...f.siteSettingsDraft, data: body.data });
+        }
+      )
+    );
+    const { container } = render(<Harness />);
+    const card = await screen.findByTestId("link-list-item-0");
+    const text = container.textContent ?? "";
+    expect(text).toContain("Header links");
+    expect(text).toContain(
+      "Prominent links shown in the site header on every page, up to three, such as the Facebook page."
+    );
+    expect(text).not.toContain("headerLinks");
+    expect(text.indexOf("Header links")).toBeGreaterThan(
+      text.indexOf("Extra menu links")
+    );
+    expect(text.indexOf("Footer links")).toBeGreaterThan(
+      text.indexOf("Header links")
+    );
+    const cardText = card.textContent ?? "";
+    for (const label of [
+      "Header link 1",
+      "Link text",
+      "Web address",
+      "Icon",
+      "Open in new tab",
+    ]) {
+      expect(cardText).toContain(label);
+    }
+    expect(within(card).getByDisplayValue("Facebook")).toBeInTheDocument();
+    expect(
+      within(card).getByDisplayValue("https://facebook.com/wmsfo")
+    ).toBeInTheDocument();
+
+    const labelInput = within(card).getByDisplayValue("Facebook");
+    await user.clear(labelInput);
+    await user.type(labelInput, "Find us on Facebook");
+    const save = await screen.findByTestId("site-settings-save");
+    await waitFor(() => expect(save).not.toBeDisabled());
+    await user.click(save);
+    await waitFor(() => expect(captured.length).toBeGreaterThan(0));
+    expect(captured[0]?.headerLinks).toEqual([
+      { ...facebook, label: "Find us on Facebook" },
+    ]);
+  });
+
   it("carries no Route map group", async () => {
     const { container } = render(<Harness />);
     await waitFor(() =>

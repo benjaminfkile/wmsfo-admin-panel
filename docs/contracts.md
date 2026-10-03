@@ -91,6 +91,7 @@ The API has no public read endpoint. The public reads the CDN objects in section
 | 3 | `live` | `live` (the page that holds the `map` section) |
 | 4 | `ended` | `ended` |
 | 5 | `cancelled` | `cancelled` |
+| 6 | `postponed` | `postponed` |
 
 The site renders one admin-composed page per status, plus the `no_event` page when `eventStatusId` is null (1.3a). There is no other grouping of statuses.
 
@@ -168,7 +169,7 @@ Keys appear in this order.
 | `pollIntervalMs` | `int` | never | CDN poll cadence floor. From setting `poll_interval_ms`. |
 | `hubEnabled` | `bool` | never | Whether the site may use the hub. From setting `hub_enabled`. While false the site does not connect (and drops a connection it holds) and runs on the poll alone; the operator's switch for every visitor at once (1.9). |
 | `snapshotUrl` | `string` | never (a snapshot always exists after first boot) | Absolute CDN URL of the current snapshot. Changes only when the snapshot is rebuilt with different content. |
-| `cookieTally` | `object` | never (`{}` when no cookies or no event) | Keys are cookie type ids as decimal strings, emitted in ascending numeric id order; values are `int` counts of cookies on the current event. A type with zero cookies is absent; the site fills zeros from `snapshot.cookieTypes`. |
+| `cookieTally` | `object` | never (`{}` when no cookies or no event) | Keys are cookie type ids as decimal strings, emitted in ascending numeric id order; values are `int` counts of cookies on the current event, seeded cookies (4.5 Events) included. A type with zero cookies is absent; the site fills zeros from `snapshot.cookieTypes`. |
 | `seq` | `int64 \| null` | the current event has no published location | Arrival sequence of the location fields below, per event, strictly increasing. |
 | `lat`, `lng` | `number \| null` | same as `seq` | Degrees. |
 | `speedMps`, `altitudeM`, `headingDeg`, `accuracyM` | `number \| null` | same as `seq`, or the update carried null | Units per 0.2. `speedMps` on the live object is the beacon's value when the fix carried one, else the value the API derived from the previous stored fix on the event (haversine distance divided by the seconds between the two `recordedAt` values). |
@@ -216,6 +217,31 @@ Rules:
         { "lat": 46.8721, "lng": -114.0012, "recordedAt": "2025-12-22T01:31:07.000Z" },
         { "lat": 46.8730, "lng": -114.0030, "recordedAt": "2025-12-22T01:31:37.000Z" }
       ]
+    },
+    "routeMap": {
+      "path": [
+        { "lat": 46.8721, "lng": -114.0012 },
+        { "lat": 46.874032, "lng": -114.008311 },
+        { "lat": 46.879514, "lng": -114.015027 },
+        { "lat": 46.886203, "lng": -114.017446 }
+      ],
+      "timeline": [
+        { "minutes": 0, "lat": 46.8721, "lng": -114.0012 },
+        { "minutes": 5, "lat": 46.874818, "lng": -114.009274 },
+        { "minutes": 10, "lat": 46.881297, "lng": -114.015672 },
+        { "minutes": 12, "lat": 46.886203, "lng": -114.017446 }
+      ],
+      "durationMinutes": 12,
+      "timed": true
+    },
+    "routeMapConfig": {
+      "display": { "timeLabelIntervalMinutes": 10, "routeWidth": "thick" },
+      "controls": { "terrain": false },
+      "landmarks": [
+        { "name": "Caras Park", "lat": 46.8703, "lng": -113.9958, "icon": { "source": "library", "id": "tree" }, "description": "The downtown tree lighting starts here." },
+        { "name": "Fort Missoula", "lat": 46.8455, "lng": -114.0569 }
+      ],
+      "pois": { "kinds": ["hospital", "park"] }
     },
     "latestMessage": {
       "id": 12,
@@ -304,13 +330,15 @@ Keys appear in this order.
 | `event` | `object \| null` | The current event; `null` when none is current. |
 | `event.id`, `event.year`, `event.name`, `event.statusId` | `int64`, `int`, `string`, `int` | As stored. |
 | `event.scheduledAt` | `rfc3339 \| null` | Admin-entered. Countdown target when `statusId` is 2. |
-| `event.wentLiveAt` | `rfc3339 \| null` | Stamped by the API on every entry into status 3; admin-patchable. Liftoff timer origin. |
-| `event.endedAt` | `rfc3339 \| null` | Stamped by the API on every entry into status 4; admin-patchable. |
+| `event.wentLiveAt` | `rfc3339 \| null` | Stamped by the API on every entry into status 3; cleared on a change from 3 to any status other than 4 (a change from 3 to 4 keeps it); admin-patchable. Liftoff timer origin. |
+| `event.endedAt` | `rfc3339 \| null` | Stamped by the API on every entry into status 4; cleared on every entry into 3 and on a change from 3 to any status other than 4; admin-patchable. |
 | `event.fundsPercent` | `int` | 0 to 100. Cheer meter. |
 | `event.routeImageMediaId` | `string \| null` | The event's route poster as a media asset id (a raster asset), resolved through `media`; `null` when none is linked. |
 | `qrCodes` | `{ [tag: string]: { pageSlug: string \| null; forwardUrl: string \| null } }` | Every active printed code (4.5a) already resolved, the ones that open the home page included (`pageSlug` `/`): a page slug (`/` for the home page, else the `none` page's slug), or an off-site URL, never both; the site's `/q/:tag` route reads this and nothing else. Absent tags open the home page. Written by the snapshot builder from `qr_code`, `qr_attachment`, and `place`; the code and place writes marked [snapshot] in 4.5a rebuild it. |
 | `event.flightHistory` | `object \| null` | The flight recording linked to the event (`event.route_id`, 1.4), embedded so the tracker's "flight history" toggle needs no second fetch: `routeId`, `name`, and `points[]` (`lat`, `lng`, `recordedAt`) in route order, thinned by keeping every `ceil(n / flight_history_max_points)`-th point from the first and always the last, so at most `flight_history_max_points` + 1 points (section 6). `null` when no recording is linked. The admin changes it with `PATCH /admin/events/{id} { routeId }`, a snapshot-affecting write, so every new or rebuilt snapshot carries the history the admin chose. |
-| `event.latestMessage` | `object \| null` | The `event_message` with the greatest `created_at` for this event (not `eventTime`; ties on `created_at` broken by greatest `id`), or `null`. |
+| `event.routeMap` | `RouteMap \| null` | The same linked recording (`event.route_id`, 1.4) processed for the site's route map, so the map and its time slider need no second fetch. `null` when no recording is linked. Shape `{ path: { lat, lng }[]; timeline: { minutes, lat, lng }[]; durationMinutes: int; timed: bool }`, keys in this order. `path`: the recording's points simplified with Douglas-Peucker at `route_map_simplify_tolerance_m` metres (a point's distance is measured to where the segment puts its distance along the recording, so a turn back along the same line is kept), smoothed by two passes of Chaikin corner cutting (the first and last point stay put), then thinned evenly to at most `route_map_max_points` vertices, always keeping the first and last; coordinates rounded to 6 decimals. Time model: a point with a non-null `recordedAt` is an anchor when its time is not earlier than the previous anchor's (an earlier one is treated as null). With 2 or more anchors the route is timed (`timed` true): the duration is the last anchor's time minus the first's, and the time at any position is piecewise linear in cumulative distance between the surrounding anchors (points before the first anchor sit at 0, points after the last at the end). With fewer than 2 anchors the route is untimed (`timed` false): the duration is `route_map_default_duration_minutes` and time is proportional to cumulative distance. `durationMinutes`: the duration in whole minutes, rounded up, at least 5. `timeline`: the position on `path` at minutes 0, 5, 10, and so on below `durationMinutes` (the minute becomes a distance along the recording through the time model, and every `path` vertex carries the distance along the recording it came from, so the position is read off `path` at that distance and a stop holds its place), plus a final entry at `durationMinutes` (the last point of `path`), so the final step is shorter than 5 when `durationMinutes` is not a multiple of 5; coordinates rounded to 6 decimals. The build is deterministic: the same recording and settings give the same bytes. `GET /admin/events/{id}/route-map` (4.5 Events) serves the same object for any event, and `GET /admin/routes/{id}/route-map` (4.5 Routes) for any recording. |
+| `event.routeMapConfig` | `RouteMapConfig \| null` | The current event's route map configuration (`event.route_map_config`): the display knobs, control switches, landmarks, and POI kinds the `map` style of `route_preview` (1.3a) uses for this event, configured once per event. `null` when the event has none, which means every built-in default. Set with `PATCH /admin/events/{id} { routeMapConfig }` (4.5 Events), a snapshot-affecting write, and copied by the clone's `copy.routeMapConfig`. Shape and rules under **Route map configuration** below. |
+| `event.latestMessage` | `object \| null` | The `event_message` with the greatest `created_at` for this event (not `eventTime`; ties on `created_at` broken by greatest `id`), or `null` when the event has none. The last key of `event`. |
 | `event.latestMessage.id`, `body`, `eventTime`, `createdAt` | `int64`, `string`, `rfc3339 \| null`, `rfc3339` | As stored. |
 | `sponsors[]` | `object[]` | Sponsors having a `sponsor_year` row with `event_year = event.year`, `active = true`, `anonymous = false`, `can_advertise = true`. Order: rows with `pinned_position` set first, `pinned_position` asc; then the rest by `amount_donated` desc (nulls last), `name` asc, `id` asc. This is the display order everywhere on the site (grid, carousel, live overlay); nothing reshuffles it. Empty when `event` is null. |
 | `sponsors[].websiteUrl`, `fbUrl`, `igUrl` | `string \| null` | As stored. |
@@ -321,12 +349,34 @@ Keys appear in this order.
 | `cookieTypes[]` | `object[]` | Rows with `active = true`, ordered `sort` asc, `id` asc. |
 | `cookieTypes[].id`, `name`, `icon`, `sort` | `int64`, `string`, `Icon \| null`, `int` | As stored; `icon` is the value type in 1.3a. |
 | `content` | `object` | The published content document (1.3a), byte for byte the `document` of the newest `content_version` row. Never null after first boot. |
-| `media` | `object` | Map of media asset id to `MediaEntry` (1.3b) for every asset referenced by `content`, by a sponsor in `sponsors[]`, or by a cookie type in `cookieTypes[]`. Keys in ascending string order. |
+| `media` | `object` | Map of media asset id to `MediaEntry` (1.3b) for every asset referenced by `content`, by a sponsor in `sponsors[]`, by a cookie type in `cookieTypes[]`, or by a landmark icon in `event.routeMapConfig`. Keys in ascending string order. |
 | `icons` | `object` | Map of library icon id to absolute CDN URL for the whole built-in library (1.3b). Keys in ascending string order. |
+
+**Route map configuration.** An event's route map is configured once, on the event, and applies to every `route_preview` section in the `map` style while that event is current; nothing about it lives in a section or in the site settings.
+
+```ts
+type RouteMapConfig = {                      // every key optional; no other key is allowed at any level
+  display?: {
+    timeLabelIntervalMinutes?: 0 | 5 | 10 | 15 | 30;   // minutes between the time labels along the path; 0 draws no time labels; absent means 15
+    arrows?: boolean;                        // direction arrows along the path; absent means true
+    arrowSize?: "small" | "medium" | "large" | "xlarge";   // absent means "medium"
+    routeWidth?: "thin" | "normal" | "thick" | "xthick";   // the path's stroke width; absent means "normal"
+    labelSize?: "small" | "medium" | "large";   // the text size of the time labels and the landmark names; absent means "medium"
+  };
+  controls?: {
+    fullscreen?: boolean;                    // the map's fullscreen button; absent means true
+    terrain?: boolean;                       // the terrain (hillshade) toggle; absent means true
+  };
+  landmarks?: { name: string; lat: number; lng: number; icon?: Icon; description?: string }[];   // at most 50; absent draws none
+  pois?: { kinds: string[] };                // absent keeps the basemap's default POI behaviour
+};
+```
+
+Every key is optional, and an absent key (or an absent object) keeps the built-in behaviour listed beside it. The API stores and publishes a key only when it is set, keys in the order above. `arrowSize` has no visible effect while `arrows` is false; the pixel sizes behind the size and width names are the site's (site.md), not the contract's. `labelSize` sizes the time labels and the landmark names together; the site applies it on top of its zoom curve for label text, so a label still grows and shrinks with the zoom and `labelSize` scales that curve. `terrain` shows the toggle that draws the terrain archive (`<base>/terrain.pmtiles`, 8.3) under the path; the site hides the toggle regardless when the archive is missing from the CDN. `landmarks` are admin-curated points the `map` style draws as always-visible labels at every zoom, the overview included: `name` is 1 to 80 characters, `lat` is in [-90, 90], `lng` is in [-180, 180]; the optional `icon` is the shared `Icon` (1.3a), drawn in place of the dot; the optional `description` is 1 to 300 characters, opened on tap together with the name, and a landmark without one shows only its label. A landmark's media icon rides in the snapshot's `media`. `pois.kinds` (at most 100) lists the basemap tile POI kinds the `map` style keeps when zoomed in, each a lowercase token of 1 to 50 characters matching `^[a-z0-9_]+$`: an empty `kinds` shows no tile POIs and a set `kinds` shows only POIs of those kinds; `kinds` is required inside `pois`. The panel offers human categories and maps them to kinds; the contract stores the kinds. The schema is `$defs/RouteMapConfig` in `primitives.schema.json`; the API validates every write against it in full (there is no draft level), so a bad enum, a wrong type, an out of range value, a 51st landmark, a bad kind token, or an unknown key at any level is `400 validation_failed` on the field (`routeMapConfig.display.arrowSize`, `routeMapConfig.landmarks[0].name`, `routeMapConfig.pois.kinds[1]`). A landmark icon is checked at the write like every icon: a library id must be in the library (`400 validation_failed` on `routeMapConfig.landmarks[i].icon.id`), and a media id must name a `ready` asset (`404`, `409 media_not_ready`).
 
 The snapshot row's `version` and `built_at` stay on the row and on `GET /admin/snapshot`; they are not part of the object, so two rebuilds with identical data produce identical bytes. Amounts donated never appear in any public object. The snapshot never contains cookie notes, person data, beacon data, telemetry, or donation amounts.
 
-A snapshot-affecting write is any admin write to: `event` (create, update, delete, status, current, route image link, flight history link), `event_message`, `sponsor`, `sponsor_year`, `cookie_type`, any `app_setting` key, a media asset's `alt` (it rides in `media`), and a content publish (4.5 Content). Working-set writes (pages, sections, items, site settings draft) and media uploads are not snapshot-affecting; nothing reaches the site until a publish. Section 7.3 gives the transaction.
+A snapshot-affecting write is any admin write to: `event` (create, update, delete, status, current, route image link, flight history link, route map configuration, notify with a `message`), `event_message`, `sponsor`, `sponsor_year`, `cookie_type`, any `app_setting` key, a media asset's `alt` (it rides in `media`), and a content publish (4.5 Content). Working-set writes (pages, sections, items, site settings draft) and media uploads are not snapshot-affecting; nothing reaches the site until a publish. Section 7.3 gives the transaction.
 
 ### 1.3a Content document
 
@@ -334,13 +384,13 @@ The content document is what an editor publishes: site settings plus pages made 
 
 ```ts
 type ContentDocument = { schemaVersion: 1; settings: SiteSettings; pages: ContentPage[] };
-type PageRole = "none" | "no_event" | "planned" | "scheduled" | "live" | "ended" | "cancelled";
-type ContentPage = { id: number; slug: string; title: string; navLabel: string | null; navPosition: number; role: PageRole; sections: ContentSection[] };
+type PageRole = "none" | "no_event" | "planned" | "scheduled" | "live" | "ended" | "cancelled" | "postponed";
+type ContentPage = { id: number; slug: string; title: string; navLabel: string | null; icon: Icon | null; navPosition: number; role: PageRole; sections: ContentSection[] };
 type ContentSection = { id: number; kind: string; presentation: Presentation; data: object; items: ContentItem[] };
 type ContentItem = { id: number; data: object };
 ```
 
-Pages appear in `navPosition` asc, `id` asc; sections in `position` asc, `id` asc; items likewise. Hidden pages, hidden sections, and hidden items are omitted at publish; the document carries only what renders. Exactly one page per non-`none` role is present (the six are created by the seed and cannot be deleted, 4.5 Pages). A role page renders at `/` when its role matches `live.eventStatusId` (`no_event` when null); a `none` page renders at `/<slug>`. A role page's `navLabel` is always null; the home entry of the nav is site code, labelled by `settings.homeNavLabel`, linking to `/`.
+Pages appear in `navPosition` asc, `id` asc; sections in `position` asc, `id` asc; items likewise. Hidden pages, hidden sections, and hidden items are omitted at publish; the document carries only what renders. Exactly one page per non-`none` role is present (the seven are created by the seed and cannot be deleted, 4.5 Pages). A role page renders at `/` when its role matches `live.eventStatusId` (`no_event` when null); a `none` page renders at `/<slug>`. A role page's `navLabel` is always null; the home entry of the nav is site code, labelled by `settings.homeNavLabel`, linking to `/`. Every page entry carries `icon`, the page's own `Icon` (below) or null when it has none; any page, role pages included, can carry one, and the site shows it beside the page's entry in the corner panel. A media-sourced page icon rides in the snapshot's `media` like every other referenced asset.
 
 **Shared primitives**, defined once in `contracts/schema/primitives.schema.json` and referenced by every kind:
 
@@ -408,7 +458,7 @@ type Block =
 | `leaderboard` | yes | `{ heading: Inline \| null; variant: "panel" \| "full"; emptyText: Inline }` | none | reads `live.cookieTally` joined with `snapshot.cookieTypes` |
 | `sponsor_carousel` | yes | `{ heading: Inline \| null; logoWidth: 480 \| 960 }` | none | reads `snapshot.sponsors` and `lingerMs` |
 | `sponsor_grid` | yes | `{ heading: Inline \| null; columns: 2 \| 3 \| 4; showYears: boolean; emptyText: Inline }` | none | reads `snapshot.sponsors` |
-| `route_preview` | yes | `{ heading: Inline \| null; style: "image" \| "viewer"; disclaimer: Inline \| null; emptyText: Inline }` | none | reads `event.routeImageMediaId` through `media`; `image` renders the poster as a linked picture (the 960 variant, `srcset`); `viewer` is the deep-zoom poster viewer of site.md section 8.5 (OpenSeadragon over the asset's `dzi` pyramid, or over the original image when there is none) with pan, zoom, and a fullscreen button, and `disclaimer` shown above it |
+| `route_preview` | yes | `{ heading: Inline \| null; style: "image" \| "viewer" \| "map"; disclaimer: Inline \| null; emptyText: Inline }` | none | reads `event.routeImageMediaId` through `media`; `image` renders the poster as a linked picture (the 960 variant, `srcset`); `viewer` is the deep-zoom poster viewer of site.md section 8.5 (OpenSeadragon over the asset's `dzi` pyramid, or over the original image when there is none) with pan, zoom, and a fullscreen button, and `disclaimer` shown above it; `map` reads `event.routeMap` (1.3) and draws `path` over the self-hosted basemap (`VITE_ROUTE_BASEMAP_URL`, 8.3) with a time slider in 5 minute steps over `timeline`, and falls back to the `image` rendering when `event.routeMap` is null. The `map` style takes its display knobs (among them `labelSize`, the text size of the time labels and the landmark names), control switches, landmarks, and POI kinds from the current event's `event.routeMapConfig` (1.3, **Route map configuration**); the section carries none of them, and any key beyond these four is `400 validation_failed` |
 | `cookie_control` | yes | `{ heading: Inline \| null; copy: Inline \| null; signedOutCopy: Inline; closedCopy: Inline }` | none | the leave-a-cookie control; `signedOutCopy` when signed out; `closedCopy` when `live.eventStatusId` is not 3 |
 | `alerts_signup` | yes | `{ heading: Inline \| null; copy: Inline \| null; signedOutCopy: Inline }` | none | the subscription manager of 4.4 when signed in; `signedOutCopy` and a sign-in link otherwise |
 | `contact_form` | yes | `{ heading: Inline \| null; copy: Inline \| null; successText: Inline }` | none | posts `POST /contact` |
@@ -437,8 +487,11 @@ type SiteSettings = {
   analyticsEnabled: boolean;
   logoMedia?: MediaRef | null;               // the site logo image; absent or null means the site keeps its built-in mark
   headerShowsSiteName?: boolean | null;      // absent or null means true: the header shows siteName next to the logo
+  headerLinks?: Link[];                      // 0 to 3; prominent links in the site header; absent means none
 };
 ```
+
+`headerLinks` holds the prominent links in the site header, up to three, each the `Link` primitive exactly as `footerLinks` uses it (`label`, `href`, `icon`, `newTab`). The site draws them as icon buttons with the label beside the icon on wide screens. The key is optional and validated like `footerLinks` (draft enforces the shape and the three entry ceiling, publish adds the full `Link` rules); the published document carries it only when set, and a reader treats an absent value as empty. The starter content links the flyover's Facebook page (`https://www.facebook.com/WesternMontanaSantaFlyover`) with the library `facebook` icon in a new tab.
 
 **Card opacity.** The card's fill can be translucent, per theme, sitewide (`settings.theme.cardOpacityLight` and `cardOpacityDark`) and per section (`presentation.cardOpacityLight` and `cardOpacityDark`). All four are optional integers from 0 (a clear fill) to 100 (an opaque fill); the published document carries them only when set. For the theme in use the site resolves the value in this order: the section's value, then the sitewide value, then 100. The value is the alpha of the card's fill only: the panel colour or the `token` background. A `media` background image is the fill and is unaffected. The border, the shadow, and the content (text, icons, images, controls) stay opaque; only the fill's alpha changes. A section with `card` false has no card, so its opacity values have no effect. The range holds at both validation levels: a write with a value outside 0 to 100 is `400 validation_failed` at the field's path.
 
@@ -466,12 +519,15 @@ type MediaEntry = {
     invertInDark: boolean;                                                // the small version's own switch
   } | null;
   smallMediaId: string | null;               // the small version's id when small is not null, else null
+  credit: string | null;                     // the author or source named under the asset, 1 to 200 characters; null when none
 };
 ```
 
 **Dark mode.** Any asset can carry a dark mode version (another ready asset, `MediaAsset.darkMediaId`) and an "invert in dark mode" switch (`invertInDark`), both off by default. Wherever the site draws an entry in dark mode it draws `dark` in its place when `dark` is not null (with `srcset` from `dark.variants` the same way), otherwise it inverts the image when `invertInDark` is true, otherwise it draws the entry as it is. The dark version's `url` and `variants` are embedded in the entry, so the dark version needs no entry of its own; it is referenced for orphan collection (7.6) while it is a ready asset's dark version. A dark version that is not `ready` is left out (`dark: null`).
 
 **Small screens.** Any asset can carry a small screen version (another ready asset, `MediaAsset.smallMediaId`), off by default. Wherever the site draws an entry under its 760 px cut it draws `small` in its place when `small` is not null (with `srcset` from `small.variants` the same way), otherwise it draws the entry as it is. The small version carries its own dark resolution: in dark mode under the cut the site draws `small.dark` when it is not null, otherwise it inverts the small version when `small.invertInDark` is true, otherwise it draws `small` as it is, so small composes with dark from the one entry with no second lookup. The small version's `url`, `variants`, and dark resolution are embedded in the entry, so the small version needs no entry of its own; it is referenced for orphan collection (7.6) while it is a ready asset's small version. A small version that is not `ready` is left out (`small: null`, `smallMediaId: null`).
+
+**Credit.** Any asset can carry a credit (`MediaAsset.credit`), the author or source of the item, such as the site a photo was taken from; null by default. Wherever the site draws an entry whose `credit` is not null it names the credit under the image as plain text. The credit belongs to the entry itself: a dark or small version drawn in its place shows the entry's credit, not its own.
 
 A variant exists only when the source is a raster image wider than that width; a 700 px upload has `variants: { "480": ... }`. The site renders a `MediaRef` as `<img>` with `srcset` from the variants plus the original at its own width and `sizes` from the section's width; it never constructs a media URL and never inlines SVG. Nothing in v2 overwrites or invalidates a media object.
 
@@ -481,7 +537,7 @@ The icon library is a directory of SVG files in the API repository, `icons/<id>.
 
 ### 1.4 Flight recording: `routes/{sha256}.json`
 
-A route object is a recording of a flight (or a hand-made point list). It serves two things: Red-Nose replay, exports, and tests read it from this URL; and the tracker's "flight history" toggle draws the recording linked to the current event as a projected route, read from the copy embedded in the snapshot as `event.flightHistory` (1.3), never from this object. The route the public sees on the route page is the event's poster image (`event.routeImageMediaId`). The tracker never draws where Santa has been; it shows where he is. The object, its endpoints (4.5 Routes), and `event.route_id` are unchanged.
+A route object is a recording of a flight (or a hand-made point list). It serves two things: Red-Nose replay, exports, and tests read it from this URL; and the tracker's "flight history" toggle draws the recording linked to the current event as a projected route, read from the copy embedded in the snapshot as `event.flightHistory` (1.3), never from this object. The route the public sees on the route page is the event's poster image (`event.routeImageMediaId`). The tracker never draws where Santa has been; it shows where he is. The same embedded recording, simplified and smoothed with a 5 minute timeline, is `event.routeMap` (1.3), which the `map` style of `route_preview` draws. The object, its endpoints (4.5 Routes), and `event.route_id` are unchanged.
 
 ```json
 {
@@ -885,7 +941,7 @@ An API key lets a script or an agent (Claude Code configuring the site, a postin
 | Acting as | Requests carry no `email`; audit columns record `key:<name>`. No `person` row is upserted. The TOTP gate does not apply to keys. |
 | Rate limit | The `/admin/*` bucket is keyed by key id instead of person id. |
 
-Capabilities, one per endpoint group of 4.5, each named after its heading: `events`, `routes`, `beacons`, `sponsors`, `cookie_types`, `pages`, `sections`, `site_settings`, `content`, `media`, `icons`, `settings`, `contact_messages`, `subscribers`, `people`, `diagnostics`. Every `/admin/*` endpoint except the API-key endpoints names its capability in the endpoint metadata; a key request whose key lacks it is `403 forbidden`. A key with a capability reaches every endpoint in that group regardless of the group's Cognito policy (a key with `events` can change status; a key with `sponsors` can pin sponsors).
+Capabilities, one per endpoint group of 4.5, each named after its heading (Posters rides `events`): `events`, `routes`, `beacons`, `sponsors`, `cookie_types`, `pages`, `sections`, `site_settings`, `content`, `media`, `icons`, `settings`, `contact_messages`, `subscribers`, `people`, `diagnostics`. Every `/admin/*` endpoint except the API-key endpoints names its capability in the endpoint metadata; a key request whose key lacks it is `403 forbidden`. A key with a capability reaches every endpoint in that group regardless of the group's Cognito policy (a key with `events` can change status; a key with `sponsors` can pin sponsors).
 
 ### 3.5 Protecting the callback endpoints
 
@@ -930,19 +986,27 @@ type AuditStamp = { action: string; by: string; at: string };
 type ImpactGroup = { entity: string; count: number; names: string[] };   // names: up to ten, in id order
 type DeleteImpact = { blocked: string | null; deletes: ImpactGroup[]; unlinks: ImpactGroup[]; warnings: string[] };   // blocked: the sentence explaining why the delete is refused (the live or current event), else null
 type AuditEntry = { id: number; at: string; actor: string; action: string; entity: string; entityId: string; before: object | null; after: object | null; requestId: string | null };
-type AlertItem = { id: number; subscriptionId: number; address: string; kind: "event_status" | "event_message"; eventId: number; eventName: string; statusId: number | null; messageId: number | null; subject: string; sentAt: string };
+type AlertItem = { id: number; subscriptionId: number; address: string; kind: "event_status" | "event_message"; eventId: number; eventName: string; statusId: number | null; messageId: number | null; subject: string; message: string | null; sentAt: string };   // messageId: the message a message alert announced, or the event message a status alert carried (null when it carried none); message: the body of that message, null when there is none or it was deleted
 type Event = {
   id: number; year: number; name: string; statusId: number; isCurrent: boolean;
   scheduledAt: string | null; wentLiveAt: string | null; endedAt: string | null;
   scheduleTimeZone: string | null;   // admin only: the IANA zone id (e.g. America/Denver) scheduledAt was entered in; null means unset
   fundsPercent: number; routeId: number | null; routeUrl: string | null;
   routeImageMediaId: string | null; routeImage: MediaAsset | null;
+  routeMapConfig: RouteMapConfig | null;   // the event's route map configuration (1.3); null means every built-in default
   statusNotifiedAt: string | null;   // when the current status was last announced to subscribers (a status change with notify, or POST .../notify); null since the last change otherwise
   createdBy: string; createdAt: string; updatedAt: string; audit: AuditStamp | null;
 };
 type EventMessage = { id: number; eventId: number; body: string; eventTime: string | null; createdBy: string; createdAt: string; updatedAt: string; audit: AuditStamp | null };
-type StatusHistory = { id: number; eventId: number; fromStatusId: number | null; toStatusId: number; changedBy: string; changedAt: string; notify: boolean; message: string | null; sentCount: number };   // sentCount: alert emails sent for this change so far, kept on the row
+type StatusHistory = { id: number; eventId: number; fromStatusId: number | null; toStatusId: number; changedBy: string; changedAt: string; notify: boolean; message: string | null; messageId: number | null; sentCount: number };   // message: the body of the event message posted with the change (null when none was given or it was deleted); messageId: that message's id, null likewise; sentCount: alert emails sent for this change so far, kept on the row
 type Route = { id: number; name: string; url: string; s3Key: string; sha256: string; pointCount: number; uploadedBy: string; createdAt: string; audit: AuditStamp | null };
+type PosterSummary = { id: number; name: string; routeId: number | null; updatedAt: string };   // one row of GET /admin/posters
+type Poster = {
+  id: number; name: string;
+  routeId: number | null;            // the flight recording the poster's map is built from (GET /admin/routes/{id}/route-map); null when unlinked
+  layout: object | null;             // the panel's poster composer layout, opaque to the API, in canonical form (4.5 Posters); null means unset
+  createdBy: string; createdAt: string; updatedAt: string; audit: AuditStamp | null;
+};
 type Beacon = {
   id: number; name: string; notes: string; keyPrefix: string; isActive: boolean;
   revokedAt: string | null; lastSeenAt: string | null; lastLocationAt: string | null; lastHeartbeatAt: string | null;
@@ -981,7 +1045,7 @@ type Page<T> = { items: T[]; nextCursor: string | null };
 
 // Content (1.3a), media (1.3b), icons
 type Problem = { path: string; message: string };                       // JSON pointer within the object validated
-type PageAdmin = { id: number; slug: string; title: string; navLabel: string | null; navPosition: number; isHidden: boolean; role: PageRole; sectionCount: number; problemCount: number; createdBy: string; createdAt: string; updatedBy: string; updatedAt: string; audit: AuditStamp | null };
+type PageAdmin = { id: number; slug: string; title: string; navLabel: string | null; icon: Icon | null; navPosition: number; isHidden: boolean; role: PageRole; sectionCount: number; problemCount: number; createdBy: string; createdAt: string; updatedBy: string; updatedAt: string; audit: AuditStamp | null };
 type SectionItemAdmin = { id: number; sectionId: number; position: number; isHidden: boolean; data: object; problems: Problem[]; updatedBy: string; updatedAt: string; audit: AuditStamp | null };
 type SectionAdmin = { id: number; pageId: number; kind: string; position: number; isHidden: boolean; data: object; presentation: Presentation; items: SectionItemAdmin[]; problems: Problem[]; updatedBy: string; updatedAt: string; audit: AuditStamp | null };
 type PageDetail = PageAdmin & { sections: SectionAdmin[] };
@@ -992,6 +1056,7 @@ type MediaAsset = {
   id: string; filename: string; contentType: string; kind: "raster" | "svg" | "gif"; state: "pending" | "ready" | "orphaned";
   sizeBytes: number | null; width: number | null; height: number | null; sha256: string | null; alt: string; title: string;
   url: string; variants: { [width: string]: string }; dziUrl: string | null; darkMediaId: string | null; invertInDark: boolean; smallMediaId: string | null;
+  credit: string | null;
   uploadedBy: string; createdAt: string; confirmedAt: string | null;
   unreferencedSince: string | null; orphanedAt: string | null;
   audit: AuditStamp | null;
@@ -999,6 +1064,7 @@ type MediaAsset = {
   // dziUrl: absolute CDN URL of the Deep Zoom descriptor when the asset has a tile pyramid (1.3b), else null
   // darkMediaId: the asset drawn in this one's place in dark mode (1.3b), else null; invertInDark: false by default
   // smallMediaId: the asset drawn in this one's place on small screens (1.3b), else null
+  // credit: the author or source named under the asset (1.3b), 1 to 200 characters, else null
 type UploadTicket = { media: MediaAsset; uploadUrl: string; method: "PUT"; headers: { [name: string]: string }; expiresAt: string };
 type MediaUsage = { draftPages: { id: number; slug: string; title: string }[]; versionCount: number; sponsors: { id: number; name: string }[]; cookieTypes: { id: number; name: string }[]; siteSettings: boolean; darkVersionOf: { id: string; filename: string }[] };
 type ContentVersionInfo = { id: number; sha256: string; label: string | null; publishedBy: string; publishedAt: string; pageCount: number; sectionCount: number; audit: AuditStamp | null };
@@ -1116,7 +1182,7 @@ Rules: `name` 1 to 100, `email` a valid address 3 to 254, `message` 1 to 2000. S
 
 **`DELETE /me/subscriptions/{id}`**. Sets `unsubscribed_at`. `204`. Errors: `404`. Idempotent.
 
-**`GET /me/alerts`**. `200 { "items": AlertItem[] }`: the alert emails actually sent to this person's subscriptions (`alert_delivery` rows with `sent_at` set, joined to their outbox row and event), newest first, at most 100. Each item names the subscription address, the kind (`event_status` or `event_message`), the event, the status or message it announced, the subject line as sent, and `sentAt`. Verification and unsubscribe mails are not alerts and never appear.
+**`GET /me/alerts`**. `200 { "items": AlertItem[] }`: the alert emails actually sent to this person's subscriptions (`alert_delivery` rows with `sent_at` set, joined to their outbox row and event), newest first, at most 100. Each item names the subscription address, the kind (`event_status` or `event_message`), the event, the status or message it announced (a status alert whose payload carries `messageId` reports it in `messageId` too), the subject line as sent, `message` (the body of the event message `messageId` names, read at request time, for status and message alerts alike; null when the payload names none or the row was deleted), and `sentAt`. Verification and unsubscribe mails are not alerts and never appear.
 
 **`GET /me/cookies`**. Cookies this person left on the current event.
 
@@ -1131,7 +1197,7 @@ Rules: `name` 1 to 100, `email` a valid address 3 to 254, `message` 1 to 2000. S
 
 ### 4.5 Admin endpoints (`Authorization: Bearer <id-token>` with group `admin` or `editor`)
 
-Each group of endpoints names its policy (3.1): **Editor** admits both groups, **Admin** admits `admin` only. Editor endpoints: Sponsors, Pages, Sections and items, Site settings, Content, Media, Icons. Everything else is Admin. Every group except API keys is also reachable with an API key carrying that group's capability (3.6). All admin writes record the caller's `email` claim, or `key:<name>` for a key, in the audit column named per table. Writes marked **[snapshot]** run the transaction in 7.3 and answer `502 snapshot_write_failed` if the snapshot upload fails; after commit the node writes the live object (1.8). The response is sent immediately after commit. The live-object write and publish run after the response and never delay it; their outcome is visible only through `GET /admin/live`.
+Each group of endpoints names its policy (3.1): **Editor** admits both groups, **Admin** admits `admin` only. Editor endpoints: Sponsors, Pages, Sections and items, Site settings, Content, Media, Icons, Posters, `GET /admin/events/{id}/route-map`, and `GET /admin/routes/{id}/route-map`. Everything else is Admin. Every group except API keys is also reachable with an API key carrying that group's capability (3.6). All admin writes record the caller's `email` claim, or `key:<name>` for a key, in the audit column named per table. Writes marked **[snapshot]** run the transaction in 7.3 and answer `502 snapshot_write_failed` if the snapshot upload fails; after commit the node writes the live object (1.8). The response is sent immediately after commit. The live-object write and publish run after the response and never delay it; their outcome is visible only through `GET /admin/live`.
 
 #### Events (Admin)
 
@@ -1140,22 +1206,26 @@ Each group of endpoints names its policy (3.1): **Editor** admits both groups, *
 | `GET /admin/events` | | `200 { "items": Event[] }` ordered `year` desc | |
 | `POST /admin/events` **[snapshot]** | `{ "year": 2026, "name": "...", "scheduledAt": null, "fundsPercent": 0, "routeId": null, "inheritRoute": true, "scheduleTimeZone": null }` (`year`, `name`, `inheritRoute` required; `scheduledAt` defaults null; `fundsPercent` defaults 0; `routeId` defaults null; `scheduleTimeZone` defaults null and is an IANA zone id such as `America/Denver`, `400 validation_failed` on an unknown id; `year` 2000 to 2100 unique; `name` 1 to 200; `fundsPercent` 0 to 100) | `201 Event` with `statusId` 1, `isCurrent` false. `inheritRoute: true` requires `routeId` null (`400` otherwise) and copies the `route_id` of the event with the greatest `year` that has one (none: no route); `inheritRoute: false` uses `routeId` as given. The route image is never inherited; `route_image_media_id` starts null and is set with `PATCH`. | `400`, `404 not_found` (routeId), `409 year_taken` |
 | `GET /admin/events/{id}` | | `200 Event` | |
-| `PATCH /admin/events/{id}` **[snapshot]** | Any of `name`, `year`, `scheduledAt`, `wentLiveAt`, `endedAt` (each: an RFC 3339 timestamp sets it, null clears it, absent leaves it unchanged; `400 validation_failed` on anything else), `fundsPercent`, `routeId`, `routeImageMediaId` (a ready raster media asset id; an empty string unlinks; null or absent leaves it unchanged, the same convention as `logoMediaId`), `scheduleTimeZone` (an IANA zone id sets it, null clears it, absent leaves it unchanged; `400 validation_failed` on an unknown id) | `200 Event` | `404` (event, route, or media), `409 year_taken`, `409 scheduled_at_required` (`scheduledAt: null` while `statusId` is 2), `409 media_not_ready`, `400 validation_failed` (an svg or gif asset as the route image) |
+| `GET /admin/events/{id}/route-map` (Editor) | | `200 { "routeMap": RouteMap \| null }`: the event's linked recording built exactly as `event.routeMap` (1.3) with the current settings, for any event, current or not, so the panel's poster generator renders any event's map; `null` when no recording is linked. Not snapshot-affecting | `404` |
+| `PATCH /admin/events/{id}` **[snapshot]** | Any of `name`, `year`, `scheduledAt`, `wentLiveAt`, `endedAt` (each: an RFC 3339 timestamp sets it, null clears it, absent leaves it unchanged; `400 validation_failed` on anything else), `fundsPercent`, `routeId`, `routeImageMediaId` (a ready raster media asset id; an empty string unlinks; null or absent leaves it unchanged, the same convention as `logoMediaId`), `scheduleTimeZone` (an IANA zone id sets it, null clears it, absent leaves it unchanged; `400 validation_failed` on an unknown id), `routeMapConfig` (a `RouteMapConfig` object sets it whole, null clears it, absent leaves it unchanged; the snapshot's `event.routeMapConfig` carries it while the event is current; rules under **Route map configuration** in 1.3). Any other field is `400` (0.2); a poster is its own document (Posters below), not an event field. | `200 Event` | `404` (event, route, or media), `409 year_taken`, `409 scheduled_at_required` (`scheduledAt: null` while `statusId` is 2), `409 media_not_ready`, `400 validation_failed` (an svg or gif asset as the route image; a `routeMapConfig` that is not an object or null, or breaks its schema, at the field's path; an unknown library icon on a landmark) |
 | `DELETE /admin/events/{id}` **[snapshot]** | | `204`; deletes its messages, cookies, status history, locations, and pending alert outbox rows | `404`, `409 event_live` (status 3), `409 event_current` (`isCurrent`; make another event current first) |
 | `POST /admin/events/{id}/current` **[snapshot]** | none | `200 Event` (`isCurrent` true; the previous current event's flag cleared in the same transaction). Idempotent: on the already-current event, `200 Event` with no snapshot rebuild and no live-object write, in every status. | `409 current_event_live` (another event is current and live) |
-| `POST /admin/events/{id}/status` **[snapshot]** | `{ "statusId": 3, "notify": true, "message": null }` (`statusId` and `notify` required; `message` optional, 1 to 1000 characters, the custom text the alert carries instead of the stock paragraph, ignored when `notify` is false) | `200 Event` | `400` (unknown status), `409 event_status_unchanged` (same status), `409 event_not_current` (3 requested and `isCurrent` false), `409 another_event_live` (3 requested while another event has status 3), `409 scheduled_at_required` (2 requested and `scheduledAt` null), `409 no_healthy_beacon` (3 requested and no beacon is active, or the active beacon is revoked or stale; `details.beacon` carries the active beacon's `id`, `name`, `lastSeenAt`, `staleSince`, or null when none is active) |
+| `POST /admin/events/{id}/status` **[snapshot]** | `{ "statusId": 3, "notify": true, "message": null }` (`statusId` and `notify` required; `message` optional, trimmed, 1 to 1000 characters, posted as an event message and carried in the alert instead of the stock paragraph; honoured with `notify` false too; without a `message` the template's stock paragraph for the new status is posted as the event message, so a status change always posts one) | `200 Event` | `400` (`statusId` outside 1 to 6), `409 event_status_unchanged` (same status), `409 event_not_current` (3 requested and `isCurrent` false), `409 another_event_live` (3 requested while another event has status 3), `409 scheduled_at_required` (2 requested and `scheduledAt` null), `409 no_healthy_beacon` (3 requested and no beacon is active, or the active beacon is revoked or stale; `details.beacon` carries the active beacon's `id`, `name`, `lastSeenAt`, `staleSince`, or null when none is active) |
 | `GET /admin/events/{id}/status-history` | | `200 { "items": StatusHistory[] }` newest first, each with whether subscribers were notified and how many emails went out | |
-| `POST /admin/events/{id}/notify` | `{ "message": null }` (`message` optional, 1 to 1000) | `200 Event`: announces the event's current status to subscribers now (outbox `event.status_notified`, the same fan-out and template as a status change with `notify: true`), sets `statusNotifiedAt`, and appends a StatusHistory row with `fromStatusId` equal to `toStatusId` and `notify: true` | `404` |
-| `POST /admin/events/{id}/clone` | `{ "year": 2027, "name": "Santa Flyover 2027", "copy": { "sponsors": true, "route": true, "poster": true } }` (`year` and `name` required as for create; every `copy` flag optional, default false) | `201 Event`: a new event in status 1, not current, `fundsPercent` 0, no scheduled time; `sponsors` copies every `sponsor_year` row of the source event's year to the new year (all fields but `registeredAt`, skipping sponsors that already have the new year) together with the year's pinned order; `route` links the source's `routeId`; `poster` links the source's `routeImageMediaId`. Not snapshot-affecting (the new event is not current) | `404`, `409 year_taken`, `400 validation_failed` |
+| `POST /admin/events/{id}/notify` (**[snapshot]** when `message` is given) | `{ "message": null }` (`message` optional, trimmed, 1 to 1000, posted as an event message and carried in the alert instead of the stock paragraph) | `200 Event`: announces the event's current status to subscribers now (outbox `event.status_notified`, the same fan-out and template as a status change with `notify: true`), sets `statusNotifiedAt`, and appends a StatusHistory row with `fromStatusId` equal to `toStatusId` and `notify: true`; with a `message` it inserts the `event_message` row (`eventTime` null, created by the actor) before the history row, the history row references it, and the snapshot is rebuilt so it is the event's `latestMessage`. The audit row's `after` is the Event plus `messageId` (null without a message) | `404` |
+| `POST /admin/events/{id}/clone` | `{ "year": 2027, "name": "Santa Flyover 2027", "copy": { "sponsors": true, "route": true, "poster": true, "routeMapConfig": true } }` (`year` and `name` required as for create; every `copy` flag optional, default false) | `201 Event`: a new event in status 1, not current, `fundsPercent` 0, no scheduled time; `sponsors` copies every `sponsor_year` row of the source event's year to the new year (all fields but `registeredAt`, skipping sponsors that already have the new year) together with the year's pinned order; `route` links the source's `routeId`; `poster` links the source's `routeImageMediaId`; `routeMapConfig` copies the source's `routeMapConfig` (null when it has none). Not snapshot-affecting (the new event is not current) | `404`, `409 year_taken`, `400 validation_failed` |
 | `GET /admin/events/{id}/messages` | | `200 { "items": EventMessage[] }` newest first | |
 | `POST /admin/events/{id}/messages` **[snapshot]** | `{ "body": "...", "eventTime": null, "notify": true }` (`body` 1 to 1000; `notify` required) | `201 EventMessage`; writes outbox `event.message_posted` only when `notify` is true | |
 | `PATCH /admin/events/{id}/messages/{messageId}` **[snapshot]** | `body`, `eventTime` | `200 EventMessage` (no outbox row) | `404` |
 | `DELETE /admin/events/{id}/messages/{messageId}` **[snapshot]** | | `204` | `404` |
+| `POST /admin/events/{id}/cookies` | `{ "items": [ { "cookieTypeId": 3, "count": 25 } ] }` (1 to 50 entries, each type listed once, `count` 1 to 100) | `201 { "eventId": 7, "seeded": 25, "cookieTally": { "1": 412, "3": 437 } }`: seeds the cookies on the live event; `cookieTally` is the event's whole tally after the insert, keys ascending, zero-count types absent, as on the live object (1.2). Not snapshot-affecting, no outbox row | `400 validation_failed` (on the field), `404 not_found` (event; or a listed type missing or inactive, with `details.cookieTypeIds`), `409 event_not_live` (status is not 3) |
 | `GET /admin/events/{id}/locations?cursor=&limit=&beaconId=&publishedOnly=false` | | `200 Page<LocationRow>` ordered `seq` asc; with `Accept: text/csv` streams every matching row (paging ignored) with the header `seq,beaconId,published,recordedAt,receivedAt,lat,lng,speedMps,speedSource,altitudeM,headingDeg,accuracyM` | |
 | `DELETE /admin/events/{id}/locations?beaconId=` | | `204`; deletes the event's location rows, one beacon's when `beaconId` is given; `next_seq` is not reset; without `beaconId` `event.latest_fix` is nulled, with `beaconId` it is nulled only when its `beaconId` matches; the audit action is `event.locations_cleared` with `before = { count, byBeacon: [ { beaconId, name, count } ] }`. The leader's next tick rewrites the live object from SQL, so the site sees the marker update in due course (contracts 1.2 lets a site keep the location it holds until reload; fine). | `404`, `409 event_live` |
 | `GET /admin/events/{id}/locations/impact` | | `200 DeleteImpact` (api.md 5b): one group `locations` per beacon with the count and the beacon's name; blocked with `This event is live. End it first.` while live | `404` |
 
-Status change transaction: lock the event row; check the rules above; for `statusId` 3 also read the active beacon (`is_active`) and refuse with `409 no_healthy_beacon` unless it exists, has `revoked_at` null, `stale_since` null, and `last_seen_at` not null (a healthy beacon is one the API has heard from within `beacon_stale_after_s`; the socket is not required, HTTP heartbeats count); update `status_id`; stamp `went_live_at = now()` on every entry into 3 and `ended_at = now()` on every entry into 4 (earlier stamps are overwritten; the admin can correct either with `PATCH`); on every entry into 4 also set `final_cookie_tally` to the current counts (`jsonb_object_agg` per type) and on every exit from 4 set it to null; insert `event_status_history`; insert outbox `event.status_changed { eventId, fromStatusId, toStatusId, notify }`; rebuild the snapshot; commit. After commit the node writes the live object with the new `eventStatusId` and `snapshotUrl` and publishes it. Any status may follow any other status; the admin decides, and `notify` decides whether subscribers are emailed (only entries into 2 and 3 produce emails, section 7.7).
+**Seeded cookies.** An admin can add cookies to the live event's tally so it never sits at zero; cookies stay a hidden feature on the panel. A seeded cookie is a `cookie` row with `person_id` null and `seeded_by` the actor exactly as the audit log writes it (`person:<email>` or `key:<name>`), `note` null, `left_at` the insert time (sql.md 8.9a). The write locks the event row, inserts in one statement, and commits; the node then adds the cookies to its in-memory tally as `POST /cookies` does, so the live object carries them within a tick and the leader's tally rewrite covers the fleet (7.4). Seeded cookies count wherever a cookie counts: `cookieTally` (1.2), `final_cookie_tally` on entry into status 4, `CookieType.cookieCount` and the cookie type delete, and the events delete impact and cascade. They never count toward or appear as any person's: the per-person limit of `POST /cookies`, `GET /me/cookies`, and `cookieCount` on `GET /admin/people` see only the person's own rows, the events delete impact names only people's emails, and `DELETE /admin/people/{id}` leaves them. The audit row is action `cookies_seeded` on entity `event` with `before` null and `after = { "items": [ { "cookieTypeId": 3, "count": 25 } ], "seeded": 25 }`.
+
+Status change transaction: lock the event row; check the rules above; for `statusId` 3 also read the active beacon (`is_active`) and refuse with `409 no_healthy_beacon` unless it exists, has `revoked_at` null, `stale_since` null, and `last_seen_at` not null (a healthy beacon is one the API has heard from within `beacon_stale_after_s`; the socket is not required, HTTP heartbeats count); update `status_id`; stamp `went_live_at = now()` and set `ended_at = null` on every entry into 3, stamp `ended_at = now()` on every entry into 4, and set both to null on a change from 3 to any status other than 4; every other transition leaves both as they are (earlier stamps are overwritten; the admin can correct either with `PATCH`; the audit `after` and the rebuilt snapshot carry the result); on every entry into 4 also set `final_cookie_tally` to the current counts (`jsonb_object_agg` per type) and on every exit from 4 set it to null; insert the `event_message` row (`event_time` null, `created_by` the actor) with `notify` true or false, its body the `message` when given and otherwise the template's stock paragraph for the new status (7.8, rendered from the event's name, `scheduled_at`, and `schedule_time_zone`, the same text the email would carry); insert outbox `event.status_changed { eventId, fromStatusId, toStatusId, notify, messageId }` (`messageId` the new row's id); insert `event_status_history` with `message_id` the same; record the audit row, whose `after` is the Event plus `messageId` (no separate message audit row); rebuild the snapshot, which carries the new message as `latestMessage`; commit. Deleting the message later sets the history row's `message_id` null (the foreign key's `on delete set null`), and an alert not yet sent then renders the stock paragraph. After commit the node writes the live object with the new `eventStatusId` and `snapshotUrl` and publishes it. Any status may follow any other status; the admin decides, and `notify` decides whether subscribers are emailed (only entries into 2 and 3 produce emails, section 7.7).
 
 #### Routes (Admin)
 
@@ -1165,11 +1235,27 @@ Flight recordings (1.4). Not shown on the site; used by Red-Nose replay, exports
 |---|---|---|---|
 | `GET /admin/routes` | | `200 { "items": Route[] }` newest first | |
 | `GET /admin/routes/{id}` | | `200 Route` | |
+| `GET /admin/routes/{id}/route-map` (Editor) | | `200 { "routeMap": RouteMap \| null }`: this recording built exactly as `event.routeMap` (1.3) with the current `route_map_*` settings, whether or not any event links it, so the panel's poster composer renders any recording's map; `null` only when the recording's object cannot be read. Not snapshot-affecting | `404` |
 | `POST /admin/routes` | `{ "name": "2026 draft", "points": [ { "lat", "lng", "recordedAt" } ] }` per 1.4 | `201 Route`. Canonicalizes and hashes (1.6), looks `route` up by `s3_key` before the PUT (when a row exists: `200` that row and nothing is written), PUTs `routes/{sha256}.json`, inserts the row. When the insert after the PUT fails on `s3_key unique` (concurrent identical upload): `200` the existing row. | `400`, `413`, `502 route_write_failed` |
 | `POST /admin/routes/from-event/{eventId}` | `{ "name": "2026 flight" }` (`name` 1 to 200) | `201 Route` built from the event's `published = true` locations in `seq` order (`lat`, `lng`, `recordedAt = recorded_at`), then stored exactly like an upload (canonicalize, hash, existing-row check, PUT, insert). Point count must be 2 to 50,000. | `404` (event), `400 validation_failed` (fewer than 2 points), `413` (over 50,000), `502 route_write_failed` |
-| `DELETE /admin/routes/{id}` | | `204`; deletes the object; events that used it lose their recording (`routeId` null, listed under `unlinks`) | `404` |
+| `DELETE /admin/routes/{id}` | | `204`; deletes the object; events and posters that used it lose their recording (`routeId` null, each listed under `unlinks`: a group `event` and a group `poster`) | `404` |
 
-Attaching a route to an event is `PATCH /admin/events/{id}` with `routeId`.
+Attaching a route to an event is `PATCH /admin/events/{id}` with `routeId`; to a poster, `PATCH /admin/posters/{id}` with `routeId`.
+
+#### Posters (Editor)
+
+A poster is the admin panel's own document: the panel makes many (different QR codes, different sponsor logos), and an event links a generated image through `routeImageMediaId`, never a poster. The group rides the `events` capability (3.6). Nothing here is snapshot-affecting; posters are never public.
+
+| Method and path | Body | Success | Errors |
+|---|---|---|---|
+| `GET /admin/posters` | | `200 { "items": PosterSummary[] }` newest first (by `id` desc); no `layout` | |
+| `POST /admin/posters` | `{ "name": "Main street", "routeId": null, "layout": null }` (`name` required, 1 to 200, trimmed; `routeId` optional, a route id or null; `layout` optional, per the layout rule below) | `201 Poster` | `400 validation_failed`, `404` (route) |
+| `GET /admin/posters/{id}` | | `200 Poster`, `layout` included | `404` |
+| `PATCH /admin/posters/{id}` | Any of `name` (1 to 200), `routeId` (a route id sets it, null clears it, absent leaves it unchanged), `layout` (a JSON object sets it, null clears it, absent leaves it unchanged) | `200 Poster` | `404` (poster or route), `400 validation_failed` (a `layout` that is not an object or null, or whose canonical form exceeds 32 KB; a `routeId` that is not an integer or null) |
+| `DELETE /admin/posters/{id}` | | `204` | `404` |
+| `GET /admin/posters/{id}/impact` | | `200 DeleteImpact`: nothing depends on a poster, so `deletes` holds the one group `poster` (count 1, the poster's name) and `unlinks` and `warnings` are empty | `404` |
+
+**Poster layout.** `layout` is the admin panel's poster composer document. The panel owns its shape; the API never looks inside it. The API requires a JSON object (an array or a scalar is `400 validation_failed` on `layout`) whose canonical form is at most 32 KB (32768 bytes), stores it in `poster.layout`, and answers it on `GET /admin/posters/{id}` and every write that returns a `Poster`, in canonical form: object properties in ascending ordinal order at every depth, no whitespace, numbers as written. It is never public: it is not in the snapshot, the live object, or any site document. Every write is audited (entity `poster`).
 
 #### Beacons (Admin)
 
@@ -1232,13 +1318,13 @@ Pages, sections, items, and the site settings draft are the working set. Writes 
 | Method and path | Body | Success | Errors |
 |---|---|---|---|
 | `GET /admin/pages` | | `200 { "items": PageAdmin[] }` ordered `role` pages first (in status order, `no_event` first), then `none` pages by `navPosition`, `id` | |
-| `POST /admin/pages` | `{ "slug": "about", "title": "About", "navLabel": "About", "navPosition": 10, "isHidden": false }` (`slug`, `title` required; `title` 1 to 200; `navLabel` null or 1 to 40; `navPosition` defaults to one past the greatest; role is always `none`) | `201 PageAdmin` | `400 slug_reserved`, `409 slug_taken` |
+| `POST /admin/pages` | `{ "slug": "about", "title": "About", "navLabel": "About", "icon": { "source": "library", "id": "star" }, "navPosition": 10, "isHidden": false }` (`slug`, `title` required; `title` 1 to 200; `navLabel` null or 1 to 40; `icon` an `Icon` (1.3a) or null, absent means null; `navPosition` defaults to one past the greatest; role is always `none`) | `201 PageAdmin` | `400 slug_reserved`, `409 slug_taken`, `400 validation_failed` (`icon` not an `Icon`, on `icon`; a library id not in the library, on `icon.id`), `404` (media icon asset), `409 media_not_ready` |
 | `GET /admin/pages/{id}` | | `200 PageDetail` (sections with items in order, each with its publish-level `problems`) | `404` |
-| `PATCH /admin/pages/{id}` | subset of `slug`, `title`, `navLabel`, `navPosition`, `isHidden` | `200 PageAdmin`. On a role page `navLabel` must stay null and `isHidden` false (`400`). | `404`, `400 slug_reserved`, `409 slug_taken` |
+| `PATCH /admin/pages/{id}` | subset of `slug`, `title`, `navLabel`, `icon` (an `Icon` sets it, `null` clears it, absent leaves it), `navPosition`, `isHidden` | `200 PageAdmin`. On a role page `navLabel` must stay null and `isHidden` false (`400`); role pages take icons like any page. | `404` (the page or a media icon asset), `400 slug_reserved`, `409 slug_taken`, `400 validation_failed` (`icon` not an `Icon`, on `icon`; a library id not in the library, on `icon.id`), `409 media_not_ready` |
 | `DELETE /admin/pages/{id}?roleTo=` | | `204`; cascades sections and items; a page holding a role hands it to the page named by `roleTo` first (the impact warns which role) | `404`, `400 role_needs_page` (the page holds a role and `roleTo` is missing or not another page) |
 | `PUT /admin/pages/order` | `{ "ids": [3, 5, 4] }` (every `none` page exactly once) | `200 { "items": PageAdmin[] }`; `navPosition` becomes the index times 10 | `400` |
 
-The six role pages are created by the seed (sql.md 6) with slugs `no-event`, `planned`, `scheduled`, `live`, `ended`, `cancelled`; their role never changes and they cannot be deleted. Reaching `/<slug>` of a role page on the site redirects to `/`.
+The seven role pages are created by the seed (sql.md 6) with slugs `no-event`, `planned`, `scheduled`, `live`, `ended`, `cancelled`, `postponed`; their role never changes and they cannot be deleted. Reaching `/<slug>` of a role page on the site redirects to `/`.
 
 #### Sections and items (Editor)
 
@@ -1290,8 +1376,8 @@ The pipeline is presign, upload, confirm. Media bytes never pass through the API
 | `POST /admin/media/{id}/confirm` | none | `200 MediaAsset` with `state: "ready"`. The API reads the object, checks the size against the ticket and the limit, sniffs the type (must match `contentType`), validates SVG (below), decodes raster with a 40-megapixel ceiling, records `width`, `height`, `sha256`, derives `w480`, `w960`, `w1600` WebP variants for raster narrower widths than the source (never for gif or svg), cuts the Deep Zoom tile pyramid for a raster whose longest side is 2048 px or more (1.3b), PUTs them all, removes the pending tag, and updates the row. | `404` (row), `404 upload_not_found` (object missing), `409 media_not_pending`, `413`, `400 validation_failed` (sniff mismatch, SVG rules, decode failure; the object is deleted and the row removed) |
 | `GET /admin/media/{id}` | | `200 MediaAsset` | `404` |
 | `GET /admin/media/{id}/usage` | | `200 MediaUsage` | `404` |
-| `PATCH /admin/media/{id}` **[snapshot]** | subset of `alt`, `title`, `darkMediaId` (the id of another `ready` asset, or `null` to clear), `invertInDark` (boolean), `smallMediaId` (the id of another `ready` asset, or `null` to clear) | `200 MediaAsset` | `404` (the asset, `darkMediaId`, or `smallMediaId`), `409 media_not_ready` (`darkMediaId` or `smallMediaId` not ready), `400 validation_failed` (`darkMediaId` or `smallMediaId` is the asset itself) |
-| `DELETE /admin/media/{id}` | | `204`; deletes every object under `media/{id}/` and the row, in any state; every reference is cleared first (section and item image fields, sponsor logos, event posters, the site logo and favicon fall back to the library icon, and the assets whose dark or small version it is, listed as "dark version of <filename>" or "small version of <filename>"), listed under `unlinks` | `404` |
+| `PATCH /admin/media/{id}` **[snapshot]** | subset of `alt`, `title`, `darkMediaId` (the id of another `ready` asset, or `null` to clear), `invertInDark` (boolean), `smallMediaId` (the id of another `ready` asset, or `null` to clear), `credit` (a string of 1 to 200 characters after trimming, stored trimmed, or `null` to clear) | `200 MediaAsset` | `404` (the asset, `darkMediaId`, or `smallMediaId`), `409 media_not_ready` (`darkMediaId` or `smallMediaId` not ready), `400 validation_failed` (`darkMediaId` or `smallMediaId` is the asset itself; `credit` blank after trimming or longer than 200 characters) |
+| `DELETE /admin/media/{id}` | | `204`; deletes every object under `media/{id}/` and the row, in any state; every reference is cleared first (section and item image fields, page icons, sponsor logos, event posters, the site logo and favicon fall back to the library icon, and the assets whose dark or small version it is, listed as "dark version of <filename>" or "small version of <filename>"), listed under `unlinks` | `404` |
 
 A ticket whose object never arrives expires by the bucket's lifecycle rule (tag `state=pending`, 1 day) and its row by the nightly cleanup (7.6). In use means referenced by the working set, by any retained version, by a sponsor, by a cookie type, by the site settings draft, or as another asset's dark version (`MediaUsage.darkVersionOf`, shown as "dark version of <filename>").
 
@@ -1397,16 +1483,16 @@ type PlacePin = { placeId: number; name: string; path: string[]; lat: number; ln
                   codes: { tag: string; placeName: string; people: number }[] };
 ```
 
-**Delete impact.** Deletes never refuse because something depends on the row; they take the dependents with them or unlink them, and every delete has a preview so the caller sees that first. `GET /admin/<resource>/{id}/impact` answers `200 DeleteImpact` (`404` when the row is gone) for `events`, `routes`, `sponsors`, `cookie-types`, `pages`, `media`, `places`, `qr-codes`, `beacons`, `api-keys`, `subscribers`, `people`, and `contact-messages`: `deletes` lists what goes with the row (an entity kind per group, its count, up to ten names), `unlinks` what stays but loses its reference to the row, and `warnings` the plain sentences the panel shows above the counts (the page holds a role, the beacon is active, a cookie tally drops while live). The preview and the delete run the same queries, so what the preview lists is what the delete does. The one refusal left: the live event and the current event cannot be deleted; their preview answers `blocked` with the sentence ("This event is live. End it first.", "This is the current event. Make another event current first.") and the delete answers `409 event_live` or `409 event_current`. Every other resource answers `blocked` null. The delete's audit row carries, in `before`, the DTO plus the `impact` it applied; the cascaded rows get no rows of their own.
+**Delete impact.** Deletes never refuse because something depends on the row; they take the dependents with them or unlink them, and every delete has a preview so the caller sees that first. `GET /admin/<resource>/{id}/impact` answers `200 DeleteImpact` (`404` when the row is gone) for `events`, `routes`, `sponsors`, `cookie-types`, `pages`, `media`, `places`, `qr-codes`, `beacons`, `api-keys`, `subscribers`, `people`, `contact-messages`, and `posters`: `deletes` lists what goes with the row (an entity kind per group, its count, up to ten names), `unlinks` what stays but loses its reference to the row, and `warnings` the plain sentences the panel shows above the counts (the page holds a role, the beacon is active, a cookie tally drops while live). The preview and the delete run the same queries, so what the preview lists is what the delete does. The one refusal left: the live event and the current event cannot be deleted; their preview answers `blocked` with the sentence ("This event is live. End it first.", "This is the current event. Make another event current first.") and the delete answers `409 event_live` or `409 event_current`. Every other resource answers `blocked` null. The delete's audit row carries, in `before`, the DTO plus the `impact` it applied; the cascaded rows get no rows of their own.
 
-**Audit.** Every admin write (every `POST`, `PATCH`, `PUT`, `DELETE` under `/admin/*`, whoever the caller is) records one `audit_log` row inside its own transaction: the actor (`person:<email>` for an ID token, `key:<name>` for an API key), the action, the entity kind and id, the resource as it was before and as it is after (the same shapes the endpoints answer with; `before` is null on create, `after` is null on delete), and the request id. Lists and details of audited resources carry `audit: AuditStamp | null` (the newest row for that entity; null for a row older than the log).
+**Audit.** Every admin write (every `POST`, `PATCH`, `PUT`, `DELETE` under `/admin/*`, whoever the caller is) records one `audit_log` row inside its own transaction: the actor (`person:<email>` for an ID token, `key:<name>` for an API key), the action, the entity kind and id, the resource as it was before and as it is after (the same shapes the endpoints answer with; `before` is null on create, `after` is null on delete), and the request id. Endpoints with their own verbs name them as the action; seeding cookies (`POST /admin/events/{id}/cookies`) records `cookies_seeded` on entity `event` with the request's items and the total in `after`. Lists and details of audited resources carry `audit: AuditStamp | null` (the newest row for that entity; null for a row older than the log).
 
 | Method and path | Body | Success | Errors |
 |---|---|---|---|
 | `GET /admin/audit?entity=&entityId=&action=&actor=&cursor=&limit=` | | `200 Page<AuditEntry>` newest first, `limit` 1 to 200 (default 50); every filter optional; `entity` and `entityId` together give one row's history; `action=delete` alone lists what was deleted anywhere | `400 validation_failed` |
 | `GET /admin/audit/entities` | | `200 { "items": string[] }`: the entity kinds the log knows | |
 
-Actions are `create`, `update`, `delete` for the generic writes and the endpoint's own verb otherwise: `status`, `notify`, `current`, `clone`, `activate`, `deactivate`, `revoke`, `rotate`, `order`, `copy`, `import`, `confirm`, `publish`, `restore`, `move`, `duplicate`, `enroll`. Entities: `event`, `event_message`, `route`, `beacon`, `sponsor`, `sponsor_year`, `sponsor_order`, `cookie_type`, `api_key`, `person`, `subscriber`, `contact_message`, `setting`, `page`, `section`, `section_item`, `site_settings`, `content_version`, `media_asset`, `qr_code`, `place`. The log is never pruned.
+Actions are `create`, `update`, `delete` for the generic writes and the endpoint's own verb otherwise: `status`, `notify`, `current`, `clone`, `activate`, `deactivate`, `revoke`, `rotate`, `order`, `copy`, `import`, `confirm`, `publish`, `restore`, `move`, `duplicate`, `enroll`. Entities: `event`, `event_message`, `route`, `beacon`, `sponsor`, `sponsor_year`, `sponsor_order`, `cookie_type`, `api_key`, `person`, `subscriber`, `contact_message`, `setting`, `page`, `section`, `section_item`, `site_settings`, `content_version`, `media_asset`, `qr_code`, `place`, `poster`. The log is never pruned.
 
 ### 4.6 Internal gateway callbacks
 
@@ -1428,6 +1514,7 @@ Actions are `create`, `update`, `delete` for the generic writes and the endpoint
 | `event_status_unchanged`, `event_not_current`, `another_event_live`, `scheduled_at_required`, `no_healthy_beacon` | 409 | `POST /admin/events/{id}/status`; `scheduled_at_required` also on `PATCH /admin/events/{id}` |
 | `current_event_live` | 409 | `POST /admin/events/{id}/current` |
 | `event_live` | 409 | cookie type writes while an event is live; deleting a live event |
+| `event_not_live` | 409 | `POST /admin/events/{id}/cookies` on an event whose status is not 3 |
 | `year_taken` | 409 | event create, patch, and clone |
 | `place_cycle` | 400 | `PATCH /admin/places/{id}` moving a place under itself |
 | `place_name_taken` | 409 | place create and patch (unique among siblings) |
@@ -1467,7 +1554,7 @@ create table event_status (
   name text not null unique
 );
 insert into event_status (id, name) values
-  (1, 'planned'), (2, 'scheduled'), (3, 'live'), (4, 'ended'), (5, 'cancelled');
+  (1, 'planned'), (2, 'scheduled'), (3, 'live'), (4, 'ended'), (5, 'cancelled'), (6, 'postponed');
 
 create table route (
   id          bigint generated always as identity primary key,
@@ -1497,12 +1584,23 @@ create table event (
   status_notified_at timestamptz,                 -- when the current status was last announced; cleared by every status change (4.5)
   next_seq      bigint not null default 1,
   latest_fix    jsonb,                            -- the last published fix on this event, stored or carried, set in the same update that advances next_seq (1.2, 7.2); nulled by DELETE /admin/events/{id}/locations (4.5)
+  route_map_config jsonb,                         -- the event's RouteMapConfig in canonical form, validated on write (1.3, 4.5); null means every built-in default
   created_by    text not null,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
 );
 create unique index event_one_live    on event (status_id) where status_id = 3;
 create unique index event_one_current on event (is_current) where is_current;
+
+create table poster (
+  id         bigint generated always as identity primary key,
+  name       text not null check (char_length(name) between 1 and 200),
+  route_id   bigint references route (id) on delete set null,   -- the recording the poster's map is built from; a route delete unlinks it (4.5 Routes)
+  layout     jsonb,                                            -- admin only: the panel's poster composer layout, an opaque object of at most 32 KB canonical (4.5 Posters); never in the snapshot
+  created_by text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
 
 create table event_status_history (
   id             bigint generated always as identity primary key,
@@ -1512,7 +1610,7 @@ create table event_status_history (
   changed_by     text not null,
   changed_at     timestamptz not null default now(),
   notify         boolean not null default false,  -- the admin asked for subscribers to be told
-  message        text,                            -- the custom alert text, null for the stock paragraph
+  message_id     bigint references event_message (id) on delete set null,   -- the event message posted with the change; its body replaces the stock paragraph
   outbox_id      bigint references outbox (id) on delete set null,   -- the alert's outbox row while it exists
   sent_count     integer not null default 0        -- alert emails sent for this row, kept by the alert-send chore, survives the outbox row
 );
@@ -1772,10 +1870,11 @@ create table page (
   slug         text not null unique,
   title        text not null,
   nav_label    text,
+  icon         jsonb,                     -- Icon value (1.3a) or null
   nav_position integer not null default 0,
   is_hidden    boolean not null default false,
   role         text not null default 'none'
-               check (role in ('none', 'no_event', 'planned', 'scheduled', 'live', 'ended', 'cancelled')),
+               check (role in ('none', 'no_event', 'planned', 'scheduled', 'live', 'ended', 'cancelled', 'postponed')),
   created_by   text not null,
   created_at   timestamptz not null default now(),
   updated_by   text not null,
@@ -1920,7 +2019,7 @@ create index qr_scan_attachment on qr_scan (attachment_id, at desc);
 create index qr_scan_event on qr_scan (event_id, at desc);
 ```
 
-Plain `lat`/`lng` columns; no PostGIS. `seq` is per event from `event.next_seq`, assigned under the event row lock, so seq order is commit order. Soft delete exists only on `cookie` (`hidden_at`); every other delete is hard. The content working set is `page`, `section`, `section_item`, and `site_setting_draft`; `content_version` holds published documents; `media_asset` is the media library; `preview_token` and `icon_library_state` are plumbing. First boot seeds the six role pages and the starter content and publishes version 1 before building snapshot version 1 (sql.md 6 and 8.16).
+Plain `lat`/`lng` columns; no PostGIS. `seq` is per event from `event.next_seq`, assigned under the event row lock, so seq order is commit order. Soft delete exists only on `cookie` (`hidden_at`); every other delete is hard. The content working set is `page`, `section`, `section_item`, and `site_setting_draft`; `content_version` holds published documents; `media_asset` is the media library; `preview_token` and `icon_library_state` are plumbing. First boot seeds the seven role pages and the starter content and publishes version 1 before building snapshot version 1 (sql.md 6 and 8.16).
 
 ---
 
@@ -1937,6 +2036,9 @@ Plain `lat`/`lng` columns; no PostGIS. `seq` is per event from `event.next_seq`,
 | `location_min_interval_ms` | int | 250 | 0 to 60000 | Admin panel | Location write path (7.2): the least time between two accepted fixes from one beacon on a node; 0 disables |
 | `hub_enabled` | bool | true | true or false | Admin panel | Live object `hubEnabled` (1.2): false takes every visitor off the hub and onto the poll within one poll |
 | `location_min_distance_m` | number | 0 | 0 to 10000 | Admin panel | Location write path (7.2): a fix that moved less than this from the beacon's last stored fix on the event is carried, not stored; 0 means only an exact repeat of `lat` and `lng` is carried |
+| `route_map_simplify_tolerance_m` | int | 30 | 1 to 500 | Admin panel | Snapshot `event.routeMap.path` (1.3), `GET /admin/events/{id}/route-map`, and `GET /admin/routes/{id}/route-map`: the Douglas-Peucker tolerance in metres before smoothing |
+| `route_map_max_points` | int | 1200 | 100 to 10000 | Admin panel | Snapshot `event.routeMap.path` (1.3), `GET /admin/events/{id}/route-map`, and `GET /admin/routes/{id}/route-map`: the vertex cap after smoothing, reached by even thinning that keeps the first and last vertex |
+| `route_map_default_duration_minutes` | int | 120 | 10 to 720 | Admin panel | Snapshot `event.routeMap` (1.3), `GET /admin/events/{id}/route-map`, and `GET /admin/routes/{id}/route-map`: the duration of an untimed recording (fewer than 2 anchors), spread over the path by distance |
 
 Only `PUT /admin/settings/{key}` changes a value. A missing row means the default. Every settings write is a snapshot-affecting write: the version bump makes every node re-read settings within a tick, and the writing node rewrites the live object so a new `poll_interval_ms` reaches the site. No other configuration lives in the database.
 
@@ -2049,8 +2151,8 @@ At `WMSFO_ALERT_SEND_PER_SEC` = 10, twenty thousand verified subscribers take ab
 
 | Topic | Payload | Written by | Processing |
 |---|---|---|---|
-| `event.status_changed` | `{ "eventId": 7, "fromStatusId": 2, "toStatusId": 3, "notify": true, "message": null, "historyId": 40 }` | every status change (4.5) | When `notify` is true: for every `subscriber` with `channel = 'email' and verified_at is not null and unsubscribed_at is null`, `insert into alert_delivery (outbox_id, subscriber_id) ... on conflict do nothing`. Template by `toStatusId`: `event_planned` (1), `event_scheduled` (2), `event_live` (3), `event_ended` (4), `event_cancelled` (5); a non-null `message` replaces the template's stock paragraph (`{{customMessage}}`). When `notify` is false nothing is sent and the row is published at once. |
-| `event.status_notified` | `{ "eventId": 7, "statusId": 3, "message": null, "historyId": 41 }` | `POST /admin/events/{id}/notify` | Exactly the processing of `event.status_changed` with `notify: true` for `statusId`. |
+| `event.status_changed` | `{ "eventId": 7, "fromStatusId": 2, "toStatusId": 3, "notify": true, "messageId": null, "historyId": 40 }` | every status change (4.5) | When `notify` is true: for every `subscriber` with `channel = 'email' and verified_at is not null and unsubscribed_at is null`, `insert into alert_delivery (outbox_id, subscriber_id) ... on conflict do nothing`. Template by `toStatusId`: `event_planned` (1), `event_scheduled` (2), `event_live` (3), `event_ended` (4), `event_cancelled` (5), `event_postponed` (6); a non-null `messageId` names the event message whose body replaces the template's stock paragraph (`{{customMessage}}`); when that row no longer exists the stock paragraph renders. When `notify` is false nothing is sent and the row is published at once. |
+| `event.status_notified` | `{ "eventId": 7, "statusId": 3, "messageId": null, "historyId": 41 }` | `POST /admin/events/{id}/notify` | Exactly the processing of `event.status_changed` with `notify: true` for `statusId`. |
 | `event.message_posted` | `{ "eventId": 7, "messageId": 12 }` | `POST /admin/events/{id}/messages` with `notify: true` | Same fan-out, template `event_message`. When the message or event row no longer exists, mark the outbox row published with `last_error = 'source_deleted'` and send nothing. |
 | `subscription.verify` | `{ "subscriberId": 9, "verifyToken": "wsv_..." }` | subscribe and resend-verification | Send template `subscription_verify` to the subscriber's address with `{{verifyUrl}}` = `WMSFO_SITE_BASE_URL/alerts/verify?token=<verifyToken>`. The plaintext token exists only in this outbox row; it is useless after the 24 h expiry and the row is deleted by the nightly chore. No `alert_delivery` row. |
 | `contact.received` | `{ "contactMessageId": 12 }` | `POST /contact` | Send template `contact_received` to `WMSFO_CONTACT_NOTIFY_EMAIL` with reply-to set to the sender. |
@@ -2063,15 +2165,15 @@ SES v2 API through the instance role in `<region>`, from `WMSFO_SES_FROM_ADDRESS
 
 The API reads the account's sending quota with `GetAccount` for `GET /admin/email/quota` (4.5) and never blocks or delays a send because of it.
 
-Every email has an HTML part and a text part. Each template in the API repository is a body fragment, `templates/email/<name>.html` and `.txt`, placed as-is at `{{content}}` of the shared layout, `templates/email/_layout.html` and `_layout.txt`. The node composes every template with the layout once at boot and validates the required substitutions against the composed result; a missing layout, layout without `{{content}}`, logo, or fragment fails the boot. The layout takes `{{subject}}`, `{{preheader}}` (one hidden sentence per template that inbox previews show), `{{logoUrl}}`, `{{siteUrl}}`, `{{footerReason}}` (why the reader got the email), and `{{content}}`; the text layout takes `{{content}}`, `{{footerReason}}`, `{{siteUrl}}`. Every substituted value is HTML-escaped in the HTML part and raw in the text part; only the fragment itself is placed unescaped.
+Every email has an HTML part and a text part. Each template in the API repository is a body fragment, `templates/email/<name>.html` and `.txt`, placed as-is at `{{content}}` of the shared layout, `templates/email/_layout.html` and `_layout.txt`. The node composes every template with the layout once at boot and validates the required substitutions against the composed result; a missing layout, layout without `{{content}}`, logo, or fragment fails the boot. The layout takes `{{subject}}`, `{{preheader}}` (one hidden sentence per template that inbox previews show), `{{logoUrl}}`, `{{siteName}}`, `{{siteUrl}}`, `{{footerReason}}` (why the reader got the email), and `{{content}}`; the text layout takes `{{siteName}}` (its first line), `{{content}}`, `{{footerReason}}`, `{{siteUrl}}`. Every substituted value is HTML-escaped in the HTML part and raw in the text part; only the fragment itself is placed unescaped.
 
-The layout: page background `#eef3fa`; a centred white card (`#ffffff`, 1 px `#d3ddee` border, 10 px radius, at most 560 px wide, 32 px padding, 20 px on phones through an inline `clamp` that clients without it read as 32 px); the logo at the top of the card, 96 px wide, alt `Santa Tracker`, with the name `Santa Tracker` as text beside it so the email reads with images off; headings `#0f1a30`, body `#2c3850`, secondary text `#5a6885`, links and buttons `#0b6bb5`; a system font stack, no web fonts. A code or temporary password sits in its own block, always as text: 32 px monospace, 6 px letter spacing, `#f5f8fd` fill, 1 px `#d3ddee` border. An email carries at most one button, a table cell with `#0b6bb5` fill and white text, with the plain URL printed under it. The footer is 13 px `#5a6885`: on alerts the unsubscribe link (the last line of the fragment), then the footer reason and a link to the site. Table-based layout with inline styles only: no `<style>` block, no scripts, one image in total.
+The layout: page background `#eef3fa`; a centred white card (`#ffffff`, 1 px `#d3ddee` border, 10 px radius, at most 560 px wide, 32 px padding, 20 px on phones through an inline `clamp` that clients without it read as 32 px); the logo at the top of the card, 96 px wide, its alt the site name, with the site name as text beside it so the email reads with images off; headings `#0f1a30`, body `#2c3850`, secondary text `#5a6885`, links and buttons `#0b6bb5`; a system font stack, no web fonts. A code or temporary password sits in its own block, always as text: 32 px monospace, 6 px letter spacing, `#f5f8fd` fill, 1 px `#d3ddee` border. An email carries at most one button, a table cell with `#0b6bb5` fill and white text, with the plain URL printed under it. The footer is 13 px `#5a6885`: on alerts the unsubscribe link (the last line of the fragment), then the footer reason and a link to the site. Table-based layout with inline styles only: no `<style>` block, no scripts, one image in total.
 
-The logo object is `email/{sha256}.png` (1.1), where `{sha256}` is the SHA-256 of `templates/email/logo.png`; `{{logoUrl}}` is `WMSFO_CDN_BASE_URL/email/{sha256}.png`. The migrating node writes it on boot when the key is absent and never overwrites it, so a new logo lands on a new key.
+The logo of an alert email (status and message) is the published site logo, resolved when the email is built: when the published settings' `logoMedia` (1.3a) names a ready raster or gif asset (png, jpeg, webp, gif; never svg), the node derives an email tile from its original, the image fitted inside a 192 by 192 px PNG with 16 px padding over an opaque white tile with rounded corners, so it reads on light and dark email clients. The tile is written to `email/{sha256}.png` (1.1), `{sha256}` being the SHA-256 of the tile's bytes, when that key is absent, and never overwritten; a node derives each asset once and keeps the URL in memory per media id and confirm stamp. `{{logoUrl}}` is `WMSFO_CDN_BASE_URL/email/{sha256}.png`. The bundled mark, `templates/email/logo.png`, is the fallback, at `email/{sha256 of that file}.png`, which the migrating node writes on boot when the key is absent: it is the logo when `logoMedia` is absent, names an svg or an asset that is not ready, or the derivation fails (logged at Warning; it never fails a send), and on every other email. `{{siteName}}` is the published `siteName` on alert emails, `Santa Tracker` when it is empty and on every other email.
 
-Golden renders of `subscription_verify` and `event_live` live under `templates/email/_golden/`: `inputs.json` holds the fixed inputs (CDN and site base URLs, the logo URL, and per template the subject, preheader, footer reason, and values), and `<name>.html` and `<name>.txt` hold the exact bytes the API renders from them.
+Golden renders of `subscription_verify` and `event_live` live under `templates/email/_golden/`: `inputs.json` holds the fixed inputs (CDN and site base URLs, the bundled logo URL, and per template the subject, preheader, footer reason, and values; the site name is `Santa Tracker`), and `<name>.html` and `<name>.txt` hold the exact bytes the API renders from them.
 
-Fragment substitutions are `{{eventName}}`, `{{scheduledAt}}` (rendered in the event's `scheduleTimeZone`, `America/Denver` when unset, followed by the zone's IANA id in parentheses), `{{messageBody}}`, `{{customMessage}}` (the admin's text for a status alert; when absent the template's stock paragraph renders instead), `{{siteUrl}}`, `{{verifyUrl}}`, `{{unsubscribeUrl}}`, `{{contactName}}`, `{{contactEmail}}`, `{{contactMessage}}`.
+Fragment substitutions are `{{eventName}}`, `{{scheduledAt}}` (rendered in the event's `scheduleTimeZone`, `America/Denver` when unset, followed by the zone's IANA id in parentheses), `{{messageBody}}`, `{{customMessage}}` (the body of the event message a status alert's `messageId` names, read when the email is built; when the payload names none or the row was deleted the template's stock paragraph renders instead; a status change without a typed message posts that stock paragraph as its event message, so its email carries the same text once), `{{siteUrl}}`, `{{verifyUrl}}`, `{{unsubscribeUrl}}`, `{{contactName}}`, `{{contactEmail}}`, `{{contactMessage}}`.
 
 | Template | Subject | Body must contain |
 |---|---|---|
@@ -2081,6 +2183,7 @@ Fragment substitutions are `{{eventName}}`, `{{scheduledAt}}` (rendered in the e
 | `event_live` | `Santa just lifted off` | link to `https://<site-domain>/`, the stock paragraph or `{{customMessage}}`, unsubscribe link |
 | `event_ended` | `Santa is back at the North Pole` | event name, the stock paragraph or `{{customMessage}}`, unsubscribe link |
 | `event_cancelled` | `Santa's flight is cancelled` | event name, the stock paragraph or `{{customMessage}}`, unsubscribe link |
+| `event_postponed` | `Santa's flight is postponed` | event name, the stock paragraph or `{{customMessage}}` (stock: `<event name> is postponed. A new time will be announced when it is known.`), unsubscribe link |
 | `event_message` | `Santa update: <first 60 characters of body>` | full body, unsubscribe link |
 | `contact_received` | `Contact form: <name>` | name, email, message |
 
@@ -2162,12 +2265,13 @@ Environment secrets: `AWS_ROLE_ARN` (OIDC assume role for the ECR push), `ECR_RE
 | `VITE_GOOGLE_MAPS_KEY` | referrer-restricted browser key |
 | `VITE_ANALYTICS_ID` | set on production only; empty disables analytics |
 | `VITE_ANALYTICS_ORIGINS` | comma-separated exact production origins; analytics fires only when the page origin is listed; set on production only |
+| `VITE_ROUTE_BASEMAP_URL` | `https://<cdn-domain>/basemap`: the CDN folder holding the self-hosted OSM basemap for the route map; tiles at `<base>/tiles.pmtiles`, glyphs at `<base>/glyphs/{fontstack}/{range}.pbf`, and the terrain archive at `<base>/terrain.pmtiles` (a raster-dem PMTiles archive in terrarium encoding that the `route_preview` terrain toggle draws as hillshade, 1.3a; the toggle is hidden when it is missing) (platform.md, Route basemap) |
 
 The site fetches `VITE_CDN_BASE_URL + "/live/location.json"` and otherwise only absolute URLs found in objects. Production deploys from `main`, preview from `dev`.
 
 ### 8.4 Admin panel (Vercel, `VITE_` prefix)
 
-`VITE_ENV`, `VITE_API_BASE_URL`, `VITE_CDN_BASE_URL`, `VITE_COGNITO_AUTHORITY` (the admin pool's issuer), `VITE_COGNITO_DOMAIN` (the admin pool's managed login domain), `VITE_COGNITO_CLIENT_ID` (`<admin-client-id>`). Two projects: one deployed from `main` with the prod set at `<admin-domain>`, one deployed from `dev` with the dev set at `<admin-dev-domain>`. Local work runs on `http://localhost:5174` with the dev set in `.env.local`.
+`VITE_ENV`, `VITE_API_BASE_URL`, `VITE_CDN_BASE_URL`, `VITE_COGNITO_AUTHORITY` (the admin pool's issuer), `VITE_COGNITO_DOMAIN` (the admin pool's managed login domain), `VITE_COGNITO_CLIENT_ID` (`<admin-client-id>`), `VITE_ROUTE_BASEMAP_URL` (the same basemap folder as the site, 8.3, including the terrain archive at `<base>/terrain.pmtiles`; the poster generator draws event route maps over it). Two projects: one deployed from `main` with the prod set at `<admin-domain>`, one deployed from `dev` with the dev set at `<admin-dev-domain>`. Local work runs on `http://localhost:5174` with the dev set in `.env.local`.
 
 ### 8.5 Red-Nose (build config per flavour, `dev` and `prod`)
 
@@ -2362,13 +2466,13 @@ The API repository holds `contracts/`:
 |---|---|
 | `contracts/openapi.json` | The OpenAPI 3.1 document for every REST endpoint in section 4, generated at build time from the API's endpoint metadata and checked in; a CI check fails when the checked-in file differs from the build output. The site and the admin panel generate their client types from it. |
 | `contracts/schema/live-object.schema.json`, `snapshot.schema.json`, `route.schema.json`, `location.schema.json`, `heartbeat.schema.json`, `realtime-authorize.schema.json`, `realtime-message.schema.json` | JSON Schema (draft 2020-12) for the CDN objects, the two beacon bodies, and the two callback bodies. |
-| `contracts/schema/primitives.schema.json`, `content-document.schema.json`, `site-settings.schema.json`, `sections/<kind>.schema.json`, `sections/<kind>.item.schema.json` | The content model (1.3a): the shared primitives (`Icon`, `MediaRef`, `Link`, `Inline`, `Presentation`, `Block`), the document, the site settings, and one publish-level schema per section kind (and per item kind). Hand-written in the API repository; the API loads them at boot for validation and serves them on `GET /admin/content/kinds`; the site and the panel generate types from them and the panel generates its forms from them. |
+| `contracts/schema/primitives.schema.json`, `content-document.schema.json`, `site-settings.schema.json`, `sections/<kind>.schema.json`, `sections/<kind>.item.schema.json` | The content model (1.3a): the shared primitives (`Icon`, `MediaRef`, `Link`, `Inline`, `Presentation`, `Block`, and the event's `RouteMapConfig`), the document, the site settings, and one publish-level schema per section kind (and per item kind). Hand-written in the API repository; the API loads them at boot for validation and serves them on `GET /admin/content/kinds`; the site and the panel generate types from them and the panel generates its forms from them. |
 | `contracts/kinds.json` | The section kind registry: `kind`, `title`, `description`, `live`, `hasItems`, `allowedRoles`, `defaults`, `itemDefaults`, in palette order. |
 | `contracts/starter-content.json` | The `ContentDocument` the first boot seeds and publishes as version 1 (with `mediaId` references to nothing, so it uses library icons only). |
 | `contracts/fixtures/live-object.json`, `snapshot.json`, `route.json`, `location.json`, `heartbeat.json`, `content-document.json` | Canonical examples, validated against the schemas in the API's tests and consumed by the site's and Red-Nose's tests. `live-object.json` and `snapshot.json` are the canonical (1.6) serialization of the 1.2 and 1.3 examples with concrete values: full 64-character hex keys and `https://cdn.example` as the CDN base. |
 | `contracts/admin-thresholds.json` | `{ "batteryLowPercent": 20, "noFixAgeS": 30, "noLocationAgeS": 30 }`, the constants in 1.11 (`staleAfterS` is not one of them; it comes from `GET /admin/beacons`). |
 | `contracts/icons/<id>.svg` | The icon library, byte-identical to `icons/` in the API repository (a CI check compares them), so the site can vendor it with the contracts and generate inline icon components (1.5). |
-| `contracts/CONTRACTS_VERSION` | An integer bumped on every change under `contracts/`. |
+| `contracts/CONTRACTS_VERSION` | An integer bumped on every change under `contracts/`; currently 52 (`AlertItem.message`, 4.4). |
 
 Distribution: the site, admin panel, and Red-Nose repositories each vendor a copy of `contracts/` and a `CONTRACTS_SHA` file naming the API commit it came from; a CI step in each consumer repository fetches that commit's `contracts/` and fails when the copy differs. Updating a consumer is a copy plus a `CONTRACTS_SHA` bump in one commit.
 
@@ -2413,12 +2517,14 @@ Tests the artifacts drive: Vitest on the site store, page selection, section reg
 - `hubConnected` on the beacon object comes from the gateway's presence owner API (`GET /internal/presence/<service>:ingest`), one call per beacons request, null when the call fails.
 - The stale-beacon flag considers both heartbeats and stored locations, never flags a beacon that has never connected, and is cleared by either.
 - `went_live_at` and `ended_at` are re-stamped on every entry into status 3 and 4 respectively, overwriting earlier values; `PATCH` corrects either.
+- Leaving live for anything but ended clears liftoff and wheels down (2026-10-03): a change from 3 to 1, 2, 5, or 6 sets `went_live_at` and `ended_at` to null, entry into 3 clears `ended_at`, and 3 to 4 keeps `went_live_at`; other transitions leave both alone.
 - Entering status 2 requires `scheduledAt` to be set (`409 scheduled_at_required`), and `PATCH` cannot null it while the status is 2.
 - `POST /admin/events` takes an explicit `inheritRoute` boolean; route inheritance never depends on a field being absent.
 - CDN CORS for reads is a CloudFront response headers policy allowing `*`, with `Origin` out of the cache key; the bucket's only CORS rule admits the admin panel's presigned `PUT` uploads.
 - The current event is an explicit `event.is_current` flag set by `POST /admin/events/{id}/current`; nothing derives it from the year.
 - `POST /admin/events/{id}/current` on the already-current event is a no-op `200`.
 - `latestMessage` is the message with the greatest `created_at`, not `eventTime`; ties go to the greatest `id`.
+- The snapshot carries one message, `latestMessage`, and the site marks it read per browser; nothing on the API side holds a message list for the site.
 - Every cookie left counts toward `cookie_limit_per_person` and toward the tally; nothing removes one short of deleting its event.
 - The tally is frozen in `event.final_cookie_tally` on entry into status 4 and carried unchanged by every later live object for that event.
 - Anonymous sponsor years are omitted from the snapshot entirely; admin views still show them.
@@ -2426,7 +2532,7 @@ Tests the artifacts drive: Vitest on the site store, page selection, section reg
 - The snapshot's sponsor fields keep `fbUrl`, `igUrl`, and `logoMediaId`, plus `latestYear`; `lingerMs` floors at `sponsor_linger_min_ms` (default 2000); logos resolve through the media map and its WebP variants, so there is no separate small logo.
 - `POST /admin/routes/from-event/{eventId}` builds a route from an event's published locations; upload remains the other source.
 - The route object is `{ schemaVersion, name, points[{ lat, lng, recordedAt }] }` with no other keys, 2 to 50,000 points; a re-upload with identical content returns the existing route; routes can be deleted when unreferenced. It is a flight recording for replay, export, and tests; the site never fetches it.
-- The route the public sees is a poster image: a raster media asset linked to the event as `route_image_media_id`, carried in the snapshot as `event.routeImageMediaId`, shown by `route_preview` as a picture or a pan-and-zoom viewer. The tracker shows only where Santa is; its "flight history" toggle draws the recording linked to the event as a projected route, embedded in the snapshot as `event.flightHistory` (thinned to `flight_history_max_points`) so the first snapshot fetched carries it and the admin sets it per event through `routeId`.
+- The route the public sees is a poster image: a raster media asset linked to the event as `route_image_media_id`, carried in the snapshot as `event.routeImageMediaId`, shown by `route_preview` as a picture or a pan-and-zoom viewer; the `map` style instead draws the linked recording as a smoothed path over a self-hosted OSM basemap with a 5 minute time slider, from `event.routeMap` (bounded by the three `route_map_*` settings), and falls back to the picture when there is no recording; its display knobs, control switches, landmarks, and POI kinds are configured once per event as `event.routeMapConfig`, never per section or sitewide. The tracker shows only where Santa is; its "flight history" toggle draws the recording linked to the event as a projected route, embedded in the snapshot as `event.flightHistory` (thinned to `flight_history_max_points`) so the first snapshot fetched carries it and the admin sets it per event through `routeId`.
 - Sponsors carry no tiers. Display order is pinned sponsors by position, then amount donated descending; the carousel plays that order and never shuffles. `sponsor_year.pinned_position` and `linger_ms_override` are per year; `PUT /admin/sponsors/order/{eventYear}` sets the whole pinned list atomically.
 - Site settings carry only the seasonal layer defaults (`snowDefault`, `lightsDefault`), the background ornaments switch (`ornaments`), and the card fill opacity per theme (`cardOpacityLight`, `cardOpacityDark`; 1.3a). Colours, type, and the light/dark/system choice are the site's own; the visitor's scheme choice is stored in the browser and never published.
 - API keys (`wak_`) reach every admin group by capability, can carry every capability or a chosen subset, can expire, are minted only by a Cognito admin with TOTP, and can never touch the key endpoints.
@@ -2445,12 +2551,13 @@ Tests the artifacts drive: Vitest on the site store, page selection, section reg
 - One page per event status, plus a no-event page, all admin-composed; the site holds kinds, never screens.
 - The content document is the newest `content_version.document` verbatim; identical content publishes to the same snapshot key; `content_unchanged` refuses a no-op publish.
 - Working-set writes are draft-validated and never rebuild the snapshot; publish is the only path to the site and is strict.
-- The six role pages are seeded, undeletable, and role-immutable; ordinary pages are free; slugs are one segment with five reserved names.
+- The seven role pages are seeded, undeletable, and role-immutable; ordinary pages are free; slugs are one segment with five reserved names.
 - Presentation, `Icon`, `MediaRef`, `Link`, `Inline`, and `Block` are the only shared vocabulary; kinds never define their own shapes for them.
 - Media uploads are presigned PUTs to a private bucket with a pending tag; confirm verifies, derives 480, 960, and 1600 WebP variants, and strips the tag; lifecycle rules expire pending and orphaned objects; orphan collection is a leader chore with a 30-day grace and a 7-day undo.
 - Sponsor logos and cookie type artwork are references into the media library and the icon library; there are no per-resource upload endpoints.
 - The icon library ships in the API repository and is written to the bucket once per library change under the migration lock.
-- Restore loads a version into the working set and publishes nothing; rollback is restore then publish.
+- Restore loads a version into the working set and publishes nothing; rollback is restore then publish. A role page whose role the version has no page for stays in the working set, so every role keeps its page.
+- Status 6 is `postponed`, with its own role page (`postponed`) and alert template (`event_postponed`); any status may follow any other and entry into 6 has no gate. Existing deployments get the postponed page from the migration that adds the status, unpublished until an editor publishes.
 - Preview tokens are `wpv_`, 15 minutes, hashed at rest, served through one public endpoint that the site's `/preview` route consumes.
 - Two groups, `editor` and `admin`, two policies; both need TOTP.
 - Every status change can notify subscribers (one template per status, a custom message allowed), a status can be announced again later with `POST .../notify`, and the event carries `statusNotifiedAt` so the panel can say nobody was told. Emails go out only when an admin says so.
@@ -2465,6 +2572,9 @@ Tests the artifacts drive: Vitest on the site store, page selection, section reg
 - The hub can be switched off in two independent places, both in the API and the panel and neither in a beacon: per beacon (`hub_allowed`, denied at the authorize callback, the beacon falls to HTTP by its own contract) and for every visitor (`hub_enabled`, carried on the live object, the site runs on the poll). Beacons and the site never need a build for either.
 - Clearing a recording is `DELETE /admin/events/{id}/locations?beaconId=`: 204 on success, 409 while the event is live; `next_seq` is not reset; the audit action is `event.locations_cleared` and the site keeps whatever it holds until the leader's next tick rewrites the live object.
 - The panel warns before a send that would pass the SES 24 hour quota, from `GET /admin/email/quota`; the API never refuses a send for it.
+- An admin seeds cookies on the live event with `POST /admin/events/{id}/cookies` (2026-10-02): rows with `person_id` null and `seeded_by` the actor (`cookie_origin_check` requires exactly one of the two); they count in every tally and never toward any person; `409 event_not_live` outside status 3; audited as `cookies_seeded`; no outbox row and no snapshot rebuild.
+- One message store (2026-10-03): the text typed on a status change or an announcement is an `event_message` row (`event_time` null, created by the actor), written with `notify` on or off; the history row references it (`message_id`, set null when the message is deleted), the snapshot shows it as `latestMessage`, and the status email carries its body as `{{customMessage}}` in place of the stock paragraph.
+- A status change always posts a message (2026-10-03): without typed text the template's stock paragraph for the new status is the event message's body, with `notify` on or off, so the site, the history, and the email carry one text; an announce without text posts nothing and its email renders the stock paragraph. `AlertItem.message` carries the body of the message an alert references.
 
 ## 15. Needs a decision
 

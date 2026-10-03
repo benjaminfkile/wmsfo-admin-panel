@@ -30,6 +30,7 @@ const UI_SCHEMA: UiSchema = {
   "ui:order": SITE_SETTINGS_ORDER,
   theme: { "ui:field": "ThemeField" },
   navExtraLinks: { items: { "ui:title": "Menu link" } },
+  headerLinks: { items: { "ui:title": "Header link" } },
   footerLinks: { items: { "ui:title": "Footer link" } },
   footerText: { "ui:options": { rows: 3 } },
 };
