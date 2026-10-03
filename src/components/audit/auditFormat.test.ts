@@ -19,6 +19,7 @@ describe("audit formatting (admin.md 1)", () => {
     expect(formatAction("create")).toBe("Create");
     expect(formatAction("delete")).toBe("Delete");
     expect(formatAction("unknown-verb")).toBe("Unknown-verb");
+    expect(formatAction("cookies_seeded")).toBe("cookies_seeded");
   });
 
   it("formats the stamp text or falls back when audit is null", () => {

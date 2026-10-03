@@ -37,6 +37,9 @@ export type ApiKeyCapability =
   | "audit"
   | "qr";
 export type CookieType = S["CookieTypeDto"];
+export type CookiePick = S["CookiePick"];
+export type SeedCookiesRequest = S["SeedCookiesRequest"];
+export type SeedCookiesResponse = S["SeedCookiesResponse"];
 export type Subscription = S["SubscriptionDto"];
 export type SubscriberAdmin = S["SubscriberAdminDto"];
 export type Person = S["PersonDto"];

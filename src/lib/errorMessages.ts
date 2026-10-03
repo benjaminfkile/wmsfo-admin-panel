@@ -70,6 +70,8 @@ function messageForCode(err: ApiError, ctx: MessageContext): string {
       return "The current event is live. End it before changing the current event.";
     case "event_live":
       return "A live event cannot be deleted";
+    case "event_not_live":
+      return "The event is no longer live.";
     case "no_healthy_beacon":
       return "No healthy active beacon";
     case "pinned_position_taken":

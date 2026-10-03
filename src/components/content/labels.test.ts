@@ -29,6 +29,7 @@ import {
   MEDIA_DETAIL_LABELS,
   PAGE_SETTINGS_LABELS,
   ROUTE_MAP_DISPLAY_LABELS,
+  SEED_COOKIES_LABELS,
   labelsFor,
   siteSettingsLabels,
 } from "./labels";
@@ -299,5 +300,36 @@ describe("labels.ts: the page create and settings fields", () => {
       "The site shows this beside the page in the mobile menu."
     );
     expect(PAGE_SETTINGS_LABELS.icon?.help).toMatch(/^[^\n]+\.$/);
+  });
+});
+
+describe("labels.ts: the Seed cookies card fields", () => {
+  const schemas = (
+    openapi as unknown as {
+      components: { schemas: Record<string, { properties: Record<string, unknown> }> };
+    }
+  ).components.schemas;
+  // Every field the Seed cookies card sends; cookieTypeId is shown as
+  // the row's icon and name.
+  const fields = [
+    ...Object.keys(schemas.SeedCookiesRequest!.properties),
+    ...Object.keys(schemas.CookiePick!.properties),
+  ].filter((f) => f !== "cookieTypeId");
+
+  it("names items and count as the card fields", () => {
+    expect(fields).toEqual(["items", "count"]);
+  });
+
+  it("has a label for every card field", () => {
+    const missing = fields.filter((f) => !SEED_COOKIES_LABELS[f]?.label);
+    expect(missing, `missing seed cookies labels: ${missing.join(", ")}`).toEqual([]);
+  });
+
+  it("titles the card Seed cookies with one line of help", () => {
+    expect(SEED_COOKIES_LABELS.items?.label).toBe("Seed cookies");
+    expect(SEED_COOKIES_LABELS.items?.help).toBe(
+      "Adds cookies to the live tally. They count like visitors' cookies and are never shown as anyone's."
+    );
+    expect(SEED_COOKIES_LABELS.items?.help).toMatch(/^[^\n]+\.$/);
   });
 });

@@ -25,6 +25,8 @@ const CAPITALIZE = new Map<string, string>([
   ["move", "Move"],
   ["hide", "Hide"],
   ["unhide", "Unhide"],
+  // The compound verb reads as the API writes it, as in the filter.
+  ["cookies_seeded", "cookies_seeded"],
 ]);
 
 export function formatAction(action: string | null | undefined): string {

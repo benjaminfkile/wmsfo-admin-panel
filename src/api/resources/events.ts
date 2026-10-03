@@ -7,6 +7,8 @@ import type {
   LocationRow,
   Page,
   RouteMapResponse,
+  SeedCookiesRequest,
+  SeedCookiesResponse,
   StatusHistory,
   StatusId,
 } from "../types";
@@ -113,4 +115,6 @@ export const events = {
         typeof beaconId === "number" ? `?beaconId=${beaconId}` : ""
       }`
     ),
+  seedCookies: (id: number, b: SeedCookiesRequest) =>
+    post<SeedCookiesResponse>(`/admin/events/${id}/cookies`, b),
 };
