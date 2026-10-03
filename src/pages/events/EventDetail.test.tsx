@@ -12,6 +12,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import EventDetail from "./EventDetail";
+import { keys } from "../../queries/keys";
 import { ConfigProvider } from "../../ConfigContext";
 import { NotifyProvider } from "../../hooks/useNotify";
 import { installClient } from "../../api/client";
@@ -195,6 +196,80 @@ describe("EventDetail: status notified state and history", () => {
       notify: false,
       message: null,
     });
+  });
+
+  it("a status change invalidates the messages query so the Messages section refetches", async () => {
+    const user = userEvent.setup();
+    let messageGets = 0;
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
+        HttpResponse.json({ ...f.events[0]!, statusId: 3 })
+      ),
+      http.get(`${testConfig.apiBaseUrl}/admin/events/:id/messages`, () => {
+        messageGets += 1;
+        return HttpResponse.json({ items: [] });
+      }),
+      http.post(`${testConfig.apiBaseUrl}/admin/events/:id/status`, () =>
+        HttpResponse.json({ ...f.events[0]!, statusId: 4 })
+      )
+    );
+    const invalidate = vi.spyOn(QueryClient.prototype, "invalidateQueries");
+    try {
+      render(<Harness id={Number(f.events[0]!.id)} />);
+      await user.click(await screen.findByRole("button", { name: /^ended$/i }));
+      await waitFor(() => expect(messageGets).toBeGreaterThan(0));
+      const before = messageGets;
+      await user.type(await screen.findByLabelText(/message/i), "Safe landing.");
+      await user.click(
+        screen.getByRole("button", { name: /^change and notify$/i })
+      );
+      await waitFor(() =>
+        expect(invalidate).toHaveBeenCalledWith({
+          queryKey: keys.eventMessages(Number(f.events[0]!.id)),
+        })
+      );
+      await waitFor(() => expect(messageGets).toBeGreaterThan(before));
+    } finally {
+      invalidate.mockRestore();
+    }
+  });
+
+  it("an announce invalidates the messages query so the Messages section refetches", async () => {
+    const user = userEvent.setup();
+    let messageGets = 0;
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
+        HttpResponse.json({ ...f.events[0]!, statusNotifiedAt: null })
+      ),
+      http.get(`${testConfig.apiBaseUrl}/admin/events/:id/messages`, () => {
+        messageGets += 1;
+        return HttpResponse.json({ items: [] });
+      }),
+      http.post(`${testConfig.apiBaseUrl}/admin/events/:id/notify`, () =>
+        HttpResponse.json({
+          ...f.events[0]!,
+          statusNotifiedAt: "2026-12-22T02:00:00.000Z",
+        })
+      )
+    );
+    const invalidate = vi.spyOn(QueryClient.prototype, "invalidateQueries");
+    try {
+      render(<Harness id={Number(f.events[0]!.id)} />);
+      await user.click(
+        await screen.findByRole("button", { name: /notify subscribers/i })
+      );
+      await waitFor(() => expect(messageGets).toBeGreaterThan(0));
+      const before = messageGets;
+      await user.click(await screen.findByRole("button", { name: /^send now$/i }));
+      await waitFor(() =>
+        expect(invalidate).toHaveBeenCalledWith({
+          queryKey: keys.eventMessages(Number(f.events[0]!.id)),
+        })
+      );
+      await waitFor(() => expect(messageGets).toBeGreaterThan(before));
+    } finally {
+      invalidate.mockRestore();
+    }
   });
 
   it("history table renders the Notified column with the sent count and message excerpt", async () => {

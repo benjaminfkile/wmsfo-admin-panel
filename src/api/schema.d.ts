@@ -6680,6 +6680,8 @@ export interface components {
             changedAt?: string;
             notify?: boolean;
             message?: null | string;
+            /** Format: int64 */
+            messageId?: null | number | string;
             /** Format: int32 */
             sentCount?: number | string;
         };

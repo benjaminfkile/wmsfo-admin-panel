@@ -16,7 +16,7 @@ import {
   makeUser,
   testConfig,
 } from "../../test/renderWithProviders";
-import { stockParagraph } from "../../lib/statusCopy";
+import { MESSAGE_HELPER, stockParagraph } from "../../lib/statusCopy";
 import type { Event, StatusId } from "../../api/types";
 
 function Harness(props: {
@@ -137,6 +137,66 @@ describe("StatusDialog", () => {
       screen.getByRole("button", { name: /^change without notifying$/i })
     );
     expect(onConfirm).toHaveBeenCalledWith({ notify: false, message: null });
+  });
+
+  it("shows the message helper text with the counter on the same line", async () => {
+    const user = userEvent.setup();
+    render(
+      <Harness event={f.events[0]!} target={2 as StatusId} onConfirm={vi.fn()} />
+    );
+    const field = screen.getByLabelText("Message (optional)");
+    const helper = screen.getByText(MESSAGE_HELPER);
+    expect(MESSAGE_HELPER).toBe(
+      "Posted on the site as the latest message. With notify it replaces the stock paragraph in the email."
+    );
+    expect(helper.parentElement).toHaveTextContent(`${MESSAGE_HELPER}0 / 1000`);
+    await user.type(field, "Hi");
+    expect(helper.parentElement).toHaveTextContent("2 / 1000");
+  });
+
+  it("Change without notifying sends the typed message and the nested copy says it posts", async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn();
+    render(
+      <Harness event={f.events[0]!} target={4 as StatusId} onConfirm={onConfirm} />
+    );
+    await user.type(screen.getByLabelText(/message/i), "  Safe landing.  ");
+    await user.click(
+      screen.getByRole("button", { name: /^change without notifying$/i })
+    );
+    expect(
+      await screen.findByText(
+        "The message posts on the site now. You can notify subscribers later from the event page."
+      )
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: /^change without notifying$/i })
+    );
+    expect(onConfirm).toHaveBeenCalledWith({
+      notify: false,
+      message: "Safe landing.",
+    });
+  });
+
+  it("an empty or blank field sends null with notify true and with notify false", async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn();
+    render(
+      <Harness event={f.events[0]!} target={4 as StatusId} onConfirm={onConfirm} />
+    );
+    await user.click(
+      screen.getByRole("button", { name: /^change and notify$/i })
+    );
+    expect(onConfirm).toHaveBeenLastCalledWith({ notify: true, message: null });
+    await user.type(screen.getByLabelText(/message/i), "   ");
+    await user.click(
+      screen.getByRole("button", { name: /^change without notifying$/i })
+    );
+    await user.click(
+      screen.getByRole("button", { name: /^change without notifying$/i })
+    );
+    expect(onConfirm).toHaveBeenLastCalledWith({ notify: false, message: null });
+    expect(onConfirm).toHaveBeenCalledTimes(2);
   });
 
   it("shows the target status' stock paragraph as the placeholder", async () => {

@@ -27,3 +27,8 @@ export function stockParagraph(
       return `${name} has been cancelled.`;
   }
 }
+
+// Helper line under the message field of `StatusDialog` and
+// `NotifyDialog`: the typed text becomes an event message on the site.
+export const MESSAGE_HELPER =
+  "Posted on the site as the latest message. With notify it replaces the stock paragraph in the email.";
