@@ -369,6 +369,42 @@ describe("EventDetail: status notified state and history", () => {
     expect(await screen.findByTestId("email-quota-warning")).toBeInTheDocument();
   });
 
+  it("refetches the history on its own while a fresh notified row is below the verified count", async () => {
+    let historyGets = 0;
+    server.use(
+      http.get("*/admin/subscribers/summary", () =>
+        HttpResponse.json({ verified: 800, pending: 0, unsubscribed: 0 })
+      ),
+      http.get(`${testConfig.apiBaseUrl}/admin/events/:id/status-history`, () => {
+        historyGets += 1;
+        return HttpResponse.json({
+          items: [
+            {
+              id: 42,
+              eventId: 7,
+              fromStatusId: 2,
+              toStatusId: 3,
+              changedBy: "admin@example.com",
+              changedAt: new Date(Date.now() - 2_000).toISOString(),
+              notify: true,
+              message: null,
+              sentCount: historyGets * 100,
+            },
+          ],
+        });
+      })
+    );
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    const table = await screen.findByTestId("status-history");
+    await waitFor(() =>
+      expect(within(table).getByText(/100 sent/i)).toBeInTheDocument()
+    );
+    await waitFor(
+      () => expect(within(table).getByText(/200 sent/i)).toBeInTheDocument(),
+      { timeout: 6_000 }
+    );
+  });
+
   it("history table shows 'announced again' when fromStatusId equals toStatusId", async () => {
     server.use(
       http.get(`${testConfig.apiBaseUrl}/admin/events/:id/status-history`, () =>
