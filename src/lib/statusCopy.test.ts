@@ -10,10 +10,11 @@ describe("stockParagraph", () => {
     const p3 = stockParagraph(3, name, null);
     const p4 = stockParagraph(4, name, null);
     const p5 = stockParagraph(5, name, null);
-    for (const p of [p1, p2, p3, p4, p5]) {
+    const p6 = stockParagraph(6, name, null);
+    for (const p of [p1, p2, p3, p4, p5, p6]) {
       expect(p).toContain(name);
     }
-    expect(new Set([p1, p2, p3, p4, p5]).size).toBe(5);
+    expect(new Set([p1, p2, p3, p4, p5, p6]).size).toBe(6);
   });
 
   it("scheduled paragraph mentions the scheduledAt when set", () => {
@@ -29,5 +30,11 @@ describe("stockParagraph", () => {
     expect(p).toContain(`Lift-off is planned for ${formatStamp(at)}.`);
     expect(p).not.toContain("Mountain time");
     expect(p).not.toContain("Mountain");
+  });
+
+  it("postponed paragraph says a new time will be announced", () => {
+    expect(stockParagraph(6, "Santa Flyover 2027", null)).toBe(
+      "Santa Flyover 2027 is postponed. A new time will be announced when it is known."
+    );
   });
 });

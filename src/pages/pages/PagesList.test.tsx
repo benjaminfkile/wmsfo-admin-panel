@@ -357,4 +357,14 @@ describe("PagesList", () => {
       isHidden: false,
     });
   });
+
+  it("labels the postponed role page and lists it after the other role pages", async () => {
+    render(<Harness />);
+    const row = await screen.findByTestId("page-row-7");
+    expect(within(row).getByText("Postponed", { selector: ".MuiChip-label" })).toBeInTheDocument();
+    const noEvent = screen.getByTestId("page-row-1");
+    expect(
+      noEvent.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
 });

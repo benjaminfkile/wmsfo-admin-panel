@@ -71,7 +71,7 @@ export type AuditEntry = S["AuditEntryDto"];
 export type EmailQuota = S["EmailQuota"];
 
 export type Page<T> = { items: T[]; nextCursor: string | null };
-export type StatusId = 1 | 2 | 3 | 4 | 5;
+export type StatusId = 1 | 2 | 3 | 4 | 5 | 6;
 
 export type LiveObject = {
   schemaVersion: number;

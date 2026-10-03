@@ -506,6 +506,21 @@ export const pageAdmin: PageAdmin[] = [
     createdAt: NOW,
     updatedBy: AUTHOR,
     updatedAt: NOW,
+  },  {
+    id: 7,
+    slug: "postponed",
+    title: "Postponed",
+    navLabel: null,
+    icon: null,
+    navPosition: 0,
+    isHidden: false,
+    role: "postponed",
+    sectionCount: 1,
+    problemCount: 0,
+    createdBy: AUTHOR,
+    createdAt: NOW,
+    updatedBy: AUTHOR,
+    updatedAt: NOW,
   },
 ];
 

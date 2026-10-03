@@ -36,7 +36,7 @@ import PageSettingsDialog, {
 } from "./PageSettingsDialog";
 import type { Icon, PageAdmin } from "../../api/types";
 
-const STATUS_ORDER = ["no_event", "planned", "scheduled", "live", "ended", "cancelled"];
+const STATUS_ORDER = ["no_event", "planned", "scheduled", "live", "ended", "cancelled", "postponed"];
 
 function statusRoleLabel(role: string): string {
   switch (role) {
@@ -52,6 +52,8 @@ function statusRoleLabel(role: string): string {
       return "Ended";
     case "cancelled":
       return "Cancelled";
+    case "postponed":
+      return "Postponed";
     default:
       return role;
   }
