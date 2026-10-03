@@ -15,7 +15,8 @@ import {
   makeUser,
   testConfig,
 } from "../../test/renderWithProviders";
-import { MESSAGE_HELPER } from "../../lib/statusCopy";
+import { MESSAGE_HELPER, stockParagraph } from "../../lib/statusCopy";
+import type { StatusId } from "../../api/types";
 
 function Harness({ onConfirm }: { onConfirm: (message: string | null) => void }) {
   const client = new QueryClient({
@@ -83,5 +84,23 @@ describe("NotifyDialog", () => {
     render(<Harness onConfirm={onConfirm} />);
     await user.click(screen.getByRole("button", { name: /^send now$/i }));
     expect(onConfirm).toHaveBeenCalledWith(null);
+  });
+
+  it("shows the default message notice while the field is empty", async () => {
+    const user = userEvent.setup();
+    render(<Harness onConfirm={vi.fn()} />);
+    const event = f.events[0]!;
+    const paragraph = stockParagraph(
+      Number(event.statusId) as StatusId,
+      event.name ?? "",
+      event.scheduledAt ?? null
+    );
+    const notice = screen.getByTestId("default-message-notice");
+    expect(notice).toHaveTextContent(
+      "No message typed. This default message will be emailed:"
+    );
+    expect(notice.querySelector("blockquote")).toHaveTextContent(paragraph);
+    await user.type(screen.getByLabelText(/message/i), "Hi");
+    expect(screen.queryByTestId("default-message-notice")).not.toBeInTheDocument();
   });
 });
