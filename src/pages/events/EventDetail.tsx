@@ -15,6 +15,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { events as eventsApi } from "../../api/resources/events";
 import { beacons as beaconsApi } from "../../api/resources/beacons";
+import { subscribers as subsApi } from "../../api/resources/subscribers";
 import type { PatchEventBody } from "../../api/resources/events";
 import { keys } from "../../queries/keys";
 import type { StatusHistory, StatusId } from "../../api/types";
@@ -47,6 +48,7 @@ import RoutePosterSection from "./RoutePosterSection";
 import RouteMapSection from "./RouteMapSection";
 import LocationsSection from "./LocationsSection";
 import StatusDialog from "./StatusDialog";
+import { historyPollInterval } from "./historyPolling";
 import NotifyDialog from "./NotifyDialog";
 
 export default function EventDetail() {
@@ -67,10 +69,17 @@ export default function EventDetail() {
     queryKey: keys.events,
     queryFn: () => eventsApi.list(),
   });
+  const summaryQ = useQuery({
+    queryKey: keys.subscribersSummary,
+    queryFn: () => subsApi.summary(),
+  });
+  const verifiedCount = summaryQ.data?.verified;
   const historyQ = useQuery({
     queryKey: keys.eventHistory(id),
     queryFn: () => eventsApi.statusHistory(id),
     enabled: Number.isFinite(id),
+    refetchInterval: (query) =>
+      historyPollInterval(query.state.data?.items ?? [], verifiedCount),
   });
   const beaconsQ = useQuery({
     queryKey: keys.beacons,
@@ -96,8 +105,10 @@ export default function EventDetail() {
       doNotify: boolean;
       message: string | null;
     }) => eventsApi.setStatus(id, { statusId, notify: doNotify, message }),
-    onSuccess: () => {
-      notify("Status changed");
+    onSuccess: (_data, { doNotify }) => {
+      notify(
+        doNotify ? "Status changed, notifying subscribers" : "Status changed"
+      );
       void qc.invalidateQueries({ queryKey: keys.event(id) });
       void qc.invalidateQueries({ queryKey: keys.eventHistory(id) });
       void qc.invalidateQueries({ queryKey: keys.eventMessages(id) });
@@ -112,7 +123,7 @@ export default function EventDetail() {
   const notifyMut = useMutation({
     mutationFn: (message: string | null) => eventsApi.notify(id, { message }),
     onSuccess: () => {
-      notify("Subscribers notified");
+      notify("Notifying subscribers");
       void qc.invalidateQueries({ queryKey: keys.event(id) });
       void qc.invalidateQueries({ queryKey: keys.eventHistory(id) });
       void qc.invalidateQueries({ queryKey: keys.eventMessages(id) });
