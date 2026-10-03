@@ -18,6 +18,7 @@ export const AUDIT_ACTIONS = [
   "move",
   "hide",
   "unhide",
+  "cookies_seeded",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

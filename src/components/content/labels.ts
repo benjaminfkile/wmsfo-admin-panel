@@ -538,6 +538,18 @@ export const PAGE_SETTINGS_LABELS: FieldLabels = {
   isHidden: { label: "Hidden" },
 };
 
+// The fields of the Seed cookies card on a live event, keyed by the
+// field name the card sends (`SeedCookiesRequest`, `CookiePick`).
+// `items` holds the card's title and help line. `cookieTypeId` has no
+// entry: each row names its type by icon and name.
+export const SEED_COOKIES_LABELS: FieldLabels = {
+  items: {
+    label: "Seed cookies",
+    help: "Adds cookies to the live tally. They count like visitors' cookies and are never shown as anyone's.",
+  },
+  count: { label: "Cookies" },
+};
+
 export function labelsFor(kind: string, isItem: boolean): FieldLabels {
   const table = isItem ? ITEM : SECTION;
   return table[kind] ?? {};

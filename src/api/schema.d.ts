@@ -1126,6 +1126,45 @@ export interface paths {
         };
         trace?: never;
     };
+    "/admin/events/{id}/cookies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SeedCookiesRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SeedCookiesResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/events/{id}/locations": {
         parameters: {
             query?: never;
@@ -6518,6 +6557,18 @@ export interface components {
         };
         SectionOrderRequest: {
             ids?: (number | string)[];
+        };
+        SeedCookiesRequest: {
+            items?: components["schemas"]["CookiePick"][];
+        };
+        SeedCookiesResponse: {
+            /** Format: int64 */
+            eventId?: number | string;
+            /** Format: int32 */
+            seeded?: number | string;
+            cookieTally?: {
+                [key: string]: number | string;
+            };
         };
         SettingDto: {
             key?: string;

@@ -117,6 +117,44 @@ describe("AuditPage (admin.md 6.22)", () => {
     ).toBeInTheDocument();
   });
 
+  it("offers cookies_seeded in the Action filter and reads it on the row", async () => {
+    const user = userEvent.setup();
+    const seenAction: string[] = [];
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/audit`, ({ request }) => {
+        const action = new URL(request.url).searchParams.get("action");
+        if (action) seenAction.push(action);
+        return HttpResponse.json({
+          items: [
+            {
+              id: 910,
+              at: "2026-12-22T01:40:00.000Z",
+              actor: "person:editor@example.com",
+              action: "cookies_seeded",
+              entity: "event",
+              entityId: "7",
+              before: null,
+              after: { items: [{ cookieTypeId: 3, count: 25 }], seeded: 25 },
+              requestId: "req-910",
+            },
+          ],
+          nextCursor: null,
+        });
+      })
+    );
+    render(
+      <Harness>
+        <AuditPage />
+      </Harness>
+    );
+    expect(
+      (await screen.findAllByText(/cookies_seeded/)).length
+    ).toBeGreaterThan(0);
+    await user.click(screen.getByRole("combobox", { name: /action/i }));
+    await user.click(await screen.findByRole("option", { name: "cookies_seeded" }));
+    await waitFor(() => expect(seenAction).toContain("cookies_seeded"));
+  });
+
   it("Deletes chip sets action=delete and filters the list", async () => {
     const user = userEvent.setup();
     const seenAction: string[] = [];
