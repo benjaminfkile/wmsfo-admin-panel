@@ -29,6 +29,7 @@ import ResponsiveTable, {
 import { STATUS_IDS, statusName } from "../../lib/statusNames";
 import { useNotify } from "../../hooks/useNotify";
 import { useNow } from "../../hooks/useNow";
+import { useCompact } from "../../hooks/useCompact";
 import {
   ageS,
   browserTimeZone,
@@ -55,6 +56,7 @@ export default function EventDetail() {
   const notify = useNotify();
   const navigate = useNavigate();
   const now = useNow();
+  const compact = useCompact();
 
   const eventQ = useQuery({
     queryKey: keys.event(id),
@@ -453,9 +455,40 @@ export default function EventDetail() {
           </Card>
         </Grid>
 
-        <Grid size={{ xs: 12, md: 6 }}>
-          <Card>
-            <CardContent>
+        {/* On desktop the Details card sets the row height: the Status card
+            is absolutely positioned over its grid item and the history box
+            scrolls inside it. On compact the cards stack and the history
+            box is capped. */}
+        <Grid
+          size={{ xs: 12, md: 6 }}
+          sx={compact ? undefined : { position: "relative" }}
+        >
+          <Card
+            data-testid="status-card"
+            sx={
+              compact
+                ? undefined
+                : {
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                  }
+            }
+          >
+            <CardContent
+              sx={
+                compact
+                  ? undefined
+                  : {
+                      flex: "1 1 auto",
+                      minHeight: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                      overflowY: "auto",
+                    }
+              }
+            >
               <Typography variant="h6" gutterBottom>
                 Status
               </Typography>
@@ -526,7 +559,14 @@ export default function EventDetail() {
               <Typography variant="subtitle2" sx={{ mt: 3 }}>
                 History
               </Typography>
-              <Box data-testid="status-history">
+              <Box
+                data-testid="status-history"
+                sx={
+                  compact
+                    ? { maxHeight: 320, overflowY: "auto" }
+                    : { flex: "1 1 auto", minHeight: 120, overflowY: "auto" }
+                }
+              >
                 <StatusHistorySection items={historyQ.data?.items ?? []} />
               </Box>
             </CardContent>
@@ -694,6 +734,7 @@ function StatusHistorySection({ items }: { items: StatusHistory[] }) {
       columns={columns}
       rowKey={(h) => String(h.id)}
       emptyText="No history yet."
+      stickyHeader
     />
   );
 }

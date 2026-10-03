@@ -821,6 +821,35 @@ describe("EventDetail on compact (admin.md 6.3)", () => {
     const actions = await screen.findByTestId("event-details-actions");
     expect(actions).toHaveStyle({ "flex-wrap": "wrap" });
   });
+
+  it("caps the history box at 320 px and scrolls it; the Status card is not positioned", async () => {
+    restore = stubMatchMedia(true);
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    const history = await screen.findByTestId("status-history");
+    expect(history).toHaveStyle({ "max-height": "320px", "overflow-y": "auto" });
+    expect(screen.getByTestId("status-card")).not.toHaveStyle({
+      position: "absolute",
+    });
+  });
+});
+
+describe("EventDetail: the Status card height on desktop (admin.md 6.3)", () => {
+  it("positions the Status card over its grid item and scrolls the history inside it", async () => {
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    const history = await screen.findByTestId("status-history");
+    expect(history).toHaveStyle({ "overflow-y": "auto", "min-height": "120px" });
+    expect(history).not.toHaveStyle({ "max-height": "320px" });
+    const card = screen.getByTestId("status-card");
+    expect(card).toHaveStyle({
+      position: "absolute",
+      display: "flex",
+      "flex-direction": "column",
+    });
+    expect(card.parentElement).toHaveStyle({ position: "relative" });
+    // The history table keeps its header in view while the box scrolls.
+    const table = await within(history).findByRole("table");
+    expect(table).toHaveClass("MuiTable-stickyHeader");
+  });
 });
 
 describe("EventDetail: the schedule timezone (admin.md 7.5)", () => {
