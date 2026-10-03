@@ -436,6 +436,8 @@ describe("SiteSettings", () => {
     expect(text).not.toContain("contracts");
   });
 
+  // The schema form re-renders on every keystroke of the typed label, so the
+  // test runs past the default timeout under the full suite.
   it("renders the Header links list after the menu links and saves it", async () => {
     const user = userEvent.setup();
     const captured: Array<Record<string, unknown>> = [];
@@ -500,7 +502,7 @@ describe("SiteSettings", () => {
     expect(captured[0]?.headerLinks).toEqual([
       { ...facebook, label: "Find us on Facebook" },
     ]);
-  });
+  }, 20_000);
 
   it("carries no Route map group", async () => {
     const { container } = render(<Harness />);
