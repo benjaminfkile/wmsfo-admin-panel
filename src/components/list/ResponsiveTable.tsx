@@ -56,6 +56,9 @@ export interface ResponsiveTableProps<T> {
   // an element under the card on compact). Return `null` to render
   // nothing for that row.
   expandedContent?: (row: T) => ReactNode;
+  // Keep the desktop table header in view while a scrolling ancestor
+  // scrolls the rows.
+  stickyHeader?: boolean;
 }
 
 export default function ResponsiveTable<T>(props: ResponsiveTableProps<T>) {
@@ -79,6 +82,7 @@ function DesktopTable<T>({
   leading,
   size = "small",
   expandedContent,
+  stickyHeader = false,
 }: ResponsiveTableProps<T>) {
   const desktopColumns = columns.filter((c) => !c.compactOnly);
   const hasLeading = leading !== undefined;
@@ -90,8 +94,11 @@ function DesktopTable<T>({
     (hasActions ? 1 : 0) +
     (hasAudit ? 1 : 0);
   return (
-    <TableContainer component={Paper}>
-      <Table size={size}>
+    <TableContainer
+      component={Paper}
+      sx={stickyHeader ? { overflow: "visible" } : undefined}
+    >
+      <Table size={size} stickyHeader={stickyHeader}>
         <TableHead>
           <TableRow>
             {hasLeading ? <TableCell /> : null}
