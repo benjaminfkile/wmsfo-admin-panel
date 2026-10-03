@@ -19,6 +19,7 @@ import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import siteSettingsSchema from "../../../contracts/schema/site-settings.schema.json";
 import type { Problem } from "../../api/types";
+import { withoutEmptyMediaRefs } from "./emptyMedia";
 
 const SCHEMA = siteSettingsSchema as Record<string, unknown>;
 
@@ -38,7 +39,8 @@ const UI_SCHEMA: UiSchema = {
 // Site settings page (admin.md 6.16). One SchemaForm over the vendored
 // site-settings schema, labelled from `SITE_SETTINGS`, with the shared
 // custom fields plus ThemeField for the theme object. Save PUTs the
-// whole document; problems from GET render inline. "Preview site" opens
+// whole document (a media reference left without a picked asset goes as
+// null, emptyMedia.ts); problems from GET render inline. "Preview site" opens
 // the preview dialog at the home page.
 export default function SiteSettings() {
   const qc = useQueryClient();
@@ -59,7 +61,7 @@ export default function SiteSettings() {
   }, [draftQ.data]);
 
   const saveMut = useMutation({
-    mutationFn: () => siteSettingsApi.put(data),
+    mutationFn: () => siteSettingsApi.put(withoutEmptyMediaRefs(data)),
     onSuccess: (row) => {
       notify("Site settings saved");
       setDirty(false);
