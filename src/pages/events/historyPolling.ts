@@ -1,18 +1,24 @@
-import type { StatusHistory } from "../../api/types";
-
 export const HISTORY_POLL_MS = 3000;
 export const HISTORY_POLL_WINDOW_MS = 10 * 60 * 1000;
 
+// A row that counts alert emails: a StatusHistory row as is, or an event
+// message with its `createdAt` as `changedAt`.
+export type PollRow = {
+  notify?: boolean;
+  changedAt?: string | null;
+  sentCount?: number | string | null;
+};
+
 // The API's alert-send chore raises `sentCount` on the newest notifying row as
-// the emails go out, so the history polls while that row is under ten minutes
-// old and its count is below the verified subscriber count (for the whole ten
+// the emails go out, so a list polls while that row is under ten minutes old
+// and its count is below the verified subscriber count (for the whole ten
 // minutes when the count is unknown).
 export function historyPollInterval(
-  items: StatusHistory[],
+  items: PollRow[],
   verified: number | undefined,
   nowMs: number = Date.now()
 ): number | false {
-  let newest: StatusHistory | undefined;
+  let newest: PollRow | undefined;
   let newestMs = -Infinity;
   for (const h of items) {
     const ms = h.changedAt ? Date.parse(h.changedAt) : NaN;

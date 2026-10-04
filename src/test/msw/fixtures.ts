@@ -121,10 +121,11 @@ export const eventMessages: EventMessage[] = [
     id: 12,
     eventId: 7,
     body: "Santa is airborne over the valley.",
-    eventTime: "2026-12-22T01:02:00.000Z",
     createdBy: AUTHOR,
     createdAt: "2026-12-22T01:02:30.000Z",
     updatedAt: "2026-12-22T01:02:30.000Z",
+    notify: false,
+    sentCount: 0,
   },
 ];
 

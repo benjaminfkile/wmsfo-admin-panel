@@ -19,6 +19,7 @@ import { stockParagraph } from "../../lib/statusCopy";
 import MessageHelper from "./MessageHelper";
 import DefaultMessageNotice from "./DefaultMessageNotice";
 import { statusName } from "../../lib/statusNames";
+import { verifiedLine } from "./verifiedLine";
 
 interface Props {
   open: boolean;
@@ -55,11 +56,7 @@ export default function NotifyDialog({
     event.name ?? "",
     event.scheduledAt ?? null
   );
-  const verified = summaryQ.data?.verified;
-  const consequence =
-    verified === undefined
-      ? "Verified subscribers will be emailed"
-      : `${verified} verified subscribers will be emailed`;
+  const consequence = verifiedLine(summaryQ.data?.verified);
   const trimmed = message.trim();
   const send = () => onConfirm(trimmed.length > 0 ? trimmed : null);
 
