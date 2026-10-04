@@ -18,17 +18,16 @@ import CloseIcon from "@mui/icons-material/Close";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { events as eventsApi } from "../../api/resources/events";
 import type { MessageBody } from "../../api/resources/events";
+import { subscribers as subsApi } from "../../api/resources/subscribers";
 import { keys } from "../../queries/keys";
 import { useNotify } from "../../hooks/useNotify";
 import ErrorAlert from "../../components/ErrorAlert";
 import EmailQuotaNotice from "../../components/EmailQuotaNotice";
 import ConfirmDialog from "../../components/ConfirmDialog";
-import {
-  fromLocalInputValue,
-  formatStamp,
-  toLocalInputValue,
-} from "../../lib/time";
+import { formatStamp } from "../../lib/time";
 import type { EventMessage } from "../../api/types";
+import { historyPollInterval } from "./historyPolling";
+import { verifiedLine } from "./verifiedLine";
 
 interface Props {
   eventId: number;
@@ -38,25 +37,44 @@ export default function MessagesSection({ eventId }: Props) {
   const qc = useQueryClient();
   const notify = useNotify();
   const [body, setBody] = useState("");
-  const [eventTime, setEventTime] = useState("");
   const [notifyChecked, setNotifyChecked] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmDelete, setConfirmDelete] = useState<EventMessage | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editBody, setEditBody] = useState("");
-  const [editEventTime, setEditEventTime] = useState("");
 
+  const summaryQ = useQuery({
+    queryKey: keys.subscribersSummary,
+    queryFn: () => subsApi.summary(),
+  });
+  const verified = summaryQ.data?.verified;
+
+  // Polls while the newest notified message's sent count fills in.
   const q = useQuery({
     queryKey: keys.eventMessages(eventId),
     queryFn: () => eventsApi.messages(eventId),
+    refetchInterval: (query) =>
+      historyPollInterval(
+        (query.state.data?.items ?? []).map((m) => ({
+          notify: m.notify,
+          changedAt: m.createdAt,
+          sentCount: m.sentCount,
+        })),
+        verified
+      ),
   });
 
   const postMut = useMutation({
     mutationFn: (b: MessageBody) => eventsApi.postMessage(eventId, b),
-    onSuccess: () => {
-      notify("Message posted");
+    onSuccess: (_data, b) => {
+      notify(
+        !b.notify
+          ? "Message posted"
+          : verified === undefined
+            ? "Message posted, notifying subscribers"
+            : `Message posted, notifying ${verified} subscribers`
+      );
       setBody("");
-      setEventTime("");
       setNotifyChecked(false);
       setErrors({});
       void qc.invalidateQueries({ queryKey: keys.eventMessages(eventId) });
@@ -69,7 +87,7 @@ export default function MessagesSection({ eventId }: Props) {
       b,
     }: {
       mid: number;
-      b: Partial<Pick<MessageBody, "body" | "eventTime">>;
+      b: Pick<MessageBody, "body">;
     }) => eventsApi.patchMessage(eventId, mid, b),
     onSuccess: () => {
       notify("Message updated");
@@ -94,26 +112,18 @@ export default function MessagesSection({ eventId }: Props) {
     else if (trimmed.length > 1000) next.body = "1000 characters or fewer";
     setErrors(next);
     if (Object.keys(next).length > 0) return;
-    postMut.mutate({
-      body: trimmed,
-      eventTime: fromLocalInputValue(eventTime),
-      notify: notifyChecked,
-    });
+    postMut.mutate({ body: trimmed, notify: notifyChecked });
   };
 
   const startEdit = (m: EventMessage) => {
     setEditingId(Number(m.id));
     setEditBody(m.body ?? "");
-    setEditEventTime(toLocalInputValue(m.eventTime));
   };
 
   const saveEdit = (m: EventMessage) => {
     patchMut.mutate({
       mid: Number(m.id),
-      b: {
-        body: editBody.trim(),
-        eventTime: fromLocalInputValue(editEventTime),
-      },
+      b: { body: editBody.trim() },
     });
   };
 
@@ -145,7 +155,14 @@ export default function MessagesSection({ eventId }: Props) {
             helperText={errors.body ?? ""}
             fullWidth
           />
-          {notifyChecked ? <EmailQuotaNotice /> : null}
+          {notifyChecked ? (
+            <>
+              <Typography variant="body2" data-testid="message-verified-line">
+                {verifiedLine(verified)}
+              </Typography>
+              <EmailQuotaNotice />
+            </>
+          ) : null}
           <Stack
             direction="row"
             spacing={2}
@@ -154,19 +171,6 @@ export default function MessagesSection({ eventId }: Props) {
             alignItems="flex-start"
             data-testid="message-post-actions"
           >
-            <TextField
-              label="Event time"
-              type="datetime-local"
-              value={eventTime}
-              onChange={(e) => setEventTime(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              helperText={
-                eventTime ? formatStamp(fromLocalInputValue(eventTime)) : "Optional"
-              }
-            />
-            {eventTime ? (
-              <Button onClick={() => setEventTime("")}>Clear</Button>
-            ) : null}
             <FormControlLabel
               control={
                 <Checkbox
@@ -201,14 +205,6 @@ export default function MessagesSection({ eventId }: Props) {
                       fullWidth
                     />
                     <Stack direction="row" spacing={2} alignItems="center">
-                      <TextField
-                        label="Event time"
-                        type="datetime-local"
-                        value={editEventTime}
-                        onChange={(e) => setEditEventTime(e.target.value)}
-                        InputLabelProps={{ shrink: true }}
-                        size="small"
-                      />
                       <Button
                         size="small"
                         startIcon={<SaveIcon />}
@@ -233,9 +229,18 @@ export default function MessagesSection({ eventId }: Props) {
                         {m.body}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {m.eventTime ? formatStamp(m.eventTime) + " · " : ""}
                         {m.createdBy} · {formatStamp(m.createdAt)}
                       </Typography>
+                      {m.notify === true ? (
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          component="div"
+                          data-testid="message-notified"
+                        >
+                          {`Notified · ${String(m.sentCount ?? 0)} sent`}
+                        </Typography>
+                      ) : null}
                     </Box>
                     <IconButton
                       size="small"

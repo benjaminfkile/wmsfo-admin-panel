@@ -270,6 +270,10 @@ const SECTION: Record<string, FieldLabels> = {
       label: "Show the data row",
       help: "Shows speed, altitude, and heading along the bottom of the map.",
     },
+    "controls.landmarks": {
+      label: "Show the landmarks switch",
+      help: "Lets visitors show or hide the landmarks from Site settings. On when unset.",
+    },
     flightHistoryDefault: {
       label: "Show the flight history when the map opens",
       help: "When on, the trail of past positions is visible from the start.",
@@ -451,6 +455,15 @@ export const SITE_SETTINGS: FieldLabels = {
   "headerLinks.href": { label: "Web address" },
   "headerLinks.icon": { label: "Icon" },
   "headerLinks.newTab": { label: "Open in new tab" },
+  landmarks: {
+    label: "Landmarks",
+    help: "Places the route map and the live tracker draw every year, up to fifty.",
+  },
+  "landmarks.name": { label: "Name" },
+  "landmarks.lat": { label: "Latitude" },
+  "landmarks.lng": { label: "Longitude" },
+  "landmarks.icon": { label: "Icon" },
+  "landmarks.description": { label: "Description" },
   footerLinks: {
     label: "Footer links",
     help: "Links shown at the bottom of every page, up to ten.",

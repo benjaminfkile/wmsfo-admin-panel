@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import primitives from "../../../contracts/schema/primitives.schema.json";
+import siteSettings from "../../../contracts/schema/site-settings.schema.json";
 
-const landmarksSchema = primitives.$defs.RouteMapConfig.properties.landmarks;
+const landmarksSchema = siteSettings.properties.landmarks;
+const landmarkSchema = primitives.$defs.Landmark;
 import {
   MAX_LANDMARK_DESCRIPTION,
   MAX_LANDMARKS,
@@ -106,7 +108,7 @@ describe("the landmarks list", () => {
 
   it("caps the description at the schema's maxLength", () => {
     expect(MAX_LANDMARK_DESCRIPTION).toBe(
-      landmarksSchema.items.properties.description.maxLength
+      landmarkSchema.properties.description.maxLength
     );
     const long = "x".repeat(MAX_LANDMARK_DESCRIPTION + 20);
     expect(makeLandmark({ name: "A", lat: 1, lng: 2 }, null, long).description).toHaveLength(

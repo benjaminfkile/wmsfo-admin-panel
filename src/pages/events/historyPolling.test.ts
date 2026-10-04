@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { StatusHistory } from "../../api/types";
+import type { EventMessage } from "../../api/types";
 import {
   HISTORY_POLL_MS,
   HISTORY_POLL_WINDOW_MS,
@@ -69,5 +70,55 @@ describe("historyPollInterval (admin.md 6.3)", () => {
 
   it("does not poll an empty history", () => {
     expect(historyPollInterval([], 800, NOW)).toBe(false);
+  });
+});
+
+function msg(over: Partial<EventMessage>): EventMessage {
+  return {
+    id: 12,
+    eventId: 7,
+    body: "Santa is airborne.",
+    createdBy: "admin@example.com",
+    createdAt: new Date(NOW - 5_000).toISOString(),
+    updatedAt: new Date(NOW - 5_000).toISOString(),
+    notify: true,
+    sentCount: 0,
+    audit: null,
+    ...over,
+  } as EventMessage;
+}
+
+function asRows(items: EventMessage[]) {
+  return items.map((m) => ({
+    notify: m.notify,
+    changedAt: m.createdAt,
+    sentCount: m.sentCount,
+  }));
+}
+
+describe("historyPollInterval over event messages (admin.md 6.3)", () => {
+  it("polls every 3 s while a fresh notified message is below the verified count", () => {
+    expect(historyPollInterval(asRows([msg({ sentCount: 3 })]), 812, NOW)).toBe(
+      3000
+    );
+  });
+
+  it("stops once the sent count reaches the verified count", () => {
+    expect(
+      historyPollInterval(asRows([msg({ sentCount: 812 })]), 812, NOW)
+    ).toBe(false);
+  });
+
+  it("does not poll for a message older than ten minutes", () => {
+    const old = msg({
+      createdAt: new Date(NOW - HISTORY_POLL_WINDOW_MS - 1_000).toISOString(),
+    });
+    expect(historyPollInterval(asRows([old]), 812, NOW)).toBe(false);
+  });
+
+  it("does not poll when the newest message was posted without notify", () => {
+    const older = msg({ id: 1, createdAt: new Date(NOW - 60_000).toISOString() });
+    const newer = msg({ id: 2, notify: false });
+    expect(historyPollInterval(asRows([older, newer]), 812, NOW)).toBe(false);
   });
 });

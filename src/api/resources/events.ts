@@ -57,7 +57,6 @@ export type NotifyBody = { message: string | null };
 
 export type MessageBody = {
   body: string;
-  eventTime: string | null;
   notify: boolean;
 };
 
@@ -93,7 +92,7 @@ export const events = {
   patchMessage: (
     id: number,
     mid: number,
-    b: Partial<Pick<MessageBody, "body" | "eventTime">>
+    b: Pick<MessageBody, "body">
   ) => patch<EventMessage>(`/admin/events/${id}/messages/${mid}`, b),
   deleteMessage: (id: number, mid: number) =>
     del(`/admin/events/${id}/messages/${mid}`),
