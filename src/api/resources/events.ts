@@ -32,7 +32,6 @@ export type PatchEventBody = Partial<{
   endedAt: string | null;
   fundsPercent: number;
   routeId: number | null;
-  routeImageMediaId: string;
   routeMapConfig: RouteMapConfigValue | null;
 }>;
 
@@ -42,7 +41,6 @@ export type CloneEventBody = {
   copy: {
     sponsors: boolean;
     route: boolean;
-    poster: boolean;
     routeMapConfig: boolean;
   };
 };

@@ -173,7 +173,7 @@ describe("EventsList rows", () => {
     ).toBeInTheDocument();
   });
 
-  it("Clone opens the dialog with defaults (source year + 1, name with year replaced, all four flags on)", async () => {
+  it("Clone opens the dialog with defaults (source year + 1, name with year replaced, all three flags on)", async () => {
     const user = userEvent.setup();
     render(<Harness />);
     const row = await screen.findByTestId(`event-row-${f.events[0]!.id}`);
@@ -197,12 +197,13 @@ describe("EventsList rows", () => {
     for (const label of [
       /sponsors for the year/i,
       /flight history/i,
-      /route poster/i,
       /route map settings/i,
     ]) {
       const cb = within(dialog).getByRole("checkbox", { name: label });
       expect(cb).toBeChecked();
     }
+    expect(within(dialog).getAllByRole("checkbox")).toHaveLength(3);
+    expect(within(dialog).queryByRole("checkbox", { name: /route poster/i })).toBeNull();
   });
 
   it("Clone POSTs /admin/events/{id}/clone with { year, name, copy } and navigates on success", async () => {
@@ -229,9 +230,9 @@ describe("EventsList rows", () => {
       await screen.findByRole("menuitem", { name: /^clone$/i })
     );
     const dialog = await screen.findByRole("dialog", { name: /clone event/i });
-    // Uncheck the poster flag so we can assert on partial copy.
+    // Uncheck the sponsors flag so we can assert on partial copy.
     await user.click(
-      within(dialog).getByRole("checkbox", { name: /route poster/i })
+      within(dialog).getByRole("checkbox", { name: /sponsors for the year/i })
     );
     await user.click(within(dialog).getByRole("button", { name: /^clone$/i }));
     await waitFor(() => expect(posts.length).toBe(1));
@@ -240,7 +241,11 @@ describe("EventsList rows", () => {
     );
     expect(posts[0]?.body).toMatchObject({
       year: Number(f.events[0]!.year) + 1,
-      copy: { sponsors: true, route: true, poster: false, routeMapConfig: true },
+    });
+    expect((posts[0]?.body as { copy: unknown }).copy).toEqual({
+      sponsors: false,
+      route: true,
+      routeMapConfig: true,
     });
   });
 
@@ -274,7 +279,7 @@ describe("EventsList rows", () => {
     await user.click(within(dialog).getByRole("button", { name: /^clone$/i }));
     await waitFor(() => expect(posts.length).toBe(1));
     expect(posts[0]).toMatchObject({
-      copy: { sponsors: true, route: true, poster: true, routeMapConfig: false },
+      copy: { sponsors: true, route: true, routeMapConfig: false },
     });
   });
 

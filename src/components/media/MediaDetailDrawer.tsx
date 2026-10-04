@@ -18,8 +18,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { media as mediaApi } from "../../api/resources/media";
-import { events as eventsApi } from "../../api/resources/events";
-import type { Event, MediaAsset } from "../../api/types";
+import type { MediaAsset } from "../../api/types";
 import { keys } from "../../queries/keys";
 import DeleteDialog from "../DeleteDialog";
 import ErrorAlert from "../ErrorAlert";
@@ -70,18 +69,6 @@ export default function MediaDetailDrawer({
     queryFn: () => mediaApi.usage(asset!.id!),
     enabled: !!asset?.id && open,
   });
-
-  const eventsQ = useQuery({
-    queryKey: keys.events,
-    queryFn: () => eventsApi.list(),
-    enabled: open,
-  });
-
-  const posterEvents: Event[] = asset?.id
-    ? (eventsQ.data?.items ?? []).filter(
-        (e) => e.routeImageMediaId === asset.id
-      )
-    : [];
 
   const saveMut = useMutation({
     mutationFn: (b: { alt: string; title: string; credit: string | null }) =>
@@ -336,7 +323,7 @@ export default function MediaDetailDrawer({
                 Loading…
               </Typography>
             ) : usageQ.data ? (
-              <UsageList usage={usageQ.data} posterEvents={posterEvents} />
+              <UsageList usage={usageQ.data} />
             ) : null}
             <Divider />
             <Box>

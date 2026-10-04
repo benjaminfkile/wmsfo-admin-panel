@@ -1124,101 +1124,26 @@ describe("PosterEditor: the overlay composer", () => {
   });
 });
 
-describe("PosterEditor: attach a generated poster to an event", () => {
-  const EVENTS = [
-    f.events[1]!,
-    { ...f.events[0]!, id: 9, year: 2027, name: "Santa Flyover 2027" },
-    f.events[0]!,
-  ];
-
-  function installAttachHandlers(fail: Record<number, number> = {}) {
-    const attached: Array<{ id: number; body: unknown }> = [];
+describe("PosterEditor: no attach to an event", () => {
+  it("renders no attach control before or after Generate and sends no event PATCH", async () => {
+    const user = userEvent.setup();
+    installFlowHandlers();
+    const eventPatches: unknown[] = [];
     server.use(
-      http.get(`${API}/admin/events`, () => HttpResponse.json({ items: EVENTS })),
-      http.patch(`${API}/admin/events/:id`, async ({ params, request }) => {
-        const id = Number(params.id);
-        const body = await request.json();
-        attached.push({ id, body });
-        const status = fail[id];
-        if (status) {
-          return HttpResponse.json(
-            { code: "media_not_ready", message: "The media is not ready.", details: null, requestId: "r9" },
-            { status },
-          );
-        }
-        return HttpResponse.json({ ...EVENTS.find((e) => e.id === id), ...(body as object) });
+      http.patch(`${API}/admin/events/:id`, async ({ request }) => {
+        eventPatches.push(await request.json());
+        return HttpResponse.json(f.events[0]);
       }),
     );
-    return attached;
-  }
-
-  async function generated(user: ReturnType<typeof userEvent.setup>) {
+    render(<Harness poster={POSTER} />);
     const studio = await openStudio();
     expect(within(studio).queryByTestId("poster-attach")).toBeNull();
     await user.click(within(studio).getByTestId("route-poster-generate-run"));
-    const ready = await within(studio).findByTestId("route-poster-ready");
-    return within(ready).getByTestId("poster-attach");
-  }
-
-  async function pick(user: ReturnType<typeof userEvent.setup>, attach: HTMLElement, name: string) {
-    await user.click(within(attach).getByRole("combobox", { name: "Event" }));
-    await user.click(await screen.findByRole("option", { name }));
-  }
-
-  it("lists the events newest year first and attaches the image to one, then another", async () => {
-    const user = userEvent.setup();
-    installFlowHandlers();
-    const attached = installAttachHandlers();
-    render(<Harness poster={POSTER} />);
-    const attach = await generated(user);
-    const run = within(attach).getByTestId("poster-attach-run");
-    expect(run).toHaveTextContent("Attach to an event");
-    expect(run).toBeDisabled();
-
-    await user.click(within(attach).getByRole("combobox", { name: "Event" }));
-    const options = await screen.findAllByRole("option");
-    expect(options.map((o) => o.textContent)).toEqual([
-      "Santa Flyover 2027 (2027)",
-      "Santa Flyover 2026 (2026)",
-      "Santa Flyover 2025 (2025)",
-    ]);
-    await user.click(options[1]!);
-    await user.click(run);
-    expect(await within(attach).findByTestId("poster-attach-success")).toHaveTextContent(
-      "Attached to Santa Flyover 2026 as its route poster.",
-    );
-    expect(attached).toEqual([{ id: 7, body: { routeImageMediaId: "poster-asset-1" } }]);
-
-    // The button stays for the same image and another event.
-    expect(within(attach).getByTestId("poster-attach-run")).toBeEnabled();
-    await pick(user, attach, "Santa Flyover 2025 (2025)");
-    await user.click(within(attach).getByTestId("poster-attach-run"));
-    await waitFor(() =>
-      expect(within(attach).getByTestId("poster-attach-success")).toHaveTextContent(
-        "Attached to Santa Flyover 2025 as its route poster.",
-      ),
-    );
-    expect(attached[1]).toEqual({ id: 6, body: { routeImageMediaId: "poster-asset-1" } });
-  });
-
-  it("shows a readable message when the attach fails and lets another try", async () => {
-    const user = userEvent.setup();
-    installFlowHandlers();
-    const attached = installAttachHandlers({ 9: 409 });
-    render(<Harness poster={POSTER} />);
-    const attach = await generated(user);
-    await pick(user, attach, "Santa Flyover 2027 (2027)");
-    await user.click(within(attach).getByTestId("poster-attach-run"));
-    const error = await within(attach).findByTestId("poster-attach-error");
-    expect(error).toHaveTextContent(/^The poster could not be attached to Santa Flyover 2027\. \S/);
-    expect(within(attach).queryByTestId("poster-attach-success")).toBeNull();
-    expect(attached).toEqual([{ id: 9, body: { routeImageMediaId: "poster-asset-1" } }]);
-
-    await pick(user, attach, "Santa Flyover 2026 (2026)");
-    await user.click(within(attach).getByTestId("poster-attach-run"));
-    expect(await within(attach).findByTestId("poster-attach-success")).toHaveTextContent(
-      "Attached to Santa Flyover 2026",
-    );
-    expect(within(attach).queryByTestId("poster-attach-error")).toBeNull();
+    await within(studio).findByTestId("route-poster-ready");
+    expect(screen.queryByTestId("poster-attach")).toBeNull();
+    expect(screen.queryByTestId("poster-attach-run")).toBeNull();
+    expect(screen.queryByRole("button", { name: /attach to an event/i })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Event" })).toBeNull();
+    expect(eventPatches).toEqual([]);
   });
 });

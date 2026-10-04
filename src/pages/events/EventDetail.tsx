@@ -44,7 +44,6 @@ import TimeZoneSelect from "../../components/TimeZoneSelect";
 import MessagesSection from "./MessagesSection";
 import SeedCookiesSection from "./SeedCookiesSection";
 import RouteSection from "./RouteSection";
-import RoutePosterSection from "./RoutePosterSection";
 import RouteMapSection from "./RouteMapSection";
 import LocationsSection from "./LocationsSection";
 import StatusDialog from "./StatusDialog";
@@ -592,9 +591,6 @@ export default function EventDetail() {
             <SeedCookiesSection event={event} />
           </Grid>
         ) : null}
-        <Grid size={12}>
-          <RoutePosterSection event={event} />
-        </Grid>
         <Grid size={12}>
           <RouteSection event={event} />
         </Grid>
