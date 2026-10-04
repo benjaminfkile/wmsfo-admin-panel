@@ -40,7 +40,7 @@ describe("toRouteMapConfig", () => {
     );
   });
 
-  it("keeps contract values and drops the rest", () => {
+  it("keeps contract values and drops the rest, landmarks included", () => {
     expect(
       toRouteMapConfig({
         display: {
@@ -51,13 +51,12 @@ describe("toRouteMapConfig", () => {
           labelSize: "tiny",
         },
         controls: { fullscreen: "no", terrain: false },
-        landmarks: [{ name: "A", lat: 1, lng: 2 }, { name: "B" }],
+        landmarks: [{ name: "A", lat: 1, lng: 2 }],
         pois: { kinds: ["park", 3] },
       })
     ).toEqual({
       display: { arrows: false, routeWidth: "thin" },
       controls: { terrain: false },
-      landmarks: [{ name: "A", lat: 1, lng: 2 }],
       pois: { kinds: ["park"] },
     });
   });
@@ -65,13 +64,13 @@ describe("toRouteMapConfig", () => {
 
 describe("withGroup and routeMapConfigBody", () => {
   it("removes a group set to nothing and saves an empty config as null", () => {
-    let c = withGroup({}, "landmarks", [{ name: "A", lat: 1, lng: 2 }]);
+    let c = withGroup({}, "controls", { terrain: false });
     c = withGroup(c, "display", { arrows: true });
     expect(routeMapConfigBody(c)).toEqual({
-      landmarks: [{ name: "A", lat: 1, lng: 2 }],
+      controls: { terrain: false },
       display: { arrows: true },
     });
-    c = withGroup(c, "landmarks", []);
+    c = withGroup(c, "controls", {});
     c = withGroup(c, "display", undefined);
     expect(c).toEqual({});
     expect(routeMapConfigBody(c)).toBeNull();
@@ -104,7 +103,6 @@ describe("resolveRouteMapConfig", () => {
       routeWidthScale: 1,
       labelScale: 1,
       controls: { fullscreen: true, terrain: true },
-      landmarks: undefined,
       poiKinds: undefined,
     });
   });
@@ -128,10 +126,9 @@ describe("siteTimeLabels", () => {
 });
 
 describe("eventRouteMapOptions and eventRouteMapStyle", () => {
-  it("passes the landmarks, POI kinds, arrows, and scales", () => {
+  it("passes the POI kinds, arrows, and scales, and no landmarks", () => {
     const options = eventRouteMapOptions(routeMap, {
       display: { arrows: false, arrowSize: "large", routeWidth: "thick", timeLabelIntervalMinutes: 30 },
-      landmarks: [{ name: "Depot", lat: 1.1, lng: 1.1 }],
       pois: { kinds: ["park"] },
     });
     expect(options.arrows).toBeUndefined();
@@ -140,7 +137,7 @@ describe("eventRouteMapOptions and eventRouteMapStyle", () => {
     expect(options.labelScale).toBe(1);
     expect(eventRouteMapOptions(routeMap, { display: { labelSize: "large" } }).labelScale).toBe(1.3);
     expect(options.timeLabels?.map((l) => l.label)).toEqual(["30m"]);
-    expect(options.landmarks).toEqual([{ lat: 1.1, lng: 1.1, label: "Depot" }]);
+    expect(options.landmarks).toBeUndefined();
     expect(options.poiKinds).toEqual(["park"]);
     const defaults = eventRouteMapOptions(routeMap, {});
     expect(defaults.arrows).toBe(true);
@@ -166,17 +163,15 @@ describe("eventRouteMapOptions and eventRouteMapStyle", () => {
 });
 
 describe("routeMapConfigSummary", () => {
-  it("counts landmarks and lists only the settings off their default", () => {
-    expect(routeMapConfigSummary({})).toEqual({ landmarks: 0, changed: [] });
+  it("lists only the settings off their default", () => {
+    expect(routeMapConfigSummary({})).toEqual({ changed: [] });
     expect(
       routeMapConfigSummary({
         display: { timeLabelIntervalMinutes: 15, arrowSize: "small", labelSize: "large" },
         controls: { fullscreen: true, terrain: false },
-        landmarks: [{ name: "A", lat: 1, lng: 2 }],
         pois: { kinds: [] },
       })
     ).toEqual({
-      landmarks: 1,
       changed: [
         { label: "Arrow size", value: "Small" },
         { label: "Label size", value: "Large" },

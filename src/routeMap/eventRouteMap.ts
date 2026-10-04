@@ -12,7 +12,6 @@
 import type { StyleSpecification } from "maplibre-gl";
 import type { Config } from "../config";
 import { ROUTE_MAP_DISPLAY_LABELS } from "../components/content/labels";
-import { toLandmarks, type Landmark } from "../components/content/landmarks";
 import {
   ROUTE_MAP_DEFAULTS,
   ROUTE_MAP_DISPLAY_KEYS,
@@ -34,7 +33,6 @@ export type RouteMapControls = Partial<Record<RouteMapControlKey, boolean>>;
 export interface RouteMapConfigValue {
   display?: RouteMapDisplay;
   controls?: RouteMapControls;
-  landmarks?: Landmark[];
   pois?: PoisValue;
 }
 
@@ -71,8 +69,8 @@ function asRecord(v: unknown): Record<string, unknown> | null {
 }
 
 // The editable form of a stored config: each display key kept only when
-// it is a contract value, each control only when boolean, the landmarks
-// of the stored shape, and the POI kinds when a list is stored. A group
+// it is a contract value, each control only when boolean, and the POI
+// kinds when a list is stored. A group
 // left with nothing in it is absent, so null and `{}` both read as `{}`.
 export function toRouteMapConfig(raw: unknown): RouteMapConfigValue {
   const record = asRecord(raw);
@@ -94,9 +92,6 @@ export function toRouteMapConfig(raw: unknown): RouteMapConfigValue {
   }
   if (Object.keys(controls).length > 0) out.controls = controls;
 
-  const landmarks = toLandmarks(record.landmarks);
-  if (landmarks.length > 0) out.landmarks = landmarks;
-
   const kinds = storedKinds(record.pois);
   if (kinds !== null) out.pois = { kinds };
 
@@ -104,16 +99,14 @@ export function toRouteMapConfig(raw: unknown): RouteMapConfigValue {
 }
 
 // A copy of `config` with one group replaced, or removed when `value` is
-// undefined, an empty object, or an empty landmark list.
+// undefined or an empty object.
 export function withGroup<K extends RouteMapGroup>(
   config: RouteMapConfigValue,
   key: K,
   value: RouteMapConfigValue[K] | undefined
 ): RouteMapConfigValue {
   const next = { ...config };
-  const empty =
-    value === undefined ||
-    (Array.isArray(value) ? value.length === 0 : Object.keys(value).length === 0);
+  const empty = value === undefined || Object.keys(value).length === 0;
   if (empty) delete next[key];
   else next[key] = value;
   return next;
@@ -150,7 +143,6 @@ export interface ResolvedRouteMapConfig {
   routeWidthScale: number;
   labelScale: number;
   controls: Record<RouteMapControlKey, boolean>;
-  landmarks: Landmark[] | undefined;
   poiKinds: string[] | undefined;
 }
 
@@ -168,7 +160,6 @@ export function resolveRouteMapConfig(config: RouteMapConfigValue): ResolvedRout
       fullscreen: readControl(config.controls, "fullscreen"),
       terrain: readControl(config.controls, "terrain"),
     },
-    landmarks: config.landmarks,
     poiKinds: config.pois?.kinds,
   };
 }
@@ -208,11 +199,6 @@ export function eventRouteMapOptions(
   return {
     timeLabels: siteTimeLabels(routeMap.timeline, resolved.timeLabelIntervalMinutes),
     ...(resolved.poiKinds !== undefined ? { poiKinds: resolved.poiKinds } : {}),
-    ...(resolved.landmarks !== undefined
-      ? {
-          landmarks: resolved.landmarks.map((l) => ({ lat: l.lat, lng: l.lng, label: l.name })),
-        }
-      : {}),
     ...(resolved.arrows ? { arrows: true } : {}),
     arrowScale: resolved.arrowScale,
     routeWidthScale: resolved.routeWidthScale,
@@ -221,7 +207,7 @@ export function eventRouteMapOptions(
 }
 
 // The site's route map for the event: the path with every timeline point
-// as a mark, the time labels, landmarks, POI kinds, arrows, widths, and
+// as a mark, the time labels, POI kinds, arrows, widths, and
 // label scale of the config, and the hillshade when `terrain` is set and the config
 // keeps the terrain toggle.
 export function eventRouteMapStyle(
@@ -246,7 +232,6 @@ export interface RouteMapSummaryItem {
 }
 
 export interface RouteMapSummary {
-  landmarks: number;
   // The settings whose value is not the default, in the modal's order.
   changed: RouteMapSummaryItem[];
 }
@@ -266,5 +251,5 @@ export function routeMapConfigSummary(config: RouteMapConfigValue): RouteMapSumm
     }
   }
   if (config.pois) changed.push({ label: "Points of interest", value: "Custom" });
-  return { landmarks: config.landmarks?.length ?? 0, changed };
+  return { changed };
 }

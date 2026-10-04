@@ -1069,14 +1069,13 @@ describe("EventDetail: the Route map card (admin.md 6.3)", () => {
           ...f.events[0],
           routeMapConfig: {
             display: { routeWidth: "thick" },
-            landmarks: [{ name: "Caras Park", lat: 46.87, lng: -113.99 }],
           },
         })
       )
     );
     render(<Harness id={Number(f.events[0]!.id)} />);
     const card = await screen.findByTestId("route-map-card");
-    expect(within(card).getByTestId("route-map-landmarks")).toHaveTextContent("1 landmark");
+    expect(within(card).queryByTestId("route-map-landmarks")).toBeNull();
     expect(within(card).getByText("Route line: Thick")).toBeInTheDocument();
     expect(
       within(card).getByRole("button", { name: "Configure route map" })

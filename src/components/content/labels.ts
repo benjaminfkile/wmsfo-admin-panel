@@ -271,8 +271,9 @@ const SECTION: Record<string, FieldLabels> = {
       help: "Shows speed, altitude, and heading along the bottom of the map.",
     },
     "controls.landmarks": {
-      label: "Show the landmarks switch",
-      help: "Lets visitors show or hide the landmarks from Site settings. On when unset.",
+      label: "Landmarks toggle",
+      help: "Lets visitors hide the landmarks on the tracker.",
+      switchDefault: true,
     },
     flightHistoryDefault: {
       label: "Show the flight history when the map opens",
@@ -457,7 +458,7 @@ export const SITE_SETTINGS: FieldLabels = {
   "headerLinks.newTab": { label: "Open in new tab" },
   landmarks: {
     label: "Landmarks",
-    help: "Places the route map and the live tracker draw every year, up to fifty.",
+    help: "Named spots drawn on the route preview and the live tracker.",
   },
   "landmarks.name": { label: "Name" },
   "landmarks.lat": { label: "Latitude" },

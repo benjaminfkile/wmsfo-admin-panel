@@ -19,7 +19,7 @@ import {
 } from "../../test/renderWithProviders";
 import { eventRouteMapStyle } from "../../routeMap/eventRouteMap";
 import { buildRouteMapStyle } from "../../routeMap";
-import { LANDMARKS_LAYER } from "../../routeMap/style";
+import { TIME_LABELS_LAYER } from "../../routeMap/style";
 import { kindsFor } from "../../components/content/routePreviewPois";
 
 vi.setConfig({ testTimeout: 20_000 });
@@ -103,16 +103,6 @@ const FULL_CONFIG = {
     labelSize: "small",
   },
   controls: { fullscreen: false, terrain: false },
-  landmarks: [
-    {
-      name: "Caras Park",
-      lat: 46.8703,
-      lng: -113.9958,
-      icon: { source: "library", id: "tree" },
-      description: "The downtown tree lighting starts here.",
-    },
-    { name: "Fort Missoula", lat: 46.8455, lng: -114.0569 },
-  ],
   pois: { kinds: ["hospital", "park"] },
 };
 
@@ -271,17 +261,18 @@ afterEach(() => {
 });
 
 describe("the Route map card", () => {
-  it("summarises a null config as all defaults with no landmarks", () => {
+  it("summarises a null config as all defaults and says nothing of landmarks", () => {
     render(<Harness event={makeEvent({ routeMapConfig: null })} />);
     const card = screen.getByTestId("route-map-card");
-    expect(within(card).getByTestId("route-map-landmarks")).toHaveTextContent("No landmarks");
+    expect(within(card).queryByTestId("route-map-landmarks")).toBeNull();
+    expect(card.textContent ?? "").not.toMatch(/landmark/i);
     expect(within(card).getByTestId("route-map-changed")).toHaveTextContent(
       "Every setting is at its default."
     );
     expect(within(card).getByRole("button", { name: "Configure route map" })).toBeInTheDocument();
   });
 
-  it("counts the landmarks and lists each setting that differs from the default", () => {
+  it("lists each setting that differs from the default", () => {
     render(
       <Harness
         event={makeEvent({
@@ -290,7 +281,6 @@ describe("the Route map card", () => {
       />
     );
     const card = screen.getByTestId("route-map-card");
-    expect(within(card).getByTestId("route-map-landmarks")).toHaveTextContent("2 landmarks");
     const chips = within(within(card).getByTestId("route-map-changed"))
       .getAllByText(/: /)
       .map((c) => c.textContent);
@@ -313,13 +303,11 @@ describe("the Route map card", () => {
           routeMapConfig: {
             display: { timeLabelIntervalMinutes: 15, arrows: true, routeWidth: "thin" },
             controls: { fullscreen: true },
-            landmarks: [{ name: "Solo", lat: 1, lng: 2 }],
           } as unknown as Event["routeMapConfig"],
         })}
       />
     );
     const card = screen.getByTestId("route-map-card");
-    expect(within(card).getByTestId("route-map-landmarks")).toHaveTextContent("1 landmark");
     const changed = within(card).getByTestId("route-map-changed");
     expect(within(changed).getAllByText(/: /).map((c) => c.textContent)).toEqual([
       "Route line: Thin",
@@ -341,6 +329,22 @@ describe("the Route map modal", () => {
     expect(within(dialog).getByTestId("route-map-preview-terrain")).toBeInTheDocument();
   });
 
+  it("renders no Landmarks editor", async () => {
+    const dialog = await openDialog(
+      makeEvent({
+        routeMapConfig: {
+          ...FULL_CONFIG,
+          landmarks: [{ name: "Caras Park", lat: 46.8703, lng: -113.9958 }],
+        } as unknown as Event["routeMapConfig"],
+      })
+    );
+    expect(within(dialog).queryByRole("region", { name: "Landmarks" })).toBeNull();
+    expect(within(dialog).queryByTestId("landmarks-field")).toBeNull();
+    expect(within(dialog).queryByRole("button", { name: /add landmark/i })).toBeNull();
+    expect(within(dialog).queryByText("Caras Park")).toBeNull();
+    expect(lastStyleInput().routeMapConfig).toEqual(FULL_CONFIG);
+  });
+
   it("round-trips a full config unchanged", async () => {
     const dialog = await openDialog(
       makeEvent({ routeMapConfig: FULL_CONFIG as unknown as Event["routeMapConfig"] })
@@ -352,7 +356,6 @@ describe("the Route map modal", () => {
     );
     expect(within(display).getByRole("switch", { name: "Arrows" })).not.toBeChecked();
     expect(within(group(dialog, "Controls")).getByRole("switch", { name: "Fullscreen button" })).not.toBeChecked();
-    expect(within(group(dialog, "Landmarks")).getByText("Caras Park")).toBeInTheDocument();
     expect(within(group(dialog, "Points of interest")).getByRole("radio", { name: "Custom" })).toBeChecked();
     const body = await save(dialog);
     expect(body).toEqual({ routeMapConfig: FULL_CONFIG });
@@ -395,34 +398,6 @@ describe("the Route map modal", () => {
     const body = await save(dialog);
     expect(body).toEqual({
       routeMapConfig: { ...FULL_CONFIG, controls: { fullscreen: true, terrain: false } },
-    });
-  });
-
-  it("changes the landmarks group alone", async () => {
-    const dialog = await openDialog(
-      makeEvent({ routeMapConfig: FULL_CONFIG as unknown as Event["routeMapConfig"] })
-    );
-    const landmarks = group(dialog, "Landmarks");
-    fireEvent.click(within(landmarks).getByRole("button", { name: "Delete Fort Missoula" }));
-    expect(lastStyleInput().routeMapConfig.landmarks).toEqual([FULL_CONFIG.landmarks[0]]);
-    expectPreviewInSync();
-
-    fireEvent.click(within(landmarks).getByRole("button", { name: "Add landmark" }));
-    const add = await screen.findByRole("dialog", { name: "Add landmark" });
-    fireEvent.change(within(add).getByLabelText("Latitude"), { target: { value: "46.88" } });
-    fireEvent.change(within(add).getByLabelText("Longitude"), { target: { value: "-114.01" } });
-    fireEvent.change(within(add).getByLabelText("Name"), { target: { value: "  Depot  " } });
-    fireEvent.click(within(add).getByRole("button", { name: "Save" }));
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Add landmark" })).not.toBeInTheDocument()
-    );
-    const added = { name: "Depot", lat: 46.88, lng: -114.01 };
-    expect(lastStyleInput().routeMapConfig.landmarks).toEqual([FULL_CONFIG.landmarks[0], added]);
-    expectPreviewInSync();
-
-    const body = await save(dialog);
-    expect(body).toEqual({
-      routeMapConfig: { ...FULL_CONFIG, landmarks: [FULL_CONFIG.landmarks[0], added] },
     });
   });
 
@@ -498,15 +473,15 @@ describe("the Route map modal", () => {
     );
     expect(vi.mocked(buildRouteMapStyle).mock.calls.at(-1)![5]?.labelScale).toBe(0.8);
     const style = maps.at(-1)!.styles.at(-1) as { layers: { id: string; layout?: Record<string, unknown> }[] };
-    const landmarks = style.layers.find((l) => l.id === LANDMARKS_LAYER);
-    expect(landmarks?.layout?.["text-size"]).toEqual([
+    const timeLabels = style.layers.find((l) => l.id === TIME_LABELS_LAYER);
+    expect(timeLabels?.layout?.["text-size"]).toEqual([
       "interpolate",
       ["linear"],
       ["zoom"],
       12,
-      7.467,
+      10.667,
       16,
-      11.2,
+      16,
     ]);
   });
 
@@ -530,14 +505,14 @@ describe("the Route map modal", () => {
   it("Cancel discards the draft without a request", async () => {
     const event = makeEvent({ routeMapConfig: FULL_CONFIG as unknown as Event["routeMapConfig"] });
     const dialog = await openDialog(event);
-    fireEvent.click(within(group(dialog, "Landmarks")).getByRole("button", { name: "Delete Caras Park" }));
+    fireEvent.click(within(group(dialog, "Points of interest")).getByRole("radio", { name: "Default" }));
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "Route map" })).not.toBeInTheDocument()
     );
     fireEvent.click(screen.getByRole("button", { name: "Configure route map" }));
     const again = await screen.findByRole("dialog", { name: "Route map" });
-    expect(within(group(again, "Landmarks")).getByText("Caras Park")).toBeInTheDocument();
+    expect(within(group(again, "Points of interest")).getByRole("radio", { name: "Custom" })).toBeChecked();
     expect(patches).toEqual([]);
   });
 
@@ -619,8 +594,6 @@ describe("the Route map modal", () => {
     ).toHaveTextContent("Every 10 minutes");
     expect(within(display).getByRole("switch", { name: "Arrows" })).not.toBeChecked();
     expect(within(group(dialog, "Controls")).getByRole("switch", { name: "Terrain toggle" })).not.toBeChecked();
-    expect(within(group(dialog, "Landmarks")).getByText("Caras Park")).toBeInTheDocument();
-    expect(within(group(dialog, "Landmarks")).getByText("Fort Missoula")).toBeInTheDocument();
     const pois = group(dialog, "Points of interest");
     expect(within(pois).getByRole("radio", { name: "Custom" })).toBeChecked();
     expect(lastStyleInput().routeMapConfig).toEqual(FULL_CONFIG);
@@ -630,11 +603,8 @@ describe("the Route map modal", () => {
     });
     expect(patches).toEqual([]);
 
-    fireEvent.click(within(group(dialog, "Landmarks")).getByRole("button", { name: "Delete Fort Missoula" }));
     const body = await save(dialog);
-    expect(body).toEqual({
-      routeMapConfig: { ...FULL_CONFIG, landmarks: [FULL_CONFIG.landmarks[0]] },
-    });
+    expect(body).toEqual({ routeMapConfig: FULL_CONFIG });
   });
 
   it("copying an event with no config resets the draft to the defaults", async () => {
@@ -651,7 +621,7 @@ describe("the Route map modal", () => {
     expect(within(copy).getByTestId("route-map-copy-loaded")).toHaveTextContent(
       "Santa Flyover 2024 has no route map settings"
     );
-    expect(within(group(dialog, "Landmarks")).queryByText("Caras Park")).toBeNull();
+    expect(within(group(dialog, "Points of interest")).getByRole("radio", { name: "Default" })).toBeChecked();
     expect(patches).toEqual([]);
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     await waitFor(() =>
