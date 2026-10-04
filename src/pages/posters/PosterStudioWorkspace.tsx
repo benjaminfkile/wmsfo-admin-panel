@@ -73,7 +73,6 @@ import { renderOverlayCanvas } from "../../routeMap/posterOverlay";
 import RoutePosterPreview, { PREVIEW_MAX_HEIGHT } from "./RoutePosterPreview";
 import PosterOverlayComposer, { type EditorElement } from "./PosterOverlayComposer";
 import PosterOverlayControls from "./PosterOverlayControls";
-import AttachToEvent from "./AttachToEvent";
 import { OverlayLoadError, sourceKey, useOverlaySources } from "./overlaySources";
 
 interface Props {
@@ -125,8 +124,7 @@ const NEW_ELEMENT_WIDTH: Record<LayoutElement["type"], number> = {
 // goes to `onLayoutChange`. Generate renders the same style offscreen,
 // draws the overlays over it at the print scale and the attribution last,
 // uploads the JPEG through the media upload flow, saves the poster, and
-// links the ready asset in the media library and offers to attach it to
-// an event.
+// links the ready asset in the media library.
 export default function PosterStudioWorkspace({
   posterName,
   routeId,
@@ -692,7 +690,6 @@ export default function PosterStudioWorkspace({
                   Open in the media library
                 </Link>
               ) : null}
-              {assetId ? <AttachToEvent mediaId={assetId} disabled={busy} /> : null}
             </Stack>
           ) : null}
         </Stack>

@@ -433,35 +433,15 @@ describe("EventDetail: status notified state and history", () => {
   });
 });
 
-describe("EventDetail: route poster and flight history blocks", () => {
-  it("Remove poster sends PATCH { routeImageMediaId: '' }", async () => {
-    const user = userEvent.setup();
-    const captured: Array<{ url: string; body: unknown }> = [];
-    server.use(
-      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
-        HttpResponse.json({
-          ...f.events[0]!,
-          routeImageMediaId: f.mediaAssets[0]!.id,
-          routeImage: f.mediaAssets[0]!,
-        })
-      ),
-      http.patch(
-        `${testConfig.apiBaseUrl}/admin/events/:id`,
-        async ({ request }) => {
-          const body = await request.json();
-          captured.push({ url: request.url, body });
-          return HttpResponse.json(f.events[0]);
-        }
-      )
-    );
+describe("EventDetail: no route poster card; the flight history block", () => {
+  it("renders no route poster card", async () => {
     render(<Harness id={Number(f.events[0]!.id)} />);
-    // Wait for the poster section to render.
-    await screen.findByRole("heading", { name: /route poster/i });
-    await user.click(
-      await screen.findByTestId("route-poster-remove")
-    );
-    await waitFor(() => expect(captured.length).toBeGreaterThan(0));
-    expect(captured[0]?.body).toEqual({ routeImageMediaId: "" });
+    await screen.findByRole("heading", { name: /flight history/i });
+    expect(screen.queryByRole("heading", { name: /route poster/i })).toBeNull();
+    expect(screen.queryByTestId("route-poster-choose")).toBeNull();
+    expect(screen.queryByTestId("route-poster-remove")).toBeNull();
+    expect(screen.queryByRole("button", { name: /choose poster/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /open poster studio/i })).toBeNull();
   });
 
   it("Record from this event calls the /routes/from-event endpoint then PATCH routeId", async () => {
@@ -619,45 +599,6 @@ describe("EventDetail: route poster and flight history blocks", () => {
     expect(
       await screen.findByRole("option", { name: /orphan route.*used by no event/i })
     ).toBeInTheDocument();
-  });
-
-  it("reopens the picker on 409 media_not_ready from the route poster PATCH", async () => {
-    const user = userEvent.setup();
-    server.use(
-      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
-        HttpResponse.json({
-          ...f.events[0]!,
-          routeImageMediaId: f.mediaAssets[0]!.id,
-          routeImage: f.mediaAssets[0]!,
-        })
-      ),
-      http.patch(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
-        HttpResponse.json(
-          {
-            code: "media_not_ready",
-            message: "media not ready",
-            details: null,
-            requestId: "req-x",
-          },
-          { status: 409 }
-        )
-      )
-    );
-    render(<Harness id={Number(f.events[0]!.id)} />);
-    await screen.findByRole("heading", { name: /route poster/i });
-    await user.click(await screen.findByTestId("route-poster-choose"));
-    // Wait for the picker to open, click the asset, then confirm.
-    const card = await screen.findByTestId(
-      `media-card-${f.mediaAssets[0]!.id}`
-    );
-    await user.click(within(card).getAllByRole("button")[0]!);
-    await user.click(screen.getByRole("button", { name: /^choose$/i }));
-    // After the 409, the picker re-opens.
-    await waitFor(() =>
-      expect(
-        screen.getByRole("dialog", { name: /choose route poster/i })
-      ).toBeInTheDocument()
-    );
   });
 });
 

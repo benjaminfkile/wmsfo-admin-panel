@@ -172,10 +172,9 @@ describe("labels.ts: the map overlays include the online count", () => {
 });
 
 describe("labels.ts: route map settings live on the event only", () => {
-  it("gives route_preview only heading, style, disclaimer, and emptyText", () => {
+  it("gives route_preview only heading, disclaimer, and emptyText", () => {
     expect(Object.keys(labelsFor("route_preview", false))).toEqual([
       "heading",
-      "style",
       "disclaimer",
       "emptyText",
     ]);

@@ -353,10 +353,6 @@ const SECTION: Record<string, FieldLabels> = {
   },
   route_preview: {
     heading: { label: "Heading" },
-    style: {
-      label: "Style",
-      options: { image: "Image", viewer: "Pan and zoom viewer", map: "Map" },
-    },
     disclaimer: { label: "Disclaimer" },
     emptyText: {
       label: "Text shown when there is no route yet",

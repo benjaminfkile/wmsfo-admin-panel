@@ -47,7 +47,6 @@ export default function EventCloneDialog({
   const [name, setName] = useState("");
   const [sponsors, setSponsors] = useState(true);
   const [route, setRoute] = useState(true);
-  const [poster, setPoster] = useState(true);
   const [routeMapConfig, setRouteMapConfig] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -59,7 +58,6 @@ export default function EventCloneDialog({
     setName(defaultName(source, sourceYear, targetYear));
     setSponsors(true);
     setRoute(true);
-    setPoster(true);
     setRouteMapConfig(true);
     setErrors({});
   }, [open, source]);
@@ -87,7 +85,7 @@ export default function EventCloneDialog({
       body: {
         year: y,
         name: trimmedName,
-        copy: { sponsors, route, poster, routeMapConfig },
+        copy: { sponsors, route, routeMapConfig },
       },
     };
   };
@@ -149,15 +147,6 @@ export default function EventCloneDialog({
                 />
               }
               label="Flight history"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={poster}
-                  onChange={(_, v) => setPoster(v)}
-                />
-              }
-              label="Route poster"
             />
             <FormControlLabel
               control={
