@@ -20,7 +20,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import AppDialog from "../../components/AppDialog";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
-import LandmarksEditor from "../../components/content/fields/LandmarksEditor";
 import PoisEditor from "../../components/content/fields/PoisEditor";
 import RouteMapDisplayControls from "../../components/content/fields/RouteMapDisplayControls";
 import { useConfig } from "../../ConfigContext";
@@ -56,8 +55,8 @@ const NO_BASEMAP_HINT =
   "The route map preview needs VITE_ROUTE_BASEMAP_URL, which is not set.";
 
 // Configures the event's route map: a live preview of this event's route
-// beside "Copy from another event" and four groups of controls (Display,
-// Controls, Landmarks, Points of interest). Full screen on phones and
+// beside "Copy from another event" and three groups of controls (Display,
+// Controls, Points of interest). Full screen on phones and
 // nearly the whole window on desktop. The dialog edits a draft of
 // `routeMapConfig`; every change rebuilds the preview's style through
 // `eventRouteMapStyle`. Copying replaces the whole draft with the picked
@@ -131,7 +130,6 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
   ) => setDraft((d) => withGroup(d, key, value));
 
   const busy = saveMut.isPending;
-  const start = drawable?.path[0];
 
   const preview = (() => {
     if (routeId === null) return <Hint>{NO_RECORDING_HINT}</Hint>;
@@ -250,16 +248,6 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
                 ))}
               </Stack>
             </Group>
-            <Group title="Landmarks">
-              <LandmarksEditor
-                value={draft.landmarks ?? []}
-                onChange={(next) => set("landmarks", next)}
-                title="Landmarks"
-                help="Named spots drawn on the route map."
-                disabled={busy}
-                center={start ? { lat: start.lat, lng: start.lng } : undefined}
-              />
-            </Group>
             <Group title="Points of interest" last>
               <PoisEditor
                 value={draft.pois}
@@ -295,7 +283,7 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
       <ConfirmDialog
         open={confirmClear}
         title="Clear the route map settings?"
-        body={`Every route map setting of ${event.name ?? "this event"} returns to its default and its landmarks are removed.`}
+        body={`Every route map setting of ${event.name ?? "this event"} returns to its default.`}
         confirmLabel="Clear all"
         danger
         disabled={busy}

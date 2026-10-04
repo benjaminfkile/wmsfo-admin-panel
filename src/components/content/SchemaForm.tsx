@@ -18,6 +18,7 @@ import LinkField from "./fields/LinkField";
 import InlineField from "./fields/InlineField";
 import BlocksField from "./fields/BlocksField";
 import LinkListField from "./fields/LinkListField";
+import LandmarksField from "./fields/LandmarksField";
 import PresentationPanelField from "./fields/PresentationPanelField";
 import OptionalField, { extractOptional } from "./fields/OptionalField";
 import ThemeField from "./fields/ThemeField";
@@ -101,10 +102,12 @@ function RoutedSchemaField(props: FieldProps) {
 }
 
 // UiSchema-based custom fields (used by SiteSettings for the theme
-// object; RJSF resolves these via `ui:field: "<name>"`).
+// object and the landmarks list; RJSF resolves these via
+// `ui:field: "<name>"`).
 const FIELDS: RegistryFieldsType = {
   SchemaField: RoutedSchemaField,
   ThemeField,
+  LandmarksField,
 };
 
 // A `const` inside a `oneOf` branch is never used as a default, so an

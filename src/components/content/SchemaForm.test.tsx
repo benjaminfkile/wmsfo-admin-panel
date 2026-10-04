@@ -395,6 +395,54 @@ describe("SchemaForm: the map's Online count overlay", () => {
   });
 });
 
+describe("SchemaForm: the map's Landmarks toggle", () => {
+  type MapValue = { controls: Record<string, boolean> } & Record<string, unknown>;
+
+  function Controlled({ initial }: { initial: MapValue }) {
+    const [value, setValue] = useState<MapValue>(initial);
+    return (
+      <>
+        <SchemaForm
+          schema={map as Sch}
+          kind="map"
+          formData={value}
+          onChange={(next) => setValue(next as MapValue)}
+        />
+        <pre data-testid="controls">{JSON.stringify(value.controls)}</pre>
+      </>
+    );
+  }
+
+  function mapDefaults(): MapValue {
+    const kind = (
+      kindsJson as { kinds: Array<{ kind: string; defaults: unknown }> }
+    ).kinds.find((k) => k.kind === "map");
+    const defaults = structuredClone(kind!.defaults) as MapValue;
+    delete defaults.controls.landmarks;
+    return defaults;
+  }
+
+  it("renders the switch on while absent and writes controls.landmarks", () => {
+    render(
+      <Providers>
+        <Controlled initial={mapDefaults()} />
+      </Providers>
+    );
+    expect(
+      screen.getByText("Lets visitors hide the landmarks on the tracker.")
+    ).toBeInTheDocument();
+    const toggle = screen.getByRole("switch", { name: "Landmarks toggle" });
+    expect(toggle).toBeChecked();
+    const controls = () => JSON.parse(screen.getByTestId("controls").textContent ?? "{}");
+    expect(controls()).not.toHaveProperty("landmarks");
+    fireEvent.click(toggle);
+    expect(toggle).not.toBeChecked();
+    expect(controls().landmarks).toBe(false);
+    fireEvent.click(toggle);
+    expect(controls().landmarks).toBe(true);
+  });
+});
+
 describe("SchemaForm: optional primitive is a switch, not an Option dropdown", () => {
   type ItemValue = {
     media: { mediaId: string; alt: string | null };

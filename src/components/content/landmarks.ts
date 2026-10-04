@@ -1,6 +1,6 @@
-// The landmarks list of an event's route map (admin.md 6.3): named
-// points the site's route map draws as a dot with the name beside it,
-// each with an optional icon and a short description the site opens
+// The site's landmarks list (Site settings, admin.md 6.16): named points
+// the route preview and the live tracker draw as a dot with the name
+// beside it, each with an optional icon and a short description the site opens
 // when a visitor taps the landmark.
 
 import type { Icon } from "../../api/types";

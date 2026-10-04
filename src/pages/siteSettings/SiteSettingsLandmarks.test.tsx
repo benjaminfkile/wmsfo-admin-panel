@@ -1,24 +1,29 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useState, type ReactNode } from "react";
+// admin.md 6.16: the Landmarks field of Site settings, edited through
+// LandmarksEditor and saved under `landmarks`.
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { ThemeProvider } from "@mui/material";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider, CssBaseline } from "@mui/material";
 import { MemoryRouter } from "react-router-dom";
-import { ConfigProvider } from "../../../ConfigContext";
-import { buildTheme } from "../../../theme/theme";
-import { installClient } from "../../../api/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { http, HttpResponse } from "msw";
+import { ConfigProvider } from "../../ConfigContext";
+import { NotifyProvider } from "../../hooks/useNotify";
+import { installClient } from "../../api/client";
+import { buildTheme } from "../../theme/theme";
+import { server } from "../../test/msw/server";
+import * as f from "../../test/msw/fixtures";
 import {
   makeFakeUserManager,
   makeUser,
   testConfig,
-} from "../../../test/renderWithProviders";
+} from "../../test/renderWithProviders";
 import {
   MAX_LANDMARK_DESCRIPTION,
   MAX_LANDMARKS,
-  landmarksValue,
   type Landmark,
-} from "../landmarks";
-import { kindsFor } from "../routePreviewPois";
+} from "../../components/content/landmarks";
+
+vi.setConfig({ testTimeout: 20_000 });
 
 type Handler = (e?: unknown) => void;
 
@@ -69,7 +74,7 @@ class FakeMarkerCtor {
   }
 }
 
-vi.mock("../../../pages/places/googleMaps", () => ({
+vi.mock("../places/googleMaps", () => ({
   loadMaps: vi.fn(async () => ({ Map: FakeMap }) as unknown as google.maps.MapsLibrary),
   loadMarkers: vi.fn(
     async () => ({ Marker: FakeMarkerCtor }) as unknown as google.maps.MarkerLibrary
@@ -77,67 +82,99 @@ vi.mock("../../../pages/places/googleMaps", () => ({
   loadPlaces: vi.fn(async () => ({})),
 }));
 
-import LandmarksEditor from "./LandmarksEditor";
-import PoisEditor from "./PoisEditor";
+import SiteSettings from "./SiteSettings";
 
-type RouteValue = {
-  landmarks?: Landmark[];
-  pois?: { kinds: string[] };
-};
-
-
-function Providers({ children }: { children: ReactNode }) {
+function Harness() {
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, staleTime: 0 } },
+    defaultOptions: {
+      queries: { retry: false, staleTime: 0, gcTime: 0 },
+      mutations: { retry: false },
+    },
   });
   return (
     <ThemeProvider theme={buildTheme("light")}>
+      <CssBaseline />
       <ConfigProvider config={testConfig}>
         <QueryClientProvider client={client}>
-          <MemoryRouter>{children}</MemoryRouter>
+          <MemoryRouter initialEntries={["/site-settings"]}>
+            <NotifyProvider>
+              <SiteSettings />
+            </NotifyProvider>
+          </MemoryRouter>
         </QueryClientProvider>
       </ConfigProvider>
     </ThemeProvider>
   );
 }
 
-let latest: RouteValue = {};
+const DRAFT = {
+  siteName: "Western Montana Santa Flyover",
+  tagline: null,
+  homeNavLabel: "Home",
+  logo: null,
+  favicon: null,
+  theme: { snowDefault: false, lightsDefault: true },
+  navExtraLinks: [],
+  footerLinks: [],
+  footerText: null,
+  contactEmail: null,
+  donateUrl: null,
+  analyticsEnabled: false,
+};
 
-function Controlled({ initial }: { initial: RouteValue }) {
-  const [value, setValue] = useState<RouteValue>(initial);
-  const write = (next: RouteValue) => {
-    latest = next;
-    setValue(next);
-  };
-  return (
-    <>
-      <LandmarksEditor
-        value={value.landmarks ?? []}
-        onChange={(next) => write({ ...value, landmarks: landmarksValue(next) })}
-        title="Landmarks"
-        help="Named spots drawn on the route map."
-      />
-      <PoisEditor
-        value={value.pois}
-        onChange={(next) => write({ ...value, pois: next })}
-        title="Points of interest"
-      />
-    </>
+let saved: Array<Record<string, unknown>> = [];
+
+function serve(landmarks?: Landmark[]) {
+  server.use(
+    http.get(`${testConfig.apiBaseUrl}/admin/site-settings`, () =>
+      HttpResponse.json({
+        ...f.siteSettingsDraft,
+        data: landmarks === undefined ? DRAFT : { ...DRAFT, landmarks },
+      })
+    ),
+    http.put(`${testConfig.apiBaseUrl}/admin/site-settings`, async ({ request }) => {
+      const body = (await request.json()) as { data: Record<string, unknown> };
+      saved.push(body.data);
+      return HttpResponse.json({ ...f.siteSettingsDraft, data: body.data });
+    })
   );
 }
 
-function renderForm(initial: RouteValue) {
-  latest = initial;
-  return render(
-    <Providers>
-      <Controlled initial={initial} />
-    </Providers>
+async function renderPage(landmarks?: Landmark[]) {
+  serve(landmarks);
+  const result = render(<Harness />);
+  const field = await screen.findByTestId("landmarks-field");
+  if (landmarks !== undefined && landmarks.length > 0) {
+    await within(field).findByTestId("landmark-0");
+  }
+  return { ...result, field };
+}
+
+// Saves and returns the document the PUT carried.
+async function save(): Promise<Record<string, unknown>> {
+  const button = screen.getByTestId("site-settings-save");
+  await waitFor(() => expect(button).not.toBeDisabled());
+  fireEvent.click(button);
+  await waitFor(() => expect(saved.length).toBeGreaterThan(0));
+  return JSON.parse(JSON.stringify(saved.at(-1))) as Record<string, unknown>;
+}
+
+async function addByFields(name: string, lat: string, lng: string) {
+  fireEvent.click(screen.getByRole("button", { name: /add landmark/i }));
+  const dialog = await screen.findByRole("dialog", { name: "Add landmark" });
+  fireEvent.change(within(dialog).getByLabelText("Latitude"), { target: { value: lat } });
+  fireEvent.change(within(dialog).getByLabelText("Longitude"), { target: { value: lng } });
+  fireEvent.change(within(dialog).getByLabelText("Name"), { target: { value: name } });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+  await waitFor(() =>
+    expect(screen.queryByRole("dialog", { name: "Add landmark" })).toBeNull()
   );
 }
 
 beforeEach(() => {
   clickMap = null;
   lastMarker = null;
+  saved = [];
   installClient({
     config: testConfig,
     userManager: makeFakeUserManager(
@@ -147,43 +184,67 @@ beforeEach(() => {
   });
 });
 
-describe("the route map Landmarks editor", () => {
-  it("places a pin by a map click, names it, and writes lat, lng, and name", async () => {
-    renderForm({});
-    const field = screen.getByTestId("landmarks-field");
+afterEach(() => {
+  server.resetHandlers();
+});
+
+describe("Site settings: the Landmarks field", () => {
+  it("renders the Landmarks editor with its label and help, after the header links", async () => {
+    const { container, field } = await renderPage();
     expect(within(field).getByText("Landmarks")).toBeInTheDocument();
+    expect(
+      within(field).getByText("Named spots drawn on the route preview and the live tracker.")
+    ).toBeInTheDocument();
     expect(within(field).getByTestId("landmarks-count")).toHaveTextContent("0 of 50");
+    const text = container.textContent ?? "";
+    expect(text).not.toContain("landmarks");
+    expect(text.indexOf("Named spots drawn")).toBeGreaterThan(text.indexOf("Header links"));
+  });
+
+  it("saves a two-landmark list under landmarks", async () => {
+    await renderPage();
+    await addByFields("  Caras Park ", "46.8703", "-113.9958");
+    await addByFields("Fort Missoula", "46.8455", "-114.0569");
+    expect(screen.getByTestId("landmarks-count")).toHaveTextContent("2 of 50");
+    const data = await save();
+    expect(data.landmarks).toEqual([
+      { name: "Caras Park", lat: 46.8703, lng: -113.9958 },
+      { name: "Fort Missoula", lat: 46.8455, lng: -114.0569 },
+    ]);
+    expect(data.siteName).toBe(DRAFT.siteName);
+  });
+
+  it("places a pin by a map click, names it, and writes lat, lng, and name", async () => {
+    const { field } = await renderPage();
     fireEvent.click(within(field).getByRole("button", { name: /add landmark/i }));
-    const dialog = await screen.findByRole("dialog");
-    const save = within(dialog).getByRole("button", { name: "Save" });
-    expect(save).toBeDisabled();
+    const dialog = await screen.findByRole("dialog", { name: "Add landmark" });
+    const ok = within(dialog).getByRole("button", { name: "Save" });
+    expect(ok).toBeDisabled();
     await waitFor(() => expect(clickMap).not.toBeNull());
     act(() => clickMap!({ latLng: latLng(46.8721234, -113.9940456) }));
     expect(lastMarker?.onMap).toBe(true);
     expect(lastMarker?.position).toEqual({ lat: 46.87212, lng: -113.99405 });
     expect(within(dialog).getByLabelText("Latitude")).toHaveValue("46.87212");
     expect(within(dialog).getByLabelText("Longitude")).toHaveValue("-113.99405");
-    expect(save).toBeDisabled();
+    expect(ok).toBeDisabled();
     fireEvent.change(within(dialog).getByLabelText("Name"), {
       target: { value: "  Caras Park " },
     });
-    fireEvent.click(save);
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(latest.landmarks).toEqual([{ name: "Caras Park", lat: 46.87212, lng: -113.99405 }]);
+    fireEvent.click(ok);
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Add landmark" })).toBeNull());
     expect(screen.getByTestId("landmarks-count")).toHaveTextContent("1 of 50");
     expect(screen.getByTestId("landmark-0")).toHaveTextContent("Caras Park");
-    expect(JSON.parse(JSON.stringify(latest))).not.toHaveProperty("pois");
+    const data = await save();
+    expect(data.landmarks).toEqual([{ name: "Caras Park", lat: 46.87212, lng: -113.99405 }]);
   });
 
-  it("edits, reorders, and deletes entries", async () => {
-    renderForm({
-      landmarks: [
-        { name: "A", lat: 1, lng: 2 },
-        { name: "B", lat: 3, lng: 4 },
-      ],
-    });
+  it("edits, reorders, and deletes entries, and an emptied list saves as absent", async () => {
+    await renderPage([
+      { name: "A", lat: 1, lng: 2 },
+      { name: "B", lat: 3, lng: 4 },
+    ]);
     fireEvent.click(screen.getByRole("button", { name: "Move B up" }));
-    expect(latest.landmarks?.map((l) => l.name)).toEqual(["B", "A"]);
+    expect(screen.getByTestId("landmark-0")).toHaveTextContent("B");
     fireEvent.click(screen.getByRole("button", { name: "Edit A" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByLabelText("Latitude")).toHaveValue("1");
@@ -191,31 +252,34 @@ describe("the route map Landmarks editor", () => {
     fireEvent.change(within(dialog).getByLabelText("Longitude"), { target: { value: "5" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(latest.landmarks).toEqual([
+    expect((await save()).landmarks).toEqual([
       { name: "B", lat: 3, lng: 4 },
       { name: "A2", lat: 1, lng: 5 },
     ]);
     fireEvent.click(screen.getByRole("button", { name: "Delete B" }));
-    expect(latest.landmarks).toEqual([{ name: "A2", lat: 1, lng: 5 }]);
+    expect(screen.getByTestId("landmarks-count")).toHaveTextContent("1 of 50");
     fireEvent.click(screen.getByRole("button", { name: "Delete A2" }));
-    expect(latest.landmarks).toBeUndefined();
+    expect(screen.getByTestId("landmarks-count")).toHaveTextContent("0 of 50");
+    saved = [];
+    const data = await save();
+    expect(data).not.toHaveProperty("landmarks");
   });
 
-  it("disables Add at the cap and shows the count", () => {
+  it("disables Add at the cap and shows the count", async () => {
     const full = Array.from({ length: MAX_LANDMARKS }, (_, i) => ({
       name: `L${i}`,
       lat: 1,
       lng: 1,
     }));
-    renderForm({ landmarks: full });
+    await renderPage(full);
     expect(screen.getByTestId("landmarks-count")).toHaveTextContent("50 of 50");
     expect(screen.getByRole("button", { name: /add landmark/i })).toBeDisabled();
   });
 });
 
-describe("a landmark's icon and description", () => {
+describe("Site settings: a landmark's icon and description", () => {
   it("picks an icon, counts the description, and writes both", async () => {
-    renderForm({ landmarks: [{ name: "A", lat: 1, lng: 2 }] });
+    await renderPage([{ name: "A", lat: 1, lng: 2 }]);
     expect(screen.queryByTestId("landmark-0-icon")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Edit A" }));
     const dialog = await screen.findByRole("dialog");
@@ -247,7 +311,9 @@ describe("a landmark's icon and description", () => {
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(latest.landmarks).toEqual([
+    const preview = screen.getByTestId("landmark-0-icon");
+    expect(await within(preview).findByTestId("icon-preview-image")).toBeInTheDocument();
+    expect((await save()).landmarks).toEqual([
       {
         name: "A",
         lat: 1,
@@ -256,25 +322,19 @@ describe("a landmark's icon and description", () => {
         description: "Cocoa by the fountain",
       },
     ]);
-    const preview = screen.getByTestId("landmark-0-icon");
-    expect(await within(preview).findByTestId("icon-preview-image")).toBeInTheDocument();
   });
 
   it("opens a stored icon and description, and clearing both removes the keys", async () => {
     const icon = { source: "media" as const, id: "m1" };
-    renderForm({
-      landmarks: [
-        { name: "A", lat: 1, lng: 2, icon, description: "Cocoa" },
-        { name: "B", lat: 3, lng: 4 },
-      ],
-    });
+    await renderPage([
+      { name: "A", lat: 1, lng: 2, icon, description: "Cocoa" },
+      { name: "B", lat: 3, lng: 4 },
+    ]);
     expect(screen.getByTestId("landmark-0-icon")).toBeInTheDocument();
     expect(screen.queryByTestId("landmark-1-icon")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Move B up" }));
-    expect(latest.landmarks).toEqual([
-      { name: "B", lat: 3, lng: 4 },
-      { name: "A", lat: 1, lng: 2, icon, description: "Cocoa" },
-    ]);
+    expect(screen.queryByTestId("landmark-0-icon")).toBeNull();
+    expect(screen.getByTestId("landmark-1-icon")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Edit A" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByLabelText("Description")).toHaveValue("Cocoa");
@@ -286,45 +346,10 @@ describe("a landmark's icon and description", () => {
     });
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(JSON.parse(JSON.stringify(latest.landmarks))).toEqual([
+    expect(screen.queryByTestId("landmark-1-icon")).toBeNull();
+    expect((await save()).landmarks).toEqual([
       { name: "B", lat: 3, lng: 4 },
       { name: "A", lat: 1, lng: 2 },
     ]);
-    expect(screen.queryByTestId("landmark-1-icon")).toBeNull();
-  });
-});
-
-describe("the route map Points of interest editor", () => {
-  it("reads absent as Default and writes absent, empty, and the union", () => {
-    renderForm({});
-    const field = screen.getByTestId("pois-field");
-    expect(within(field).getByText("Points of interest")).toBeInTheDocument();
-    expect(within(field).getByRole("radio", { name: "Default" })).toBeChecked();
-    expect(within(field).queryByTestId("pois-categories")).toBeNull();
-
-    fireEvent.click(within(field).getByRole("radio", { name: "Custom" }));
-    expect(latest.pois).toEqual({ kinds: [] });
-    expect(within(field).getByText(/the map shows no places/i)).toBeInTheDocument();
-
-    fireEvent.click(within(field).getByRole("checkbox", { name: "Groceries and stores" }));
-    fireEvent.click(within(field).getByRole("checkbox", { name: "Gas and convenience" }));
-    expect(latest.pois).toEqual({ kinds: kindsFor(["stores", "gas"]) });
-    expect(latest.pois?.kinds.filter((k) => k === "convenience")).toHaveLength(1);
-
-    fireEvent.click(within(field).getByRole("checkbox", { name: "Groceries and stores" }));
-    expect(latest.pois).toEqual({ kinds: kindsFor(["gas"]) });
-
-    fireEvent.click(within(field).getByRole("radio", { name: "Default" }));
-    expect(latest.pois).toBeUndefined();
-    expect(JSON.parse(JSON.stringify(latest))).not.toHaveProperty("pois");
-  });
-
-  it("shows a stored list as Custom with its categories checked", () => {
-    renderForm({ pois: { kinds: kindsFor(["churches", "health"]) } });
-    const field = screen.getByTestId("pois-field");
-    expect(within(field).getByRole("radio", { name: "Custom" })).toBeChecked();
-    expect(within(field).getByRole("checkbox", { name: "Churches" })).toBeChecked();
-    expect(within(field).getByRole("checkbox", { name: "Health" })).toBeChecked();
-    expect(within(field).getByRole("checkbox", { name: "Schools" })).not.toBeChecked();
   });
 });

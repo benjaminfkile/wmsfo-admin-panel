@@ -132,6 +132,8 @@ describe("SiteSettings", () => {
     for (const key of Object.keys(FULL_DRAFT)) {
       expect(body?.data).toHaveProperty(key);
     }
+    // An unset landmarks list stays absent.
+    expect(body?.data).not.toHaveProperty("landmarks");
     // The snow default flip is reflected.
     const theme = body?.data?.theme as { snowDefault?: boolean } | undefined;
     expect(theme?.snowDefault).toBe(true);
