@@ -22,13 +22,17 @@ export interface FieldLabel {
   // The field renders as a switch that shows this value while unset.
   switchDefault?: boolean;
   // Changes to the field while another top-level field of the same form
-  // is unset (absent or null) or on (true).
+  // is unset (absent or null), on (true), or off (not true).
   when?: FieldCondition;
+  // For an array of enum values: the order picked is what the site
+  // shows, so the field stays a multi-select (which writes values in the
+  // order picked) instead of the checkboxes an enum array renders as.
+  ordered?: boolean;
 }
 
 export interface FieldCondition {
   field: string;
-  is: "unset" | "on";
+  is: "unset" | "on" | "off";
   disabled?: boolean;
   // A short line shown with the field.
   hint?: string;
@@ -91,7 +95,7 @@ export const ROUTE_MAP_DISPLAY_LABELS: FieldLabels = {
   },
   labelSize: {
     label: "Label size",
-    help: "How big the time labels and landmark names are drawn.",
+    help: "How big the time labels and viewpoint names are drawn.",
     options: {
       small: "Small",
       medium: "Medium",
@@ -188,6 +192,7 @@ const SECTION: Record<string, FieldLabels> = {
         endedAt: "Wheels down",
         airborneFor: "Airborne for",
       },
+      ordered: true,
     },
     labels: {
       label: "Labels for each time",
@@ -222,6 +227,7 @@ const SECTION: Record<string, FieldLabels> = {
       label: "Themes offered to visitors",
       help: "Themes visitors can pick from in the theme picker.",
       options: THEME_OPTIONS,
+      ordered: true,
     },
     defaultTheme: {
       label: "Starting theme",
@@ -271,8 +277,8 @@ const SECTION: Record<string, FieldLabels> = {
       help: "Shows speed, altitude, and heading along the bottom of the map.",
     },
     "controls.landmarks": {
-      label: "Landmarks toggle",
-      help: "Lets visitors hide the landmarks on the tracker.",
+      label: "Viewpoints toggle",
+      help: "Lets visitors hide the viewpoints on the tracker.",
       switchDefault: true,
     },
     flightHistoryDefault: {
@@ -315,6 +321,32 @@ const SECTION: Record<string, FieldLabels> = {
       label: "Online count",
       help: "How many people are watching, while the event is live and sockets are healthy",
       switchDefault: true,
+    },
+    poiFilter: {
+      label: "Choose which places show",
+      help: "Off keeps the map style's own places. On shows only the kinds checked below.",
+      switchDefault: false,
+    },
+    poiKinds: {
+      label: "Places shown",
+      help: "The Google-supplied place kinds the tracker shows while the choice above is on. Nothing checked means no places.",
+      options: {
+        attraction: "Attractions",
+        business: "Businesses and shops",
+        government: "Government",
+        medical: "Medical",
+        park: "Parks",
+        place_of_worship: "Churches",
+        school: "Schools",
+        sports_complex: "Sports",
+        transit: "Transit",
+      },
+      when: {
+        field: "poiFilter",
+        is: "off",
+        disabled: true,
+        hint: "Turn on Choose which places show first",
+      },
     },
   },
   leaderboard: {
@@ -452,9 +484,10 @@ export const SITE_SETTINGS: FieldLabels = {
   "headerLinks.href": { label: "Web address" },
   "headerLinks.icon": { label: "Icon" },
   "headerLinks.newTab": { label: "Open in new tab" },
+  // The sitewide list of viewpoints; the contract key stays `landmarks`.
   landmarks: {
-    label: "Landmarks",
-    help: "Named spots drawn on the route preview and the live tracker.",
+    label: "Viewpoints",
+    help: "Good spots to watch Santa fly over, drawn on the route preview and the live tracker.",
   },
   "landmarks.name": { label: "Name" },
   "landmarks.lat": { label: "Latitude" },

@@ -265,7 +265,7 @@ describe("the Route map card", () => {
     render(<Harness event={makeEvent({ routeMapConfig: null })} />);
     const card = screen.getByTestId("route-map-card");
     expect(within(card).queryByTestId("route-map-landmarks")).toBeNull();
-    expect(card.textContent ?? "").not.toMatch(/landmark/i);
+    expect(card.textContent ?? "").not.toMatch(/landmark|viewpoint/i);
     expect(within(card).getByTestId("route-map-changed")).toHaveTextContent(
       "Every setting is at its default."
     );
@@ -329,7 +329,7 @@ describe("the Route map modal", () => {
     expect(within(dialog).getByTestId("route-map-preview-terrain")).toBeInTheDocument();
   });
 
-  it("renders no Landmarks editor", async () => {
+  it("renders no Viewpoints editor", async () => {
     const dialog = await openDialog(
       makeEvent({
         routeMapConfig: {
@@ -338,9 +338,9 @@ describe("the Route map modal", () => {
         } as unknown as Event["routeMapConfig"],
       })
     );
-    expect(within(dialog).queryByRole("region", { name: "Landmarks" })).toBeNull();
-    expect(within(dialog).queryByTestId("landmarks-field")).toBeNull();
-    expect(within(dialog).queryByRole("button", { name: /add landmark/i })).toBeNull();
+    expect(within(dialog).queryByRole("region", { name: "Viewpoints" })).toBeNull();
+    expect(within(dialog).queryByTestId("viewpoints-field")).toBeNull();
+    expect(within(dialog).queryByRole("button", { name: /add viewpoint/i })).toBeNull();
     expect(within(dialog).queryByText("Caras Park")).toBeNull();
     expect(lastStyleInput().routeMapConfig).toEqual(FULL_CONFIG);
   });
@@ -449,7 +449,7 @@ describe("the Route map modal", () => {
     );
     expect(combo).toHaveTextContent("Medium");
     expect(
-      within(display).getByText("How big the time labels and landmark names are drawn.")
+      within(display).getByText("How big the time labels and viewpoint names are drawn.")
     ).toBeInTheDocument();
     const lastScale = () => vi.mocked(buildRouteMapStyle).mock.calls.at(-1)![5]?.labelScale;
     expect(lastScale()).toBe(1);

@@ -24,14 +24,14 @@ import { withoutEmptyMediaRefs } from "./emptyMedia";
 const SCHEMA = siteSettingsSchema as Record<string, unknown>;
 
 // UiSchema puts the logo fields after the site name, hands the theme
-// object off to the ThemeField and the landmarks list to the
-// LandmarksField, gives the heavier text areas some room,
+// object off to the ThemeField and the viewpoints list (`landmarks`) to the
+// ViewpointsField, gives the heavier text areas some room,
 // and names each entry of the link lists. SchemaForm merges it over the uiSchema it builds from the
 // `SITE_SETTINGS` labels.
 const UI_SCHEMA: UiSchema = {
   "ui:order": SITE_SETTINGS_ORDER,
   theme: { "ui:field": "ThemeField" },
-  landmarks: { "ui:field": "LandmarksField" },
+  landmarks: { "ui:field": "ViewpointsField" },
   navExtraLinks: { items: { "ui:title": "Menu link" } },
   headerLinks: { items: { "ui:title": "Header link" } },
   footerLinks: { items: { "ui:title": "Footer link" } },
@@ -40,8 +40,8 @@ const UI_SCHEMA: UiSchema = {
 
 // Site settings page (admin.md 6.16). One SchemaForm over the vendored
 // site-settings schema, labelled from `SITE_SETTINGS`, with the shared
-// custom fields plus ThemeField for the theme object and LandmarksField
-// for the landmarks list. Save PUTs the
+// custom fields plus ThemeField for the theme object and ViewpointsField
+// for the viewpoints list (`landmarks`). Save PUTs the
 // whole document (a media reference left without a picked asset goes as
 // null, emptyMedia.ts); problems from GET render inline. "Preview site" opens
 // the preview dialog at the home page.

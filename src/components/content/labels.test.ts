@@ -171,6 +171,44 @@ describe("labels.ts: the map overlays include the online count", () => {
   });
 });
 
+describe("labels.ts: the map's place filter", () => {
+  const table = labelsFor("map", false);
+
+  it("labels poiFilter as a switch that defaults to off", () => {
+    expect(collectFieldPaths(map as Sch)).toContain("poiFilter");
+    expect(table.poiFilter?.label).toBe("Choose which places show");
+    expect(table.poiFilter?.help).toBe(
+      "Off keeps the map style's own places. On shows only the kinds checked below."
+    );
+    expect(table.poiFilter?.switchDefault).toBe(false);
+  });
+
+  it("names every place kind and disables poiKinds while the filter is off", () => {
+    const kinds = (
+      map as { properties: { poiKinds: { items: { enum: string[] } } } }
+    ).properties.poiKinds.items.enum;
+    expect(kinds).toHaveLength(9);
+    expect(table.poiKinds?.label).toBe("Places shown");
+    expect(table.poiKinds?.help).toBe(
+      "The Google-supplied place kinds the tracker shows while the choice above is on. Nothing checked means no places."
+    );
+    expect(Object.keys(table.poiKinds?.options ?? {})).toEqual(kinds);
+    expect(table.poiKinds?.options?.place_of_worship).toBe("Churches");
+    expect(table.poiKinds?.when).toEqual({
+      field: "poiFilter",
+      is: "off",
+      disabled: true,
+      hint: "Turn on Choose which places show first",
+    });
+  });
+
+  it("keeps the ordered enum arrays as multi-selects", () => {
+    expect(table.themes?.ordered).toBe(true);
+    expect(labelsFor("event_times", false).fields?.ordered).toBe(true);
+    expect(table.poiKinds?.ordered).toBeUndefined();
+  });
+});
+
 describe("labels.ts: route map settings live on the event only", () => {
   it("gives route_preview only heading, disclaimer, and emptyText", () => {
     expect(Object.keys(labelsFor("route_preview", false))).toEqual([

@@ -1,5 +1,5 @@
-// admin.md 6.16: the Landmarks field of Site settings, edited through
-// LandmarksEditor and saved under `landmarks`.
+// admin.md 6.16: the Viewpoints field of Site settings, edited through
+// ViewpointsEditor and saved under `landmarks`.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { ThemeProvider, CssBaseline } from "@mui/material";
@@ -18,10 +18,10 @@ import {
   testConfig,
 } from "../../test/renderWithProviders";
 import {
-  MAX_LANDMARK_DESCRIPTION,
-  MAX_LANDMARKS,
-  type Landmark,
-} from "../../components/content/landmarks";
+  MAX_VIEWPOINT_DESCRIPTION,
+  MAX_VIEWPOINTS,
+  type Viewpoint,
+} from "../../components/content/viewpoints";
 
 vi.setConfig({ testTimeout: 20_000 });
 
@@ -124,7 +124,7 @@ const DRAFT = {
 
 let saved: Array<Record<string, unknown>> = [];
 
-function serve(landmarks?: Landmark[]) {
+function serve(landmarks?: Viewpoint[]) {
   server.use(
     http.get(`${testConfig.apiBaseUrl}/admin/site-settings`, () =>
       HttpResponse.json({
@@ -140,12 +140,12 @@ function serve(landmarks?: Landmark[]) {
   );
 }
 
-async function renderPage(landmarks?: Landmark[]) {
+async function renderPage(landmarks?: Viewpoint[]) {
   serve(landmarks);
   const result = render(<Harness />);
-  const field = await screen.findByTestId("landmarks-field");
+  const field = await screen.findByTestId("viewpoints-field");
   if (landmarks !== undefined && landmarks.length > 0) {
-    await within(field).findByTestId("landmark-0");
+    await within(field).findByTestId("viewpoint-0");
   }
   return { ...result, field };
 }
@@ -160,14 +160,14 @@ async function save(): Promise<Record<string, unknown>> {
 }
 
 async function addByFields(name: string, lat: string, lng: string) {
-  fireEvent.click(screen.getByRole("button", { name: /add landmark/i }));
-  const dialog = await screen.findByRole("dialog", { name: "Add landmark" });
+  fireEvent.click(screen.getByRole("button", { name: /add viewpoint/i }));
+  const dialog = await screen.findByRole("dialog", { name: "Add viewpoint" });
   fireEvent.change(within(dialog).getByLabelText("Latitude"), { target: { value: lat } });
   fireEvent.change(within(dialog).getByLabelText("Longitude"), { target: { value: lng } });
   fireEvent.change(within(dialog).getByLabelText("Name"), { target: { value: name } });
   fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
   await waitFor(() =>
-    expect(screen.queryByRole("dialog", { name: "Add landmark" })).toBeNull()
+    expect(screen.queryByRole("dialog", { name: "Add viewpoint" })).toBeNull()
   );
 }
 
@@ -188,24 +188,24 @@ afterEach(() => {
   server.resetHandlers();
 });
 
-describe("Site settings: the Landmarks field", () => {
-  it("renders the Landmarks editor with its label and help, after the header links", async () => {
+describe("Site settings: the Viewpoints field", () => {
+  it("renders the Viewpoints editor with its label and help, after the header links", async () => {
     const { container, field } = await renderPage();
-    expect(within(field).getByText("Landmarks")).toBeInTheDocument();
+    expect(within(field).getByText("Viewpoints")).toBeInTheDocument();
     expect(
-      within(field).getByText("Named spots drawn on the route preview and the live tracker.")
+      within(field).getByText("Good spots to watch Santa fly over, drawn on the route preview and the live tracker.")
     ).toBeInTheDocument();
-    expect(within(field).getByTestId("landmarks-count")).toHaveTextContent("0 of 50");
+    expect(within(field).getByTestId("viewpoints-count")).toHaveTextContent("0 of 50");
     const text = container.textContent ?? "";
     expect(text).not.toContain("landmarks");
-    expect(text.indexOf("Named spots drawn")).toBeGreaterThan(text.indexOf("Header links"));
+    expect(text.indexOf("Good spots to watch")).toBeGreaterThan(text.indexOf("Header links"));
   });
 
-  it("saves a two-landmark list under landmarks", async () => {
+  it("saves a two-viewpoint list under landmarks", async () => {
     await renderPage();
     await addByFields("  Caras Park ", "46.8703", "-113.9958");
     await addByFields("Fort Missoula", "46.8455", "-114.0569");
-    expect(screen.getByTestId("landmarks-count")).toHaveTextContent("2 of 50");
+    expect(screen.getByTestId("viewpoints-count")).toHaveTextContent("2 of 50");
     const data = await save();
     expect(data.landmarks).toEqual([
       { name: "Caras Park", lat: 46.8703, lng: -113.9958 },
@@ -216,8 +216,8 @@ describe("Site settings: the Landmarks field", () => {
 
   it("places a pin by a map click, names it, and writes lat, lng, and name", async () => {
     const { field } = await renderPage();
-    fireEvent.click(within(field).getByRole("button", { name: /add landmark/i }));
-    const dialog = await screen.findByRole("dialog", { name: "Add landmark" });
+    fireEvent.click(within(field).getByRole("button", { name: /add viewpoint/i }));
+    const dialog = await screen.findByRole("dialog", { name: "Add viewpoint" });
     const ok = within(dialog).getByRole("button", { name: "Save" });
     expect(ok).toBeDisabled();
     await waitFor(() => expect(clickMap).not.toBeNull());
@@ -231,9 +231,9 @@ describe("Site settings: the Landmarks field", () => {
       target: { value: "  Caras Park " },
     });
     fireEvent.click(ok);
-    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Add landmark" })).toBeNull());
-    expect(screen.getByTestId("landmarks-count")).toHaveTextContent("1 of 50");
-    expect(screen.getByTestId("landmark-0")).toHaveTextContent("Caras Park");
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Add viewpoint" })).toBeNull());
+    expect(screen.getByTestId("viewpoints-count")).toHaveTextContent("1 of 50");
+    expect(screen.getByTestId("viewpoint-0")).toHaveTextContent("Caras Park");
     const data = await save();
     expect(data.landmarks).toEqual([{ name: "Caras Park", lat: 46.87212, lng: -113.99405 }]);
   });
@@ -244,7 +244,7 @@ describe("Site settings: the Landmarks field", () => {
       { name: "B", lat: 3, lng: 4 },
     ]);
     fireEvent.click(screen.getByRole("button", { name: "Move B up" }));
-    expect(screen.getByTestId("landmark-0")).toHaveTextContent("B");
+    expect(screen.getByTestId("viewpoint-0")).toHaveTextContent("B");
     fireEvent.click(screen.getByRole("button", { name: "Edit A" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByLabelText("Latitude")).toHaveValue("1");
@@ -257,33 +257,33 @@ describe("Site settings: the Landmarks field", () => {
       { name: "A2", lat: 1, lng: 5 },
     ]);
     fireEvent.click(screen.getByRole("button", { name: "Delete B" }));
-    expect(screen.getByTestId("landmarks-count")).toHaveTextContent("1 of 50");
+    expect(screen.getByTestId("viewpoints-count")).toHaveTextContent("1 of 50");
     fireEvent.click(screen.getByRole("button", { name: "Delete A2" }));
-    expect(screen.getByTestId("landmarks-count")).toHaveTextContent("0 of 50");
+    expect(screen.getByTestId("viewpoints-count")).toHaveTextContent("0 of 50");
     saved = [];
     const data = await save();
     expect(data).not.toHaveProperty("landmarks");
   });
 
   it("disables Add at the cap and shows the count", async () => {
-    const full = Array.from({ length: MAX_LANDMARKS }, (_, i) => ({
+    const full = Array.from({ length: MAX_VIEWPOINTS }, (_, i) => ({
       name: `L${i}`,
       lat: 1,
       lng: 1,
     }));
     await renderPage(full);
-    expect(screen.getByTestId("landmarks-count")).toHaveTextContent("50 of 50");
-    expect(screen.getByRole("button", { name: /add landmark/i })).toBeDisabled();
+    expect(screen.getByTestId("viewpoints-count")).toHaveTextContent("50 of 50");
+    expect(screen.getByRole("button", { name: /add viewpoint/i })).toBeDisabled();
   });
 });
 
-describe("Site settings: a landmark's icon and description", () => {
+describe("Site settings: a viewpoint's icon and description", () => {
   it("picks an icon, counts the description, and writes both", async () => {
     await renderPage([{ name: "A", lat: 1, lng: 2 }]);
-    expect(screen.queryByTestId("landmark-0-icon")).toBeNull();
+    expect(screen.queryByTestId("viewpoint-0-icon")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Edit A" }));
     const dialog = await screen.findByRole("dialog");
-    const iconControl = within(dialog).getByTestId("landmark-icon");
+    const iconControl = within(dialog).getByTestId("viewpoint-icon");
     expect(within(iconControl).getByText("None")).toBeInTheDocument();
     fireEvent.click(within(iconControl).getByRole("button", { name: "Choose" }));
     const picker = await screen.findByRole("dialog", { name: "Choose icon" });
@@ -294,24 +294,24 @@ describe("Site settings: a landmark's icon and description", () => {
     );
     expect(within(iconControl).getByRole("button", { name: "Clear" })).toBeInTheDocument();
 
-    const count = within(dialog).getByTestId("landmark-description-count");
-    expect(count).toHaveTextContent(`0 / ${MAX_LANDMARK_DESCRIPTION}`);
+    const count = within(dialog).getByTestId("viewpoint-description-count");
+    expect(count).toHaveTextContent(`0 / ${MAX_VIEWPOINT_DESCRIPTION}`);
     expect(
-      within(dialog).getByText("The site shows this when a visitor taps the landmark.")
+      within(dialog).getByText("The site shows this when a visitor taps the viewpoint.")
     ).toBeInTheDocument();
     const description = within(dialog).getByLabelText("Description");
     fireEvent.change(description, { target: { value: "Cocoa by the fountain" } });
-    expect(count).toHaveTextContent(`21 / ${MAX_LANDMARK_DESCRIPTION}`);
+    expect(count).toHaveTextContent(`21 / ${MAX_VIEWPOINT_DESCRIPTION}`);
     fireEvent.change(description, { target: { value: "y".repeat(400) } });
-    expect(description).toHaveValue("y".repeat(MAX_LANDMARK_DESCRIPTION));
+    expect(description).toHaveValue("y".repeat(MAX_VIEWPOINT_DESCRIPTION));
     expect(count).toHaveTextContent(
-      `${MAX_LANDMARK_DESCRIPTION} / ${MAX_LANDMARK_DESCRIPTION}`
+      `${MAX_VIEWPOINT_DESCRIPTION} / ${MAX_VIEWPOINT_DESCRIPTION}`
     );
     fireEvent.change(description, { target: { value: " Cocoa by the fountain " } });
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    const preview = screen.getByTestId("landmark-0-icon");
+    const preview = screen.getByTestId("viewpoint-0-icon");
     expect(await within(preview).findByTestId("icon-preview-image")).toBeInTheDocument();
     expect((await save()).landmarks).toEqual([
       {
@@ -330,15 +330,15 @@ describe("Site settings: a landmark's icon and description", () => {
       { name: "A", lat: 1, lng: 2, icon, description: "Cocoa" },
       { name: "B", lat: 3, lng: 4 },
     ]);
-    expect(screen.getByTestId("landmark-0-icon")).toBeInTheDocument();
-    expect(screen.queryByTestId("landmark-1-icon")).toBeNull();
+    expect(screen.getByTestId("viewpoint-0-icon")).toBeInTheDocument();
+    expect(screen.queryByTestId("viewpoint-1-icon")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Move B up" }));
-    expect(screen.queryByTestId("landmark-0-icon")).toBeNull();
-    expect(screen.getByTestId("landmark-1-icon")).toBeInTheDocument();
+    expect(screen.queryByTestId("viewpoint-0-icon")).toBeNull();
+    expect(screen.getByTestId("viewpoint-1-icon")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Edit A" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByLabelText("Description")).toHaveValue("Cocoa");
-    const iconControl = within(dialog).getByTestId("landmark-icon");
+    const iconControl = within(dialog).getByTestId("viewpoint-icon");
     fireEvent.click(within(iconControl).getByRole("button", { name: "Clear" }));
     expect(within(iconControl).getByText("None")).toBeInTheDocument();
     fireEvent.change(within(dialog).getByLabelText("Description"), {
@@ -346,7 +346,7 @@ describe("Site settings: a landmark's icon and description", () => {
     });
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(screen.queryByTestId("landmark-1-icon")).toBeNull();
+    expect(screen.queryByTestId("viewpoint-1-icon")).toBeNull();
     expect((await save()).landmarks).toEqual([
       { name: "B", lat: 3, lng: 4 },
       { name: "A", lat: 1, lng: 2 },

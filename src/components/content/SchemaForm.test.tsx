@@ -395,7 +395,7 @@ describe("SchemaForm: the map's Online count overlay", () => {
   });
 });
 
-describe("SchemaForm: the map's Landmarks toggle", () => {
+describe("SchemaForm: the map's Viewpoints toggle", () => {
   type MapValue = { controls: Record<string, boolean> } & Record<string, unknown>;
 
   function Controlled({ initial }: { initial: MapValue }) {
@@ -429,9 +429,9 @@ describe("SchemaForm: the map's Landmarks toggle", () => {
       </Providers>
     );
     expect(
-      screen.getByText("Lets visitors hide the landmarks on the tracker.")
+      screen.getByText("Lets visitors hide the viewpoints on the tracker.")
     ).toBeInTheDocument();
-    const toggle = screen.getByRole("switch", { name: "Landmarks toggle" });
+    const toggle = screen.getByRole("switch", { name: "Viewpoints toggle" });
     expect(toggle).toBeChecked();
     const controls = () => JSON.parse(screen.getByTestId("controls").textContent ?? "{}");
     expect(controls()).not.toHaveProperty("landmarks");
@@ -440,6 +440,111 @@ describe("SchemaForm: the map's Landmarks toggle", () => {
     expect(controls().landmarks).toBe(false);
     fireEvent.click(toggle);
     expect(controls().landmarks).toBe(true);
+  });
+});
+
+describe("SchemaForm: the map's place filter", () => {
+  type MapValue = Record<string, unknown>;
+
+  function Controlled({ initial }: { initial: MapValue }) {
+    const [value, setValue] = useState<MapValue>(initial);
+    return (
+      <>
+        <SchemaForm
+          schema={map as Sch}
+          kind="map"
+          formData={value}
+          onChange={(next) => setValue(next as MapValue)}
+        />
+        <pre data-testid="value">{JSON.stringify(value)}</pre>
+      </>
+    );
+  }
+
+  function mapDefaults(): MapValue {
+    const kind = (
+      kindsJson as { kinds: Array<{ kind: string; defaults: unknown }> }
+    ).kinds.find((k) => k.kind === "map");
+    return structuredClone(kind!.defaults) as MapValue;
+  }
+
+  const KIND_LABELS = [
+    "Attractions",
+    "Businesses and shops",
+    "Government",
+    "Medical",
+    "Parks",
+    "Churches",
+    "Schools",
+    "Sports",
+    "Transit",
+  ];
+
+  const value = () => JSON.parse(screen.getByTestId("value").textContent ?? "{}");
+  const HINT = "Turn on Choose which places show first";
+  // The nine kind boxes alone: the form's switches are checkboxes too.
+  const kindBoxes = () => within(screen.getByTestId("checkboxes-root_poiKinds")).getAllByRole("checkbox");
+
+  it("renders the switch off while absent and nine disabled checkboxes with the hint", () => {
+    render(
+      <Providers>
+        <Controlled initial={mapDefaults()} />
+      </Providers>
+    );
+    const toggle = screen.getByRole("switch", { name: "Choose which places show" });
+    expect(toggle).not.toBeChecked();
+    expect(
+      screen.getByText("Off keeps the map style's own places. On shows only the kinds checked below.")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Places shown")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "The Google-supplied place kinds the tracker shows while the choice above is on. Nothing checked means no places."
+      )
+    ).toBeInTheDocument();
+    const boxes = kindBoxes();
+    expect(boxes.map((b) => b.closest("label")?.textContent)).toEqual(KIND_LABELS);
+    for (const box of boxes) expect(box).toBeDisabled();
+    expect(screen.getByText(HINT)).toBeInTheDocument();
+    expect(value()).not.toHaveProperty("poiFilter");
+    expect(value()).not.toHaveProperty("poiKinds");
+  });
+
+  it("enables the checkboxes once the switch is on and writes poiKinds in enum order", () => {
+    render(
+      <Providers>
+        <Controlled initial={mapDefaults()} />
+      </Providers>
+    );
+    fireEvent.click(screen.getByRole("switch", { name: "Choose which places show" }));
+    expect(value().poiFilter).toBe(true);
+    expect(screen.queryByText(HINT)).toBeNull();
+    for (const box of kindBoxes()) expect(box).toBeEnabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Parks" }));
+    expect(value().poiKinds).toEqual(["park"]);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Attractions" }));
+    expect(value().poiKinds).toEqual(["attraction", "park"]);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Parks" }));
+    expect(value().poiKinds).toEqual(["attraction"]);
+    fireEvent.click(screen.getByRole("switch", { name: "Choose which places show" }));
+    expect(value().poiFilter).toBe(false);
+    for (const box of kindBoxes()) expect(box).toBeDisabled();
+    expect(screen.getByText(HINT)).toBeInTheDocument();
+  });
+
+  it("shows a stored filter and kinds, and keeps the themes list a select", () => {
+    render(
+      <Providers>
+        <Controlled
+          initial={{ ...mapDefaults(), poiFilter: true, poiKinds: ["school", "transit"] }}
+        />
+      </Providers>
+    );
+    expect(screen.getByRole("switch", { name: "Choose which places show" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Schools" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Transit" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Parks" })).not.toBeChecked();
+    expect(screen.getByRole("combobox", { name: /themes offered to visitors/i })).toBeInTheDocument();
   });
 });
 
@@ -733,14 +838,14 @@ describe("SchemaForm: the route_preview section editor", () => {
       "Map buttons",
       "Fullscreen button",
       "Terrain toggle",
-      "Landmarks",
+      "Viewpoints",
       "Points of interest",
       "Route map display",
       "Time labels",
     ]) {
       expect(screen.queryByText(gone), gone).toBeNull();
     }
-    for (const testId of ["landmarks-field", "pois-field", "route-map-override"]) {
+    for (const testId of ["viewpoints-field", "pois-field", "route-map-override"]) {
       expect(screen.queryByTestId(testId), testId).toBeNull();
     }
   });

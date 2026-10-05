@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, Box } from "@mui/material";
 import { useConfig } from "../../../ConfigContext";
 import { loadMaps, loadMarkers } from "../../../pages/places/googleMaps";
-import { roundCoord } from "../landmarks";
+import { roundCoord } from "../viewpoints";
 
 export interface LatLng {
   lat: number;
@@ -27,7 +27,7 @@ const NO_KEY_NOTE =
 // decimals; dragging the pin does the same. A change to `value` from
 // outside (the number fields) moves the pin. With the key absent or the
 // loader failing the map is replaced by a one-line note.
-export default function LandmarkPicker({ value, center, onPick }: Props) {
+export default function ViewpointPicker({ value, center, onPick }: Props) {
   const config = useConfig();
   const key = config.googleMapsKey;
   const mapDiv = useRef<HTMLDivElement | null>(null);
@@ -107,7 +107,7 @@ export default function LandmarkPicker({ value, center, onPick }: Props) {
       <Alert
         severity={error ? "warning" : "info"}
         variant="outlined"
-        data-testid="landmark-picker-note"
+        data-testid="viewpoint-picker-note"
       >
         {error ?? NO_KEY_NOTE}
       </Alert>
@@ -117,7 +117,7 @@ export default function LandmarkPicker({ value, center, onPick }: Props) {
   return (
     <Box
       ref={mapDiv}
-      data-testid="landmark-picker-map"
+      data-testid="viewpoint-picker-map"
       sx={{ width: "100%", height: 300, borderRadius: 1, overflow: "hidden" }}
     />
   );

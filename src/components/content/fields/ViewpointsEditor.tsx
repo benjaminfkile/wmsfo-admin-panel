@@ -14,25 +14,25 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import IconPreview from "../IconPreview";
-import LandmarkDialog from "./LandmarkDialog";
-import type { LatLng } from "./LandmarkPicker";
+import ViewpointDialog from "./ViewpointDialog";
+import type { LatLng } from "./ViewpointPicker";
 import {
-  DEFAULT_LANDMARK_CENTER,
-  MAX_LANDMARKS,
-  addLandmark,
-  moveLandmark,
-  removeLandmark,
-  replaceLandmark,
-  type Landmark,
-} from "../landmarks";
+  DEFAULT_VIEWPOINT_CENTER,
+  MAX_VIEWPOINTS,
+  addViewpoint,
+  moveViewpoint,
+  removeViewpoint,
+  replaceViewpoint,
+  type Viewpoint,
+} from "../viewpoints";
 
-function formatPoint({ lat, lng }: Landmark): string {
+function formatPoint({ lat, lng }: Viewpoint): string {
   return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 }
 
 interface Props {
-  value: readonly Landmark[];
-  onChange: (next: Landmark[]) => void;
+  value: readonly Viewpoint[];
+  onChange: (next: Viewpoint[]) => void;
   title?: string;
   help?: string;
   disabled?: boolean;
@@ -40,45 +40,45 @@ interface Props {
   center?: LatLng;
 }
 
-// A landmarks list: one row per entry with its name and point (after a
+// A viewpoints list (Site settings `landmarks`): one row per entry with its name and point (after a
 // small preview of its icon when one is set), up and down, edit, and
-// delete; "Add landmark" opens the pin picker dialog. The count shows
+// delete; "Add viewpoint" opens the pin picker dialog. The count shows
 // against the cap and Add is disabled at it. Every change reports the
 // whole list.
-export default function LandmarksEditor({
+export default function ViewpointsEditor({
   value: list,
   onChange: write,
-  title = "Landmarks",
+  title = "Viewpoints",
   help,
   disabled = false,
-  center: emptyCenter = DEFAULT_LANDMARK_CENTER,
+  center: emptyCenter = DEFAULT_VIEWPOINT_CENTER,
 }: Props) {
   // The index being edited, "new" for Add, or null when closed.
   const [editing, setEditing] = useState<number | "new" | null>(null);
 
-  const full = list.length >= MAX_LANDMARKS;
+  const full = list.length >= MAX_VIEWPOINTS;
   const last = list[list.length - 1];
   const center: LatLng = last ? { lat: last.lat, lng: last.lng } : emptyCenter;
 
   return (
-    <Box sx={{ my: 1, minWidth: 0 }} data-testid="landmarks-field">
+    <Box sx={{ my: 1, minWidth: 0 }} data-testid="viewpoints-field">
       <Typography variant="subtitle2">{title}</Typography>
       {help ? (
         <Typography variant="caption" color="text.secondary" component="p">
           {help}
         </Typography>
       ) : null}
-      <Stack spacing={1} sx={{ mt: 1 }} data-testid="landmarks-list">
+      <Stack spacing={1} sx={{ mt: 1 }} data-testid="viewpoints-list">
         {list.map((entry, i) => (
           <Paper
             key={`${i}-${entry.name}`}
             variant="outlined"
             sx={{ px: 1.5, py: 1 }}
-            data-testid={`landmark-${i}`}
+            data-testid={`viewpoint-${i}`}
           >
             <Stack direction="row" spacing={1} alignItems="center">
               {entry.icon ? (
-                <Box data-testid={`landmark-${i}-icon`} sx={{ display: "flex" }}>
+                <Box data-testid={`viewpoint-${i}-icon`} sx={{ display: "flex" }}>
                   <IconPreview icon={entry.icon} size={24} />
                 </Box>
               ) : null}
@@ -94,7 +94,7 @@ export default function LandmarksEditor({
                 size="small"
                 aria-label={`Move ${entry.name} up`}
                 disabled={disabled || i === 0}
-                onClick={() => write(moveLandmark(list, i, i - 1))}
+                onClick={() => write(moveViewpoint(list, i, i - 1))}
               >
                 <ArrowUpwardIcon fontSize="small" />
               </IconButton>
@@ -102,7 +102,7 @@ export default function LandmarksEditor({
                 size="small"
                 aria-label={`Move ${entry.name} down`}
                 disabled={disabled || i === list.length - 1}
-                onClick={() => write(moveLandmark(list, i, i + 1))}
+                onClick={() => write(moveViewpoint(list, i, i + 1))}
               >
                 <ArrowDownwardIcon fontSize="small" />
               </IconButton>
@@ -118,7 +118,7 @@ export default function LandmarksEditor({
                 size="small"
                 aria-label={`Delete ${entry.name}`}
                 disabled={disabled}
-                onClick={() => write(removeLandmark(list, i))}
+                onClick={() => write(removeViewpoint(list, i))}
               >
                 <DeleteIcon fontSize="small" />
               </IconButton>
@@ -127,7 +127,7 @@ export default function LandmarksEditor({
         ))}
       </Stack>
       <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1 }}>
-        <Tooltip title={full ? `Up to ${MAX_LANDMARKS} landmarks` : ""}>
+        <Tooltip title={full ? `Up to ${MAX_VIEWPOINTS} viewpoints` : ""}>
           <span>
             <Button
               size="small"
@@ -135,28 +135,28 @@ export default function LandmarksEditor({
               disabled={disabled || full}
               onClick={() => setEditing("new")}
             >
-              Add landmark
+              Add viewpoint
             </Button>
           </span>
         </Tooltip>
         <Typography
           variant="caption"
           color="text.secondary"
-          data-testid="landmarks-count"
+          data-testid="viewpoints-count"
         >
-          {list.length} of {MAX_LANDMARKS}
+          {list.length} of {MAX_VIEWPOINTS}
         </Typography>
       </Stack>
       {editing !== null ? (
-        <LandmarkDialog
+        <ViewpointDialog
           initial={editing === "new" ? null : (list[editing] ?? null)}
           center={center}
           onCancel={() => setEditing(null)}
           onSave={(entry) => {
             write(
               editing === "new"
-                ? addLandmark(list, entry)
-                : replaceLandmark(list, editing, entry)
+                ? addViewpoint(list, entry)
+                : replaceViewpoint(list, editing, entry)
             );
             setEditing(null);
           }}

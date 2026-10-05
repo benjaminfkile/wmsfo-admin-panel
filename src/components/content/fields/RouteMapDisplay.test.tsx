@@ -110,7 +110,7 @@ describe("RouteMapDisplayControls", () => {
     const select = screen.getByRole("combobox", { name: /label size/i });
     expect(select).toHaveTextContent("Medium");
     expect(
-      screen.getByText("How big the time labels and landmark names are drawn.")
+      screen.getByText("How big the time labels and viewpoint names are drawn.")
     ).toBeInTheDocument();
     expect(written()).toBeNull();
     pick(/label size/i, "Large");

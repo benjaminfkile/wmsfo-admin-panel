@@ -18,12 +18,13 @@ import LinkField from "./fields/LinkField";
 import InlineField from "./fields/InlineField";
 import BlocksField from "./fields/BlocksField";
 import LinkListField from "./fields/LinkListField";
-import LandmarksField from "./fields/LandmarksField";
+import ViewpointsField from "./fields/ViewpointsField";
 import PresentationPanelField from "./fields/PresentationPanelField";
 import OptionalField, { extractOptional } from "./fields/OptionalField";
 import ThemeField from "./fields/ThemeField";
 import DefaultedSelectWidget from "./fields/DefaultedSelectWidget";
 import DefaultedSwitchWidget from "./fields/DefaultedSwitchWidget";
+import HintedCheckboxesWidget from "./fields/HintedCheckboxesWidget";
 import { labelsFor, orderFor, type FieldLabels } from "./labels";
 
 // The `$ref` values we route to custom fields. Matches the local
@@ -102,12 +103,12 @@ function RoutedSchemaField(props: FieldProps) {
 }
 
 // UiSchema-based custom fields (used by SiteSettings for the theme
-// object and the landmarks list; RJSF resolves these via
+// object and the viewpoints list; RJSF resolves these via
 // `ui:field: "<name>"`).
 const FIELDS: RegistryFieldsType = {
   SchemaField: RoutedSchemaField,
   ThemeField,
-  LandmarksField,
+  ViewpointsField,
 };
 
 // A `const` inside a `oneOf` branch is never used as a default, so an
@@ -115,9 +116,11 @@ const FIELDS: RegistryFieldsType = {
 // stays absent instead of being filled with the first branch's const.
 const DEFAULT_FORM_STATE = { constAsDefaults: "skipOneOf" } as const;
 
+// `checkboxes` replaces the default group so a `when` hint shows under it.
 const WIDGETS: RegistryWidgetsType = {
   DefaultedSelectWidget,
   DefaultedSwitchWidget,
+  checkboxes: HintedCheckboxesWidget,
 };
 
 interface Props<T> {
@@ -236,11 +239,35 @@ function mergeUi(base: JsonNode, extra: JsonNode): JsonNode {
   return out;
 }
 
+// The schema node a dotted labels path names, following local `$ref`s
+// and array `items` the way `uiPathParts` does.
+function nodeAt(root: JsonNode, path: string): JsonNode | null {
+  const parts = path.split(".");
+  let node: JsonNode | null = root;
+  parts.forEach((part, i) => {
+    node = resolveLocal(root, asNode(asNode(node?.properties)?.[part]));
+    if (node?.type === "array" && i < parts.length - 1) {
+      node = resolveLocal(root, asNode(node.items));
+    }
+  });
+  return node;
+}
+
+// An array whose entries are an enum (the map's `poiKinds`, its `themes`,
+// the event times' `fields`): one checkbox per value unless the entry
+// is `ordered`.
+function isEnumArray(root: JsonNode, node: JsonNode | null): boolean {
+  if (node?.type !== "array") return false;
+  const items = resolveLocal(root, asNode(node.items));
+  return Array.isArray(items?.enum);
+}
+
 // Builds a uiSchema from a labels table. Adds `ui:title`,
 // `ui:description` (the entry's help), and `ui:enumNames` per entry,
-// sets `ui:order` when the kind has a field order, and hides the root
-// form's own title so the schema title (e.g. "hero section data") never
-// appears.
+// renders an array of enum values as checkboxes (a multi-select when
+// the entry is `ordered`), sets `ui:order` when the kind has a field
+// order, and hides the root form's own title so the schema title (e.g.
+// "hero section data") never appears.
 function buildUiSchemaFromLabels(
   labels: FieldLabels,
   schema: JsonNode,
@@ -269,6 +296,9 @@ function buildUiSchemaFromLabels(
       patch["ui:widget"] = "DefaultedSwitchWidget";
       patch["ui:options"] = { switchDefault: entry.switchDefault };
     }
+    if (!entry.ordered && isEnumArray(schema, nodeAt(schema, path))) {
+      patch["ui:widget"] = "checkboxes";
+    }
     assignPath(out, uiPathParts(schema, path), patch);
   }
   return (extra ? mergeUi(out, extra as JsonNode) : out) as UiSchema;
@@ -276,7 +306,8 @@ function buildUiSchemaFromLabels(
 
 // Applies each entry's `when` rule against the current form value: the
 // entry's field is disabled, gets a hint (`ui:options.hint`), or a new
-// label while the named top-level field is unset or on.
+// label while the named top-level field is unset (absent or null), on
+// (`true`), or off (anything but `true`: `false`, null, or absent).
 function applyConditions(
   ui: UiSchema,
   labels: FieldLabels,
@@ -290,7 +321,11 @@ function applyConditions(
     if (!rule) continue;
     const other = value[rule.field];
     const holds =
-      rule.is === "unset" ? other === null || other === undefined : other === true;
+      rule.is === "unset"
+        ? other === null || other === undefined
+        : rule.is === "off"
+          ? other !== true
+          : other === true;
     if (!holds) continue;
     const patch: JsonNode = {};
     if (rule.disabled) patch["ui:disabled"] = true;
