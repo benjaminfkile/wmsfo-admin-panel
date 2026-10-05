@@ -10,6 +10,7 @@ import {
   FormControlLabel,
   FormHelperText,
   LinearProgress,
+  Link,
   Stack,
   Switch,
   ToggleButton,
@@ -17,13 +18,15 @@ import {
   Typography,
 } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link as RouterLink } from "react-router-dom";
 import AppDialog from "../../components/AppDialog";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
-import PoisEditor from "../../components/content/fields/PoisEditor";
 import RouteMapDisplayControls from "../../components/content/fields/RouteMapDisplayControls";
 import { useConfig } from "../../ConfigContext";
 import { events as eventsApi } from "../../api/resources/events";
+import { siteSettings as siteSettingsApi } from "../../api/resources/siteSettings";
+import { placesPart } from "../../components/content/places";
 import type { Event } from "../../api/types";
 import { useNotify } from "../../hooks/useNotify";
 import { keys } from "../../queries/keys";
@@ -55,11 +58,12 @@ const NO_BASEMAP_HINT =
   "The route map preview needs VITE_ROUTE_BASEMAP_URL, which is not set.";
 
 // Configures the event's route map: a live preview of this event's route
-// beside "Copy from another event" and three groups of controls (Display,
-// Controls, Points of interest). Full screen on phones and
-// nearly the whole window on desktop. The dialog edits a draft of
-// `routeMapConfig`; every change rebuilds the preview's style through
-// `eventRouteMapStyle`. Copying replaces the whole draft with the picked
+// beside "Copy from another event" and two groups of controls (Display,
+// with a caption that points to Site settings for the places, and
+// Controls). Full screen on phones and nearly the whole window on desktop.
+// The dialog edits a draft of `routeMapConfig`; every change rebuilds the
+// preview's style through `eventRouteMapStyle`, which labels the places
+// of the site settings draft (`places.routeMap.kinds`, none when absent). Copying replaces the whole draft with the picked
 // event's config and writes nothing until Save. Save sends
 // `PATCH { routeMapConfig }` (null when no group is set); Cancel drops the
 // draft; Clear all, after a confirm, sends `routeMapConfig: null`. With no
@@ -97,6 +101,17 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
     enabled: routeId !== null,
   });
   const routeMap = routeMapQ.data ?? null;
+
+  const settingsQ = useQuery({
+    queryKey: keys.siteSettings,
+    queryFn: () => siteSettingsApi.get(),
+  });
+  const poiKinds = useMemo(
+    () =>
+      placesPart((settingsQ.data?.data as { places?: unknown } | undefined)?.places, "routeMap")
+        ?.kinds,
+    [settingsQ.data]
+  );
   const drawable = routeMap && routeMap.path.length > 0 ? routeMap : null;
 
   const terrainKept = readControl(draft.controls, "terrain");
@@ -108,9 +123,10 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
             routeMap: drawable,
             routeMapConfig: draft,
             terrain: terrainOn && terrainAvailable,
+            poiKinds,
           })
         : null,
-    [drawable, base, config, appearance, draft, terrainOn, terrainAvailable]
+    [drawable, base, config, appearance, draft, terrainOn, terrainAvailable, poiKinds]
   );
 
   const saveMut = useMutation({
@@ -225,8 +241,21 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
                 help="Each setting shows the built-in default until you pick one."
                 disabled={busy}
               />
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                component="p"
+                sx={{ mt: 1 }}
+                data-testid="route-map-places-caption"
+              >
+                Places are set for every map in{" "}
+                <Link component={RouterLink} to="/site-settings">
+                  Site settings
+                </Link>
+                .
+              </Typography>
             </Group>
-            <Group title="Controls">
+            <Group title="Controls" last>
               <Stack spacing={1} data-testid="route-map-controls">
                 {ROUTE_MAP_CONTROL_KEYS.map((key) => (
                   <Box key={key}>
@@ -247,15 +276,6 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
                   </Box>
                 ))}
               </Stack>
-            </Group>
-            <Group title="Points of interest" last>
-              <PoisEditor
-                value={draft.pois}
-                onChange={(next) => set("pois", next)}
-                title="Points of interest"
-                help="Default keeps the map as it is; Custom labels only the kinds of places you check."
-                disabled={busy}
-              />
             </Group>
           </Box>
         </DialogContent>

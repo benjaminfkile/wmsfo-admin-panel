@@ -506,13 +506,13 @@ describe("SiteSettings", () => {
     ]);
   }, 20_000);
 
-  it("carries no Route map group", async () => {
+  it("carries no Route map display group", async () => {
     const { container } = render(<Harness />);
     await waitFor(() =>
       expect(container.textContent ?? "").toContain("Donate page address")
     );
     const text = container.textContent ?? "";
-    for (const gone of ["Route map", "Time labels", "Arrow size", "Route line"]) {
+    for (const gone of ["Route map display", "Time labels", "Arrow size", "Route line"]) {
       expect(text).not.toContain(gone);
     }
     expect(screen.queryByTestId("route-map-sitewide")).toBeNull();

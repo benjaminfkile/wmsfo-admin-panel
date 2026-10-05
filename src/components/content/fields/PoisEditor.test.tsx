@@ -12,7 +12,7 @@ import {
   makeUser,
   testConfig,
 } from "../../../test/renderWithProviders";
-import { kindsFor } from "../routePreviewPois";
+import { TRACKER_KINDS, kindsFor, type PoiCategory } from "../places";
 import PoisEditor from "./PoisEditor";
 
 type RouteValue = {
@@ -36,7 +36,13 @@ function Providers({ children }: { children: ReactNode }) {
 
 let latest: RouteValue = {};
 
-function Controlled({ initial }: { initial: RouteValue }) {
+function Controlled({
+  initial,
+  categories,
+}: {
+  initial: RouteValue;
+  categories?: readonly PoiCategory[];
+}) {
   const [value, setValue] = useState<RouteValue>(initial);
   const write = (next: RouteValue) => {
     latest = next;
@@ -47,15 +53,16 @@ function Controlled({ initial }: { initial: RouteValue }) {
       value={value.pois}
       onChange={(next) => write({ ...value, pois: next })}
       title="Points of interest"
+      categories={categories}
     />
   );
 }
 
-function renderForm(initial: RouteValue) {
+function renderForm(initial: RouteValue, categories?: readonly PoiCategory[]) {
   latest = initial;
   return render(
     <Providers>
-      <Controlled initial={initial} />
+      <Controlled initial={initial} categories={categories} />
     </Providers>
   );
 }
@@ -70,7 +77,7 @@ beforeEach(() => {
   });
 });
 
-describe("the route map Points of interest editor", () => {
+describe("PoisEditor", () => {
   it("reads absent as Default and writes absent, empty, and the union", () => {
     renderForm({});
     const field = screen.getByTestId("pois-field");
@@ -102,5 +109,17 @@ describe("the route map Points of interest editor", () => {
     expect(within(field).getByRole("checkbox", { name: "Churches" })).toBeChecked();
     expect(within(field).getByRole("checkbox", { name: "Health" })).toBeChecked();
     expect(within(field).getByRole("checkbox", { name: "Schools" })).not.toBeChecked();
+  });
+
+  it("offers the tracker table's nine kinds when given it", () => {
+    renderForm({ pois: { kinds: ["transit"] } }, TRACKER_KINDS);
+    const field = screen.getByTestId("pois-field");
+    const boxes = within(within(field).getByTestId("pois-categories")).getAllByRole("checkbox");
+    expect(boxes).toHaveLength(9);
+    expect(within(field).getByRole("checkbox", { name: "Transit" })).toBeChecked();
+    expect(within(field).queryByRole("checkbox", { name: "Hotels" })).toBeNull();
+
+    fireEvent.click(within(field).getByRole("checkbox", { name: "Churches" }));
+    expect(latest.pois).toEqual({ kinds: ["place_of_worship", "transit"] });
   });
 });

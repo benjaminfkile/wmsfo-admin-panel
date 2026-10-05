@@ -40,7 +40,7 @@ describe("toRouteMapConfig", () => {
     );
   });
 
-  it("keeps contract values and drops the rest, landmarks included", () => {
+  it("keeps contract values and drops the rest, landmarks and pois included", () => {
     expect(
       toRouteMapConfig({
         display: {
@@ -57,7 +57,6 @@ describe("toRouteMapConfig", () => {
     ).toEqual({
       display: { arrows: false, routeWidth: "thin" },
       controls: { terrain: false },
-      pois: { kinds: ["park"] },
     });
   });
 });
@@ -74,10 +73,6 @@ describe("withGroup and routeMapConfigBody", () => {
     c = withGroup(c, "display", undefined);
     expect(c).toEqual({});
     expect(routeMapConfigBody(c)).toBeNull();
-  });
-
-  it("keeps a Custom points of interest choice with nothing checked", () => {
-    expect(routeMapConfigBody(withGroup({}, "pois", { kinds: [] }))).toEqual({ pois: { kinds: [] } });
   });
 });
 
@@ -103,7 +98,6 @@ describe("resolveRouteMapConfig", () => {
       routeWidthScale: 1,
       labelScale: 1,
       controls: { fullscreen: true, terrain: true },
-      poiKinds: undefined,
     });
   });
 
@@ -126,11 +120,12 @@ describe("siteTimeLabels", () => {
 });
 
 describe("eventRouteMapOptions and eventRouteMapStyle", () => {
-  it("passes the POI kinds, arrows, and scales, and no landmarks", () => {
-    const options = eventRouteMapOptions(routeMap, {
-      display: { arrows: false, arrowSize: "large", routeWidth: "thick", timeLabelIntervalMinutes: 30 },
-      pois: { kinds: ["park"] },
-    });
+  it("passes the given place kinds, arrows, and scales, and no landmarks", () => {
+    const options = eventRouteMapOptions(
+      routeMap,
+      { display: { arrows: false, arrowSize: "large", routeWidth: "thick", timeLabelIntervalMinutes: 30 } },
+      ["park"]
+    );
     expect(options.arrows).toBeUndefined();
     expect(options.arrowScale).toBe(1.5);
     expect(options.routeWidthScale).toBe(1.5);
@@ -169,14 +164,12 @@ describe("routeMapConfigSummary", () => {
       routeMapConfigSummary({
         display: { timeLabelIntervalMinutes: 15, arrowSize: "small", labelSize: "large" },
         controls: { fullscreen: true, terrain: false },
-        pois: { kinds: [] },
       })
     ).toEqual({
       changed: [
         { label: "Arrow size", value: "Small" },
         { label: "Label size", value: "Large" },
         { label: "Terrain toggle", value: "Off" },
-        { label: "Points of interest", value: "Custom" },
       ],
     });
   });
