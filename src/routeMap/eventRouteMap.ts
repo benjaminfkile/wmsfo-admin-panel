@@ -19,7 +19,6 @@ import {
   resolveDisplayKey,
   type RouteMapDisplay,
 } from "../components/content/routeMapDisplay";
-import { storedKinds, type PoisValue } from "../components/content/routePreviewPois";
 import type { Appearance } from "./flavors";
 import { buildRouteMapStyle } from "./index";
 import type { RouteMapData } from "./poster";
@@ -33,7 +32,6 @@ export type RouteMapControls = Partial<Record<RouteMapControlKey, boolean>>;
 export interface RouteMapConfigValue {
   display?: RouteMapDisplay;
   controls?: RouteMapControls;
-  pois?: PoisValue;
 }
 
 export type RouteMapGroup = keyof RouteMapConfigValue;
@@ -69,8 +67,7 @@ function asRecord(v: unknown): Record<string, unknown> | null {
 }
 
 // The editable form of a stored config: each display key kept only when
-// it is a contract value, each control only when boolean, and the POI
-// kinds when a list is stored. A group
+// it is a contract value and each control only when boolean. A group
 // left with nothing in it is absent, so null and `{}` both read as `{}`.
 export function toRouteMapConfig(raw: unknown): RouteMapConfigValue {
   const record = asRecord(raw);
@@ -91,9 +88,6 @@ export function toRouteMapConfig(raw: unknown): RouteMapConfigValue {
     if (typeof v === "boolean") controls[key] = v;
   }
   if (Object.keys(controls).length > 0) out.controls = controls;
-
-  const kinds = storedKinds(record.pois);
-  if (kinds !== null) out.pois = { kinds };
 
   return out;
 }
@@ -143,7 +137,6 @@ export interface ResolvedRouteMapConfig {
   routeWidthScale: number;
   labelScale: number;
   controls: Record<RouteMapControlKey, boolean>;
-  poiKinds: string[] | undefined;
 }
 
 // The values the site draws with for a config.
@@ -160,7 +153,6 @@ export function resolveRouteMapConfig(config: RouteMapConfigValue): ResolvedRout
       fullscreen: readControl(config.controls, "fullscreen"),
       terrain: readControl(config.controls, "terrain"),
     },
-    poiKinds: config.pois?.kinds,
   };
 }
 
@@ -188,17 +180,22 @@ export interface EventRouteMapStyleInput {
   routeMapConfig: RouteMapConfigValue;
   // The hillshade, drawn only while the config keeps the terrain toggle.
   terrain: boolean;
+  // The place kinds the map labels (Site settings `places.routeMap.kinds`);
+  // undefined labels none.
+  poiKinds?: readonly string[];
 }
 
-// The style options the site builds for a config over a route map.
+// The style options the site builds for a config over a route map, with
+// the sitewide place kinds when given.
 export function eventRouteMapOptions(
   routeMap: RouteMapData,
-  routeMapConfig: RouteMapConfigValue
+  routeMapConfig: RouteMapConfigValue,
+  poiKinds?: readonly string[]
 ): StyleOptions {
   const resolved = resolveRouteMapConfig(routeMapConfig);
   return {
     timeLabels: siteTimeLabels(routeMap.timeline, resolved.timeLabelIntervalMinutes),
-    ...(resolved.poiKinds !== undefined ? { poiKinds: resolved.poiKinds } : {}),
+    ...(poiKinds !== undefined ? { poiKinds } : {}),
     ...(resolved.arrows ? { arrows: true } : {}),
     arrowScale: resolved.arrowScale,
     routeWidthScale: resolved.routeWidthScale,
@@ -207,8 +204,8 @@ export function eventRouteMapOptions(
 }
 
 // The site's route map for the event: the path with every timeline point
-// as a mark, the time labels, POI kinds, arrows, widths, and
-// label scale of the config, and the hillshade when `terrain` is set and the config
+// as a mark, the time labels, arrows, widths, and label scale of the
+// config, the place kinds of the input, and the hillshade when `terrain` is set and the config
 // keeps the terrain toggle.
 export function eventRouteMapStyle(
   config: Pick<Config, "routeBasemapUrl">,
@@ -222,7 +219,7 @@ export function eventRouteMapStyle(
     routeMap.path,
     routeMap.timeline.map((t) => ({ lat: t.lat, lng: t.lng })),
     terrain,
-    eventRouteMapOptions(routeMap, routeMapConfig)
+    eventRouteMapOptions(routeMap, routeMapConfig, input.poiKinds)
   );
 }
 
@@ -250,6 +247,5 @@ export function routeMapConfigSummary(config: RouteMapConfigValue): RouteMapSumm
       changed.push({ label: ROUTE_MAP_CONTROL_LABELS[key].label, value: "Off" });
     }
   }
-  if (config.pois) changed.push({ label: "Points of interest", value: "Custom" });
   return { changed };
 }

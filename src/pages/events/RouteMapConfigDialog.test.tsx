@@ -20,7 +20,6 @@ import {
 import { eventRouteMapStyle } from "../../routeMap/eventRouteMap";
 import { buildRouteMapStyle } from "../../routeMap";
 import { TIME_LABELS_LAYER } from "../../routeMap/style";
-import { kindsFor } from "../../components/content/routePreviewPois";
 
 vi.setConfig({ testTimeout: 20_000 });
 
@@ -103,7 +102,6 @@ const FULL_CONFIG = {
     labelSize: "small",
   },
   controls: { fullscreen: false, terrain: false },
-  pois: { kinds: ["hospital", "park"] },
 };
 
 const ROUTE_MAP = {
@@ -292,8 +290,19 @@ describe("the Route map card", () => {
       "Label size: Small",
       "Fullscreen button: Off",
       "Terrain toggle: Off",
-      "Points of interest: Custom",
     ]);
+  });
+
+  it("never names points of interest, even for a stored pois key", () => {
+    render(
+      <Harness
+        event={makeEvent({
+          routeMapConfig: { ...FULL_CONFIG, pois: { kinds: ["park"] } } as unknown as Event["routeMapConfig"],
+        })}
+      />
+    );
+    const card = screen.getByTestId("route-map-card");
+    expect(card.textContent ?? "").not.toMatch(/points of interest/i);
   });
 
   it("leaves out a stored value equal to its default", () => {
@@ -356,7 +365,6 @@ describe("the Route map modal", () => {
     );
     expect(within(display).getByRole("switch", { name: "Arrows" })).not.toBeChecked();
     expect(within(group(dialog, "Controls")).getByRole("switch", { name: "Fullscreen button" })).not.toBeChecked();
-    expect(within(group(dialog, "Points of interest")).getByRole("radio", { name: "Custom" })).toBeChecked();
     const body = await save(dialog);
     expect(body).toEqual({ routeMapConfig: FULL_CONFIG });
   });
@@ -401,22 +409,54 @@ describe("the Route map modal", () => {
     });
   });
 
-  it("changes the points of interest group alone", async () => {
-    const dialog = await openDialog(
-      makeEvent({ routeMapConfig: FULL_CONFIG as unknown as Event["routeMapConfig"] })
+  it("has no Points of interest editor and points to Site settings for the places", async () => {
+    const dialog = await openDialog(makeEvent({ routeMapConfig: null }));
+    expect(within(dialog).queryByRole("region", { name: "Points of interest" })).toBeNull();
+    expect(within(dialog).queryByTestId("pois-field")).toBeNull();
+    expect(within(dialog).queryByRole("radio")).toBeNull();
+    const caption = within(group(dialog, "Display")).getByTestId("route-map-places-caption");
+    expect(caption).toHaveTextContent("Places are set for every map in Site settings.");
+    expect(within(caption).getByRole("link", { name: "Site settings" })).toHaveAttribute(
+      "href",
+      "/site-settings"
     );
-    const pois = group(dialog, "Points of interest");
-    fireEvent.click(within(pois).getByRole("radio", { name: "Default" }));
-    expect(lastStyleInput().routeMapConfig.pois).toBeUndefined();
+  });
+
+  it("draws the route map places of the site settings draft in the preview", async () => {
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/site-settings`, () =>
+        HttpResponse.json({
+          ...f.siteSettingsDraft,
+          data: {
+            ...(f.siteSettingsDraft.data as Record<string, unknown>),
+            places: { tracker: { kinds: ["park"] }, routeMap: { kinds: ["hospital", "school"] } },
+          },
+        })
+      )
+    );
+    await openDialog(makeEvent({ routeMapConfig: null }));
+    await waitFor(() => expect(lastStyleInput().poiKinds).toEqual(["hospital", "school"]));
     expectPreviewInSync();
-    fireEvent.click(within(pois).getByRole("radio", { name: "Custom" }));
-    fireEvent.click(within(pois).getByRole("checkbox", { name: "Churches" }));
-    expect(lastStyleInput().routeMapConfig.pois).toEqual({ kinds: kindsFor(["churches"]) });
-    expectPreviewInSync();
-    const body = await save(dialog);
-    expect(body).toEqual({
-      routeMapConfig: { ...FULL_CONFIG, pois: { kinds: kindsFor(["churches"]) } },
+    const body = await save(screen.getByRole("dialog", { name: "Route map" }));
+    expect(body).toEqual({ routeMapConfig: null });
+  });
+
+  it("draws no places while the site settings draft has none", async () => {
+    let settingsReads = 0;
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/site-settings`, () => {
+        settingsReads += 1;
+        return HttpResponse.json(f.siteSettingsDraft);
+      })
+    );
+    await openDialog(makeEvent({ routeMapConfig: null }));
+    await waitFor(() => expect(settingsReads).toBe(1));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
     });
+    for (const call of vi.mocked(eventRouteMapStyle).mock.calls) {
+      expect(call[1].poiKinds).toBeUndefined();
+    }
   });
 
   it("shows the built-in defaults while unset, writes a pick, and Default removes it", async () => {
@@ -505,14 +545,18 @@ describe("the Route map modal", () => {
   it("Cancel discards the draft without a request", async () => {
     const event = makeEvent({ routeMapConfig: FULL_CONFIG as unknown as Event["routeMapConfig"] });
     const dialog = await openDialog(event);
-    fireEvent.click(within(group(dialog, "Points of interest")).getByRole("radio", { name: "Default" }));
+    fireEvent.click(
+      within(group(dialog, "Controls")).getByRole("switch", { name: "Fullscreen button" })
+    );
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "Route map" })).not.toBeInTheDocument()
     );
     fireEvent.click(screen.getByRole("button", { name: "Configure route map" }));
     const again = await screen.findByRole("dialog", { name: "Route map" });
-    expect(within(group(again, "Points of interest")).getByRole("radio", { name: "Custom" })).toBeChecked();
+    expect(
+      within(group(again, "Controls")).getByRole("switch", { name: "Fullscreen button" })
+    ).not.toBeChecked();
     expect(patches).toEqual([]);
   });
 
@@ -594,8 +638,7 @@ describe("the Route map modal", () => {
     ).toHaveTextContent("Every 10 minutes");
     expect(within(display).getByRole("switch", { name: "Arrows" })).not.toBeChecked();
     expect(within(group(dialog, "Controls")).getByRole("switch", { name: "Terrain toggle" })).not.toBeChecked();
-    const pois = group(dialog, "Points of interest");
-    expect(within(pois).getByRole("radio", { name: "Custom" })).toBeChecked();
+    expect(within(group(dialog, "Controls")).getByRole("switch", { name: "Fullscreen button" })).not.toBeChecked();
     expect(lastStyleInput().routeMapConfig).toEqual(FULL_CONFIG);
     expectPreviewInSync();
     await act(async () => {
@@ -621,7 +664,7 @@ describe("the Route map modal", () => {
     expect(within(copy).getByTestId("route-map-copy-loaded")).toHaveTextContent(
       "Santa Flyover 2024 has no route map settings"
     );
-    expect(within(group(dialog, "Points of interest")).getByRole("radio", { name: "Default" })).toBeChecked();
+    expect(within(group(dialog, "Controls")).getByRole("switch", { name: "Terrain toggle" })).toBeChecked();
     expect(patches).toEqual([]);
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     await waitFor(() =>

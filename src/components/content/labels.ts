@@ -322,32 +322,6 @@ const SECTION: Record<string, FieldLabels> = {
       help: "How many people are watching, while the event is live and sockets are healthy",
       switchDefault: true,
     },
-    poiFilter: {
-      label: "Choose which places show",
-      help: "Off keeps the map style's own places. On shows only the kinds checked below.",
-      switchDefault: false,
-    },
-    poiKinds: {
-      label: "Places shown",
-      help: "The Google-supplied place kinds the tracker shows while the choice above is on. Nothing checked means no places.",
-      options: {
-        attraction: "Attractions",
-        business: "Businesses and shops",
-        government: "Government",
-        medical: "Medical",
-        park: "Parks",
-        place_of_worship: "Churches",
-        school: "Schools",
-        sports_complex: "Sports",
-        transit: "Transit",
-      },
-      when: {
-        field: "poiFilter",
-        is: "off",
-        disabled: true,
-        hint: "Turn on Choose which places show first",
-      },
-    },
   },
   leaderboard: {
     heading: { label: "Heading" },
@@ -494,6 +468,14 @@ export const SITE_SETTINGS: FieldLabels = {
   "landmarks.lng": { label: "Longitude" },
   "landmarks.icon": { label: "Icon" },
   "landmarks.description": { label: "Description" },
+  places: {
+    label: "Places on the maps",
+    help: "Which places each map labels. The two lists differ because the two maps sort places differently.",
+  },
+  "places.tracker": { label: "Live tracker" },
+  "places.tracker.kinds": { label: "Kinds" },
+  "places.routeMap": { label: "Route map" },
+  "places.routeMap.kinds": { label: "Kinds" },
   footerLinks: {
     label: "Footer links",
     help: "Links shown at the bottom of every page, up to ten.",
@@ -620,8 +602,8 @@ export function orderFor(kind: string, isItem: boolean): string[] | undefined {
 }
 
 // The top-level field order of the site settings form: the logo fields
-// sit right after the site name, and the header links right after the
-// extra menu links.
+// sit right after the site name, the header links right after the
+// extra menu links, and the places right after the viewpoints, last.
 export const SITE_SETTINGS_ORDER = [
   "siteName",
   "logoMedia",
@@ -634,6 +616,8 @@ export const SITE_SETTINGS_ORDER = [
   "navExtraLinks",
   "headerLinks",
   "*",
+  "landmarks",
+  "places",
 ];
 
 // The labels for the site settings form.

@@ -36,8 +36,8 @@ export default function RouteMapSection({ event }: Props) {
           </Button>
         </Stack>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          How the site draws this event&apos;s route: the line, its labels, the map buttons,
-          and points of interest.
+          How the site draws this event&apos;s route: the line, its labels, and the map
+          buttons.
         </Typography>
         {summary.changed.length === 0 ? (
           <Typography variant="body2" data-testid="route-map-changed">

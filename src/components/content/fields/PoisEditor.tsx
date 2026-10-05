@@ -1,3 +1,4 @@
+import { useId } from "react";
 import {
   Box,
   Checkbox,
@@ -12,8 +13,9 @@ import {
   categoriesFor,
   poisFor,
   storedKinds,
+  type PoiCategory,
   type PoisValue,
-} from "../routePreviewPois";
+} from "../places";
 
 interface Props {
   value: unknown;
@@ -21,26 +23,32 @@ interface Props {
   title?: string;
   help?: string;
   disabled?: boolean;
+  categories?: readonly PoiCategory[];
+  testId?: string;
 }
 
-// A `pois` value as a Default / Custom choice. Default reports undefined
-// (no key); Custom shows one checkbox per category of POI_CATEGORIES and
-// reports `{ kinds }`, the union of the checked categories' kinds (an
-// empty list when none is checked). A stored list shows each category
-// checked whose every kind it holds.
+// One map's places value as a Default / Custom choice. Default reports
+// undefined (no key); Custom shows one checkbox per category of
+// `categories` (POI_CATEGORIES unless given) and reports `{ kinds }`, the
+// union of the checked categories' kinds (an empty list when none is
+// checked). A stored list shows each category checked whose every kind
+// it holds.
 export default function PoisEditor({
   value,
   onChange,
-  title = "Points of interest",
+  title = "Places",
   help,
   disabled = false,
+  categories = POI_CATEGORIES,
+  testId = "pois-field",
 }: Props) {
+  const titleId = useId();
   const kinds = storedKinds(value);
   const custom = kinds !== null;
-  const checked = new Set(categoriesFor(kinds ?? []));
+  const checked = new Set(categoriesFor(kinds ?? [], categories));
 
   const write = (choice: "default" | "custom", ids: Iterable<string>) => {
-    onChange(poisFor(choice, ids, kinds ?? []));
+    onChange(poisFor(choice, ids, kinds ?? [], categories));
   };
 
   const toggle = (id: string, on: boolean) => {
@@ -51,8 +59,8 @@ export default function PoisEditor({
   };
 
   return (
-    <Box sx={{ my: 1, minWidth: 0 }} data-testid="pois-field">
-      <Typography variant="subtitle2" id="pois-field-title">
+    <Box sx={{ my: 1, minWidth: 0 }} data-testid={testId}>
+      <Typography variant="subtitle2" id={titleId}>
         {title}
       </Typography>
       {help ? (
@@ -62,7 +70,7 @@ export default function PoisEditor({
       ) : null}
       <RadioGroup
         row
-        aria-labelledby="pois-field-title"
+        aria-labelledby={titleId}
         value={custom ? "custom" : "default"}
         onChange={(e) =>
           write(e.target.value === "custom" ? "custom" : "default", [])
@@ -83,7 +91,7 @@ export default function PoisEditor({
       </RadioGroup>
       {custom ? (
         <FormGroup sx={{ pl: 1 }} data-testid="pois-categories">
-          {POI_CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <FormControlLabel
               key={c.id}
               control={

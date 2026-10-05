@@ -18,6 +18,7 @@ import LinkField from "./fields/LinkField";
 import InlineField from "./fields/InlineField";
 import BlocksField from "./fields/BlocksField";
 import LinkListField from "./fields/LinkListField";
+import PlacesField from "./fields/PlacesField";
 import ViewpointsField from "./fields/ViewpointsField";
 import PresentationPanelField from "./fields/PresentationPanelField";
 import OptionalField, { extractOptional } from "./fields/OptionalField";
@@ -103,12 +104,13 @@ function RoutedSchemaField(props: FieldProps) {
 }
 
 // UiSchema-based custom fields (used by SiteSettings for the theme
-// object and the viewpoints list; RJSF resolves these via
+// object, the viewpoints list, and the places; RJSF resolves these via
 // `ui:field: "<name>"`).
 const FIELDS: RegistryFieldsType = {
   SchemaField: RoutedSchemaField,
   ThemeField,
   ViewpointsField,
+  PlacesField,
 };
 
 // A `const` inside a `oneOf` branch is never used as a default, so an
@@ -253,8 +255,8 @@ function nodeAt(root: JsonNode, path: string): JsonNode | null {
   return node;
 }
 
-// An array whose entries are an enum (the map's `poiKinds`, its `themes`,
-// the event times' `fields`): one checkbox per value unless the entry
+// An array whose entries are an enum (the map's `themes`, the event
+// times' `fields`): one checkbox per value unless the entry
 // is `ordered`.
 function isEnumArray(root: JsonNode, node: JsonNode | null): boolean {
   if (node?.type !== "array") return false;

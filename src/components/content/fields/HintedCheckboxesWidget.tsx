@@ -4,8 +4,8 @@ import type { WidgetProps } from "@rjsf/utils";
 // The MUI checkbox group (an array of enum values, one box per value)
 // with `ui:options.hint` rendered as a short line under the boxes, the
 // way `DefaultedSwitchWidget` shows its hint. A `when` rule in labels.ts
-// sets the hint while the group is disabled (the map's `poiKinds` while
-// its filter is off). Registered as `checkboxes`, so it replaces the
+// sets the hint while the group is disabled (a `when` rule with `is:
+// "off"` holds it disabled while a switch is off). Registered as `checkboxes`, so it replaces the
 // default group in every SchemaForm; the theme's own group is reached
 // through the registry under its full name.
 export default function HintedCheckboxesWidget(props: WidgetProps) {
