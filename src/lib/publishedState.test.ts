@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  CDN_LAG_TOLERANCE_MS,
+  cdnLagMs,
   compare,
   resolvePublishedState,
   type ResolveInput,
+  type SampledAt,
 } from "./publishedState";
 import type {
   Event,
@@ -12,6 +15,12 @@ import type {
 } from "../api/types";
 
 const NOW = "2026-12-22T01:31:07.412Z";
+const NOW_MS = Date.parse(NOW);
+// Both samples taken half a second after the stamps, on a browser clock
+// that runs 40 s ahead of the servers (the offset must cancel).
+const SKEW_MS = 40_000;
+const sampled: SampledAt = { cdn: NOW_MS + SKEW_MS + 500, api: NOW_MS + SKEW_MS + 500 };
+const iso = (ms: number) => new Date(ms).toISOString();
 
 const baseSnap: SnapshotInfo = {
   version: 42,
@@ -77,17 +86,18 @@ const okInput = (): ResolveInput => ({
   current: { ...baseCurrent },
   snapshot: { ...baseSnap },
   state: { ...baseState, node: { ...baseState.node } },
+  sampledAt: { ...sampled },
   previousMismatched: false,
 });
 
 describe("compare", () => {
   it("returns no mismatches when everything agrees", () => {
-    expect(compare(baseCdn, baseCurrent, baseSnap, baseState)).toEqual([]);
+    expect(compare(baseCdn, baseCurrent, baseSnap, baseState, sampled)).toEqual([]);
   });
 
   it("detects eventStatusId mismatch", () => {
     const cdn = { ...baseCdn, eventStatusId: 2 };
-    const mm = compare(cdn, baseCurrent, baseSnap, baseState);
+    const mm = compare(cdn, baseCurrent, baseSnap, baseState, sampled);
     expect(mm).toEqual([
       { field: "eventStatusId", cdn: 2, api: 3 },
     ]);
@@ -95,13 +105,13 @@ describe("compare", () => {
 
   it("treats a missing current event as null on the API side", () => {
     const cdn = { ...baseCdn, eventStatusId: 3 };
-    const mm = compare(cdn, null, baseSnap, baseState);
+    const mm = compare(cdn, null, baseSnap, baseState, sampled);
     expect(mm).toContainEqual({ field: "eventStatusId", cdn: 3, api: null });
   });
 
   it("detects snapshotUrl mismatch", () => {
     const cdn = { ...baseCdn, snapshotUrl: "https://cdn.test/snapshots/other.json" };
-    const mm = compare(cdn, baseCurrent, baseSnap, baseState);
+    const mm = compare(cdn, baseCurrent, baseSnap, baseState, sampled);
     expect(mm).toEqual([
       {
         field: "snapshotUrl",
@@ -111,10 +121,62 @@ describe("compare", () => {
     ]);
   });
 
-  it("detects seq mismatch", () => {
-    const cdn = { ...baseCdn, seq: 99 };
-    const mm = compare(cdn, baseCurrent, baseSnap, baseState);
-    expect(mm).toEqual([{ field: "seq", cdn: 99, api: 100 }]);
+  it("ignores a seq difference while the CDN copy is as fresh as the row", () => {
+    // The ingest node writes several times a second; the two polls
+    // straddle a write and the CDN sample is the newer one.
+    const cdn = { ...baseCdn, seq: 106, publishedAt: iso(NOW_MS + 1500) };
+    const at = { cdn: sampled.cdn + 1500, api: sampled.api };
+    expect(compare(cdn, baseCurrent, baseSnap, baseState, at)).toEqual([]);
+  });
+
+  it("ignores a lower seq while the CDN copy is within the propagation tolerance", () => {
+    // The CDN sample came first and CloudFront served a copy up to a
+    // second old; the row sample came after the next write.
+    const cdn = { ...baseCdn, seq: 97, publishedAt: iso(NOW_MS - 1000) };
+    const state = { ...baseState, lastWriteSeq: 103, lastWriteAt: iso(NOW_MS + 1000) };
+    const at = { cdn: sampled.cdn, api: sampled.api + 1000 };
+    expect(compare(cdn, baseCurrent, baseSnap, state, at)).toEqual([]);
+  });
+
+  it("detects a CDN copy older than the API's last write beyond the tolerance", () => {
+    const stale = iso(NOW_MS - CDN_LAG_TOLERANCE_MS - 1);
+    const cdn = { ...baseCdn, seq: 42, publishedAt: stale };
+    const mm = compare(cdn, baseCurrent, baseSnap, baseState, sampled);
+    expect(mm).toEqual([{ field: "publishedAt", cdn: stale, api: NOW }]);
+  });
+
+  it("detects a stale copy even when seq did not move (rewrite without a fix)", () => {
+    const stale = iso(NOW_MS - 20_000);
+    const cdn = { ...baseCdn, publishedAt: stale };
+    const mm = compare(cdn, baseCurrent, baseSnap, baseState, sampled);
+    expect(mm).toEqual([{ field: "publishedAt", cdn: stale, api: NOW }]);
+  });
+
+  it("has nothing to compare when the row has never recorded a write", () => {
+    const state = { ...baseState, lastWriteAt: null, lastWriteSeq: null };
+    const cdn = { ...baseCdn, publishedAt: iso(NOW_MS - 60_000) };
+    expect(compare(cdn, baseCurrent, baseSnap, state, sampled)).toEqual([]);
+  });
+
+  it("flags a CDN object without a parsable publishedAt", () => {
+    const cdn = { ...baseCdn, publishedAt: "not-a-stamp" };
+    const mm = compare(cdn, baseCurrent, baseSnap, baseState, sampled);
+    expect(mm).toEqual([{ field: "publishedAt", cdn: "not-a-stamp", api: NOW }]);
+  });
+});
+
+describe("cdnLagMs", () => {
+  it("cancels the browser clock offset and the sample skew", () => {
+    // CDN sampled 4 s after the API sample, on a clock 40 s ahead; the
+    // CDN copy is the one written 4 s after the row's write. Lag is 0.
+    const cdn = { ...baseCdn, publishedAt: iso(NOW_MS + 4000) };
+    const at = { cdn: sampled.cdn + 4000, api: sampled.api };
+    expect(cdnLagMs(cdn, baseState, at)).toBe(0);
+  });
+
+  it("measures how much older the CDN copy is than the row's last write", () => {
+    const cdn = { ...baseCdn, publishedAt: iso(NOW_MS - 2500) };
+    expect(cdnLagMs(cdn, baseState, sampled)).toBe(2500);
   });
 });
 
@@ -127,7 +189,7 @@ describe("resolvePublishedState", () => {
 
   it("keeps a single mismatched poll on ok", () => {
     const input = okInput();
-    input.cdn = { ...baseCdn, seq: 42 };
+    input.cdn = { ...baseCdn, seq: 42, publishedAt: iso(NOW_MS - 10_000) };
     const r = resolvePublishedState(input);
     expect(r.state.kind).toBe("ok");
     expect(r.mismatchedNow).toBe(true);
@@ -135,13 +197,14 @@ describe("resolvePublishedState", () => {
 
   it("shows behind only after two mismatched polls in a row", () => {
     const input = okInput();
-    input.cdn = { ...baseCdn, seq: 42 };
+    const stale = iso(NOW_MS - 10_000);
+    input.cdn = { ...baseCdn, seq: 42, publishedAt: stale };
     input.previousMismatched = true;
     const r = resolvePublishedState(input);
     expect(r.state.kind).toBe("behind");
     if (r.state.kind === "behind") {
       expect(r.state.mismatches).toEqual([
-        { field: "seq", cdn: 42, api: 100 },
+        { field: "publishedAt", cdn: stale, api: NOW },
       ]);
     }
     expect(r.mismatchedNow).toBe(true);
@@ -158,7 +221,7 @@ describe("resolvePublishedState", () => {
   it("write_error takes precedence over mismatch", () => {
     const input = okInput();
     input.state = { ...baseState, lastWriteError: "s3 timeout" };
-    input.cdn = { ...baseCdn, seq: 42 };
+    input.cdn = { ...baseCdn, seq: 42, publishedAt: iso(NOW_MS - 10_000) };
     input.previousMismatched = true;
     const r = resolvePublishedState(input);
     expect(r.state).toEqual({ kind: "write_error", error: "s3 timeout" });

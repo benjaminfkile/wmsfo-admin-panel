@@ -39,6 +39,7 @@ import {
   ageS,
   formatAgeS,
   formatStamp,
+  formatStampTime,
 } from "../lib/time";
 import type {
   Beacon,
@@ -49,7 +50,7 @@ import type {
   SnapshotInfo,
   StatusId,
 } from "../api/types";
-import { resolvePublishedState } from "../lib/publishedState";
+import { resolvePublishedState, type Mismatch } from "../lib/publishedState";
 import StatusDialog from "./events/StatusDialog";
 
 const DASHBOARD_KEYS = [
@@ -187,9 +188,20 @@ export default function Dashboard() {
       current: currentEvent,
       snapshot: snapshotQ.data ?? null,
       state: liveQ.data ?? null,
+      sampledAt: { cdn: cdnQ.dataUpdatedAt, api: liveQ.dataUpdatedAt },
       previousMismatched: previousMismatched.current,
     });
-  }, [cdnQ.data, cdnStatus, cdnPending, cdnError, currentEvent, snapshotQ.data, liveQ.data]);
+  }, [
+    cdnQ.data,
+    cdnQ.dataUpdatedAt,
+    cdnStatus,
+    cdnPending,
+    cdnError,
+    currentEvent,
+    snapshotQ.data,
+    liveQ.data,
+    liveQ.dataUpdatedAt,
+  ]);
   previousMismatched.current = resolvedPublished.mismatchedNow;
 
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -517,6 +529,15 @@ function ActiveBeaconCard({
   );
 }
 
+// Stamps render as wall-clock times so the two sides of a publishedAt
+// mismatch read side by side on a phone; other fields render as-is.
+function mismatchValue(field: Mismatch["field"], value: unknown): string {
+  if (field === "publishedAt" && typeof value === "string") {
+    return formatStampTime(value) || value;
+  }
+  return String(value);
+}
+
 function PublishedStateCard({
   resolved,
   live,
@@ -555,7 +576,8 @@ function PublishedStateCard({
               {resolved.mismatches.map((m) => (
                 <li key={m.field}>
                   <Typography variant="body2">
-                    {m.field}: cdn={String(m.cdn)} api={String(m.api)}
+                    {m.field}: cdn={mismatchValue(m.field, m.cdn)} api=
+                    {mismatchValue(m.field, m.api)}
                   </Typography>
                 </li>
               ))}

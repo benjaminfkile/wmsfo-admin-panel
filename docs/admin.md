@@ -730,16 +730,21 @@ export const polled = { refetchInterval: POLL_MS, refetchIntervalInBackground: f
 
 ```ts
 // src/lib/publishedState.ts
-export type Mismatch = { field: "eventStatusId" | "snapshotUrl" | "seq"; cdn: unknown; api: unknown };
+export type Mismatch = { field: "eventStatusId" | "snapshotUrl" | "publishedAt"; cdn: unknown; api: unknown };
+export type SampledAt = { cdn: number; api: number };   // dataUpdatedAt of the CDN poll and the /admin/live poll (browser clock)
+export const CDN_LAG_TOLERANCE_MS = 3000;
 
-export function compare(cdn: LiveObject, current: Event | null, snap: SnapshotInfo, state: LiveState): Mismatch[] {
+export function compare(cdn: LiveObject, current: Event | null, snap: SnapshotInfo, state: LiveState, sampledAt: SampledAt): Mismatch[] {
   const out: Mismatch[] = [];
   const apiStatus = current?.statusId ?? null;
   if (cdn.eventStatusId !== apiStatus) out.push({ field: "eventStatusId", cdn: cdn.eventStatusId, api: apiStatus });
   if (cdn.snapshotUrl !== snap.url) out.push({ field: "snapshotUrl", cdn: cdn.snapshotUrl, api: snap.url });
-  if (cdn.seq !== state.lastWriteSeq) out.push({ field: "seq", cdn: cdn.seq, api: state.lastWriteSeq });
+  if (cdnLagMs(cdn, state, sampledAt) > CDN_LAG_TOLERANCE_MS) out.push({ field: "publishedAt", cdn: cdn.publishedAt, api: state.lastWriteAt });
   return out;
 }
+
+// (age of the CDN object when it was fetched) - (age of the row's last write when it was fetched)
+export function cdnLagMs(cdn: LiveObject, state: LiveState, sampledAt: SampledAt): number;
 
 export type PublishedState =
   | { kind: "loading" }
@@ -751,9 +756,11 @@ export type PublishedState =
 export function resolvePublishedState(input: ResolveInput): { state: PublishedState; mismatchedNow: boolean };
 ```
 
-The card keeps `previousMismatched: boolean` across polls in a ref. `resolvePublishedState` renders `behind` only when the current poll and the previous poll both produced a non-empty `compare()` result; a single mismatched poll renders `ok` (the CDN copy lags an ingest write by up to a second). A poll with no mismatch resets the flag. `state.lastWriteError !== null` renders `write_error` regardless of the comparison. A `CdnError` (with its HTTP status) or a network failure (with its message) on the CDN fetch renders `cdn_unreachable` and does not touch the flag; a CDN query that has never settled renders `loading`. `current` is the event with `isCurrent === true` from the events list.
+Freshness, not equality. The CDN poll and the `/admin/live` poll run on independent 5 s timers, so the two samples can be seconds apart, and while a beacon streams the ingest node writes the live object several times a second: `cdn.seq` and `lastWriteSeq` are equal only when both samples happen to land inside the same write interval, whatever the fix rate. The comparison therefore asks whether the CDN copy is older than the API's last write by more than propagation accounts for. `cdnLagMs` pairs each server stamp with the browser instant its sample arrived (`dataUpdatedAt`), so the browser's clock offset cancels and the skew between the two polls is factored out: a healthy CDN measures near 0 ms however often the API writes (negative when the CDN sample is the newer one), and a stale copy measures its true age. `CDN_LAG_TOLERANCE_MS` (3 s) covers CloudFront's `s-maxage=1` and the writer's PUT-then-row-update ordering. A row that has never recorded a write compares as 0 (nothing to be behind); a CDN object without a parsable `publishedAt` compares as infinitely behind. The rule catches a stale copy whether or not `seq` moved (an admin rewrite with no new fix changes `publishedAt` only).
 
-Rendering: `ok` green "CDN current, written <age> ago by <lastWriteNode>"; `behind` red "CDN behind" with the mismatch list; `write_error` red with the error text; `cdn_unreachable` amber with the status or the message. The card's Republish button (always present, confirmed by `ConfirmDialog`) calls `POST /admin/live/republish` and invalidates the dashboard keys.
+The card keeps `previousMismatched: boolean` across polls in a ref. `resolvePublishedState` renders `behind` only when the current poll and the previous poll both produced a non-empty `compare()` result; a single mismatched poll renders `ok` (an admin write lands on the CDN within a second of the row, and the two polls may straddle it). A poll with no mismatch resets the flag. `state.lastWriteError !== null` renders `write_error` regardless of the comparison. A `CdnError` (with its HTTP status) or a network failure (with its message) on the CDN fetch renders `cdn_unreachable` and does not touch the flag; a CDN query that has never settled renders `loading`. `current` is the event with `isCurrent === true` from the events list.
+
+Rendering: `ok` green "CDN current, written <age> ago by <lastWriteNode>"; `behind` red "CDN behind" with the mismatch list (a `publishedAt` mismatch renders both sides as wall-clock times); `write_error` red with the error text; `cdn_unreachable` amber with the status or the message. The card's Republish button (always present, confirmed by `ConfirmDialog`) calls `POST /admin/live/republish` and invalidates the dashboard keys.
 
 ### 5.2 Beacon flags
 
