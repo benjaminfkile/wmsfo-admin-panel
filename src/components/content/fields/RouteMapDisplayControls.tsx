@@ -47,7 +47,8 @@ interface Props {
 
 // The five route map display knobs: Time labels, Arrow size, Route line,
 // and Label size selects and an Arrows switch, each showing the built-in default
-// while unset and written only once picked.
+// while unset and written only once picked. Arrow size is disabled while the
+// arrows are off.
 export default function RouteMapDisplayControls({
   value: formData,
   onChange,
@@ -60,12 +61,21 @@ export default function RouteMapDisplayControls({
   const write = (key: RouteMapDisplayKey, next: RouteMapDisplayValue | undefined) => {
     onChange(withDisplayKey(formData, key, next));
   };
-  const resetButton = (key: RouteMapDisplayKey, label: string, set: boolean) =>
+  // The arrows as they resolve: the stored value when set, else the default.
+  const storedArrows = readDisplayKey(formData, "arrows");
+  const arrowsOn =
+    storedArrows === undefined ? Boolean(ROUTE_MAP_DEFAULTS.arrows) : Boolean(storedArrows);
+  const resetButton = (
+    key: RouteMapDisplayKey,
+    label: string,
+    set: boolean,
+    off = disabled,
+  ) =>
     resettable && set ? (
       <Button
         size="small"
         onClick={() => write(key, undefined)}
-        disabled={disabled}
+        disabled={off}
         aria-label={`Default ${label}`}
         data-testid={`${testId}-${key}-reset`}
         sx={{ mt: 1, flexShrink: 0 }}
@@ -114,6 +124,9 @@ export default function RouteMapDisplayControls({
             );
           }
           const unsetText = displayText(key, effective);
+          // Arrow size is disabled, its stored value kept, while the arrows are off.
+          const sizeOff = key === "arrowSize" && !arrowsOn;
+          const rowDisabled = disabled || sizeOff;
           return (
             <Stack
               key={key}
@@ -127,8 +140,8 @@ export default function RouteMapDisplayControls({
                 fullWidth
                 label={label}
                 value={value === undefined ? "" : String(value)}
-                disabled={disabled}
-                helperText={entry?.help}
+                disabled={rowDisabled}
+                helperText={sizeOff ? "Turn the arrows on to size them." : entry?.help}
                 onChange={(e) => write(key, fromText(key, e.target.value))}
                 slotProps={{
                   inputLabel: { shrink: true },
@@ -145,7 +158,7 @@ export default function RouteMapDisplayControls({
                   </MenuItem>
                 ))}
               </TextField>
-              {resetButton(key, label, value !== undefined)}
+              {resetButton(key, label, value !== undefined, rowDisabled)}
             </Stack>
           );
         })}
