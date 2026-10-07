@@ -21,6 +21,7 @@ import type { MessageBody } from "../../api/resources/events";
 import { subscribers as subsApi } from "../../api/resources/subscribers";
 import { keys } from "../../queries/keys";
 import { useNotify } from "../../hooks/useNotify";
+import { useCompact } from "../../hooks/useCompact";
 import ErrorAlert from "../../components/ErrorAlert";
 import EmailQuotaNotice from "../../components/EmailQuotaNotice";
 import ConfirmDialog from "../../components/ConfirmDialog";
@@ -31,9 +32,13 @@ import { verifiedLine } from "./verifiedLine";
 
 interface Props {
   eventId: number;
+  // The tallest the card may grow on desktop (the Status card's height);
+  // null leaves it uncapped.
+  maxHeight: number | null;
 }
 
-export default function MessagesSection({ eventId }: Props) {
+export default function MessagesSection({ eventId, maxHeight }: Props) {
+  const compact = useCompact();
   const qc = useQueryClient();
   const notify = useNotify();
   const [body, setBody] = useState("");
@@ -131,9 +136,31 @@ export default function MessagesSection({ eventId }: Props) {
     (a.createdAt ?? "") < (b.createdAt ?? "") ? 1 : -1
   );
 
+  // On desktop with a height the card is a flex column capped at it: the
+  // title and the post form stay at the top and the list box takes the rest
+  // and scrolls. On compact the list box is capped at 320 px and scrolls.
+  const capped = !compact && maxHeight !== null;
+
   return (
-    <Card>
-      <CardContent>
+    <Card
+      sx={
+        capped
+          ? { maxHeight, display: "flex", flexDirection: "column" }
+          : undefined
+      }
+    >
+      <CardContent
+        sx={
+          capped
+            ? {
+                flex: "1 1 auto",
+                minHeight: 0,
+                display: "flex",
+                flexDirection: "column",
+              }
+            : undefined
+        }
+      >
         <Typography variant="h6" gutterBottom>
           Messages
         </Typography>
@@ -191,78 +218,89 @@ export default function MessagesSection({ eventId }: Props) {
         </Stack>
 
         {q.error ? <ErrorAlert error={q.error} /> : null}
-        <Stack spacing={1}>
-          {messages.map((m) => (
-            <Card key={String(m.id)} variant="outlined">
-              <CardContent>
-                {editingId === Number(m.id) ? (
-                  <Stack spacing={2}>
-                    <TextField
-                      value={editBody}
-                      onChange={(e) => setEditBody(e.target.value)}
-                      multiline
-                      minRows={2}
-                      fullWidth
-                    />
-                    <Stack direction="row" spacing={2} alignItems="center">
-                      <Button
-                        size="small"
-                        startIcon={<SaveIcon />}
-                        onClick={() => saveEdit(m)}
-                        disabled={patchMut.isPending}
-                      >
-                        Save
-                      </Button>
-                      <Button
-                        size="small"
-                        startIcon={<CloseIcon />}
-                        onClick={() => setEditingId(null)}
-                      >
-                        Cancel
-                      </Button>
-                    </Stack>
-                  </Stack>
-                ) : (
-                  <Stack direction="row" alignItems="flex-start" spacing={2}>
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="body1" sx={{ whiteSpace: "pre-wrap" }}>
-                        {m.body}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {m.createdBy} · {formatStamp(m.createdAt)}
-                      </Typography>
-                      {m.notify === true ? (
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          component="div"
-                          data-testid="message-notified"
+        <Box
+          data-testid="messages-list"
+          sx={
+            compact
+              ? { maxHeight: 320, overflowY: "auto" }
+              : capped
+                ? { flex: "1 1 auto", minHeight: 0, overflowY: "auto" }
+                : undefined
+          }
+        >
+          <Stack spacing={1}>
+            {messages.map((m) => (
+              <Card key={String(m.id)} variant="outlined">
+                <CardContent>
+                  {editingId === Number(m.id) ? (
+                    <Stack spacing={2}>
+                      <TextField
+                        value={editBody}
+                        onChange={(e) => setEditBody(e.target.value)}
+                        multiline
+                        minRows={2}
+                        fullWidth
+                      />
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Button
+                          size="small"
+                          startIcon={<SaveIcon />}
+                          onClick={() => saveEdit(m)}
+                          disabled={patchMut.isPending}
                         >
-                          {`Notified · ${String(m.sentCount ?? 0)} sent`}
+                          Save
+                        </Button>
+                        <Button
+                          size="small"
+                          startIcon={<CloseIcon />}
+                          onClick={() => setEditingId(null)}
+                        >
+                          Cancel
+                        </Button>
+                      </Stack>
+                    </Stack>
+                  ) : (
+                    <Stack direction="row" alignItems="flex-start" spacing={2}>
+                      <Box sx={{ flexGrow: 1 }}>
+                        <Typography variant="body1" sx={{ whiteSpace: "pre-wrap" }}>
+                          {m.body}
                         </Typography>
-                      ) : null}
-                    </Box>
-                    <IconButton
-                      size="small"
-                      aria-label="Edit"
-                      onClick={() => startEdit(m)}
-                    >
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      color="error"
-                      aria-label="Delete"
-                      onClick={() => setConfirmDelete(m)}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </Stack>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </Stack>
+                        <Typography variant="caption" color="text.secondary">
+                          {m.createdBy} · {formatStamp(m.createdAt)}
+                        </Typography>
+                        {m.notify === true ? (
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            component="div"
+                            data-testid="message-notified"
+                          >
+                            {`Notified · ${String(m.sentCount ?? 0)} sent`}
+                          </Typography>
+                        ) : null}
+                      </Box>
+                      <IconButton
+                        size="small"
+                        aria-label="Edit"
+                        onClick={() => startEdit(m)}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        aria-label="Delete"
+                        onClick={() => setConfirmDelete(m)}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Stack>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </Stack>
+        </Box>
       </CardContent>
       <ConfirmDialog
         open={confirmDelete !== null}

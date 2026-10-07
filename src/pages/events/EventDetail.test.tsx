@@ -808,7 +808,32 @@ describe("EventDetail on compact (admin.md 6.3)", () => {
       position: "absolute",
     });
   });
+
+  it("caps the messages list box at 320 px and leaves the Messages card uncapped", async () => {
+    restore = stubMatchMedia(true);
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    const list = await screen.findByTestId("messages-list");
+    expect(list).toHaveStyle({ "max-height": "320px", "overflow-y": "auto" });
+    const card = list.closest(".MuiCard-root") as HTMLElement;
+    expect(getComputedStyle(card).maxHeight).toBe("");
+  });
 });
+
+// A stand-in `ResizeObserver` whose `observe` reports a 480 px content
+// height, the size the Status card measures at in the desktop test.
+class FakeResizeObserver {
+  callback: (entries: { contentRect: { height: number } }[]) => void;
+  constructor(
+    callback: (entries: { contentRect: { height: number } }[]) => void
+  ) {
+    this.callback = callback;
+  }
+  observe() {
+    this.callback([{ contentRect: { height: 480 } }]);
+  }
+  unobserve() {}
+  disconnect() {}
+}
 
 describe("EventDetail: the Status card height on desktop (admin.md 6.3)", () => {
   it("positions the Status card over its grid item and scrolls the history inside it", async () => {
@@ -826,6 +851,21 @@ describe("EventDetail: the Status card height on desktop (admin.md 6.3)", () => 
     // The history table keeps its header in view while the box scrolls.
     const table = await within(history).findByRole("table");
     expect(table).toHaveClass("MuiTable-stickyHeader");
+  });
+
+  it("caps the Messages card at the Status card's measured height and scrolls the list inside it", async () => {
+    vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+    try {
+      render(<Harness id={Number(f.events[0]!.id)} />);
+      const list = await screen.findByTestId("messages-list");
+      const card = list.closest(".MuiCard-root") as HTMLElement;
+      await waitFor(() => expect(card).toHaveStyle({ "max-height": "480px" }));
+      expect(card).toHaveStyle({ display: "flex", "flex-direction": "column" });
+      expect(list).toHaveStyle({ "overflow-y": "auto" });
+      expect(list).not.toHaveStyle({ "max-height": "320px" });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 

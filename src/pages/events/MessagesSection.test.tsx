@@ -35,7 +35,7 @@ function Harness() {
         <QueryClientProvider client={client}>
           <NotifyProvider>
             <MemoryRouter>
-              <MessagesSection eventId={7} />
+              <MessagesSection eventId={7} maxHeight={null} />
             </MemoryRouter>
           </NotifyProvider>
         </QueryClientProvider>
