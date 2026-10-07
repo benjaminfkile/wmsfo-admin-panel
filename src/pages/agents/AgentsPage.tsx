@@ -1,5 +1,7 @@
 // docs/admin.md section 6.21. Agents: how a session with an agent works
-// (mint a key, hand it over, revoke it after), the keys table in place, and
+// (mint a key, hand it over, revoke it after; a key reaches what its
+// capabilities name across the admin, editor, and canvasser groups), the keys
+// table in place, and
 // the prompt that teaches the agent the admin API, with the base URL this
 // build talks to already filled in.
 
@@ -56,7 +58,9 @@ export default function AgentsPage() {
             <li>
               Mint a key below. Pick the capabilities the job needs (content work is pages,
               sections, media, icons, and publish) and an expiry. The full key is shown{" "}
-              <strong>once</strong>.
+              <strong>once</strong>. The API has three groups (admin, editor, and canvasser);
+              a key ignores them and reaches whatever its capabilities name, so a key with{" "}
+              <code>qr</code> reaches the canvasser routes, the two deletes included.
             </li>
             <li>
               Give the agent the key as <code>API_KEY</code> and the prompt further down this
@@ -84,8 +88,9 @@ export default function AgentsPage() {
               Agent prompt
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 720 }}>
-              Copy this into the agent&apos;s instructions. It teaches the agent the API:
-              conventions, the content model, the endpoints each capability reaches, the
+              Copy this into the agent&apos;s instructions. It teaches the agent the API: auth,
+              the wire conventions, what goes public when, the 18 capabilities and the routes
+              each reaches, the content model, delete safety, media, the event lifecycle, the
               workflows, and the rules. The base URL is this environment&apos;s.
             </Typography>
           </Box>
