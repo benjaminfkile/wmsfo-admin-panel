@@ -128,6 +128,11 @@ export default function PageEditor() {
   const setSaveState = (id: number, s: SaveState) =>
     setSaveStates((prev) => ({ ...prev, [id]: s }));
 
+  // Every page or section write changes the draft, so the content status
+  // (and the Publish button in the bar) refreshes with it.
+  const invalidateStatus = () =>
+    void qc.invalidateQueries({ queryKey: keys.contentStatus });
+
   const patchSectionMut = useMutation({
     mutationFn: ({
       id,
@@ -142,6 +147,7 @@ export default function PageEditor() {
     }) => sectionsApi.patch(id, body),
     onMutate: ({ id }) => setSaveState(id, "saving"),
     onSuccess: (_res, vars) => {
+      invalidateStatus();
       markSaved();
       setSaveState(vars.id, "saved");
       setFieldErrors((prev) => {
@@ -168,6 +174,7 @@ export default function PageEditor() {
         data: (kind.defaults ?? {}) as object,
       }),
     onSuccess: (created) => {
+      invalidateStatus();
       markSaved();
       notify("Section added");
       setPaletteOpen(false);
@@ -186,6 +193,7 @@ export default function PageEditor() {
   const duplicateMut = useMutation({
     mutationFn: (sectionId: number) => sectionsApi.duplicate(sectionId),
     onSuccess: () => {
+      invalidateStatus();
       markSaved();
       notify("Section duplicated");
       void qc.invalidateQueries({ queryKey: keys.page(pageId) });
@@ -195,6 +203,7 @@ export default function PageEditor() {
   const deleteSectionMut = useMutation({
     mutationFn: (sectionId: number) => sectionsApi.remove(sectionId),
     onSuccess: () => {
+      invalidateStatus();
       markSaved();
       notify("Section deleted");
       setDeleteFor(null);
@@ -205,6 +214,7 @@ export default function PageEditor() {
   const reorderMut = useMutation({
     mutationFn: (ids: number[]) => sectionsApi.order(pageId, ids),
     onSuccess: () => {
+      invalidateStatus();
       markSaved();
       void qc.invalidateQueries({ queryKey: keys.page(pageId) });
     },
@@ -220,6 +230,7 @@ export default function PageEditor() {
         isHidden: body.isHidden,
       }),
     onSuccess: () => {
+      invalidateStatus();
       markSaved();
       notify("Page saved");
       setSettingsOpen(false);
@@ -237,6 +248,7 @@ export default function PageEditor() {
       data: object;
     }) => sectionsApi.createItem(sectionId, { data }),
     onSuccess: () => {
+      invalidateStatus();
       markSaved();
       void qc.invalidateQueries({ queryKey: keys.page(pageId) });
     },
@@ -250,6 +262,7 @@ export default function PageEditor() {
       body: Partial<{ data: object; isHidden: boolean }>;
     }) => sectionsApi.patchItem(itemId, body),
     onSuccess: () => {
+      invalidateStatus();
       markSaved();
       void qc.invalidateQueries({ queryKey: keys.page(pageId) });
     },
@@ -257,6 +270,7 @@ export default function PageEditor() {
   const removeItemMut = useMutation({
     mutationFn: (itemId: number) => sectionsApi.removeItem(itemId),
     onSuccess: () => {
+      invalidateStatus();
       markSaved();
       void qc.invalidateQueries({ queryKey: keys.page(pageId) });
     },
@@ -270,6 +284,7 @@ export default function PageEditor() {
       ids: number[];
     }) => sectionsApi.orderItems(sectionId, ids),
     onSuccess: () => {
+      invalidateStatus();
       markSaved();
       void qc.invalidateQueries({ queryKey: keys.page(pageId) });
     },
@@ -289,6 +304,7 @@ export default function PageEditor() {
         position,
       }),
     onSuccess: (_res, vars) => {
+      invalidateStatus();
       markSaved();
       notify("Section moved");
       setMoveFor(null);

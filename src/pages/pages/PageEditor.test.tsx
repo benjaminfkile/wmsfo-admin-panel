@@ -38,12 +38,18 @@ import {
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQuery,
+} from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import PageEditor from "./PageEditor";
 import { ConfigProvider } from "../../ConfigContext";
 import { NotifyProvider } from "../../hooks/useNotify";
 import { installClient } from "../../api/client";
+import { content as contentApi } from "../../api/resources/content";
+import { keys } from "../../queries/keys";
 import { buildTheme } from "../../theme/theme";
 import { server } from "../../test/msw/server";
 import * as f from "../../test/msw/fixtures";
@@ -60,7 +66,14 @@ import type {
   SectionItemAdmin,
 } from "../../api/types";
 
-function Harness() {
+// Observes the content status the way the bar's Publish button does, so an
+// invalidation after a write shows up as a refetch.
+function StatusProbe() {
+  useQuery({ queryKey: keys.contentStatus, queryFn: () => contentApi.status() });
+  return null;
+}
+
+function Harness({ withStatus = false }: { withStatus?: boolean }) {
   const client = new QueryClient({
     defaultOptions: {
       queries: { retry: false, staleTime: 0, gcTime: 0 },
@@ -77,6 +90,7 @@ function Harness() {
               <Routes>
                 <Route path="/pages/:id" element={<PageEditor />} />
               </Routes>
+              {withStatus ? <StatusProbe /> : null}
             </NotifyProvider>
           </MemoryRouter>
         </QueryClientProvider>
@@ -304,6 +318,24 @@ describe("PageEditor", () => {
     );
     render(<Harness />);
     expect(await screen.findByText(/3 problems/i)).toBeInTheDocument();
+  });
+
+  it("a section write refetches the content status", async () => {
+    let statusRequests = 0;
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/content/status`, () => {
+        statusRequests += 1;
+        return HttpResponse.json(f.contentStatus);
+      })
+    );
+    const user = userEvent.setup();
+    render(<Harness withStatus />);
+    await screen.findByTestId(`section-card-${f.sampleSection.id}`);
+    await waitFor(() => expect(statusRequests).toBe(1));
+    await user.click(screen.getByLabelText(/section menu/i));
+    await user.click(await screen.findByRole("menuitem", { name: /duplicate/i }));
+
+    await waitFor(() => expect(statusRequests).toBe(2));
   });
 
   it("duplicate calls POST /admin/sections/:id/duplicate", async () => {

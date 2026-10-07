@@ -22,12 +22,18 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import { MemoryRouter } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQuery,
+} from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import PagesList from "./PagesList";
 import { ConfigProvider } from "../../ConfigContext";
 import { NotifyProvider } from "../../hooks/useNotify";
 import { installClient } from "../../api/client";
+import { content as contentApi } from "../../api/resources/content";
+import { keys } from "../../queries/keys";
 import { buildTheme } from "../../theme/theme";
 import { server } from "../../test/msw/server";
 import * as f from "../../test/msw/fixtures";
@@ -38,7 +44,14 @@ import {
 } from "../../test/renderWithProviders";
 import type { PageAdmin } from "../../api/types";
 
-function Harness() {
+// Observes the content status the way the bar's Publish button does, so an
+// invalidation after a write shows up as a refetch.
+function StatusProbe() {
+  useQuery({ queryKey: keys.contentStatus, queryFn: () => contentApi.status() });
+  return null;
+}
+
+function Harness({ withStatus = false }: { withStatus?: boolean }) {
   const client = new QueryClient({
     defaultOptions: {
       queries: { retry: false, staleTime: 0, gcTime: 0 },
@@ -53,6 +66,7 @@ function Harness() {
           <MemoryRouter initialEntries={["/pages"]}>
             <NotifyProvider>
               <PagesList />
+              {withStatus ? <StatusProbe /> : null}
             </NotifyProvider>
           </MemoryRouter>
         </QueryClientProvider>
@@ -183,6 +197,34 @@ describe("PagesList", () => {
     });
     // Body must be { ids: [4, 3] } - every `none` id in the new order.
     expect(orderBody).toEqual({ ids: [4, 3] });
+  });
+
+  it("a page write refetches the content status", async () => {
+    let statusRequests = 0;
+    const listItems: PageAdmin[] = [
+      f.pageAdmin[0] as PageAdmin,
+      { ...(f.pageAdmin[1] as PageAdmin), id: 3, navPosition: 10 },
+      { ...(f.pageAdmin[1] as PageAdmin), id: 4, slug: "contact", navPosition: 20 },
+    ];
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/pages`, () =>
+        HttpResponse.json({ items: listItems })
+      ),
+      http.put(`${testConfig.apiBaseUrl}/admin/pages/order`, () =>
+        HttpResponse.json({ items: listItems })
+      ),
+      http.get(`${testConfig.apiBaseUrl}/admin/content/status`, () => {
+        statusRequests += 1;
+        return HttpResponse.json(f.contentStatus);
+      })
+    );
+    const user = userEvent.setup();
+    render(<Harness withStatus />);
+    const contactRow = await screen.findByTestId(`page-row-${4}`);
+    await waitFor(() => expect(statusRequests).toBe(1));
+    await user.click(within(contactRow).getByLabelText(/move up/i));
+
+    await waitFor(() => expect(statusRequests).toBe(2));
   });
 
   it("Preview site opens the preview dialog at home with the Share menu", async () => {
