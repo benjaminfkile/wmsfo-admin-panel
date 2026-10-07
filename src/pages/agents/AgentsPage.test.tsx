@@ -72,27 +72,76 @@ describe("AgentsPage", () => {
     expect(screen.getByTestId("copy-prompt-button")).toBeInTheDocument();
   });
 
-  it("the prompt names every capability group and the Cognito-only key endpoints", () => {
+  it("the prompt names all 18 capabilities with the routes each reaches", () => {
     const prompt = buildAgentPrompt("https://api.example");
-    for (const cap of [
-      "pages:",
-      "sections:",
-      "site_settings:",
-      "content:",
-      "media:",
-      "icons:",
-      "sponsors:",
-      "events:",
-      "routes:",
-      "cookie_types:",
-      "settings:",
-      "contact_messages, subscribers, people:",
-      "beacons:",
-      "diagnostics:",
-    ]) {
-      expect(prompt).toContain(`- ${cap}`);
+    const caps = [
+      "events",
+      "routes",
+      "beacons",
+      "sponsors",
+      "cookie_types",
+      "pages",
+      "sections",
+      "site_settings",
+      "content",
+      "media",
+      "icons",
+      "settings",
+      "contact_messages",
+      "subscribers",
+      "people",
+      "diagnostics",
+      "audit",
+      "qr",
+    ];
+    expect(caps).toHaveLength(18);
+    for (const cap of caps) {
+      expect(prompt).toContain(`- \`${cap}\`: `);
+      expect(prompt).toContain(`### ${cap}\n`);
     }
-    expect(prompt).toContain("/admin/api-keys");
+    expect(prompt).toContain("There are 18.");
+  });
+
+  it("the prompt lists the five Cognito-only routes", () => {
+    const prompt = buildAgentPrompt("https://api.example");
+    for (const route of [
+      "  - GET /admin/api-keys\n",
+      "  - POST /admin/api-keys\n",
+      "  - POST /admin/api-keys/{id}/revoke\n",
+      "  - GET /admin/api-keys/{id}/impact\n",
+      "  - GET /admin/email/quota\n",
+    ]) {
+      expect(prompt).toContain(route);
+    }
+  });
+
+  it("the prompt names the POSTs that answer 200", () => {
+    const prompt = buildAgentPrompt("https://api.example");
+    const line = prompt.split("\n").find((l) => l.includes("These POSTs answer 200, not 201"));
+    expect(line).toBeDefined();
+    for (const route of [
+      "POST /admin/events/{id}/status",
+      "POST /admin/events/{id}/current",
+      "POST /admin/events/{id}/notify",
+      "POST /admin/qr-codes/{id}/attach",
+      "POST /admin/qr-codes/{id}/detach",
+      "POST /admin/beacons/{id}/activate",
+      "POST /admin/beacons/{id}/deactivate",
+      "POST /admin/beacons/{id}/rotate",
+      "POST /admin/beacons/{id}/revoke",
+      "POST /admin/content/versions/{id}/restore",
+      "PUT /admin/sponsors/{id}/years/{eventYear}",
+      "POST /admin/routes answers 200 with the existing row when an identical recording exists",
+    ]) {
+      expect(line).toContain(route);
+    }
+  });
+
+  it("the prompt carries none of the stale statements and no dashes", () => {
+    const prompt = buildAgentPrompt("https://api.example");
+    for (const stale of ["SVG only", "1 to 100", "16 capabilities", "tight|normal|loose|none"]) {
+      expect(prompt).not.toContain(stale);
+    }
     expect(prompt).not.toMatch(/[\u2013\u2014]/);
   });
 });
