@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -31,6 +31,7 @@ import { STATUS_IDS, statusName } from "../../lib/statusNames";
 import { useNotify } from "../../hooks/useNotify";
 import { useNow } from "../../hooks/useNow";
 import { useCompact } from "../../hooks/useCompact";
+import { useElementHeight } from "../../hooks/useElementHeight";
 import {
   ageS,
   browserTimeZone,
@@ -58,6 +59,9 @@ export default function EventDetail() {
   const navigate = useNavigate();
   const now = useNow();
   const compact = useCompact();
+  // The Status card's measured height caps the Messages card on desktop.
+  const statusCardRef = useRef<HTMLDivElement>(null);
+  const statusHeight = useElementHeight(statusCardRef);
 
   const eventQ = useQuery({
     queryKey: keys.event(id),
@@ -474,6 +478,7 @@ export default function EventDetail() {
           sx={compact ? undefined : { position: "relative" }}
         >
           <Card
+            ref={statusCardRef}
             data-testid="status-card"
             sx={
               compact
@@ -584,7 +589,10 @@ export default function EventDetail() {
         </Grid>
 
         <Grid size={12}>
-          <MessagesSection eventId={id} />
+          <MessagesSection
+            eventId={id}
+            maxHeight={compact ? null : statusHeight}
+          />
         </Grid>
         {Number(event.statusId) === 3 ? (
           <Grid size={12}>
