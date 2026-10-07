@@ -70,9 +70,9 @@ describe("RouteMapDisplayControls", () => {
     render(<Controlled />);
     pick(/time labels/i, "Off");
     expect(written()).toEqual({ timeLabelIntervalMinutes: 0 });
-    fireEvent.click(screen.getByRole("switch", { name: "Arrows" }));
-    expect(written()).toEqual({ timeLabelIntervalMinutes: 0, arrows: false });
     pick(/arrow size/i, "Extra large");
+    expect(written()).toEqual({ timeLabelIntervalMinutes: 0, arrowSize: "xlarge" });
+    fireEvent.click(screen.getByRole("switch", { name: "Arrows" }));
     pick(/route line/i, "Extra thick");
     expect(written()).toEqual({
       timeLabelIntervalMinutes: 0,
@@ -103,6 +103,49 @@ describe("RouteMapDisplayControls", () => {
     fireEvent.click(screen.getByRole("button", { name: "Default Arrows" }));
     expect(written()).toBeNull();
     expect(screen.getByRole("switch", { name: "Arrows" })).toBeChecked();
+  });
+
+  it("enables Arrow size while the arrows are unset, so on by default", () => {
+    render(<Controlled />);
+    const select = screen.getByRole("combobox", { name: /arrow size/i });
+    expect(select).not.toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText("How big the arrowheads are while arrows are on.")).toBeInTheDocument();
+    expect(screen.queryByText("Turn the arrows on to size them.")).toBeNull();
+  });
+
+  it("disables Arrow size and its Default button while the arrows are off", () => {
+    render(<Controlled initial={{ arrows: false, arrowSize: "large" }} resettable />);
+    const select = screen.getByRole("combobox", { name: /arrow size/i });
+    expect(select).toHaveAttribute("aria-disabled", "true");
+    expect(select).toHaveTextContent("Large");
+    expect(screen.getByText("Turn the arrows on to size them.")).toBeInTheDocument();
+    expect(screen.queryByText("How big the arrowheads are while arrows are on.")).toBeNull();
+    expect(screen.getByRole("button", { name: "Default Arrow size" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Default Arrows" })).toBeEnabled();
+  });
+
+  it("keeps the stored arrow size across an arrows toggle", () => {
+    render(<Controlled initial={{ arrows: false, arrowSize: "large" }} resettable />);
+    fireEvent.click(screen.getByRole("switch", { name: "Arrows" }));
+    expect(written()).toEqual({ arrows: true, arrowSize: "large" });
+    const select = screen.getByRole("combobox", { name: /arrow size/i });
+    expect(select).not.toHaveAttribute("aria-disabled", "true");
+    expect(select).toHaveTextContent("Large");
+    expect(screen.getByText("How big the arrowheads are while arrows are on.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Default Arrow size" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("switch", { name: "Arrows" }));
+    expect(written()).toEqual({ arrows: false, arrowSize: "large" });
+    expect(screen.getByRole("combobox", { name: /arrow size/i })).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
+  });
+
+  it("writes only arrows: false when the arrows are switched off", () => {
+    render(<Controlled initial={{ arrowSize: "small" }} />);
+    fireEvent.click(screen.getByRole("switch", { name: "Arrows" }));
+    expect(written()).toEqual({ arrows: false, arrowSize: "small" });
+    expect(screen.getByRole("combobox", { name: /arrow size/i })).toHaveTextContent("Small");
   });
 
   it("shows Label size as Medium until picked, then writes only the pick", () => {
