@@ -97,6 +97,11 @@ export default function PagesList() {
       (a, b) => Number(a.navPosition ?? 0) - Number(b.navPosition ?? 0)
     );
 
+  // Every page or section write changes the draft, so the content status
+  // (and the Publish button in the bar) refreshes with it.
+  const invalidateStatus = () =>
+    void qc.invalidateQueries({ queryKey: keys.contentStatus });
+
   const createMut = useMutation({
     mutationFn: (body: PageCreateSubmit) =>
       pagesApi.create({
@@ -106,6 +111,7 @@ export default function PagesList() {
         icon: body.icon,
       } satisfies PageBody),
     onSuccess: (created) => {
+      invalidateStatus();
       notify("Page created");
       void qc.invalidateQueries({ queryKey: keys.pages });
       setCreateOpen(false);
@@ -123,6 +129,7 @@ export default function PagesList() {
       body: Partial<PageBody>;
     }) => pagesApi.patch(id, body),
     onSuccess: () => {
+      invalidateStatus();
       void qc.invalidateQueries({ queryKey: keys.pages });
     },
   });
@@ -143,6 +150,7 @@ export default function PagesList() {
         isHidden: body.isHidden,
       }),
     onSuccess: () => {
+      invalidateStatus();
       notify("Page updated");
       setSettingsFor(null);
       void qc.invalidateQueries({ queryKey: keys.pages });
@@ -153,6 +161,7 @@ export default function PagesList() {
     mutationFn: ({ id, roleTo }: { id: number; roleTo: number | null }) =>
       pagesApi.remove(id, roleTo),
     onSuccess: () => {
+      invalidateStatus();
       notify("Page deleted");
       setDeleteFor(null);
       void qc.invalidateQueries({ queryKey: keys.pages });
@@ -164,6 +173,7 @@ export default function PagesList() {
   const orderMut = useMutation({
     mutationFn: (ids: number[]) => pagesApi.order(ids),
     onSuccess: () => {
+      invalidateStatus();
       void qc.invalidateQueries({ queryKey: keys.pages });
     },
   });

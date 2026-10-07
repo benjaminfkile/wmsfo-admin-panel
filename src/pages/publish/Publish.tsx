@@ -10,21 +10,20 @@ import {
   ListItemText,
   Paper,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { content as contentApi } from "../../api/resources/content";
 import { keys } from "../../queries/keys";
-import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import PageHeader from "../../components/layout/PageHeader";
-import { useNotify } from "../../hooks/useNotify";
 import { ApiError } from "../../api/errors";
 import { formatStamp, formatAgeS, ageS } from "../../lib/time";
 import { useNow } from "../../hooks/useNow";
 import VersionsList from "./VersionsList";
+import PublishLabelDialog from "./PublishLabelDialog";
+import { usePublishMutation } from "./usePublish";
 import type { ProblemRef } from "../../api/types";
 
 function problemLink(p: ProblemRef): string {
@@ -53,37 +52,15 @@ function problemLinkLabel(p: ProblemRef): string {
 // Publish page (admin.md 6.18). Status card, problem list with links,
 // a Publish button that opens the label dialog, and the versions list.
 export default function Publish() {
-  const qc = useQueryClient();
-  const notify = useNotify();
   const nowMs = useNow(1000);
   const [publishOpen, setPublishOpen] = useState(false);
-  const [publishLabel, setPublishLabel] = useState("");
 
   const statusQ = useQuery({
     queryKey: keys.contentStatus,
     queryFn: () => contentApi.status(),
   });
 
-  const publishMut = useMutation({
-    mutationFn: (label: string | null) => contentApi.publish(label),
-    onSuccess: (v) => {
-      notify(`Published version ${String(v.id ?? "")}`);
-      setPublishOpen(false);
-      setPublishLabel("");
-      void qc.invalidateQueries({ queryKey: keys.contentStatus });
-      void qc.invalidateQueries({ queryKey: keys.versions });
-    },
-    onError: (err) => {
-      if (err instanceof ApiError && err.code === "content_invalid") {
-        void qc.invalidateQueries({ queryKey: keys.contentStatus });
-      }
-    },
-  });
-
-  const submitPublish = () => {
-    const label = publishLabel.trim() === "" ? null : publishLabel.trim();
-    publishMut.mutate(label);
-  };
+  const publishMut = usePublishMutation();
 
   const status = statusQ.data;
   const published = status?.published ?? null;
@@ -227,32 +204,12 @@ export default function Publish() {
         }
       />
 
-      <ConfirmDialog
+      <PublishLabelDialog
         open={publishOpen}
-        title="Publish draft"
-        body={
-          <Stack spacing={2}>
-            <Typography variant="body2">
-              The public site updates within its next poll.
-            </Typography>
-            <TextField
-              size="small"
-              label="Label (optional)"
-              value={publishLabel}
-              onChange={(e) => setPublishLabel(e.target.value)}
-              inputProps={{ maxLength: 100 }}
-              helperText="Up to 100 characters"
-              autoFocus
-              data-testid="publish-label"
-            />
-          </Stack>
+        onCancel={() => setPublishOpen(false)}
+        onConfirm={(label) =>
+          publishMut.mutate(label, { onSuccess: () => setPublishOpen(false) })
         }
-        confirmLabel="Publish"
-        onCancel={() => {
-          setPublishOpen(false);
-          setPublishLabel("");
-        }}
-        onConfirm={submitPublish}
         disabled={publishMut.isPending}
       />
     </Stack>

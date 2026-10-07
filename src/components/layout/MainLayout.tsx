@@ -20,6 +20,7 @@ import LightModeIcon from "@mui/icons-material/LightMode";
 import LogoutIcon from "@mui/icons-material/Logout";
 import EnvBadge from "../EnvBadge";
 import NetworkBanner from "../NetworkBanner";
+import PublishBarButton from "./PublishBarButton";
 import { useAuth } from "../../auth/AuthProvider";
 import { signOut } from "../../auth/signOut";
 import { useConfig } from "../../ConfigContext";
@@ -78,6 +79,9 @@ export default function MainLayout({
   const location = useLocation();
 
   const entries = useMemo(() => navFor(role).map((k) => ALL_ENTRIES[k]), [role]);
+  // Only roles that can reach the Publish page get the bar's Publish
+  // button, so no other role ever queries the content status.
+  const canPublish = navFor(role).includes("publish");
 
   const handleSignOut = () => {
     void signOut(userManager, config);
@@ -165,6 +169,7 @@ export default function MainLayout({
           <Box sx={{ mr: 2 }}>
             <EnvBadge />
           </Box>
+          {canPublish && <PublishBarButton />}
           <Typography
             variant="body2"
             data-testid="app-bar-email"
