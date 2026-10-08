@@ -199,6 +199,7 @@ export default function PlacesList() {
     <>
       <PageHeader
         title="Places"
+        help="places"
         actions={
           <>
             <Button

@@ -5,7 +5,6 @@ import {
   Button,
   DialogActions,
   DialogContent,
-  DialogTitle,
   FormControlLabel,
   Radio,
   RadioGroup,
@@ -16,6 +15,7 @@ import {
 import AppDialog from "../../components/AppDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import type { PageAdmin, Place } from "../../api/types";
+import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 
 // admin.md 6.24 New place dialog: parent picker, name, description,
 // opens (same as the place / a site page / a forward URL).
@@ -133,7 +133,7 @@ export default function PlaceDialog({
 
   return (
     <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>{title}</DialogTitle>
+      <DialogTitleWithHelp help="places.dialog">{title}</DialogTitleWithHelp>
       <DialogContent dividers>
         {error ? <ErrorAlert error={error} /> : null}
         <Stack spacing={2} sx={{ mt: 1 }}>

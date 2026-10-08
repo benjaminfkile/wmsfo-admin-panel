@@ -23,6 +23,7 @@ import MessageHelper from "./MessageHelper";
 import DefaultMessageNotice from "./DefaultMessageNotice";
 import { ageS, formatAgeS, formatStamp } from "../../lib/time";
 import { useCompact } from "../../hooks/useCompact";
+import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 
 interface Props {
   open: boolean;
@@ -144,9 +145,9 @@ export default function StatusDialog({
   return (
     <>
       <AppDialog open={open && !askSilent} onClose={onCancel} maxWidth="sm" fullWidth>
-        <DialogTitle>
+        <DialogTitleWithHelp help="events.detail.status-dialog">
           Change status of {event.name}: {fromName} to {toName}
-        </DialogTitle>
+        </DialogTitleWithHelp>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField

@@ -4,12 +4,12 @@ import {
   Button,
   DialogActions,
   DialogContent,
-  DialogTitle,
   TextField,
 } from "@mui/material";
 import AppDialog from "../../components/AppDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import type { Place } from "../../api/types";
+import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 
 interface Props {
   open: boolean;
@@ -46,7 +46,7 @@ export default function AttachDialog({
 
   return (
     <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>{title}</DialogTitle>
+      <DialogTitleWithHelp help="qr-codes.attach">{title}</DialogTitleWithHelp>
       <DialogContent dividers>
         {error ? <ErrorAlert error={error} /> : null}
         <Autocomplete

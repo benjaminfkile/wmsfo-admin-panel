@@ -354,3 +354,19 @@ function stubMatchMedia(matches: boolean): () => void {
     }
   };
 }
+
+describe("BeaconDetail help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    renderDetail();
+    for (const key of [
+      "beacons.detail",
+      "beacons.detail.actions",
+      "beacons.detail.ages",
+      "beacons.detail.fixes",
+      "beacons.detail.telemetry",
+      "beacons.detail.logs",
+    ]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
+  });
+});

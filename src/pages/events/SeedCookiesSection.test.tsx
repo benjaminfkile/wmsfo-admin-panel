@@ -102,6 +102,7 @@ describe("SeedCookiesSection: shown only on a live event", () => {
       )
     );
     const card = await renderLive();
+    expect(within(card).getByTestId("help-events.detail.seed-cookies")).toBeInTheDocument();
     expect(within(card).getByText("Seed cookies")).toBeInTheDocument();
     expect(
       within(card).getByText(

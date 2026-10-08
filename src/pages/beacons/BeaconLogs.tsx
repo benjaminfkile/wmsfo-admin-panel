@@ -17,6 +17,7 @@ import ResponsiveTable, {
   type Column,
 } from "../../components/list/ResponsiveTable";
 import type { BeaconLog } from "../../api/types";
+import CardTitle from "../../help/CardTitle";
 
 interface Props {
   beaconId: number;
@@ -77,7 +78,7 @@ export default function BeaconLogs({ beaconId }: Props) {
 
   return (
     <Stack spacing={2}>
-      <Typography variant="h6">Logs</Typography>
+      <CardTitle help="beacons.detail.logs">Logs</CardTitle>
       {logsQ.error ? <ErrorAlert error={logsQ.error} /> : null}
       <ResponsiveTable<BeaconLog>
         rows={sorted}

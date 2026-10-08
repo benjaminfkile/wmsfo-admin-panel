@@ -6,7 +6,6 @@ import {
   CircularProgress,
   DialogActions,
   DialogContent,
-  DialogTitle,
   MenuItem,
   Stack,
   TextField,
@@ -17,6 +16,7 @@ import AppDialog from "../../components/AppDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import { events as eventsApi } from "../../api/resources/events";
 import type { Beacon } from "../../api/types";
+import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 
 interface Props {
   open: boolean;
@@ -85,7 +85,9 @@ export default function ClearRecordingDialog({
 
   return (
     <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>{`Clear recording for ${eventName}?`}</DialogTitle>
+      <DialogTitleWithHelp help="events.detail.clear-recording">
+        {`Clear recording for ${eventName}?`}
+      </DialogTitleWithHelp>
       <DialogContent>
         {impactQ.isLoading ? (
           <Stack alignItems="center" sx={{ py: 3 }}>

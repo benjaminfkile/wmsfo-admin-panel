@@ -31,6 +31,7 @@ import { beaconFlags } from "../../lib/beaconFlags";
 import type { Beacon } from "../../api/types";
 import TelemetryPanel from "./TelemetryPanel";
 import BeaconLogs from "./BeaconLogs";
+import CardTitle from "../../help/CardTitle";
 
 type Action = "activate" | "deactivate" | "rotate" | "revoke";
 
@@ -223,6 +224,7 @@ export default function BeaconDetail() {
     <>
       <PageHeader
         title={beacon.name ?? "Beacon"}
+        help="beacons.detail"
         chips={
           <>
             <Box component="code" sx={{ overflowWrap: "anywhere" }}>
@@ -367,9 +369,9 @@ export default function BeaconDetail() {
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
+              <CardTitle help="beacons.detail.actions" gutterBottom>
                 Actions
-              </Typography>
+              </CardTitle>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 {!revoked && !beacon.isActive ? (
                   <Button
@@ -440,9 +442,9 @@ export default function BeaconDetail() {
         <Grid size={12}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
+              <CardTitle help="beacons.detail.ages" gutterBottom>
                 Ages
-              </Typography>
+              </CardTitle>
               <Stack spacing={0.5}>
                 <AgeLine
                   label="lastSeenAt"
@@ -474,9 +476,9 @@ export default function BeaconDetail() {
         <Grid size={12}>
           <Card data-testid="beacon-fixes-card">
             <CardContent>
-              <Typography variant="h6" gutterBottom>
+              <CardTitle help="beacons.detail.fixes" gutterBottom>
                 Fixes
-              </Typography>
+              </CardTitle>
               <Stack spacing={0.5}>
                 <FixesLine
                   label="Fixes stored"
@@ -498,9 +500,9 @@ export default function BeaconDetail() {
         <Grid size={12}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
+              <CardTitle help="beacons.detail.telemetry" gutterBottom>
                 Telemetry
-              </Typography>
+              </CardTitle>
               <TelemetryPanel
                 beacon={beacon}
                 staleAfterS={staleAfterS}
@@ -544,6 +546,7 @@ export default function BeaconDetail() {
           title={keyMintTitle}
           beaconKey={keyMint.key}
           enrollment={keyMint.enrollment}
+          help="beacons.key-reveal"
           onClose={() => setKeyMint(null)}
         />
       ) : null}

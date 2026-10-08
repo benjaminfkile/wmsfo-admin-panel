@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 import type { Place } from "../../api/types";
 import { loadMaps, loadMarkers, loadPlaces } from "./googleMaps";
+import CardTitle from "../../help/CardTitle";
 
 // admin.md 6.24 place detail: the pin on a Google map (draggable when
 // set), "Use my location" (Geolocation API; accuracy shown; refused
@@ -183,9 +184,9 @@ export default function LocationCard({
   return (
     <Card>
       <CardContent>
-        <Typography variant="h6" sx={{ mb: 1 }}>
+        <CardTitle help="places.detail.location" sx={{ mb: 1 }}>
           Location
-        </Typography>
+        </CardTitle>
 
         <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
           {hasOwnPin ? (

@@ -7,6 +7,8 @@ import {
 } from "@mui/material";
 import type { ReactNode } from "react";
 import AppDialog from "./AppDialog";
+import DialogTitleWithHelp from "../help/DialogTitleWithHelp";
+import type { HelpKey } from "../help/helpKeys";
 
 interface Props {
   open: boolean;
@@ -17,6 +19,7 @@ interface Props {
   disabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  help?: HelpKey;
 }
 
 export default function ConfirmDialog({
@@ -28,10 +31,15 @@ export default function ConfirmDialog({
   disabled,
   onConfirm,
   onCancel,
+  help,
 }: Props) {
   return (
     <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>{title}</DialogTitle>
+      {help === undefined ? (
+        <DialogTitle>{title}</DialogTitle>
+      ) : (
+        <DialogTitleWithHelp help={help}>{title}</DialogTitleWithHelp>
+      )}
       <DialogContent>
         {typeof body === "string" ? (
           <DialogContentText>{body}</DialogContentText>

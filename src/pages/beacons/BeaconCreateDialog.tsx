@@ -3,13 +3,13 @@ import {
   Button,
   DialogActions,
   DialogContent,
-  DialogTitle,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
 import AppDialog from "../../components/AppDialog";
 import ErrorAlert from "../../components/ErrorAlert";
+import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 
 export type CreateBeaconBody = {
   name: string;
@@ -64,7 +64,7 @@ export default function BeaconCreateDialog({
 
   return (
     <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>New beacon</DialogTitle>
+      <DialogTitleWithHelp help="beacons.create">New beacon</DialogTitleWithHelp>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {error ? (

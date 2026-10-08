@@ -45,7 +45,7 @@ test.describe("beacons", () => {
     // there with the Revoked chip.
     const accordion = page.getByTestId("revoked-beacons-accordion");
     await expect(accordion).toBeVisible();
-    await accordion.getByRole("button", { name: /revoked/i }).click();
+    await accordion.getByRole("button", { name: /^revoked/i }).click();
     const revokedRow = accordion.getByRole("row", { name: new RegExp(name) });
     await expect(revokedRow).toBeVisible();
     await expect(revokedRow.getByText(/revoked/i)).toBeVisible();

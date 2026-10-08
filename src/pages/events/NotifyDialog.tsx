@@ -4,7 +4,6 @@ import {
   DialogActions,
   DialogContent,
   DialogContentText,
-  DialogTitle,
   Stack,
   TextField,
 } from "@mui/material";
@@ -20,6 +19,7 @@ import MessageHelper from "./MessageHelper";
 import DefaultMessageNotice from "./DefaultMessageNotice";
 import { statusName } from "../../lib/statusNames";
 import { verifiedLine } from "./verifiedLine";
+import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 
 interface Props {
   open: boolean;
@@ -62,7 +62,9 @@ export default function NotifyDialog({
 
   return (
     <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>Notify subscribers of {statusName(statusId)}</DialogTitle>
+      <DialogTitleWithHelp help="events.detail.notify">
+        Notify subscribers of {statusName(statusId)}
+      </DialogTitleWithHelp>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {error ? <ErrorAlert error={error} /> : null}

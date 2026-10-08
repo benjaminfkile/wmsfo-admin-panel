@@ -300,6 +300,7 @@ export default function Scan({ readerFactory }: Props = {}) {
     <Box sx={{ maxWidth: 480, mx: "auto", pb: 12 }}>
       <PageHeader
         title="Scan"
+        help="scan"
         subtitle={
           <Typography variant="body2" color="text.secondary">
             Point the camera at a printed code, or type the tag below.

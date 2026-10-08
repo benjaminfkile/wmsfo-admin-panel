@@ -16,6 +16,7 @@ import ErrorAlert from "../../components/ErrorAlert";
 import type { Place } from "../../api/types";
 import { loadPlaces } from "../places/googleMaps";
 import { GEO_MAX_ACCURACY_M } from "../places/LocationCard";
+import CardTitle from "../../help/CardTitle";
 
 // admin.md 6.25 AttachSheet (phone-width, at the bottom):
 // - Step 1 place picker: type to filter over the flattened paths, plus
@@ -216,7 +217,7 @@ export default function AttachSheet({
         justifyContent="space-between"
         sx={{ mb: 1 }}
       >
-        <Typography variant="h6">
+        <CardTitle help="scan.attach">
           {step === "attach"
             ? currentPlaceId != null
               ? `Move ${tag}`
@@ -224,7 +225,7 @@ export default function AttachSheet({
             : step === "pin"
               ? `Pin ${pinPlaceName ?? "place"}`
               : `Attached ${tag}`}
-        </Typography>
+        </CardTitle>
         <IconButton onClick={onCancel} aria-label="Close">
           <CloseIcon />
         </IconButton>

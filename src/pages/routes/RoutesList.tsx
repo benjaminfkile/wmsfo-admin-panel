@@ -7,7 +7,6 @@ import {
   CardContent,
   DialogActions,
   DialogContent,
-  DialogTitle,
   IconButton,
   Link,
   Menu,
@@ -35,6 +34,7 @@ import { formatStamp } from "../../lib/time";
 import { useNotify } from "../../hooks/useNotify";
 import RouteUploadDialog from "../events/RouteUploadDialog";
 import type { Event, Route } from "../../api/types";
+import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 
 export default function RoutesList() {
   const qc = useQueryClient();
@@ -160,6 +160,7 @@ export default function RoutesList() {
     <>
       <PageHeader
         title="Flight recordings"
+        help="routes"
         actions={
           <>
             <Button variant="outlined" onClick={() => setFromEventOpen(true)}>
@@ -288,7 +289,9 @@ function BuildFromEventDialog({
       maxWidth="sm"
       fullWidth
     >
-      <DialogTitle>Build route from event</DialogTitle>
+      <DialogTitleWithHelp help="routes.build-from-event">
+        Build route from event
+      </DialogTitleWithHelp>
       <DialogContent>
         <Card variant="outlined" sx={{ mt: 1, mb: 2 }}>
           <CardContent>

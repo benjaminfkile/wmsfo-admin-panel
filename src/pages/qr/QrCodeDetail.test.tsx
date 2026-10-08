@@ -135,3 +135,17 @@ describe("QrCodeDetail (admin.md 6.23)", () => {
     }
   });
 });
+
+describe("QrCodeDetail help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(<Harness />);
+    for (const key of [
+      "qr-codes.detail",
+      "qr-codes.detail.settings",
+      "qr-codes.detail.where",
+      "qr-codes.detail.daily",
+    ]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
+  });
+});

@@ -168,6 +168,7 @@ export default function EventsList() {
     <>
       <PageHeader
         title="Events"
+        help="events"
         actions={
           <Button variant="contained" onClick={() => setCreateOpen(true)}>
             New event
@@ -310,6 +311,7 @@ export default function EventsList() {
           disabled={deleteMut.isPending}
           onCancel={() => setConfirmDelete(null)}
           onConfirm={() => deleteMut.mutate(Number(confirmDelete.id))}
+          help="events.delete"
         />
       ) : null}
 
@@ -322,6 +324,7 @@ export default function EventsList() {
             : ""
         }
         confirmLabel="Set current"
+        help="events.set-current"
         disabled={setCurrentMut.isPending}
         onCancel={() => setConfirmCurrent(null)}
         onConfirm={() =>

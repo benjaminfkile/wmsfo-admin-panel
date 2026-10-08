@@ -350,3 +350,16 @@ describe("PlaceDetail (admin.md 6.24)", () => {
     await waitFor(() => expect(deleted).toBe(1));
   });
 });
+
+describe("PlaceDetail help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(<Harness />);
+    for (const key of [
+      "places.detail",
+      "places.detail.location",
+      "places.detail.codes",
+    ]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
+  });
+});

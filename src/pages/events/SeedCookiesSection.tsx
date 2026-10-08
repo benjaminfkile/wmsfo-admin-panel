@@ -23,6 +23,7 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import IconPreview from "../../components/content/IconPreview";
 import { SEED_COOKIES_LABELS } from "../../components/content/labels";
 import type { CookiePick, Event, Icon } from "../../api/types";
+import CardTitle from "../../help/CardTitle";
 
 const SEED_MAX = 100;
 
@@ -95,9 +96,9 @@ export default function SeedCookiesSection({ event }: Props) {
   return (
     <Card data-testid="seed-cookies">
       <CardContent>
-        <Typography variant="h6" gutterBottom>
+        <CardTitle help="events.detail.seed-cookies" gutterBottom>
           {SEED_COOKIES_LABELS.items?.label}
-        </Typography>
+        </CardTitle>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           {SEED_COOKIES_LABELS.items?.help}
         </Typography>

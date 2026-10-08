@@ -6,6 +6,7 @@ import {
   toRouteMapConfig,
 } from "../../routeMap/eventRouteMap";
 import RouteMapConfigDialog from "./RouteMapConfigDialog";
+import CardTitle from "../../help/CardTitle";
 
 interface Props {
   event: Event;
@@ -30,7 +31,7 @@ export default function RouteMapSection({ event }: Props) {
           alignItems={{ xs: "flex-start", sm: "center" }}
           sx={{ mb: 1 }}
         >
-          <Typography variant="h6">Route map</Typography>
+          <CardTitle help="events.detail.route-map">Route map</CardTitle>
           <Button variant="outlined" onClick={() => setOpen(true)}>
             Configure route map
           </Button>

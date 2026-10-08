@@ -5,7 +5,6 @@ import {
   Button,
   DialogActions,
   DialogContent,
-  DialogTitle,
   Divider,
   FormControlLabel,
   FormHelperText,
@@ -45,6 +44,7 @@ import {
 import { probeTerrain, toRouteMapData } from "../../routeMap/poster";
 import EventRouteMapPreview from "./EventRouteMapPreview";
 import RouteMapCopyFrom from "./RouteMapCopyFrom";
+import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 
 interface Props {
   event: Event;
@@ -196,7 +196,9 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
         }}
         data-testid="route-map-config-dialog"
       >
-        <DialogTitle id="route-map-config-title">Route map</DialogTitle>
+        <DialogTitleWithHelp id="route-map-config-title" help="events.detail.route-map-dialog">
+          Route map
+        </DialogTitleWithHelp>
         <DialogContent
           dividers
           sx={{

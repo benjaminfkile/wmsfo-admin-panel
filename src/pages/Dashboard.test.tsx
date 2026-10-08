@@ -324,3 +324,21 @@ describe("Dashboard", () => {
     expect(await screen.findByRole("dialog")).toHaveTextContent(/postponed/i);
   });
 });
+
+describe("Dashboard help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(<Harness />);
+    for (const key of [
+      "dashboard",
+      "dashboard.current-event",
+      "dashboard.active-beacon",
+      "dashboard.published-state",
+      "dashboard.snapshot",
+      "dashboard.live-object",
+      "dashboard.live-object-cdn",
+      "dashboard.email-quota",
+    ]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
+  });
+});

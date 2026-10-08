@@ -159,10 +159,12 @@ describe("BeaconsList", () => {
     const newBtn = await screen.findByRole("button", { name: /new beacon/i });
     await user.click(newBtn);
     await user.type(await screen.findByLabelText(/^name$/i), "Backup phone");
+    expect(screen.getByTestId("help-beacons.create")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /^create$/i }));
 
     // The reveal dialog appears.
     const key = await screen.findByLabelText(/^key$/i);
+    expect(screen.getByTestId("help-beacons.key-reveal")).toBeInTheDocument();
     expect(key).toHaveValue(`wbk_${"a".repeat(43)}`);
     const img = await screen.findByAltText(/enrolment qr code/i);
     expect(img).toHaveAttribute("src", "data:image/png;base64,AAAA");
@@ -306,6 +308,7 @@ describe("BeaconsList", () => {
       await screen.findByTestId(`beacon-row-${f.beacons[0]!.id}`);
       const header = await screen.findByText(/^revoked \(4\)$/i);
       expect(header).toBeInTheDocument();
+      expect(screen.getByTestId("help-beacons.revoked")).toBeInTheDocument();
     });
 
     it("lists every revoked beacon inside the accordion, greyed, pencil-only", async () => {
@@ -314,7 +317,7 @@ describe("BeaconsList", () => {
       render(<Harness />);
       const accordion = await screen.findByTestId("revoked-beacons-accordion");
       // Expand.
-      await user.click(within(accordion).getByRole("button", { name: /revoked/i }));
+      await user.click(within(accordion).getByRole("button", { name: /^revoked/i }));
       for (const b of revoked) {
         const row = await within(accordion).findByTestId(`beacon-row-${b.id}`);
         expect(within(row).getByText(b.name!)).toBeInTheDocument();
@@ -401,7 +404,7 @@ describe("BeaconsList", () => {
           "revoked-beacons-accordion"
         );
         await user.click(
-          within(accordion).getByRole("button", { name: /revoked/i })
+          within(accordion).getByRole("button", { name: /^revoked/i })
         );
         for (const b of revoked) {
           const card = await within(accordion).findByTestId(
@@ -423,5 +426,16 @@ describe("BeaconsList", () => {
         restore();
       }
     });
+  });
+});
+
+describe("BeaconsList help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(<Harness />);
+    for (const key of [
+      "beacons",
+    ]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
   });
 });

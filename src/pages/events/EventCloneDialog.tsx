@@ -4,7 +4,6 @@ import {
   Checkbox,
   DialogActions,
   DialogContent,
-  DialogTitle,
   FormControlLabel,
   FormGroup,
   Stack,
@@ -17,6 +16,7 @@ import type { CloneEventBody } from "../../api/resources/events";
 import ErrorAlert from "../../components/ErrorAlert";
 import { ApiError } from "../../api/errors";
 import { fieldErrorFor } from "../../lib/fieldErrors";
+import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 
 interface Props {
   open: boolean;
@@ -97,7 +97,7 @@ export default function EventCloneDialog({
 
   return (
     <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>Clone event</DialogTitle>
+      <DialogTitleWithHelp help="events.clone">Clone event</DialogTitleWithHelp>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {source ? (

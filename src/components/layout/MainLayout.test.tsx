@@ -236,6 +236,7 @@ describe("MainLayout: the bar's Publish button", () => {
     expect(button).toHaveTextContent("Publish");
     await user.click(button);
     const label = await screen.findByTestId("publish-label");
+    expect(screen.getByTestId("help-bar.publish")).toBeInTheDocument();
     await user.type(within(label).getByRole("textbox"), "From the bar");
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: /^publish$/i }));

@@ -28,6 +28,7 @@ import { downloadBlob } from "../../lib/download";
 import { useNotify } from "../../hooks/useNotify";
 import type { Event } from "../../api/types";
 import ClearRecordingDialog from "./ClearRecordingDialog";
+import CardTitle from "../../help/CardTitle";
 
 interface Props {
   event: Event;
@@ -100,7 +101,7 @@ export default function LocationsSection({ event }: Props) {
           alignItems={{ xs: "flex-start", md: "center" }}
           spacing={1}
         >
-          <Typography variant="h6">Locations</Typography>
+          <CardTitle help="events.detail.locations">Locations</CardTitle>
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
             <Button
               variant="outlined"
