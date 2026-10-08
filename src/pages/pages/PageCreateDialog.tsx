@@ -4,7 +4,6 @@ import {
   Checkbox,
   DialogActions,
   DialogContent,
-  DialogTitle,
   FormControlLabel,
   Stack,
   TextField,
@@ -15,6 +14,7 @@ import ErrorAlert from "../../components/ErrorAlert";
 import { PAGE_SETTINGS_LABELS as L } from "../../components/content/labels";
 import PageIconField from "./PageIconField";
 import { slugify, validatePage, type PageErrors } from "../../validation/page";
+import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 
 export interface PageCreateSubmit {
   slug: string;
@@ -91,7 +91,7 @@ export default function PageCreateDialog({
       maxWidth="sm"
       fullWidth
     >
-      <DialogTitle>New page</DialogTitle>
+      <DialogTitleWithHelp help="pages.create">New page</DialogTitleWithHelp>
       <DialogContent>
         {error ? <ErrorAlert error={error} /> : null}
         <Stack spacing={2} sx={{ mt: 1 }}>

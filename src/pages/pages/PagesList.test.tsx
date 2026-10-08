@@ -345,6 +345,7 @@ describe("PagesList", () => {
     render(<Harness />);
     await user.click(await screen.findByRole("button", { name: "New page" }));
     const dialog = await screen.findByRole("dialog", { name: "New page" });
+    expect(within(dialog).getByTestId("help-pages.create")).toBeInTheDocument();
     await user.type(within(dialog).getByLabelText(/^Title/), "Donate");
     await user.click(
       within(within(dialog).getByTestId("page-icon-field")).getByRole("button", {
@@ -387,6 +388,7 @@ describe("PagesList", () => {
     const row = await screen.findByTestId(`page-row-${3}`);
     await user.click(within(row).getByRole("button", { name: /settings for about/i }));
     const dialog = await screen.findByRole("dialog", { name: "Page settings" });
+    expect(within(dialog).getByTestId("help-pages.settings")).toBeInTheDocument();
     const field = within(dialog).getByTestId("page-icon-field");
     await user.click(within(field).getByRole("button", { name: "Clear" }));
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
@@ -408,5 +410,14 @@ describe("PagesList", () => {
     expect(
       noEvent.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
+  });
+});
+
+describe("PagesList help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(<Harness />);
+    for (const key of ["pages", "pages.status-pages"]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
   });
 });

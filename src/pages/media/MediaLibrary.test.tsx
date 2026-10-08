@@ -273,6 +273,7 @@ describe("MediaLibrary", () => {
       `media-card-${f.mediaAssets[0]!.id}`
     );
     await user.click(within(card).getAllByRole("button")[0]!);
+    expect(await screen.findByTestId("help-media.detail")).toBeInTheDocument();
     const deleteButton = await screen.findByRole("button", { name: /delete/i });
     await user.click(deleteButton);
     const confirmButtons = await screen.findAllByRole("button", {
@@ -308,5 +309,14 @@ describe("MediaLibrary", () => {
     // The card with dziUrl shows the chip; the other does not.
     expect(screen.getByTestId("media-dzi-with-dzi")).toBeInTheDocument();
     expect(screen.queryByTestId("media-dzi-no-dzi")).toBeNull();
+  });
+});
+
+describe("MediaLibrary help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(<Harness />);
+    for (const key of ["media", "media.uploader"]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
   });
 });

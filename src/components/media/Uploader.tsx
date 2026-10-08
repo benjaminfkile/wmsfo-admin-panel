@@ -15,15 +15,19 @@ import ReplayIcon from "@mui/icons-material/Replay";
 import type { MediaAsset } from "../../api/types";
 import { RASTER_MAX_BYTES, SVG_MAX_BYTES } from "../../validation/image";
 import { useMediaUpload, type UploadItem } from "./useMediaUpload";
+import HelpButton from "../../help/HelpButton";
+import type { HelpKey } from "../../help/helpKeys";
 
 interface Props {
   onReady?: (asset: MediaAsset) => void;
   compact?: boolean;
+  help?: HelpKey;
 }
 
 // The drop zone at the top of the media library (admin.md 6.15) and the
-// inline uploader inside the MediaPicker's Upload tab.
-export default function Uploader({ onReady, compact = false }: Props) {
+// inline uploader inside the MediaPicker's Upload tab. `help` puts a help
+// button after the drop zone's text.
+export default function Uploader({ onReady, compact = false, help }: Props) {
   const upload = useMediaUpload(onReady);
   const [alt, setAlt] = useState("");
   const [title, setTitle] = useState("");
@@ -85,9 +89,26 @@ export default function Uploader({ onReady, compact = false }: Props) {
         data-testid="media-drop-zone"
       >
         <CloudUploadIcon fontSize="large" color="action" />
-        <Typography variant="body1" sx={{ mt: 1 }}>
-          Drop files here or click to browse
-        </Typography>
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="center"
+          spacing={0.5}
+          sx={{ mt: 1 }}
+        >
+          <Typography variant="body1">
+            Drop files here or click to browse
+          </Typography>
+          {help !== undefined && (
+            <Box
+              component="span"
+              sx={{ display: "inline-flex" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <HelpButton topic={help} />
+            </Box>
+          )}
+        </Stack>
         <Typography variant="caption" color="text.secondary" display="block">
           PNG, JPEG, WebP, GIF up to {formatBytes(RASTER_MAX_BYTES)}; SVG up to {formatBytes(SVG_MAX_BYTES)}
         </Typography>

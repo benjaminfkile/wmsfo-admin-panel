@@ -168,3 +168,12 @@ describe("PostersList", () => {
     expect(await screen.findByText("Poster deleted")).toBeInTheDocument();
   });
 });
+
+describe("PostersList help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(<Harness />);
+    for (const key of ["posters"]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
+  });
+});

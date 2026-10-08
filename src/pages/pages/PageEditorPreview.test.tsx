@@ -132,6 +132,7 @@ describe("PageEditor preview", () => {
     render(<Harness />);
     fireEvent.click(await screen.findByTestId("page-preview-toggle"));
     const column = await screen.findByTestId("page-preview-column");
+    expect(within(column).getByTestId("help-pages.editor.preview")).toBeInTheDocument();
     const iframe = await within(column).findByTestId("preview-iframe");
     expect(iframe.getAttribute("src") ?? "").toMatch(
       new RegExp(`[?&]page=${slug}(?:$|&)`)
@@ -160,6 +161,7 @@ describe("PageEditor preview", () => {
     render(<Harness />);
     fireEvent.click(await screen.findByTestId("page-preview-toggle"));
     const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByTestId("help-pages.editor.preview")).toBeInTheDocument();
     const iframe = await within(dialog).findByTestId("preview-iframe");
     expect(iframe.getAttribute("src") ?? "").toMatch(
       new RegExp(`[?&]page=${slug}(?:$|&)`)

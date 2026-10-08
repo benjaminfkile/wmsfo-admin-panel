@@ -35,6 +35,7 @@ import PageSettingsDialog, {
   type PageSettingsSubmit,
 } from "./PageSettingsDialog";
 import type { Icon, PageAdmin } from "../../api/types";
+import CardTitle from "../../help/CardTitle";
 
 const STATUS_ORDER = ["no_event", "planned", "scheduled", "live", "ended", "cancelled", "postponed"];
 
@@ -294,6 +295,7 @@ export default function PagesList() {
     <>
       <PageHeader
         title="Pages"
+        help="pages"
         actions={
           <>
             <Button
@@ -319,9 +321,9 @@ export default function PagesList() {
       ) : (
         <Stack spacing={3}>
           <Box>
-            <Typography variant="h6" gutterBottom>
+            <CardTitle help="pages.status-pages" gutterBottom>
               Status pages
-            </Typography>
+            </CardTitle>
             <ResponsiveTable<PageAdmin>
               rows={statusPages}
               columns={statusColumns}

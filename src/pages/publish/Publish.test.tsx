@@ -179,6 +179,7 @@ describe("Publish: status card states", () => {
     render(<Harness />);
     expect(await screen.findByTestId("status-blocked")).toBeInTheDocument();
     const list = await screen.findByTestId("problem-ref-list");
+    expect(screen.getByTestId("help-publish.problems")).toBeInTheDocument();
     const rows = within(list).getAllByRole("link");
     // Two ListItemButton links + two Chip links = 4 anchor tags.
     expect(rows.length).toBeGreaterThanOrEqual(2);
@@ -335,6 +336,9 @@ describe("Publish: versions", () => {
     render(<Harness />);
     const row = await screen.findByTestId("version-row-5");
     await user.click(within(row).getByRole("button", { name: /^restore$/i }));
+    expect(
+      within(await screen.findByRole("dialog")).getByTestId("help-publish.restore")
+    ).toBeInTheDocument();
     const confirm = await screen.findAllByRole("button", { name: /^restore$/i });
     // The last one is inside the confirmation dialog.
     await user.click(confirm[confirm.length - 1]!);
@@ -410,5 +414,14 @@ describe("Publish: versions", () => {
     expect(await screen.findByTestId("version-published-4")).toBeInTheDocument();
     // The other row does not show the chip.
     expect(screen.queryByTestId("version-published-3")).toBeNull();
+  });
+});
+
+describe("Publish help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(<Harness />);
+    for (const key of ["publish", "publish.status", "publish.versions"]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
   });
 });

@@ -10,6 +10,9 @@ import type {
   RegistryWidgetsType,
 } from "@rjsf/utils";
 import { RJSF_REF_KEY } from "@rjsf/utils";
+import { Box } from "@mui/material";
+import HelpButton from "../../help/HelpButton";
+import type { HelpKey } from "../../help/helpKeys";
 import { deriveDraftSchema } from "../../schemas/draft";
 import { bundleSchema } from "../../schemas/bundle";
 import IconField from "./fields/IconField";
@@ -94,13 +97,22 @@ const DefaultSchemaField = defaultRegistry.fields.SchemaField as unknown as (
 
 // SchemaField dispatches to a custom field when the resolved schema
 // originated at one of the primitive `$ref` paths (admin.md 6.14 table).
+// A field whose uiSchema carries `ui:helpKey` gets that help button
+// beside it, at its top right.
 function RoutedSchemaField(props: FieldProps) {
   const routed = routedField(props.schema);
-  if (routed) {
-    const Comp = CUSTOM_FIELD[routed];
-    return <Comp {...props} />;
-  }
-  return <DefaultSchemaField {...props} />;
+  const Comp = routed ? CUSTOM_FIELD[routed] : DefaultSchemaField;
+  const field = <Comp {...props} />;
+  const helpKey = props.uiSchema?.["ui:helpKey"] as HelpKey | undefined;
+  if (helpKey === undefined) return field;
+  return (
+    <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.5 }}>
+      <Box sx={{ flex: 1, minWidth: 0 }}>{field}</Box>
+      <Box sx={{ pt: 1 }}>
+        <HelpButton topic={helpKey} />
+      </Box>
+    </Box>
+  );
 }
 
 // UiSchema-based custom fields (used by SiteSettings for the theme

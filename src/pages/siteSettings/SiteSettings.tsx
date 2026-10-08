@@ -27,14 +27,24 @@ const SCHEMA = siteSettingsSchema as Record<string, unknown>;
 // object off to the ThemeField, the viewpoints list (`landmarks`) to the
 // ViewpointsField, and the places both maps label (`places`) to the
 // PlacesField, gives the heavier text areas some room,
-// and names each entry of the link lists. SchemaForm merges it over the uiSchema it builds from the
+// and names each entry of the link lists. The first field of each group
+// carries the group's help key (`ui:helpKey`), shown as a help button
+// beside it. SchemaForm merges it over the uiSchema it builds from the
 // `SITE_SETTINGS` labels.
 const UI_SCHEMA: UiSchema = {
   "ui:order": SITE_SETTINGS_ORDER,
-  theme: { "ui:field": "ThemeField" },
-  landmarks: { "ui:field": "ViewpointsField" },
-  places: { "ui:field": "PlacesField" },
-  navExtraLinks: { items: { "ui:title": "Menu link" } },
+  siteName: { "ui:helpKey": "site-settings.identity" },
+  theme: { "ui:field": "ThemeField", "ui:helpKey": "site-settings.theme" },
+  landmarks: {
+    "ui:field": "ViewpointsField",
+    "ui:helpKey": "site-settings.viewpoints",
+  },
+  places: { "ui:field": "PlacesField", "ui:helpKey": "site-settings.places" },
+  contactEmail: { "ui:helpKey": "site-settings.contact" },
+  navExtraLinks: {
+    "ui:helpKey": "site-settings.links",
+    items: { "ui:title": "Menu link" },
+  },
   headerLinks: { items: { "ui:title": "Header link" } },
   footerLinks: { items: { "ui:title": "Footer link" } },
   footerText: { "ui:options": { rows: 3 } },
@@ -81,6 +91,7 @@ export default function SiteSettings() {
     <>
       <PageHeader
         title="Site settings"
+        help="site-settings"
         actions={
           <>
             <Button

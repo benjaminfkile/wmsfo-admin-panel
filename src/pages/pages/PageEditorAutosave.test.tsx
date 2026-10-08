@@ -100,5 +100,7 @@ describe("PageEditor autosave", () => {
 
     expect(patches).toBe(1);
     expect(gets).toBe(2);
+    // The Saved text carries the autosave help button.
+    expect(screen.getByTestId("help-pages.editor.autosave")).toBeInTheDocument();
   }, 20000);
 });

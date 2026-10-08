@@ -29,6 +29,8 @@ import SectionCard, {
 import SectionPalette from "../../components/content/SectionPalette";
 import MoveSectionDialog from "../../components/content/MoveSectionDialog";
 import PreviewPane from "../../components/content/PreviewPane";
+import HelpButton from "../../help/HelpButton";
+import CardTitle from "../../help/CardTitle";
 import PreviewFrame from "../../components/content/PreviewFrame";
 import PageSettingsDialog, {
   type PageSettingsSubmit,
@@ -357,6 +359,7 @@ export default function PageEditor() {
     <>
       <PageHeader
         title={page.title ?? "Page"}
+        help="pages.editor"
         subtitle={
           <Typography variant="body2" color="text.secondary">
             /{page.slug}
@@ -391,9 +394,11 @@ export default function PageEditor() {
         <Stack
           direction="row"
           spacing={1}
+          alignItems="center"
           sx={{ mb: 2 }}
           data-testid="section-stack-actions"
         >
+          <HelpButton topic="pages.editor.sections" />
           <Button size="small" onClick={expandAll}>
             Expand all
           </Button>
@@ -505,9 +510,13 @@ export default function PageEditor() {
             data-testid="page-preview-column"
           >
             <Stack direction="row" alignItems="center" sx={{ mb: 1 }}>
-              <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
+              <CardTitle
+                help="pages.editor.preview"
+                variant="subtitle1"
+                sx={{ flexGrow: 1 }}
+              >
                 Preview
-              </Typography>
+              </CardTitle>
               <Tooltip title="Close preview">
                 <IconButton
                   aria-label="Close preview"
@@ -539,6 +548,7 @@ export default function PageEditor() {
         showPageSelector={false}
         title={`Preview of ${page.title ?? "the page"}`}
         reloadSignal={saveCount}
+        help="pages.editor.preview"
       />
 
       <SectionPalette

@@ -45,9 +45,9 @@ export default function MediaLibrary() {
 
   return (
     <Stack spacing={3}>
-      <PageHeader title="Media" />
+      <PageHeader title="Media" help="media" />
       <Box>
-        <Uploader onReady={handleReady} />
+        <Uploader onReady={handleReady} help="media.uploader" />
       </Box>
       <Divider />
       <MediaGrid
