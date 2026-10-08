@@ -72,7 +72,7 @@ describe("AgentsPage", () => {
     expect(screen.getByTestId("copy-prompt-button")).toBeInTheDocument();
   });
 
-  it("the prompt names all 18 capabilities with the routes each reaches", () => {
+  it("the prompt names all 19 capabilities with the routes each reaches", () => {
     const prompt = buildAgentPrompt("https://api.example");
     const caps = [
       "events",
@@ -93,13 +93,14 @@ describe("AgentsPage", () => {
       "diagnostics",
       "audit",
       "qr",
+      "help",
     ];
-    expect(caps).toHaveLength(18);
+    expect(caps).toHaveLength(19);
     for (const cap of caps) {
       expect(prompt).toContain(`- \`${cap}\`: `);
       expect(prompt).toContain(`### ${cap}\n`);
     }
-    expect(prompt).toContain("There are 18.");
+    expect(prompt).toContain("There are 19.");
   });
 
   it("the prompt lists the five Cognito-only routes", () => {

@@ -11,6 +11,7 @@
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "gen:api-types": "openapi-typescript contracts/openapi.json -o src/api/schema.d.ts",
+    "gen:help-keys": "node scripts/gen-help-keys.mjs",
     "check:contracts": "node scripts/check-contracts.mjs",
     "contracts:check": "node scripts/check-contracts.mjs",
     "check:no-infra": "node scripts/check-no-infra.mjs",

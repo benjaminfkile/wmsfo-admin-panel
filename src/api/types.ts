@@ -35,7 +35,8 @@ export type ApiKeyCapability =
   | "people"
   | "diagnostics"
   | "audit"
-  | "qr";
+  | "qr"
+  | "help";
 export type CookieType = S["CookieTypeDto"];
 export type CookiePick = S["CookiePick"];
 export type SeedCookiesRequest = S["SeedCookiesRequest"];
@@ -69,6 +70,8 @@ export type Presentation = S["PresentationDto"];
 export type AuditStamp = S["AuditStampDto"];
 export type AuditEntry = S["AuditEntryDto"];
 export type EmailQuota = S["EmailQuota"];
+export type HelpTopic = S["HelpTopicDto"];
+export type HelpLink = S["HelpLinkDto"];
 
 export type Page<T> = { items: T[]; nextCursor: string | null };
 export type StatusId = 1 | 2 | 3 | 4 | 5 | 6;

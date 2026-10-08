@@ -28,6 +28,7 @@ import Publish from "./pages/publish/Publish";
 import ApiKeysList from "./pages/apiKeys/ApiKeysList";
 import AgentsPage from "./pages/agents/AgentsPage";
 import AuditPage from "./pages/audit/AuditPage";
+import HelpPage from "./pages/help/HelpPage";
 import QrCodesList from "./pages/qr/QrCodesList";
 import QrCodeDetail from "./pages/qr/QrCodeDetail";
 import Scan from "./pages/qr/Scan";
@@ -84,6 +85,7 @@ const CUSTOM_ELEMENTS: Partial<Record<NavKey, ReactElement>> = {
   "api-keys": <ApiKeysList />,
   agents: <AgentsPage />,
   audit: <AuditPage />,
+  help: <HelpPage />,
   "qr-codes": <QrCodesList />,
   scan: <Scan />,
   places: <PlacesList />,

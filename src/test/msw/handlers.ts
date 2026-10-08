@@ -1,5 +1,8 @@
 import { http, HttpResponse, type HttpHandler } from "msw";
 import * as f from "./fixtures";
+import type { HelpTopic } from "../../api/types";
+
+const NOT_FOUND = { code: "not_found", message: "Not found", details: null, requestId: "r1" };
 
 // Handlers cover every endpoint the admin panel calls (admin.md 4.4).
 // Bodies are shaped from the vendored fixtures; ids come back as
@@ -189,6 +192,20 @@ export const handlers: HttpHandler[] = [
   // Settings
   http.get("*/admin/settings", () => HttpResponse.json({ items: f.settings })),
   http.put("*/admin/settings/:key", () => HttpResponse.json(f.settings[0])),
+
+  // Help topics
+  http.get("*/admin/help", () => HttpResponse.json({ items: f.helpTopics })),
+  http.put("*/admin/help/:key", async ({ params, request }) => {
+    const body = (await request.json()) as Partial<HelpTopic>;
+    const found = f.helpTopics.find((t) => t.key === params.key);
+    if (!found) return HttpResponse.json(NOT_FOUND, { status: 404 });
+    return HttpResponse.json({ ...found, ...body, edited: true, editedBy: "admin@example.com" });
+  }),
+  http.post("*/admin/help/:key/reset", ({ params }) => {
+    const found = f.helpTopics.find((t) => t.key === params.key);
+    if (!found) return HttpResponse.json(NOT_FOUND, { status: 404 });
+    return HttpResponse.json({ ...found, edited: false, editedBy: null, editedAt: null });
+  }),
 
   // Email quota
   http.get("*/admin/email/quota", () => HttpResponse.json(f.emailQuota)),

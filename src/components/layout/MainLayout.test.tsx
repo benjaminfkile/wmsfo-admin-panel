@@ -286,3 +286,36 @@ describe("MainLayout: the bar's Publish button", () => {
     expect(button).not.toHaveTextContent("Publish");
   });
 });
+
+describe("MainLayout: the Help entry", () => {
+  let restore: (() => void) | null = null;
+
+  beforeEach(() => {
+    restore = stubMatchMedia(false);
+  });
+
+  afterEach(() => {
+    restore?.();
+    restore = null;
+    server.resetHandlers();
+  });
+
+  it("shows Help after Audit in the drawer for admin and editor", async () => {
+    for (const role of ["admin", "editor"] as Role[]) {
+      const { unmount } = renderLayout(role);
+      const links = screen
+        .getAllByRole("link")
+        .filter((a) => ["Audit", "Help"].includes(a.textContent ?? ""));
+      expect(links.map((a) => a.textContent)).toEqual(["Audit", "Help"]);
+      expect(links[1]).toHaveAttribute("href", "/help");
+      await waitFor(() => expect(screen.getByTestId("location")).toBeInTheDocument());
+      unmount();
+    }
+  });
+
+  it("hides Help from a canvasser", async () => {
+    renderLayout("canvasser");
+    expect(await screen.findByRole("link", { name: "Scan" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Help" })).not.toBeInTheDocument();
+  });
+});

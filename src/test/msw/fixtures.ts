@@ -14,6 +14,7 @@ import type {
   CookieType,
   Event,
   EventMessage,
+  HelpTopic,
   IconInfo,
   KindInfo,
   LiveObject,
@@ -923,3 +924,77 @@ export const qrCodeDetail: QrCodeDetail = {
     people: (i % 5) + 1,
   })),
 };
+
+// Help topics (contracts 4.5 Help): six topics across two pages. The
+// dashboard overview has both kinds of link, the current event card is
+// edited, the email quota card is unwritten, and the events list is
+// edited with a changed default.
+const helpTopic = (t: Partial<HelpTopic> & { key: string; page: string; label: string }): HelpTopic => ({
+  title: t.label,
+  body: "",
+  links: [],
+  edited: false,
+  editedBy: null,
+  editedAt: null,
+  defaultChanged: false,
+  updatedAt: NOW,
+  audit: null,
+  ...t,
+});
+
+export const helpTopics: HelpTopic[] = [
+  helpTopic({
+    key: "dashboard",
+    page: "Dashboard",
+    label: "Dashboard overview",
+    title: "What the dashboard shows",
+    body: "The dashboard sums up the live state.\n\n- The current event\n- The active beacon",
+    links: [
+      { label: "Events", to: "/events" },
+      { label: "Status page", to: "https://status.example.com" },
+    ],
+  }),
+  helpTopic({
+    key: "dashboard.current-event",
+    page: "Dashboard",
+    label: "Current event card",
+    title: "The current event",
+    body: "The event the site follows right now.",
+    edited: true,
+    editedBy: "admin@example.com",
+    editedAt: NOW,
+  }),
+  helpTopic({
+    key: "dashboard.email-quota",
+    page: "Dashboard",
+    label: "Email quota card",
+    title: "Email quota",
+    body: "",
+  }),
+  helpTopic({
+    key: "events",
+    page: "Events",
+    label: "Events list",
+    title: "Every event",
+    body: "One row per event, newest first.",
+    links: [{ label: "Dashboard", to: "/" }],
+    edited: true,
+    editedBy: "admin@example.com",
+    editedAt: NOW,
+    defaultChanged: true,
+  }),
+  helpTopic({
+    key: "events.create",
+    page: "Events",
+    label: "New event dialog",
+    title: "Create an event",
+    body: "Name the event and pick its year.",
+  }),
+  helpTopic({
+    key: "events.detail.status",
+    page: "Events",
+    label: "Status card",
+    title: "Event status",
+    body: "Moves the event through its statuses.",
+  }),
+];

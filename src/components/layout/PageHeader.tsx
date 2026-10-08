@@ -1,19 +1,29 @@
 import type { ReactNode } from "react";
 import { Box, Stack, Typography } from "@mui/material";
 import { useCompact } from "../../hooks/useCompact";
+import HelpButton from "../../help/HelpButton";
+import type { HelpKey } from "../../help/helpKeys";
 
 interface Props {
   title: string;
   subtitle?: ReactNode;
   actions?: ReactNode;
   chips?: ReactNode;
+  help?: HelpKey;
 }
 
 // The shared page-header row: title on the left with any chips beside it,
 // actions on the right on desktop, wrapping to their own row full width on
 // compact so a phone can still reach every button (the events page's
-// "New event" is the driving example).
-export default function PageHeader({ title, subtitle, actions, chips }: Props) {
+// "New event" is the driving example). `help` puts the page's help
+// button after the chips.
+export default function PageHeader({
+  title,
+  subtitle,
+  actions,
+  chips,
+  help,
+}: Props) {
   const compact = useCompact();
   return (
     <Stack sx={{ mb: 2 }} spacing={1}>
@@ -39,6 +49,7 @@ export default function PageHeader({ title, subtitle, actions, chips }: Props) {
             {title}
           </Typography>
           {chips}
+          {help !== undefined && <HelpButton topic={help} size="medium" />}
         </Stack>
         {actions !== undefined && !compact && (
           <Stack

@@ -48,4 +48,5 @@ export const keys = {
   qrCodes: ["qr-codes"] as const,
   qrCode: (id: number) => ["qr-codes", id] as const,
   places: ["places"] as const,
+  help: ["help"] as const,
 };
