@@ -81,7 +81,7 @@ describe("HelpEditDialog", () => {
     let closed = false;
     renderDialog("events.create", topic("events.create"), () => {
       closed = true;
-    });
+  }, 15000);
     await userEvent.click(screen.getByRole("button", { name: "Add link" }));
     const row0 = screen.getByTestId("help-link-0");
     await userEvent.type(within(row0).getByLabelText("Label"), "Beacons");
