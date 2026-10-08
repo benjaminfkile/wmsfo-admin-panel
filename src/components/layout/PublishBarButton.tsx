@@ -87,7 +87,6 @@ export default function PublishBarButton() {
         badged(
           <Button
             variant="contained"
-            color="secondary"
             onClick={onClick}
             data-testid="bar-publish"
           >
