@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider, CssBaseline } from "@mui/material";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NotifyProvider } from "../../hooks/useNotify";
 import { buildTheme } from "../../theme/theme";
 import ApiKeyCreateDialog from "./ApiKeyCreateDialog";
@@ -16,18 +17,24 @@ function renderDialog(opts?: {
 }) {
   const onSubmit = opts?.onSubmit ?? vi.fn();
   const onCancel = opts?.onCancel ?? vi.fn();
+  // The help buttons read their topics through react-query.
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   render(
     <ThemeProvider theme={buildTheme("light")}>
       <CssBaseline />
-      <NotifyProvider>
-        <ApiKeyCreateDialog
-          open={true}
-          submitting={opts?.submitting ?? false}
-          error={opts?.error ?? null}
-          onSubmit={onSubmit}
-          onCancel={onCancel}
-        />
-      </NotifyProvider>
+      <QueryClientProvider client={client}>
+        <NotifyProvider>
+          <ApiKeyCreateDialog
+            open={true}
+            submitting={opts?.submitting ?? false}
+            error={opts?.error ?? null}
+            onSubmit={onSubmit}
+            onCancel={onCancel}
+          />
+        </NotifyProvider>
+      </QueryClientProvider>
     </ThemeProvider>
   );
   return { onSubmit, onCancel };
@@ -180,6 +187,16 @@ describe("ApiKeyCreateDialog validation", () => {
       await screen.findByText(
         /a key with this name exists; revoke it or pick another name/i
       )
+    ).toBeInTheDocument();
+  });
+});
+
+describe("ApiKeyCreateDialog help buttons (admin.md 6.26)", () => {
+  it("mounts the dialog help and the capability list help", () => {
+    renderDialog();
+    expect(screen.getByTestId("help-api-keys.create")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("help-api-keys.capabilities")
     ).toBeInTheDocument();
   });
 });

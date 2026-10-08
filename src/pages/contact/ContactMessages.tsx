@@ -105,7 +105,7 @@ export default function ContactMessages() {
 
   return (
     <>
-      <PageHeader title="Contact messages" />
+      <PageHeader title="Contact messages" help="contact-messages" />
       {listQ.error ? <ErrorAlert error={listQ.error} /> : null}
       <ResponsiveTable<ContactMessage>
         rows={rows}

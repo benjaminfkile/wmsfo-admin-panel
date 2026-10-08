@@ -6,6 +6,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import CardTitle from "../../help/CardTitle";
 import MediaPicker from "../../components/content/MediaPicker";
 import type { MediaAsset, Sponsor } from "../../api/types";
 
@@ -39,9 +40,9 @@ export default function LogoSection({
   return (
     <Card variant="outlined">
       <CardContent>
-        <Typography variant="h6" gutterBottom>
+        <CardTitle help="sponsors.detail.logo" gutterBottom>
           Logo
-        </Typography>
+        </CardTitle>
         <Stack direction="row" spacing={3} alignItems="flex-start">
           <Box
             sx={{

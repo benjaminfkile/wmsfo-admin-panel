@@ -143,6 +143,25 @@ describe("MainLayout on compact", () => {
       screen.queryByRole("button", { name: /open navigation/i })
     ).not.toBeInTheDocument();
   });
+
+  it("mounts the environment badge help in the bar and the drawer help in the drawer title row", () => {
+    restore = stubMatchMedia(false);
+    const um = makeFakeUserManager(makeAdminUser());
+    renderWithProviders(
+      <NotifyProvider>
+        <MainLayout
+          role="admin"
+          email="admin@example.com"
+          themeMode="light"
+          onToggleTheme={() => undefined}
+        />
+      </NotifyProvider>,
+      { userManager: um }
+    );
+
+    expect(screen.getByTestId("help-bar.env-badge")).toBeInTheDocument();
+    expect(screen.getByTestId("help-drawer")).toBeInTheDocument();
+  });
 });
 
 function LocationProbe() {

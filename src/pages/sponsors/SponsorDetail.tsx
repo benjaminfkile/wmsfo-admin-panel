@@ -43,6 +43,7 @@ import {
 import type { Sponsor, SponsorYear } from "../../api/types";
 import SponsorYearDialog from "./SponsorYearDialog";
 import LogoSection from "./LogoSection";
+import CardTitle from "../../help/CardTitle";
 
 function trackerTimeCell(y: SponsorYear): string {
   const linger = y.lingerMs;
@@ -273,6 +274,7 @@ export default function SponsorDetail() {
     <Stack spacing={3}>
       <PageHeader
         title={sponsor.name ?? "Sponsor"}
+        help="sponsors.detail"
         actions={
           <Button color="error" onClick={() => setConfirmDelete(true)}>
             Delete sponsor
@@ -339,7 +341,7 @@ export default function SponsorDetail() {
             flexWrap="wrap"
             sx={{ mb: 1 }}
           >
-            <Typography variant="h6">Years</Typography>
+            <CardTitle help="sponsors.detail.years">Years</CardTitle>
             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
               <Button
                 variant="outlined"

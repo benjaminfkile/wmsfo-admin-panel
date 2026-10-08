@@ -826,6 +826,8 @@ Drawer entries for `admin`: Dashboard, Events, Flight recordings, Beacons, QR co
 
 `EnvBadge`: an MUI `Chip` with `config.env.toUpperCase()`; colour `error` for `prod`, `success` for `dev`, `info` for `local`; tooltip shows `config.apiBaseUrl`. On `dev` and `local` the document title is prefixed `[DEV]` or `[LOCAL]`. The badge also appears on `SignIn`, `NoRole`, and `MfaSetup`.
 
+Help: a `HelpButton` with `bar.env-badge` sits beside the `EnvBadge` in the bar (in the bar's text colour, through its `color="inherit"`), and one with `drawer` at the end of the permanent drawer's title row.
+
 `NetworkBanner` renders "API unreachable" under the bar when `MainLayout` receives `networkDown`; no page passes it, so the banner never shows. `NetworkError` surfaces through `ErrorAlert` on the page that made the call.
 
 ### 6.2 Dashboard
@@ -950,11 +952,15 @@ Help: the list mounts `beacons` on its `PageHeader`, `beacons.create` on `Beacon
 
 **LogoSection**: the current `logo` asset (image, filename, dimensions) or "No logo", a "Choose logo" button opening `MediaPicker` (6.15, which can upload on the spot), and "Remove". Both send `PATCH { logoMediaId }`; the response `Sponsor` replaces the cached row. `409 media_not_ready` (an upload that never confirmed) reopens the picker with a warning toast.
 
+Help: the list mounts `sponsors` on its `PageHeader` and `sponsors.import` on the `SponsorImportDialog` title; the detail page mounts `sponsors.detail` on its `PageHeader`, `sponsors.detail.logo` on the LogoSection title, and `sponsors.detail.years` on the Years card title; Sponsor order mounts `sponsors.order` on its `PageHeader`.
+
 ### 6.7 Cookie types
 
 A `ResponsiveTable` ordered as returned: leading is the icon (the library icon's image at 32 px, "media" for a media asset, or "none"), title is `name`, an "Active" chip, lines are `sort` and `cookieCount`, actions are the edit pencil (a dialog with `name`, `sort`, `active`, and an icon row with Choose and Clear that opens the shared icon picker at `components/content/pickers/IconPicker`) and the row menu with Delete, plus the Audit cell. On a phone the rows are cards with the same leading icon, title, chip, lines, and actions. Delete opens `DeleteDialog` (8.3): the impact preview carries the cookie count that would go with the type. "New type" opens the same dialog with `active` default on. `active` off removes the type from the snapshot without deleting it. The icon picker is one component used by every icon field in the panel: a Library tab (a search box over name, id, and tags with a grid of tiles that show the icon image and name), a Media library tab over `MediaGrid` fixed to `state=ready` with no kind filter so any ready image can be an icon, and an Upload tab that runs the uploader inline and picks the asset the moment it is ready; Cancel and Choose sit under the tabs, Choose enabled once something is selected.
 
 **Locked while live**: the page fetches `keys.events` on entry. When any event has `statusId === 3`, a `CommentBox` (warning) at the top reads "Locked: <event name> is live. Cookie types can be created, edited, and deactivated again after the event ends." and "New type" and every edit pencil are disabled. A `409 event_live` from a create or patch (the list was stale) shows the same banner and refetches `keys.events`.
+
+Help: the page mounts `cookie-types` on its `PageHeader`, `cookie-types.locked` at the end of the Locked `CommentBox` title (through its optional `help` prop), and `cookie-types.dialog` on the `CookieTypeDialog` title.
 
 ### 6.9 Settings
 
@@ -971,8 +977,13 @@ One row per key from `GET /admin/settings`, in this order (unknown keys last), w
 | `location_min_interval_ms` | Least time between two accepted fixes from one beacon (0 disables) | 0 to 60000 | ms |
 | `location_min_distance_m` | a fix that moved less than this from the last recorded one is shown live but not recorded (0 records every new position; a position already recorded for the event is never recorded twice) | 0 to 10000 | m |
 | `hub_enabled` | Whether visitors' browsers use the hub; off takes every visitor onto the poll within one poll | on or off | |
+| `route_map_simplify_tolerance_m` | The Douglas-Peucker tolerance applied to the route map path before smoothing (default 30) | 1 to 500 | m |
+| `route_map_max_points` | Most vertices of the route map path after smoothing, reached by even thinning that keeps the first and last (default 1200) | 100 to 10000 | |
+| `route_map_default_duration_minutes` | Duration of an untimed recording (fewer than 2 anchors), spread over the path by distance (default 120) | 10 to 720 | min |
 
 The rows sit in a `ResponsiveTable`: title is the key in `<code>`, subtitle is the description, lines are `updatedBy` and `updatedAt` ("default" when null), and the actions cell carries a number input with the range as helper text next to its own Save button (`PUT /admin/settings/{key}` with `{ value }`), or for a boolean key a switch labelled on or off that saves the moment it is flipped; the Audit cell sits at the end. On a phone the rows are cards with the value input and Save button on one row inside the card. Validation per 7.2; the response `Setting` replaces the row. A `CommentBox` states that every save rebuilds the snapshot and rewrites the live object, so a new poll interval reaches the site within its next poll. The specs live in `validation/settings.ts`.
+
+Help: the page mounts `settings` on its `PageHeader`, and the Key cell of every row holds a `HelpButton` after the key with `settings.` and that key with its underscores as hyphens (`settings.poll-interval-ms` through `settings.route-map-default-duration-minutes`, all twelve).
 
 ### 6.10 Subscribers
 
@@ -980,9 +991,13 @@ Header counts from `GET /admin/subscribers/summary` as chips: verified, pending,
 
 **Export CSV** walks the list for the selected filter with `limit: 500`, following `nextCursor` until it is `null`, showing "Exporting: <n> rows" on the button meanwhile, then builds the CSV with header `id,personId,personEmail,channel,address,verifiedAt,unsubscribedAt,createdAt` (RFC 4180 quoting, CRLF, `null` as empty) and saves `subscribers-<filter>-<yyyyMMdd>.csv`.
 
+Help: the page mounts `subscribers` on its `PageHeader`.
+
 ### 6.11 People and contact messages
 
 `/people`: paged `ResponsiveTable` with title `email`, lines `cookieCount`, `createdAt`, and `lastSeenAt`, actions are a delete icon, and the Audit cell. `/contact-messages`: paged `ResponsiveTable` with title `name`, lines `email` (as a `mailto:` link), `createdAt`, `clientIp`, and the `body` as a wrapped line, actions are a delete icon, and the Audit cell. On a phone the rows are cards with the same title, lines, and delete icon. Both deletes open `DeleteDialog` (8.3); the impact preview states what goes with the row.
+
+Help: `/people` mounts `people` and `/contact-messages` mounts `contact-messages` on their `PageHeader`.
 
 ### 6.13 Pages
 
@@ -1085,15 +1100,21 @@ Help: the page mounts `publish` on its `PageHeader`, `publish.status` beside the
 
 **ApiKeyCreateDialog**: `name` (text, 1 to 100); an "All capabilities" switch (on by default) that, when on, disables the individual list and sends `allCapabilities: true` with an empty `capabilities`, and otherwise a checkbox per capability from the contracts list, labelled in plain words (Events, Flight recordings, Beacons, Sponsors, Cookie types, Pages, Sections, Site settings, Publish and versions, Media, Icons, Settings, Contact messages, Subscribers, People, Diagnostics, Audit, QR codes and places, Help texts), at least one required; and a "Never expires" switch (on by default) with an `expiresAt` datetime-local validated at least one hour ahead. `409 name_taken` is a field error on `name`. Success opens `KeyRevealDialog` (the same component the beacons page uses, without the QR block).
 
+Help: the page mounts `api-keys` on its `PageHeader`; `ApiKeyCreateDialog` mounts `api-keys.create` on its title and `api-keys.capabilities` beside the "All capabilities" switch that heads the capability list.
+
 ### 6.21 Agents
 
 `/agents`, `admin` only. The page for running an agent (Claude Code or any script) against the admin API for one session. Lead text: mint a key with only the capabilities the job needs, give the agent the key and the prompt, let it work, then revoke the key. An info block spells out the four steps (mint, hand over, work, revoke) and why revocation is the only lasting control: keys are hashed at rest, cannot mint or revoke keys, and skip the TOTP gate.
 
 Below it the page mounts `ApiKeysList` unchanged (the same component as `/api-keys`, so minting and revoking happen in place; on a phone the keys are cards for the same reason), then the **Agent prompt**: `pages/agents/agentPrompt.ts` exports `buildAgentPrompt(baseUrl)`, one plain-text guide to the API for an agent in twelve sections, in this order: 1 identity and secrecy; 2 base URL and auth (the `wak_` bearer header, 401 against 403, and the five Cognito-only routes: `GET /admin/api-keys`, `POST /admin/api-keys`, `POST /admin/api-keys/{id}/revoke`, `GET /admin/api-keys/{id}/impact`, `GET /admin/email/quota`); 3 wire conventions (JSON, status by verb with the POSTs that answer 200, the error body, every error code grouped by status, paging names and caps, timestamps, ids, money, PATCH and the empty-string clear rule, body limits, rate buckets, audit stamps); 4 what goes public when (the working set against publish, the snapshot-affecting writes, what is never public); 5 the 19 capabilities with the routes each reaches; 6 the content model (pages and roles, sections and every presentation key, items, the primitives `Icon`, `MediaRef`, `Display`, `Link`, the inline grammar, every site settings key, draft against publish validation); 7 the endpoint reference by capability; 8 delete safety (the impact preview for every resource, the blocked conditions, cascade against unlink); 9 the media pipeline; 10 the event lifecycle; 11 common workflows; 12 the rules (never change a status, notify, publish, restore, delete, seed cookies, clear locations, touch beacons, or change a setting unless asked; preview the impact before a delete; hand the email quota to the human before a send; read `GET /admin/content/kinds` before writing data; media through the ticket flow; no em or en dashes in copy). The page says the API has three groups (admin, editor, canvasser) and that a key with `qr` reaches the canvasser routes, the two deletes included. It renders the prompt with `config.apiBaseUrl` filled in, in a monospace read-only block with a Copy button (a clipboard failure leaves the text on the page). The prompt is written against the API controllers, not against contracts 4.5 alone; every wave re-checks it against the controllers and corrects it in the same wave. `AgentsPage.test.tsx` asserts it names all 18 capabilities, the five Cognito-only routes, and the POSTs that answer 200, and that it carries no dashes and none of the stale strings "SVG only", "1 to 100", "16 capabilities", and "tight|normal|loose|none".
 
+Help: the page mounts `agents` on its `PageHeader`.
+
 ### 6.22 Audit
 
 `/audit`, its own drawer entry (admin and editor): the filter paper wraps its fields (entity, action, actor, and the "Deletes" chip that toggles `action=delete`) on compact; `entity` reads from `GET /admin/audit/entities` and `action` from the known verbs (`AUDIT_ACTIONS`, which include `cookies_seeded`, the action the API records when cookies are seeded on the live event, 6.3). Under it a `ResponsiveTable` newest first paged with a cursor (Load more): title is the time, subtitle is actor and action (the verbs capitalised, `cookies_seeded` as written), lines are the entity and id (a link to the row's page for events, beacons, sponsors, pages, and QR codes when the entry is not a delete, plain text otherwise) and the same changed-fields summary the history dialog uses, actions are the expand toggle, with the raw before and after JSON rendered under the card when expanded. On a phone the rows are cards with the same title, subtitle, lines, and toggle. Deleted rows are readable here and nowhere else.
+
+Help: the page mounts `audit` on its `PageHeader` and `audit.filters` at the end of the filter row.
 
 ### 6.23 QR codes
 

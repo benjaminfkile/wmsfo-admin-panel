@@ -1,5 +1,7 @@
-import { Card, CardContent, Typography, useTheme } from "@mui/material";
+import { Card, CardContent, Stack, Typography, useTheme } from "@mui/material";
 import { ReactNode } from "react";
+import HelpButton from "../help/HelpButton";
+import type { HelpKey } from "../help/helpKeys";
 
 type Variant = "info" | "warning" | "error";
 
@@ -7,12 +9,17 @@ interface Props {
   title?: string;
   variant?: Variant;
   children: ReactNode;
+  help?: HelpKey;
 }
+
+// A note card with a coloured left edge. `help` puts a help button at the
+// end of the title row.
 
 export default function CommentBox({
   title,
   variant = "info",
   children,
+  help,
 }: Props) {
   const theme = useTheme();
 
@@ -34,13 +41,21 @@ export default function CommentBox({
       }}
     >
       <CardContent>
-        {title && (
+        {title && help === undefined && (
           <Typography
             fontWeight={700}
             sx={{ color: palette.main, mb: 1 }}
           >
             {title}
           </Typography>
+        )}
+        {title && help !== undefined && (
+          <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 1 }}>
+            <Typography fontWeight={700} sx={{ color: palette.main }}>
+              {title}
+            </Typography>
+            <HelpButton topic={help} />
+          </Stack>
         )}
 
         <Typography

@@ -5,7 +5,6 @@ import {
   Checkbox,
   DialogActions,
   DialogContent,
-  DialogTitle,
   Divider,
   FormControlLabel,
   Stack,
@@ -15,6 +14,8 @@ import {
 } from "@mui/material";
 import AppDialog from "../../components/AppDialog";
 import ErrorAlert from "../../components/ErrorAlert";
+import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
+import HelpButton from "../../help/HelpButton";
 import { ApiError } from "../../api/errors";
 import { fieldErrorFor } from "../../lib/fieldErrors";
 import { fromLocalInputValue, formatStamp } from "../../lib/time";
@@ -149,7 +150,7 @@ export default function ApiKeyCreateDialog({
 
   return (
     <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>New API key</DialogTitle>
+      <DialogTitleWithHelp help="api-keys.create">New API key</DialogTitleWithHelp>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {error && !nameTaken ? (
@@ -165,15 +166,18 @@ export default function ApiKeyCreateDialog({
             autoFocus
             inputProps={{ maxLength: 100 }}
           />
-          <FormControlLabel
-            label="All capabilities"
-            control={
-              <Switch
-                checked={allCapabilities}
-                onChange={(_, v) => setAllCapabilities(v)}
-              />
-            }
-          />
+          <Stack direction="row" alignItems="center" spacing={0.5}>
+            <FormControlLabel
+              label="All capabilities"
+              control={
+                <Switch
+                  checked={allCapabilities}
+                  onChange={(_, v) => setAllCapabilities(v)}
+                />
+              }
+            />
+            <HelpButton topic="api-keys.capabilities" />
+          </Stack>
           <Divider />
           <Box
             sx={{

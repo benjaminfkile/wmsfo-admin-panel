@@ -191,6 +191,7 @@ export default function Subscribers() {
     <>
       <PageHeader
         title="Subscribers"
+        help="subscribers"
         actions={
           <Button
             variant="contained"

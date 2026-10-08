@@ -87,7 +87,7 @@ export default function People() {
 
   return (
     <>
-      <PageHeader title="People" />
+      <PageHeader title="People" help="people" />
 
       {listQ.error ? <ErrorAlert error={listQ.error} /> : null}
 

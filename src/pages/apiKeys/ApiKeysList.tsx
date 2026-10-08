@@ -203,6 +203,7 @@ export default function ApiKeysList() {
     <>
       <PageHeader
         title="API keys"
+        help="api-keys"
         actions={
           <Button variant="contained" onClick={() => setCreateOpen(true)}>
             New key

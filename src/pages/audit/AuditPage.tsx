@@ -18,6 +18,7 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { audit as auditApi, AUDIT_ACTIONS } from "../../api/resources/audit";
 import { keys } from "../../queries/keys";
 import ErrorAlert from "../../components/ErrorAlert";
+import HelpButton from "../../help/HelpButton";
 import PageHeader from "../../components/layout/PageHeader";
 import ResponsiveTable, {
   type Column,
@@ -158,7 +159,7 @@ export default function AuditPage() {
 
   return (
     <Box>
-      <PageHeader title="Audit" />
+      <PageHeader title="Audit" help="audit" />
 
       <Paper sx={{ p: 2, mb: 2 }}>
         <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
@@ -209,6 +210,9 @@ export default function AuditPage() {
             }
             variant={filters.action === "delete" ? "filled" : "outlined"}
           />
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <HelpButton topic="audit.filters" />
+          </Box>
         </Stack>
       </Paper>
 

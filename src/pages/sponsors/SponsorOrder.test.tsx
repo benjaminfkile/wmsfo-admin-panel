@@ -216,3 +216,12 @@ describe("SponsorOrder", () => {
     expect(body.active).toBe(true);
   });
 });
+
+describe("SponsorOrder help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(<Harness />);
+    for (const key of ["sponsors.order"]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
+  });
+});

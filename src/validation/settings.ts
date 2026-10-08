@@ -9,7 +9,10 @@ export type SettingKey =
   | "flight_history_max_points"
   | "location_min_interval_ms"
   | "location_min_distance_m"
-  | "hub_enabled";
+  | "hub_enabled"
+  | "route_map_simplify_tolerance_m"
+  | "route_map_max_points"
+  | "route_map_default_duration_minutes";
 
 export type SettingSpec = {
   key: SettingKey;
@@ -104,6 +107,33 @@ export const SETTING_SPECS: SettingSpec[] = [
     min: 0,
     max: 1,
     kind: "boolean",
+  },
+  {
+    key: "route_map_simplify_tolerance_m",
+    label: "route_map_simplify_tolerance_m",
+    description:
+      "The Douglas-Peucker tolerance applied to the route map path before smoothing (default 30)",
+    unit: "m",
+    min: 1,
+    max: 500,
+  },
+  {
+    key: "route_map_max_points",
+    label: "route_map_max_points",
+    description:
+      "Most vertices of the route map path after smoothing, reached by even thinning that keeps the first and last (default 1200)",
+    unit: "",
+    min: 100,
+    max: 10000,
+  },
+  {
+    key: "route_map_default_duration_minutes",
+    label: "route_map_default_duration_minutes",
+    description:
+      "Duration of an untimed recording (fewer than 2 anchors), spread over the path by distance (default 120)",
+    unit: "min",
+    min: 10,
+    max: 720,
   },
 ];
 

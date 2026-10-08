@@ -40,6 +40,7 @@ export default function AgentsPage() {
     <Box>
       <PageHeader
         title="Agents"
+        help="agents"
         subtitle={
           <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 720 }}>
             Run an agent against the admin API for one session: mint a key with only the

@@ -340,3 +340,12 @@ describe("SponsorDetail: logo", () => {
     );
   });
 });
+
+describe("SponsorDetail help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(<Harness id={Number(f.sponsors[0]!.id)} />);
+    for (const key of ["sponsors.detail", "sponsors.detail.logo", "sponsors.detail.years"]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
+  });
+});

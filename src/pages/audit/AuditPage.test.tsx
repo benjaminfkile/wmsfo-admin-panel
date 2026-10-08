@@ -252,3 +252,16 @@ describe("AuditPage (admin.md 6.22)", () => {
     expect(within(listbox).getByRole("option", { name: "cookie_type" })).toBeInTheDocument();
   });
 });
+
+describe("AuditPage help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(
+      <Harness>
+        <AuditPage />
+      </Harness>
+    );
+    for (const key of ["audit", "audit.filters"]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
+  });
+});
