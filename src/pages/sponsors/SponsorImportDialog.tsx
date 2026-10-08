@@ -5,7 +5,6 @@ import {
   Checkbox,
   DialogActions,
   DialogContent,
-  DialogTitle,
   FormControl,
   InputLabel,
   List,
@@ -19,6 +18,7 @@ import {
   Typography,
 } from "@mui/material";
 import AppDialog from "../../components/AppDialog";
+import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 import { useQuery } from "@tanstack/react-query";
 import { events as eventsApi } from "../../api/resources/events";
 import { keys } from "../../queries/keys";
@@ -162,7 +162,9 @@ export default function SponsorImportDialog({
 
   return (
     <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>Import sponsors from a year</DialogTitle>
+      <DialogTitleWithHelp help="sponsors.import">
+        Import sponsors from a year
+      </DialogTitleWithHelp>
       <DialogContent>
         {error ? (
           <Box sx={{ mb: 1 }}>

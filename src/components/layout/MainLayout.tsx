@@ -19,6 +19,7 @@ import DarkModeIcon from "@mui/icons-material/DarkMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import LogoutIcon from "@mui/icons-material/Logout";
 import EnvBadge from "../EnvBadge";
+import HelpButton from "../../help/HelpButton";
 import NetworkBanner from "../NetworkBanner";
 import PublishBarButton from "./PublishBarButton";
 import { useAuth } from "../../auth/AuthProvider";
@@ -122,8 +123,11 @@ export default function MainLayout({
 
   const permanentDrawer = (
     <div>
-      <Toolbar>
-        <Typography variant="h6">WMSFO Admin</Typography>
+      <Toolbar sx={{ gap: 0.5 }}>
+        <Typography variant="h6" sx={{ flexGrow: 1, minWidth: 0 }}>
+          WMSFO Admin
+        </Typography>
+        <HelpButton topic="drawer" />
       </Toolbar>
       <Divider />
       <List>
@@ -167,8 +171,9 @@ export default function MainLayout({
           >
             WMSFO Admin
           </Typography>
-          <Box sx={{ mr: 2 }}>
+          <Box sx={{ mr: 2, display: "flex", alignItems: "center", gap: 0.5 }}>
             <EnvBadge />
+            <HelpButton topic="bar.env-badge" color="inherit" />
           </Box>
           {canPublish && <PublishBarButton />}
           <Typography

@@ -218,6 +218,9 @@ describe("CookieTypesList: icon picker", () => {
     const newBtn = await screen.findByTestId("cookie-type-new");
     await waitFor(() => expect(newBtn).not.toBeDisabled());
     await user.click(newBtn);
+    expect(
+      await screen.findByTestId("help-cookie-types.dialog")
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /^choose$/i }));
     // Library tab first: the tile appears from the fixture icons.
     await screen.findByTestId("icon-tile-cookie");
@@ -229,5 +232,14 @@ describe("CookieTypesList: icon picker", () => {
     expect(
       screen.getByRole("tab", { name: /^upload$/i })
     ).toBeInTheDocument();
+  });
+});
+
+describe("CookieTypesList help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and the Locked help of the default render", async () => {
+    render(<Harness />);
+    for (const key of ["cookie-types", "cookie-types.locked"]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
   });
 });

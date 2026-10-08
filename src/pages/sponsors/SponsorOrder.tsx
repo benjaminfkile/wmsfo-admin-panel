@@ -176,7 +176,7 @@ export default function SponsorOrder() {
 
   return (
     <>
-      <PageHeader title="Sponsor order" />
+      <PageHeader title="Sponsor order" help="sponsors.order" />
       <Box sx={{ my: 2 }}>
         <Select
           size="small"

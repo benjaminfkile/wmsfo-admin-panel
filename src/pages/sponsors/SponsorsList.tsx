@@ -174,6 +174,7 @@ export default function SponsorsList() {
     <>
       <PageHeader
         title="Sponsors"
+        help="sponsors"
         actions={
           <>
             <Button variant="outlined" onClick={() => setImportOpen(true)}>

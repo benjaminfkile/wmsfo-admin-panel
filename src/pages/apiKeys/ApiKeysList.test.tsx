@@ -198,3 +198,12 @@ describe("ApiKeysList", () => {
     await waitFor(() => expect(revokedId).toBe(String(f.apiKeys[0]!.id)));
   });
 });
+
+describe("ApiKeysList help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(<Harness />);
+    for (const key of ["api-keys"]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
+  });
+});

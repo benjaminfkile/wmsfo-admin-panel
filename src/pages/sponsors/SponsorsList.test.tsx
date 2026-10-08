@@ -194,7 +194,8 @@ describe("SponsorsList: import from year", () => {
     // The dialog defaults the from year to the newest year in any
     // sponsor's years (2027 here). We switch it to 2025 for the
     // acceptance criterion (2025 to 2027).
-    const fromSel = await screen.findByLabelText(/from year/i);
+    expect(await screen.findByTestId("help-sponsors.import")).toBeInTheDocument();
+    const fromSel = await screen.findByRole("combobox", { name: /from year/i });
     await user.click(fromSel);
     await user.click(await screen.findByRole("option", { name: "2025" }));
     // Candidates: bakery and cafe (both have 2025, neither has 2027);
@@ -263,7 +264,7 @@ describe("SponsorsList: import from year", () => {
     await screen.findByText("Cheer Cafe");
     await user.click(screen.getByRole("button", { name: /import from year/i }));
     // Pick from-year 2025.
-    const fromSel = await screen.findByLabelText(/from year/i);
+    const fromSel = await screen.findByRole("combobox", { name: /from year/i });
     await user.click(fromSel);
     await user.click(await screen.findByRole("option", { name: "2025" }));
     // With to-year = 2026 (current), both are candidates.
@@ -343,6 +344,15 @@ describe("SponsorsList on compact", () => {
       expect(screen.queryByRole("table")).toBeNull();
     } finally {
       restore();
+    }
+  });
+});
+
+describe("SponsorsList help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(<Harness />);
+    for (const key of ["sponsors"]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
     }
   });
 });

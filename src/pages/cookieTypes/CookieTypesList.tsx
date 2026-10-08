@@ -5,7 +5,6 @@ import {
   Chip,
   DialogActions,
   DialogContent,
-  DialogTitle,
   FormControlLabel,
   IconButton,
   Menu,
@@ -30,6 +29,7 @@ import { ApiError } from "../../api/errors";
 // possible from the API, both handled through the dialog's error path.
 import AppDialog from "../../components/AppDialog";
 import CommentBox from "../../components/CommentBox";
+import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 import DeleteDialog from "../../components/DeleteDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import IconPicker from "../../components/content/pickers/IconPicker";
@@ -188,6 +188,7 @@ export default function CookieTypesList() {
     <>
       <PageHeader
         title="Cookie types"
+        help="cookie-types"
         actions={
           <Button
             variant="contained"
@@ -200,7 +201,7 @@ export default function CookieTypesList() {
         }
       />
       {locked ? (
-        <CommentBox title="Locked" variant="warning">
+        <CommentBox title="Locked" variant="warning" help="cookie-types.locked">
           {`Locked: ${
             liveEvent?.name ?? "an event"
           } is live. Cookie types can be created, edited, and deactivated again after the event ends.`}
@@ -381,7 +382,9 @@ function CookieTypeDialog({
 
   return (
     <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>{state?.mode === "edit" ? "Edit cookie type" : "New cookie type"}</DialogTitle>
+      <DialogTitleWithHelp help="cookie-types.dialog">
+        {state?.mode === "edit" ? "Edit cookie type" : "New cookie type"}
+      </DialogTitleWithHelp>
       <DialogContent>
         {error ? <ErrorAlert error={error} /> : null}
         <Stack spacing={2} sx={{ mt: 1 }}>

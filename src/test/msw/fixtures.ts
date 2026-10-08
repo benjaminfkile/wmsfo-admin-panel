@@ -441,6 +441,24 @@ export const settings: Setting[] = [
     updatedBy: AUTHOR,
     updatedAt: NOW,
   },
+  {
+    key: "route_map_simplify_tolerance_m",
+    value: 30,
+    updatedBy: null,
+    updatedAt: null,
+  },
+  {
+    key: "route_map_max_points",
+    value: 1200,
+    updatedBy: null,
+    updatedAt: null,
+  },
+  {
+    key: "route_map_default_duration_minutes",
+    value: 120,
+    updatedBy: null,
+    updatedAt: null,
+  },
 ];
 
 export const snapshotInfo: SnapshotInfo = {

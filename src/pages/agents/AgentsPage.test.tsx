@@ -146,3 +146,12 @@ describe("AgentsPage", () => {
     expect(prompt).not.toMatch(/[\u2013\u2014]/);
   });
 });
+
+describe("AgentsPage help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(<Harness />);
+    for (const key of ["agents"]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
+  });
+});

@@ -13,6 +13,8 @@ import { keys } from "../../queries/keys";
 import CommentBox from "../../components/CommentBox";
 import ErrorAlert from "../../components/ErrorAlert";
 import PageHeader from "../../components/layout/PageHeader";
+import HelpButton from "../../help/HelpButton";
+import { HELP_KEYS, type HelpKey } from "../../help/helpKeys";
 import ResponsiveTable, {
   type Column,
 } from "../../components/list/ResponsiveTable";
@@ -200,11 +202,17 @@ export default function Settings() {
       key: "key",
       header: "Key",
       role: "title",
-      render: (s) => (
-        <Box component="code" sx={{ overflowWrap: "anywhere" }}>
-          {s.key}
-        </Box>
-      ),
+      render: (s) => {
+        const help = settingHelpKey(s.key ?? "");
+        return (
+          <Stack direction="row" alignItems="center" spacing={0.5} component="span">
+            <Box component="code" sx={{ overflowWrap: "anywhere", minWidth: 0 }}>
+              {s.key}
+            </Box>
+            {help !== null && <HelpButton topic={help} />}
+          </Stack>
+        );
+      },
     },
     {
       key: "description",
@@ -239,7 +247,7 @@ export default function Settings() {
 
   return (
     <>
-      <PageHeader title="Settings" />
+      <PageHeader title="Settings" help="settings" />
       <CommentBox>
         Every save rebuilds the snapshot and rewrites the live object, so a new
         poll interval reaches the site within its next poll.
@@ -269,4 +277,13 @@ export default function Settings() {
 function rangeHint(spec: SettingSpec | null): string {
   if (!spec) return "";
   return `${spec.min} to ${spec.max}${spec.unit ? ` ${spec.unit}` : ""}`;
+}
+
+// The help key of a settings row: `settings.` and the key with its
+// underscores as hyphens, or null for a key the registry does not hold.
+function settingHelpKey(key: string): HelpKey | null {
+  const candidate = `settings.${key.replace(/_/g, "-")}`;
+  return (HELP_KEYS as readonly string[]).includes(candidate)
+    ? (candidate as HelpKey)
+    : null;
 }

@@ -195,7 +195,7 @@ describe("Settings", () => {
   });
 
   it("has a spec for every documented key", () => {
-    // contracts 6 lists nine keys in a specific order; SETTING_SPECS is that order.
+    // contracts 6 lists twelve keys in a specific order; SETTING_SPECS is that order.
     expect(SETTING_SPECS.map((s) => s.key)).toEqual([
       "poll_interval_ms",
       "cookie_limit_per_person",
@@ -206,6 +206,9 @@ describe("Settings", () => {
       "location_min_interval_ms",
       "location_min_distance_m",
       "hub_enabled",
+      "route_map_simplify_tolerance_m",
+      "route_map_max_points",
+      "route_map_default_duration_minutes",
     ]);
   });
 
@@ -272,5 +275,61 @@ describe("Settings", () => {
       /\/admin\/settings\/location_min_interval_ms$/
     );
     expect(captured[0]?.body).toEqual({ value: 500 });
+  });
+});
+
+describe("Settings: the route map keys", () => {
+  it("shows the description and range of route_map_max_points and PUTs an in-range value", async () => {
+    const user = userEvent.setup();
+    const captured: Array<{ url: string; body: unknown }> = [];
+    server.use(
+      http.put(
+        `${testConfig.apiBaseUrl}/admin/settings/:key`,
+        async ({ params, request }) => {
+          const body = await request.json();
+          captured.push({ url: request.url, body });
+          return HttpResponse.json({
+            key: String(params.key),
+            value: 2000,
+            updatedBy: "admin@example.com",
+            updatedAt: "2026-12-22T02:00:00.000Z",
+          });
+        }
+      )
+    );
+    render(<Harness />);
+    const row = await screen.findByTestId("setting-row-route_map_max_points");
+    expect(
+      within(row).getByText(/most vertices of the route map path/i)
+    ).toBeInTheDocument();
+    expect(within(row).getByText("100 to 10000")).toBeInTheDocument();
+    const input = within(row).getByRole("spinbutton");
+    await user.clear(input);
+    await user.type(input, "99");
+    await user.click(within(row).getByRole("button", { name: /^save$/i }));
+    expect(
+      await within(row).findByText(/between 100 and 10000/i)
+    ).toBeInTheDocument();
+    expect(captured.length).toBe(0);
+    await user.clear(input);
+    await user.type(input, "2000");
+    await user.click(within(row).getByRole("button", { name: /^save$/i }));
+    await waitFor(() => expect(captured.length).toBeGreaterThan(0));
+    expect(captured[0]?.url).toMatch(/\/admin\/settings\/route_map_max_points$/);
+    expect(captured[0]?.body).toEqual({ value: 2000 });
+  });
+});
+
+describe("Settings help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and a help button in the Key cell of every row", async () => {
+    render(<Harness />);
+    expect(await screen.findByTestId("help-settings")).toBeInTheDocument();
+    expect(SETTING_SPECS).toHaveLength(12);
+    for (const spec of SETTING_SPECS) {
+      const row = await screen.findByTestId(`setting-row-${spec.key}`);
+      expect(
+        within(row).getByTestId(`help-settings.${spec.key.replace(/_/g, "-")}`)
+      ).toBeInTheDocument();
+    }
   });
 });

@@ -10,13 +10,19 @@ import HelpEditDialog from "./HelpEditDialog";
 interface Props {
   topic: HelpKey;
   size?: "small" | "medium";
+  color?: "default" | "inherit";
 }
 
 // The help button beside a page, card, or dialog title: 24 px on
 // desktop, a 44 px hit area on compact. It opens the topic's popover,
 // and the popover's Edit button (admins) opens the editor. The popover
-// mounts only while open.
-export default function HelpButton({ topic, size = "small" }: Props) {
+// mounts only while open. `color="inherit"` takes the text colour of
+// the surface it sits on, as in the app bar.
+export default function HelpButton({
+  topic,
+  size = "small",
+  color = "default",
+}: Props) {
   const compact = useCompact();
   const { topicFor } = useHelpTopics();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
@@ -29,6 +35,7 @@ export default function HelpButton({ topic, size = "small" }: Props) {
       <IconButton
         aria-label={`Help: ${title}`}
         data-testid={`help-${topic}`}
+        color={color}
         onClick={(e) => setAnchor(e.currentTarget)}
         sx={{ width: box, height: box, p: 0, flexShrink: 0 }}
       >
