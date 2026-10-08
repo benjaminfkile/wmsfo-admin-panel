@@ -23,6 +23,7 @@ import { useNotify } from "../../hooks/useNotify";
 import { formatStamp } from "../../lib/time";
 import ErrorAlert from "../../components/ErrorAlert";
 import RouteUploadDialog from "./RouteUploadDialog";
+import CardTitle from "../../help/CardTitle";
 
 interface Props {
   event: Event;
@@ -149,7 +150,7 @@ export default function RouteSection({ event }: Props) {
           justifyContent="space-between"
           spacing={1}
         >
-          <Typography variant="h6">Flight history</Typography>
+          <CardTitle help="events.detail.flight-history">Flight history</CardTitle>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
             <Button
               size="small"

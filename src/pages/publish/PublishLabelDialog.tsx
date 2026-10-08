@@ -47,6 +47,7 @@ export default function PublishLabelDialog({
         </Stack>
       }
       confirmLabel="Publish"
+      help="bar.publish"
       onCancel={onCancel}
       onConfirm={() => {
         const trimmed = label.trim();

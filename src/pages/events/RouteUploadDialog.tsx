@@ -3,7 +3,6 @@ import {
   Button,
   DialogActions,
   DialogContent,
-  DialogTitle,
   IconButton,
   Link,
   Stack,
@@ -21,6 +20,7 @@ import { formatStamp } from "../../lib/time";
 import { downloadText } from "../../lib/download";
 import routeFixture from "../../../contracts/fixtures/route.json";
 import { useNotify } from "../../hooks/useNotify";
+import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 
 interface Props {
   open: boolean;
@@ -106,7 +106,7 @@ export default function RouteUploadDialog({
       maxWidth="md"
       fullWidth
     >
-      <DialogTitle>Upload route</DialogTitle>
+      <DialogTitleWithHelp help="routes.upload">Upload route</DialogTitleWithHelp>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {error ? <ErrorAlert error={error} /> : null}

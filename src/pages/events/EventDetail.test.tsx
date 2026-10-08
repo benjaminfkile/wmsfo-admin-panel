@@ -125,7 +125,8 @@ describe("EventDetail: status notified state and history", () => {
       screen.getByRole("button", { name: /notify subscribers/i })
     );
     // Dialog is open; type a custom message and Send now.
-    const field = await screen.findByLabelText(/message/i);
+    const field = await screen.findByLabelText(/^message/i);
+    expect(screen.getByTestId("help-events.detail.notify")).toBeInTheDocument();
     await user.type(field, "Bundled up? So is Santa.");
     await user.click(screen.getByRole("button", { name: /^send now$/i }));
     await waitFor(() => expect(posts.length).toBe(1));
@@ -151,7 +152,8 @@ describe("EventDetail: status notified state and history", () => {
     render(<Harness id={Number(f.events[0]!.id)} />);
     // Open StatusDialog on target 4 (Ended is always allowed).
     await user.click(await screen.findByRole("button", { name: /^ended$/i }));
-    const field = await screen.findByLabelText(/message/i);
+    const field = await screen.findByLabelText(/^message/i);
+    expect(screen.getByTestId("help-events.detail.status-dialog")).toBeInTheDocument();
     await user.type(field, "Safe landing.");
     await user.click(
       screen.getByRole("button", { name: /^change and notify$/i })
@@ -181,7 +183,7 @@ describe("EventDetail: status notified state and history", () => {
     );
     render(<Harness id={Number(f.events[0]!.id)} />);
     await user.click(await screen.findByRole("button", { name: /^ended$/i }));
-    await screen.findByLabelText(/message/i);
+    await screen.findByLabelText(/^message/i);
     await user.click(
       screen.getByRole("button", { name: /^change without notifying$/i })
     );
@@ -219,7 +221,7 @@ describe("EventDetail: status notified state and history", () => {
       await user.click(await screen.findByRole("button", { name: /^ended$/i }));
       await waitFor(() => expect(messageGets).toBeGreaterThan(0));
       const before = messageGets;
-      await user.type(await screen.findByLabelText(/message/i), "Safe landing.");
+      await user.type(await screen.findByLabelText(/^message/i), "Safe landing.");
       await user.click(
         screen.getByRole("button", { name: /^change and notify$/i })
       );
@@ -634,6 +636,7 @@ describe("EventDetail Clear recording (M42)", () => {
     render(<Harness id={Number(f.events[0]!.id)} />);
     await user.click(await screen.findByTestId("clear-recording"));
     await screen.findByRole("heading", { name: /^clear recording for/i });
+    expect(screen.getByTestId("help-events.detail.clear-recording")).toBeInTheDocument();
     const list = await screen.findByText(
       new RegExp(`${f.beacons[0]!.name!}: 1,200`, "i")
     );
@@ -1089,5 +1092,22 @@ describe("EventDetail: the Postponed status", () => {
     );
     await waitFor(() => expect(posts.length).toBe(1));
     expect(posts[0]).toMatchObject({ statusId: 6, notify: true });
+  });
+});
+
+describe("EventDetail help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    for (const key of [
+      "events.detail",
+      "events.detail.details",
+      "events.detail.status",
+      "events.detail.messages",
+      "events.detail.flight-history",
+      "events.detail.route-map",
+      "events.detail.locations",
+    ]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
   });
 });

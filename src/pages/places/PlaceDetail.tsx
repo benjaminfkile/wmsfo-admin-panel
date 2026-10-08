@@ -28,6 +28,7 @@ import PageHeader from "../../components/layout/PageHeader";
 import { useNotify } from "../../hooks/useNotify";
 import type { Place } from "../../api/types";
 import LocationCard from "./LocationCard";
+import CardTitle from "../../help/CardTitle";
 
 type OpensChoice = "place" | "page" | "url";
 
@@ -196,6 +197,7 @@ export default function PlaceDetail() {
     <>
       <PageHeader
         title={`Place: ${place.name}`}
+        help="places.detail"
         actions={
           <Button component={RouterLink} to="/places">
             Back to list
@@ -322,9 +324,9 @@ export default function PlaceDetail() {
 
       <Card sx={{ mt: 2 }}>
         <CardContent>
-          <Typography variant="h6" sx={{ mb: 1 }}>
+          <CardTitle help="places.detail.codes" sx={{ mb: 1 }}>
             Codes attached here
-          </Typography>
+          </CardTitle>
           {attachedCodes.length === 0 ? (
             <Typography variant="body2" color="text.secondary">
               None yet.

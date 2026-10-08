@@ -121,6 +121,9 @@ describe("EventsList rows", () => {
     expect(
       await screen.findByRole("menuitem", { name: /set current/i })
     ).toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: /set current/i }));
+    const confirm = await screen.findByRole("dialog", { name: /set current event/i });
+    expect(within(confirm).getByTestId("help-events.set-current")).toBeInTheDocument();
   });
 
   it("shows the route name for the row, from the routes list", async () => {
@@ -146,6 +149,7 @@ describe("EventsList rows", () => {
         name: new RegExp(`delete ${f.events[1]!.name}`, "i"),
       })
     ).toBeInTheDocument();
+    expect(screen.getByTestId("help-events.delete")).toBeInTheDocument();
   });
 
   it("Delete on the live/current event is disabled with the tooltip sentence", async () => {
@@ -184,6 +188,7 @@ describe("EventsList rows", () => {
       await screen.findByRole("menuitem", { name: /^clone$/i })
     );
     const dialog = await screen.findByRole("dialog", { name: /clone event/i });
+    expect(within(dialog).getByTestId("help-events.clone")).toBeInTheDocument();
     const yearField = within(dialog).getByLabelText(/^year$/i) as HTMLInputElement;
     expect(yearField.value).toBe(String(Number(f.events[0]!.year) + 1));
     const nameField = within(dialog).getByLabelText(/^name$/i) as HTMLInputElement;
@@ -372,6 +377,17 @@ describe("EventsList rows", () => {
       expect(screen.queryByRole("table")).toBeNull();
     } finally {
       restore();
+    }
+  });
+});
+
+describe("EventsList help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(<Harness />);
+    for (const key of [
+      "events",
+    ]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
     }
   });
 });

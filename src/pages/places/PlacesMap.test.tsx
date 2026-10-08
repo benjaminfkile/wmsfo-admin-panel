@@ -137,3 +137,15 @@ describe("PlacesMap (admin.md 6.24)", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("PlacesMap help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(<Harness />);
+    for (const key of [
+      "places.map",
+      "places.map.window",
+    ]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
+  });
+});

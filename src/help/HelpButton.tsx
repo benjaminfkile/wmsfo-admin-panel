@@ -14,7 +14,8 @@ interface Props {
 
 // The help button beside a page, card, or dialog title: 24 px on
 // desktop, a 44 px hit area on compact. It opens the topic's popover,
-// and the popover's Edit button (admins) opens the editor.
+// and the popover's Edit button (admins) opens the editor. The popover
+// mounts only while open.
 export default function HelpButton({ topic, size = "small" }: Props) {
   const compact = useCompact();
   const { topicFor } = useHelpTopics();
@@ -33,15 +34,17 @@ export default function HelpButton({ topic, size = "small" }: Props) {
       >
         <HelpOutlineIcon sx={{ fontSize: size === "medium" ? 22 : 18 }} />
       </IconButton>
-      <HelpPopover
-        topic={topic}
-        anchorEl={anchor}
-        onClose={() => setAnchor(null)}
-        onEdit={() => {
-          setAnchor(null);
-          setEditing(true);
-        }}
-      />
+      {anchor !== null && (
+        <HelpPopover
+          topic={topic}
+          anchorEl={anchor}
+          onClose={() => setAnchor(null)}
+          onEdit={() => {
+            setAnchor(null);
+            setEditing(true);
+          }}
+        />
+      )}
       {editing && (
         <HelpEditDialog
           open

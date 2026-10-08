@@ -201,6 +201,7 @@ describe("QrCodesList (admin.md 6.23)", () => {
     await screen.findByRole("link", { name: "qr-001" });
     await user.click(screen.getByRole("button", { name: /print sheet/i }));
     await screen.findByRole("dialog", { name: /print sheet/i });
+    expect(screen.getByTestId("help-qr-codes.print-sheet")).toBeInTheDocument();
 
     const sizeSelect = await screen.findByRole("combobox", { name: /size/i });
     await user.click(sizeSelect);
@@ -209,6 +210,21 @@ describe("QrCodesList (admin.md 6.23)", () => {
       expect(
         within(listbox).getByRole("option", { name: new RegExp(s.label) })
       ).toBeInTheDocument();
+    }
+  });
+});
+
+describe("QrCodesList help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(
+      <Harness>
+        <QrCodesList />
+      </Harness>
+    );
+    for (const key of [
+      "qr-codes",
+    ]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
     }
   });
 });

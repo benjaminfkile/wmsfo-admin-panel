@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import EventCreateDialog from "./EventCreateDialog";
 import type { CreateEventBody } from "../../api/resources/events";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { buildTheme } from "../../theme/theme";
 import { formatStamp } from "../../lib/time";
 
@@ -26,18 +27,20 @@ afterEach(() => {
 
 function renderDialog(onSubmit: (b: CreateEventBody) => void) {
   return render(
-    <ThemeProvider theme={buildTheme("light")}>
-      <CssBaseline />
-      <EventCreateDialog
-        open
-        events={[]}
-        routes={[]}
-        submitting={false}
-        error={null}
-        onCancel={() => undefined}
-        onSubmit={onSubmit}
-      />
-    </ThemeProvider>
+    <QueryClientProvider client={new QueryClient()}>
+      <ThemeProvider theme={buildTheme("light")}>
+        <CssBaseline />
+        <EventCreateDialog
+          open
+          events={[]}
+          routes={[]}
+          submitting={false}
+          error={null}
+          onCancel={() => undefined}
+          onSubmit={onSubmit}
+        />
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -46,6 +49,7 @@ describe("EventCreateDialog: timezone", () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     renderDialog(onSubmit);
+    expect(screen.getByTestId("help-events.create")).toBeInTheDocument();
 
     expect(screen.getByRole("combobox", { name: /timezone/i })).toHaveValue(
       "America/Denver"

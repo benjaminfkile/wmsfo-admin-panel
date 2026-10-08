@@ -191,6 +191,7 @@ export default function QrCodesList() {
     <>
       <PageHeader
         title="QR codes"
+        help="qr-codes"
         actions={
           <>
             <TextField

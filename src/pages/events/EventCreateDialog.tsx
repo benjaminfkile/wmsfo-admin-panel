@@ -5,7 +5,6 @@ import {
   Button,
   DialogActions,
   DialogContent,
-  DialogTitle,
   FormControl,
   FormControlLabel,
   FormLabel,
@@ -23,6 +22,7 @@ import type { CreateEventBody } from "../../api/resources/events";
 import ErrorAlert from "../../components/ErrorAlert";
 import TimeZoneSelect from "../../components/TimeZoneSelect";
 import { browserTimeZone, formatStamp, shiftWallZone, wallTimeToUtc } from "../../lib/time";
+import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 
 type RouteChoice = "inherit" | "choose" | "none";
 
@@ -118,7 +118,7 @@ export default function EventCreateDialog({
 
   return (
     <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>New event</DialogTitle>
+      <DialogTitleWithHelp help="events.create">New event</DialogTitleWithHelp>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {error ? (

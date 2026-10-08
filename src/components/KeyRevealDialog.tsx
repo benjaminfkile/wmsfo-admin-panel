@@ -17,6 +17,8 @@ import type { Enrollment } from "../api/types";
 import { useNow } from "../hooks/useNow";
 import { useNotify } from "../hooks/useNotify";
 import AppDialog from "./AppDialog";
+import DialogTitleWithHelp from "../help/DialogTitleWithHelp";
+import type { HelpKey } from "../help/helpKeys";
 
 interface Props {
   open: boolean;
@@ -26,6 +28,7 @@ interface Props {
   // admin.md 6.5). Omit for the API key flow (admin.md 6.20).
   enrollment?: Enrollment;
   onClose: () => void;
+  help?: HelpKey;
 }
 
 // Reveal-once dialog used after minting a beacon or an API key. No
@@ -37,6 +40,7 @@ export default function KeyRevealDialog({
   beaconKey,
   enrollment,
   onClose,
+  help,
 }: Props) {
   const notify = useNotify();
   const now = useNow(1000);
@@ -87,7 +91,11 @@ export default function KeyRevealDialog({
       maxWidth="sm"
       fullWidth
     >
-      <DialogTitle>{title}</DialogTitle>
+      {help === undefined ? (
+        <DialogTitle>{title}</DialogTitle>
+      ) : (
+        <DialogTitleWithHelp help={help}>{title}</DialogTitleWithHelp>
+      )}
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           <Alert severity="warning">

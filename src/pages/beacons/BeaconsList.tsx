@@ -41,6 +41,7 @@ import PageHeader from "../../components/layout/PageHeader";
 import BeaconCreateDialog, {
   type CreateBeaconBody,
 } from "./BeaconCreateDialog";
+import HelpButton from "../../help/HelpButton";
 
 type Action = "activate" | "deactivate" | "rotate" | "revoke";
 
@@ -375,6 +376,7 @@ export default function BeaconsList() {
     <>
       <PageHeader
         title="Beacons"
+        help="beacons"
         actions={
           <Button variant="contained" onClick={() => setCreateOpen(true)}>
             New beacon
@@ -431,8 +433,19 @@ export default function BeaconsList() {
               sx={{ mt: 2 }}
               data-testid="revoked-beacons-accordion"
             >
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography>Revoked ({revokedBeacons.length})</Typography>
+              <AccordionSummary component="div" expandIcon={<ExpandMoreIcon />}>
+                <Stack direction="row" alignItems="center" spacing={0.5}>
+                  <Typography>Revoked ({revokedBeacons.length})</Typography>
+                  {/* Clicks on the help button and its popover stay out of
+                      the summary, so the section does not toggle. */}
+                  <Box
+                    component="span"
+                    sx={{ display: "inline-flex" }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <HelpButton topic="beacons.revoked" />
+                  </Box>
+                </Stack>
               </AccordionSummary>
               <AccordionDetails sx={{ p: 0 }}>
                 <ResponsiveTable<Beacon>
@@ -553,6 +566,7 @@ export default function BeaconsList() {
           title={keyMintTitle}
           beaconKey={keyMint.key}
           enrollment={keyMint.enrollment}
+          help="beacons.key-reveal"
           onClose={() => setKeyMint(null)}
         />
       ) : null}

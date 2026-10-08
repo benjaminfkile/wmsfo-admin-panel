@@ -209,6 +209,7 @@ describe("Scan (admin.md 6.25)", () => {
     act(() => read("https://site.test/q/qr-002"));
     const sheet = await screen.findByRole("presentation");
     await within(sheet).findByRole("heading", { name: /attach qr-002/i });
+    expect(within(sheet).getByTestId("help-scan.attach")).toBeInTheDocument();
 
     // Take the "New place" inline path: type a name and Attach.
     const nameInput = within(sheet).getByLabelText(/new place name/i);
@@ -281,5 +282,21 @@ describe("Scan (admin.md 6.25)", () => {
     await user.click(screen.getByRole("button", { name: /open/i }));
 
     await screen.findByText(/qr-001 → southgate mall/i);
+  });
+});
+
+describe("Scan help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    const { factory } = makeFakeReaderFactory();
+    render(
+      <Harness>
+        <Scan readerFactory={factory} />
+      </Harness>,
+    );
+    for (const key of [
+      "scan",
+    ]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
   });
 });

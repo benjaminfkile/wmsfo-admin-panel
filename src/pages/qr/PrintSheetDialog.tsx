@@ -6,7 +6,6 @@ import {
   CircularProgress,
   DialogActions,
   DialogContent,
-  DialogTitle,
   MenuItem,
   Stack,
   TextField,
@@ -17,6 +16,7 @@ import { useConfig } from "../../ConfigContext";
 import type { QrCode } from "../../api/types";
 import { qrTargetUrl, renderSvg } from "./qrRender";
 import { groupBatches } from "./qrHelpers";
+import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 
 export interface PrintSheetSize {
   mm: number;
@@ -93,7 +93,7 @@ export default function PrintSheetDialog({ open, codes, onClose }: Props) {
 
   return (
     <AppDialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-      <DialogTitle>Print sheet</DialogTitle>
+      <DialogTitleWithHelp help="qr-codes.print-sheet">Print sheet</DialogTitleWithHelp>
       <DialogContent dividers>
         <Stack direction="row" spacing={2} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
           <TextField

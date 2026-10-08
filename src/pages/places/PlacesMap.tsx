@@ -29,6 +29,7 @@ import ErrorAlert from "../../components/ErrorAlert";
 import PageHeader from "../../components/layout/PageHeader";
 import type { PlacePin } from "../../api/types";
 import { loadMaps, loadMarkers } from "./googleMaps";
+import CardTitle from "../../help/CardTitle";
 
 // admin.md 6.24 /places/map: event select (default the current event),
 // window select (this event / last 14 days / all time), Google map
@@ -171,6 +172,7 @@ export default function PlacesMap() {
     <>
       <PageHeader
         title="Places map"
+        help="places.map"
         actions={
           <Button component={RouterLink} to="/places">
             Back to list
@@ -227,9 +229,9 @@ export default function PlacesMap() {
 
         <Card sx={{ flex: 1, minWidth: 0, maxWidth: "100%" }}>
           <CardContent>
-            <Typography variant="h6" sx={{ mb: 1 }}>
+            <CardTitle help="places.map.window" sx={{ mb: 1 }}>
               Places in this window
-            </Typography>
+            </CardTitle>
             <List dense data-testid="places-map-list">
               {pins.map((p: PlacePin) => (
                 <ListItem key={String(p.placeId)} disableGutters>

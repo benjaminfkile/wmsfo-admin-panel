@@ -171,6 +171,7 @@ async function openDialog(event: Event): Promise<HTMLElement> {
   render(<Harness event={event} />);
   fireEvent.click(screen.getByRole("button", { name: "Configure route map" }));
   const dialog = await screen.findByRole("dialog", { name: "Route map" });
+  expect(within(dialog).getByTestId("help-events.detail.route-map-dialog")).toBeInTheDocument();
   if (event.routeId !== null && event.routeId !== undefined) {
     await within(dialog).findByTestId("route-map-preview");
     await waitFor(() => expect(maps.length).toBeGreaterThan(0));

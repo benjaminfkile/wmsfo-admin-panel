@@ -50,6 +50,7 @@ import LocationsSection from "./LocationsSection";
 import StatusDialog from "./StatusDialog";
 import { historyPollInterval } from "./historyPolling";
 import NotifyDialog from "./NotifyDialog";
+import CardTitle from "../../help/CardTitle";
 
 export default function EventDetail() {
   const params = useParams<{ id: string }>();
@@ -328,6 +329,7 @@ export default function EventDetail() {
     <>
       <PageHeader
         title={event.name ?? "Event"}
+        help="events.detail"
         chips={
           <>
             <StatusChip statusId={currentStatusId} />
@@ -342,9 +344,9 @@ export default function EventDetail() {
         <Grid size={{ xs: 12, md: 6 }}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
+              <CardTitle help="events.detail.details" gutterBottom>
                 Details
-              </Typography>
+              </CardTitle>
               {patchMut.error ? (
                 <ErrorAlert
                   error={patchMut.error}
@@ -504,9 +506,9 @@ export default function EventDetail() {
                     }
               }
             >
-              <Typography variant="h6" gutterBottom>
+              <CardTitle help="events.detail.status" gutterBottom>
                 Status
-              </Typography>
+              </CardTitle>
               <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
                 <StatusChip statusId={currentStatusId} />
                 <Box component="span" sx={{ color: "text.secondary" }}>
@@ -663,6 +665,7 @@ export default function EventDetail() {
         title="Set current event?"
         body={`Make ${event.name} the current event? The public site switches to it on its next poll.`}
         confirmLabel="Set current"
+        help="events.set-current"
         disabled={setCurrentMut.isPending}
         onCancel={() => setConfirmCurrent(false)}
         onConfirm={() => {
@@ -680,6 +683,7 @@ export default function EventDetail() {
           disabled={deleteMut.isPending}
           onCancel={() => setConfirmDelete(false)}
           onConfirm={() => deleteMut.mutate()}
+          help="events.delete"
         />
       ) : null}
     </>

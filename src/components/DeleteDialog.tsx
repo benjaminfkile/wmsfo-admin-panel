@@ -15,6 +15,8 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import AppDialog from "./AppDialog";
 import ErrorAlert from "./ErrorAlert";
+import DialogTitleWithHelp from "../help/DialogTitleWithHelp";
+import type { HelpKey } from "../help/helpKeys";
 import { impact, type DeleteImpact, type ImpactGroup, type ImpactResource } from "../api/impact";
 
 // A page holding a role must hand it to another page before it can be
@@ -35,6 +37,7 @@ interface Props {
   disabled?: boolean;
   onCancel: () => void;
   onConfirm: (opts: { roleTo: number | null }) => void;
+  help?: HelpKey;
 }
 
 const ENTITY_LABELS: Record<string, { singular: string; plural: string }> = {
@@ -107,6 +110,7 @@ export default function DeleteDialog({
   disabled,
   onCancel,
   onConfirm,
+  help,
 }: Props) {
   const impactQ = useQuery({
     queryKey: ["impact", resource, String(id)],
@@ -141,7 +145,11 @@ export default function DeleteDialog({
 
   return (
     <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>{`Delete ${name}?`}</DialogTitle>
+      {help === undefined ? (
+        <DialogTitle>{`Delete ${name}?`}</DialogTitle>
+      ) : (
+        <DialogTitleWithHelp help={help}>{`Delete ${name}?`}</DialogTitleWithHelp>
+      )}
       <DialogContent>
         {impactQ.isLoading ? (
           <Stack alignItems="center" sx={{ py: 3 }}>

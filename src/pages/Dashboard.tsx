@@ -52,6 +52,8 @@ import type {
 } from "../api/types";
 import { resolvePublishedState, type Mismatch } from "../lib/publishedState";
 import StatusDialog from "./events/StatusDialog";
+import CardTitle from "../help/CardTitle";
+import HelpButton from "../help/HelpButton";
 
 const DASHBOARD_KEYS = [
   keys.events,
@@ -214,7 +216,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <PageHeader title="Dashboard" />
+      <PageHeader title="Dashboard" help="dashboard" />
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 6 }}>
@@ -371,9 +373,9 @@ function CurrentEventCard({
   return (
     <Card>
       <CardContent>
-        <Typography variant="h6" gutterBottom>
+        <CardTitle help="dashboard.current-event" gutterBottom>
           Current event
-        </Typography>
+        </CardTitle>
         {error ? (
           <ErrorAlert error={error} />
         ) : loading ? (
@@ -475,9 +477,9 @@ function ActiveBeaconCard({
   return (
     <Card>
       <CardContent>
-        <Typography variant="h6" gutterBottom>
+        <CardTitle help="dashboard.active-beacon" gutterBottom>
           Active beacon
-        </Typography>
+        </CardTitle>
         {error ? (
           <ErrorAlert error={error} />
         ) : loading ? (
@@ -555,9 +557,9 @@ function PublishedStateCard({
   return (
     <Card>
       <CardContent>
-        <Typography variant="h6" gutterBottom>
+        <CardTitle help="dashboard.published-state" gutterBottom>
           Published state
-        </Typography>
+        </CardTitle>
         {resolved.kind === "ok" ? (
           <Alert severity="success">
             CDN current
@@ -665,9 +667,9 @@ function SnapshotCard({
   return (
     <Card>
       <CardContent>
-        <Typography variant="h6" gutterBottom>
+        <CardTitle help="dashboard.snapshot" gutterBottom>
           Snapshot
-        </Typography>
+        </CardTitle>
         {error ? (
           <ErrorAlert error={error} />
         ) : snap === null ? (
@@ -724,9 +726,9 @@ function LiveObjectCard({
     return (
       <Card>
         <CardContent>
-          <Typography variant="h6" gutterBottom>
+          <CardTitle help="dashboard.live-object" gutterBottom>
             Live object
-          </Typography>
+          </CardTitle>
           <Typography variant="body2">CDN object unavailable.</Typography>
         </CardContent>
       </Card>
@@ -736,9 +738,9 @@ function LiveObjectCard({
   return (
     <Card>
       <CardContent>
-        <Typography variant="h6" gutterBottom>
+        <CardTitle help="dashboard.live-object" gutterBottom>
           Live object (CDN)
-        </Typography>
+        </CardTitle>
         {unknownVersion ? (
           <Alert severity="warning" sx={{ mb: 2 }}>
             unknown schemaVersion: {String(cdn.schemaVersion)}
@@ -814,9 +816,12 @@ function LiveObjectCard({
           </Stack>
         )}
         <Box sx={{ mt: 2 }}>
-          <Typography variant="body2" gutterBottom>
-            Raw CDN JSON
-          </Typography>
+          <Stack direction="row" alignItems="center" spacing={0.5}>
+            <Typography variant="body2" gutterBottom>
+              Raw CDN JSON
+            </Typography>
+            <HelpButton topic="dashboard.live-object-cdn" />
+          </Stack>
           <ThemedJsonView value={cdn} collapsed={compact ? 1 : undefined} />
         </Box>
         {liveState ? (
@@ -853,9 +858,9 @@ function EmailQuotaCard({
   return (
     <Card data-testid="email-quota-card">
       <CardContent>
-        <Typography variant="h6" gutterBottom>
+        <CardTitle help="dashboard.email-quota" gutterBottom>
           Email quota
-        </Typography>
+        </CardTitle>
         {error ? (
           <Typography variant="body2">Could not be checked</Typography>
         ) : loading || quota === null ? (

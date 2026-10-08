@@ -7,24 +7,27 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import { NotifyProvider } from "../../hooks/useNotify";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { buildTheme } from "../../theme/theme";
 import RouteUploadDialog, { ROUTE_EXAMPLE_JSON } from "./RouteUploadDialog";
 import routeFixture from "../../../contracts/fixtures/route.json";
 
 function Harness() {
   return (
-    <ThemeProvider theme={buildTheme("light")}>
-      <CssBaseline />
-      <NotifyProvider>
-        <RouteUploadDialog
-          open
-          submitting={false}
-          error={null}
-          onCancel={() => undefined}
-          onSubmit={() => undefined}
-        />
-      </NotifyProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={new QueryClient()}>
+      <ThemeProvider theme={buildTheme("light")}>
+        <CssBaseline />
+        <NotifyProvider>
+          <RouteUploadDialog
+            open
+            submitting={false}
+            error={null}
+            onCancel={() => undefined}
+            onSubmit={() => undefined}
+          />
+        </NotifyProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -63,6 +66,7 @@ describe("RouteUploadDialog Expected shape panel", () => {
 
   it("panel is always visible and lists the rules", async () => {
     render(<Harness />);
+    expect(screen.getByTestId("help-routes.upload")).toBeInTheDocument();
     expect(await screen.findByTestId("route-shape-panel")).toBeInTheDocument();
     expect(await screen.findByTestId("route-shape-example")).toBeInTheDocument();
     expect(

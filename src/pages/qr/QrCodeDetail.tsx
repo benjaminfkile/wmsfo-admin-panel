@@ -39,6 +39,7 @@ import type {
 import AttachDialog from "./AttachDialog";
 import DailyChart from "./DailyChart";
 import { qrTargetUrl, renderPngDataUrlMm, renderSvg } from "./qrRender";
+import CardTitle from "../../help/CardTitle";
 
 type OpensChoice = "place" | "page" | "url";
 
@@ -252,6 +253,7 @@ export default function QrCodeDetail() {
     <>
       <PageHeader
         title={`QR code ${d.tag}`}
+        help="qr-codes.detail"
         actions={
           <Button component={RouterLink} to="/qr-codes">
             Back to list
@@ -324,9 +326,9 @@ export default function QrCodeDetail() {
         </Paper>
 
         <Paper sx={{ p: 2, flexGrow: 1, minWidth: 0 }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>
+          <CardTitle help="qr-codes.detail.settings" sx={{ mb: 2 }}>
             Settings
-          </Typography>
+          </CardTitle>
 
           <Stack spacing={2}>
             <Box>
@@ -445,9 +447,9 @@ export default function QrCodeDetail() {
 
       <Card sx={{ mt: 2 }}>
         <CardContent>
-          <Typography variant="h6" sx={{ mb: 1 }}>
+          <CardTitle help="qr-codes.detail.where" sx={{ mb: 1 }}>
             Where it has been
-          </Typography>
+          </CardTitle>
           <ResponsiveTable<QrCodeHistoryRow>
             rows={history}
             columns={historyColumns}
@@ -471,9 +473,9 @@ export default function QrCodeDetail() {
 
       <Card sx={{ mt: 2 }}>
         <CardContent>
-          <Typography variant="h6" sx={{ mb: 1 }}>
+          <CardTitle help="qr-codes.detail.daily" sx={{ mb: 1 }}>
             Last 14 days
-          </Typography>
+          </CardTitle>
           <DailyChart daily={daily} />
         </CardContent>
       </Card>

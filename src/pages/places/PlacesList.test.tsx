@@ -150,6 +150,7 @@ describe("PlacesList (admin.md 6.24)", () => {
 
     await user.click(screen.getByRole("button", { name: /new place$/i }));
     const dialog = await screen.findByRole("dialog", { name: /new place/i });
+    expect(within(dialog).getByTestId("help-places.dialog")).toBeInTheDocument();
     const nameInput = await within(dialog).findByLabelText(/name/i);
     await user.type(nameInput, "  Farmers' market  ");
     await user.click(within(dialog).getByRole("button", { name: /create/i }));
@@ -220,5 +221,20 @@ describe("PlacesList delete refusals", () => {
 
     await screen.findByText(/internal error/i);
     expect(screen.getByRole("link", { name: "Southgate Mall" })).toBeInTheDocument();
+  });
+});
+
+describe("PlacesList help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(
+      <Harness>
+        <PlacesList />
+      </Harness>,
+    );
+    for (const key of [
+      "places",
+    ]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
   });
 });

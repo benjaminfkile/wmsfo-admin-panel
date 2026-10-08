@@ -29,6 +29,7 @@ import { formatStamp } from "../../lib/time";
 import type { EventMessage } from "../../api/types";
 import { historyPollInterval } from "./historyPolling";
 import { verifiedLine } from "./verifiedLine";
+import CardTitle from "../../help/CardTitle";
 
 interface Props {
   eventId: number;
@@ -161,9 +162,9 @@ export default function MessagesSection({ eventId, maxHeight }: Props) {
             : undefined
         }
       >
-        <Typography variant="h6" gutterBottom>
+        <CardTitle help="events.detail.messages" gutterBottom>
           Messages
-        </Typography>
+        </CardTitle>
 
         <Stack spacing={2} sx={{ mb: 3 }}>
           {postMut.error ? (

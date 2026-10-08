@@ -225,6 +225,7 @@ describe("Publish: publish action", () => {
     render(<Harness />);
     await user.click(await screen.findByTestId("publish-button"));
     const label = await screen.findByTestId("publish-label");
+    expect(screen.getByTestId("help-bar.publish")).toBeInTheDocument();
     await user.type(within(label).getByRole("textbox"), "Ship it");
     const confirm = await screen.findByRole("button", { name: /^publish$/i });
     await user.click(confirm);
