@@ -22,7 +22,8 @@ export type NavKey =
   | "settings"
   | "api-keys"
   | "agents"
-  | "audit";
+  | "audit"
+  | "help";
 
 // Drawer order per admin.md 6.1: admin sees QR codes, Places, and Scan
 // after Beacons; editor gets them beside content; canvasser sees only
@@ -50,6 +51,7 @@ export const ADMIN_NAV: NavKey[] = [
   "api-keys",
   "agents",
   "audit",
+  "help",
 ];
 
 export const EDITOR_NAV: NavKey[] = [
@@ -63,6 +65,7 @@ export const EDITOR_NAV: NavKey[] = [
   "places",
   "scan",
   "audit",
+  "help",
 ];
 
 export const CANVASSER_NAV: NavKey[] = ["qr-codes", "places", "scan"];

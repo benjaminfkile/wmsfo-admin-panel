@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { ThemeProvider } from "@mui/material";
 import { buildTheme } from "../../theme/theme";
 import PageHeader from "./PageHeader";
+import { HelpHarness, signInAs } from "../../test/helpHarness";
 
 // PageHeader flips its layout at the `md` breakpoint through
 // `useMediaQuery` and `useCompact`. Stub `window.matchMedia` for the
@@ -82,5 +83,32 @@ describe("PageHeader", () => {
     expect(title.tagName).toBe("H4");
     // The action button renders exactly once on desktop.
     expect(screen.getAllByTestId("new-event")).toHaveLength(1);
+  });
+
+  it("renders the help button after the chips when `help` is given", async () => {
+    restore = stubMatchMedia(false);
+    render(
+      <HelpHarness userManager={signInAs("editor")}>
+        <PageHeader
+          title="Dashboard"
+          help="dashboard"
+          chips={<span data-testid="chip">Live</span>}
+        />
+      </HelpHarness>
+    );
+    const button = await screen.findByRole("button", {
+      name: "Help: What the dashboard shows",
+    });
+    expect(button).toHaveAttribute("data-testid", "help-dashboard");
+    const chip = screen.getByTestId("chip");
+    expect(chip.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const row = chip.parentElement as HTMLElement;
+    expect(within(row).getByTestId("help-dashboard")).toBe(button);
+  });
+
+  it("renders no help button without `help`", () => {
+    restore = stubMatchMedia(false);
+    renderWithTheme(<PageHeader title="Events" />);
+    expect(screen.queryByRole("button", { name: /^Help:/ })).not.toBeInTheDocument();
   });
 });

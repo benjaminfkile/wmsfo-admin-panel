@@ -29,4 +29,5 @@ export const ALL_ROUTES: RouteDef[] = [
   { key: "api-keys", path: "/api-keys", label: "API keys" },
   { key: "agents", path: "/agents", label: "Agents" },
   { key: "audit", path: "/audit", label: "Audit" },
+  { key: "help", path: "/help", label: "Help" },
 ];

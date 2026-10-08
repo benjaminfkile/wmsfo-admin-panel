@@ -45,6 +45,7 @@ export const CAPABILITY_LABELS: ReadonlyArray<{
   { value: "diagnostics", label: "Diagnostics" },
   { value: "audit", label: "Audit" },
   { value: "qr", label: "QR codes and places" },
+  { value: "help", label: "Help texts" },
 ];
 
 interface Props {

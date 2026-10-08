@@ -4974,6 +4974,115 @@ export interface paths {
         };
         trace?: never;
     };
+    "/admin/help": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItemsResponseOfHelpTopicDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/help/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PutHelpTopicRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["HelpTopicDto"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/help/{key}/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["HelpTopicDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/snapshot": {
         parameters: {
             query?: never;
@@ -5625,6 +5734,26 @@ export interface components {
             /** Format: date-time */
             serverTime?: string;
         };
+        HelpLinkDto: {
+            label?: string;
+            to?: string;
+        };
+        HelpTopicDto: {
+            key?: string;
+            page?: string;
+            label?: string;
+            title?: string;
+            body?: string;
+            links?: components["schemas"]["HelpLinkDto"][];
+            edited?: boolean;
+            editedBy?: null | string;
+            /** Format: date-time */
+            editedAt?: null | string;
+            defaultChanged?: boolean;
+            /** Format: date-time */
+            updatedAt?: string;
+            audit?: null | components["schemas"]["AuditStampDto"];
+        };
         IconInfoDto: {
             id?: string;
             name?: string;
@@ -5665,6 +5794,9 @@ export interface components {
         };
         ItemsResponseOfEventMessageDto: {
             items?: components["schemas"]["EventMessageDto"][];
+        };
+        ItemsResponseOfHelpTopicDto: {
+            items?: components["schemas"]["HelpTopicDto"][];
         };
         ItemsResponseOfIconInfoDto: {
             items?: components["schemas"]["IconInfoDto"][];
@@ -6321,6 +6453,15 @@ export interface components {
         };
         PublishContentRequest: {
             label?: null | string;
+        };
+        PutHelpLinkRequest: {
+            label?: null | string;
+            to?: null | string;
+        };
+        PutHelpTopicRequest: {
+            title?: null | string;
+            body?: null | string;
+            links?: null | components["schemas"]["PutHelpLinkRequest"][];
         };
         PutPlaceLocationRequest: {
             /** Format: double */

@@ -60,10 +60,10 @@ Base URL: ${baseUrl}
 - The public site renders the published content document plus live data from the snapshot and the live object.
 - Working set: pages, sections, items, and the site settings draft. Writes there never reach the site. POST /admin/content/publish snapshots the working set as a new immutable version; the site picks it up within seconds.
 - Snapshot-affecting writes go public immediately, with no publish step: events (create, patch, delete, current, status, messages, notify with a message), sponsors and sponsor years and order, cookie types, settings, media PATCH, QR codes (patch, attach, detach, delete), places (create, patch, delete; not pins), publish, and snapshot rebuild.
-- Never public: posters, place pins (PUT and DELETE .../location), scans, flight recordings themselves, beacons, subscribers, people, contact messages, the audit log, API keys, and the unpublished working set (except through a preview URL you hand to a human).
+- Never public: posters, place pins (PUT and DELETE .../location), scans, flight recordings themselves, beacons, subscribers, people, contact messages, the audit log, API keys, help texts, and the unpublished working set (except through a preview URL you hand to a human).
 
 ## 5. Capabilities
-There are 18. A key reaches only the groups it was minted with. Each delete's impact route rides with its resource.
+There are 19. A key reaches only the groups it was minted with. Each delete's impact route rides with its resource.
 - \`events\`: /admin/events/* (status, messages, notify, clone, cookies, locations, route-map) and /admin/posters/*.
 - \`routes\`: /admin/routes/* (flight recordings and their route-map).
 - \`beacons\`: /admin/beacons/*.
@@ -82,6 +82,7 @@ There are 18. A key reaches only the groups it was minted with. Each delete's im
 - \`diagnostics\`: /admin/snapshot, /admin/snapshot/rebuild, /admin/live, /admin/live/republish.
 - \`audit\`: GET /admin/audit, GET /admin/audit/entities.
 - \`qr\`: /admin/qr-codes/* and /admin/places/* (the canvasser routes, the two deletes included).
+- \`help\`: /admin/help/* (the admin panel's help texts).
 
 ## 6. Content model
 - Pages: \`{ slug, title 1..200, navLabel null|1..40, icon Icon|null, navPosition, isHidden, role }\`. Role none pages render at /<slug>. slug matches ^[a-z0-9]+(-[a-z0-9]+)*$, 1..60, and is not auth, preview, api, admin, or assets.
@@ -224,6 +225,12 @@ There are 18. A key reaches only the groups it was minted with. Each delete's im
 - GET /admin/places (tree order), POST \`{ parentId, name 1..120, description 0..500, opensPageId or forwardUrl }\`, PATCH /admin/places/{id} (400 place_cycle, 409 place_name_taken), DELETE (the place and its subtree), GET .../impact.
 - PUT /admin/places/{id}/location \`{ lat, lng, accuracyM, source phone|search|drag }\`, DELETE .../location. Pins are never public.
 - GET /admin/places/map?eventId=&from=&to=: pinned places with people counts.
+
+### help
+- The admin panel's help popovers; never public. Change them only when the human asks.
+- GET /admin/help: every topic \`{ key, page, label, title, body, links, edited, editedBy, editedAt, defaultChanged }\`.
+- PUT /admin/help/{key} \`{ title 1..120, body 1..2000, links 0..6 of { label 1..60, to } }\`: to is a panel path starting with one / or an https:// URL. Plain text: blank lines split paragraphs, lines starting with "- " are bullets.
+- POST /admin/help/{key}/reset (200): back to the shipped default.
 
 ## 8. Delete safety
 - Every delete has a preview: GET /admin/<resource>/{id}/impact for events, routes, sponsors, cookie-types, pages, media, places, qr-codes, beacons, subscribers, people, contact-messages, posters, and GET /admin/events/{id}/locations/impact for a recording.
