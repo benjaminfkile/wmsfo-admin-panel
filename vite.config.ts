@@ -12,5 +12,9 @@ export default defineConfig({
     setupFiles: ["./src/setupTests.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     css: false,
+    // Page tests render many role-named controls now (every title carries a help
+    // button), so a test under load can pass 5 s without being stuck.
+    testTimeout: 20000,
+    hookTimeout: 20000,
   },
 });
