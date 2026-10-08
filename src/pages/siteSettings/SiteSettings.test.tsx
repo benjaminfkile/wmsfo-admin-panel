@@ -565,3 +565,20 @@ describe("SiteSettings", () => {
     expect(body?.data?.theme?.snowDefault).toBe(false);
   });
 });
+
+describe("SiteSettings help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every group help of the default render", async () => {
+    render(<Harness />);
+    for (const key of [
+      "site-settings",
+      "site-settings.identity",
+      "site-settings.theme",
+      "site-settings.links",
+      "site-settings.contact",
+      "site-settings.viewpoints",
+      "site-settings.places",
+    ]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
+  });
+});

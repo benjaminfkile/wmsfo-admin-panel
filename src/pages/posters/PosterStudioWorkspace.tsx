@@ -73,6 +73,7 @@ import { renderOverlayCanvas } from "../../routeMap/posterOverlay";
 import RoutePosterPreview, { PREVIEW_MAX_HEIGHT } from "./RoutePosterPreview";
 import PosterOverlayComposer, { type EditorElement } from "./PosterOverlayComposer";
 import PosterOverlayControls from "./PosterOverlayControls";
+import HelpButton from "../../help/HelpButton";
 import { OverlayLoadError, sourceKey, useOverlaySources } from "./overlaySources";
 
 interface Props {
@@ -456,7 +457,10 @@ export default function PosterStudioWorkspace({
             </RadioGroup>
           </FormControl>
           <FormControl disabled={busy}>
-            <FormLabel id="poster-size">Size</FormLabel>
+            <Stack direction="row" alignItems="center" spacing={0.5}>
+              <FormLabel id="poster-size">Size</FormLabel>
+              <HelpButton topic="posters.editor.size" />
+            </Stack>
             <RadioGroup
               aria-labelledby="poster-size"
               value={preset}
@@ -489,7 +493,10 @@ export default function PosterStudioWorkspace({
             />
           ) : null}
           <Stack component="fieldset" sx={{ border: 0, p: 0, m: 0 }} data-testid="poster-map-details">
-            <FormLabel component="legend">Map details</FormLabel>
+            <FormLabel component="legend" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              Map details
+              <HelpButton topic="posters.editor.map-details" />
+            </FormLabel>
             {DETAIL_SWITCHES.map(({ key, label }) => (
               <FormControlLabel
                 key={key}
@@ -509,7 +516,10 @@ export default function PosterStudioWorkspace({
             ))}
           </Stack>
           <Stack spacing={2} component="fieldset" sx={{ border: 0, p: 0, m: 0 }} data-testid="route-poster-styling">
-            <FormLabel component="legend">Route styling</FormLabel>
+            <FormLabel component="legend" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              Route styling
+              <HelpButton topic="posters.editor.route-styling" />
+            </FormLabel>
             <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1 }}>
               <Box
                 component="input"
@@ -651,7 +661,7 @@ export default function PosterStudioWorkspace({
             {posterFilename(posterName, theme, size)}
           </Typography>
 
-          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
+          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
             <Button
               variant={asset ? "outlined" : "contained"}
               onClick={() => void generate()}
@@ -660,6 +670,7 @@ export default function PosterStudioWorkspace({
             >
               {phase === "failed" ? "Try again" : asset ? "Generate another" : "Generate"}
             </Button>
+            <HelpButton topic="posters.editor.generate" />
           </Stack>
           {phase === "rendering" ? (
             <Status label="Rendering the map" />

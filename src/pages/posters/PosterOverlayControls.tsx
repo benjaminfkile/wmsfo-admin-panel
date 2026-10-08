@@ -19,6 +19,7 @@ import AppDialog from "../../components/AppDialog";
 import MediaPicker from "../../components/content/MediaPicker";
 import { useCompact } from "../../hooks/useCompact";
 import { keys } from "../../queries/keys";
+import HelpButton from "../../help/HelpButton";
 
 interface Props {
   disabled: boolean;
@@ -51,9 +52,12 @@ export default function PosterOverlayControls(props: Props) {
 
   return (
     <Stack spacing={1} data-testid="poster-overlay-controls">
-      <Typography variant="subtitle2" component="h3">
-        Overlays
-      </Typography>
+      <Stack direction="row" alignItems="center" spacing={0.5}>
+        <Typography variant="subtitle2" component="h3">
+          Overlays
+        </Typography>
+        <HelpButton topic="posters.editor.overlays" />
+      </Stack>
       <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1 }}>
         <Button size="small" variant="outlined" disabled={disabled} onClick={() => setMediaOpen(true)} data-testid="poster-overlay-add-image">
           Add image

@@ -3,12 +3,12 @@ import {
   Button,
   DialogActions,
   DialogContent,
-  DialogTitle,
   Stack,
   Tooltip,
   Typography,
 } from "@mui/material";
 import AppDialog from "../AppDialog";
+import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 import { useCompact } from "../../hooks/useCompact";
 import type { KindInfo } from "../../api/types";
 
@@ -38,7 +38,9 @@ export default function SectionPalette({
       fullWidth
       fullScreen={compact}
     >
-      <DialogTitle>Add a section</DialogTitle>
+      <DialogTitleWithHelp help="pages.editor.palette">
+        Add a section
+      </DialogTitleWithHelp>
       <DialogContent dividers>
         <Stack spacing={1}>
           {kinds.map((k) => {

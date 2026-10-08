@@ -3,13 +3,13 @@ import {
   Button,
   DialogActions,
   DialogContent,
-  DialogTitle,
   List,
   ListItemButton,
   ListItemText,
   Typography,
 } from "@mui/material";
 import AppDialog from "../AppDialog";
+import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 import { useCompact } from "../../hooks/useCompact";
 import type { KindInfo, PageAdmin } from "../../api/types";
 
@@ -57,7 +57,9 @@ export default function MoveSectionDialog({
       maxWidth="sm"
       fullScreen={compact}
     >
-      <DialogTitle>Move to page</DialogTitle>
+      <DialogTitleWithHelp help="pages.editor.move">
+        Move to page
+      </DialogTitleWithHelp>
       <DialogContent dividers>
         {options.length === 0 ? (
           <Typography color="text.secondary">No other pages.</Typography>

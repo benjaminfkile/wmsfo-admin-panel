@@ -4,7 +4,6 @@ import {
   Checkbox,
   DialogActions,
   DialogContent,
-  DialogTitle,
   FormControlLabel,
   Stack,
   TextField,
@@ -15,6 +14,7 @@ import ErrorAlert from "../../components/ErrorAlert";
 import { PAGE_SETTINGS_LABELS as L } from "../../components/content/labels";
 import PageIconField from "./PageIconField";
 import { validatePage, type PageErrors } from "../../validation/page";
+import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 
 export interface PageSettingsSubmit {
   slug: string;
@@ -83,7 +83,9 @@ export default function PageSettingsDialog({
 
   return (
     <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>Page settings</DialogTitle>
+      <DialogTitleWithHelp help="pages.settings">
+        Page settings
+      </DialogTitleWithHelp>
       <DialogContent>
         {error ? <ErrorAlert error={error} /> : null}
         <Stack spacing={2} sx={{ mt: 1 }}>

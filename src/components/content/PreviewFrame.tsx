@@ -9,6 +9,8 @@ import CloseIcon from "@mui/icons-material/Close";
 import AppDialog from "../AppDialog";
 import PreviewPane from "./PreviewPane";
 import { useCompact } from "../../hooks/useCompact";
+import HelpButton from "../../help/HelpButton";
+import type { HelpKey } from "../../help/helpKeys";
 
 interface Props {
   open: boolean;
@@ -20,11 +22,13 @@ interface Props {
   title?: string;
   // Passed to PreviewPane: each change schedules one debounced reload.
   reloadSignal?: number;
+  // A help key for a button after the title.
+  help?: HelpKey;
 }
 
 // The preview dialog (admin.md 6.17): a title bar with a Close button over
 // a `PreviewPane`, which holds the iframe, the token, and the toolbar. Full
-// screen on compact.
+// screen on compact. `help` puts a help button after the title.
 export default function PreviewFrame({
   open,
   onClose,
@@ -32,6 +36,7 @@ export default function PreviewFrame({
   showPageSelector = true,
   title = "Preview",
   reloadSignal,
+  help,
 }: Props) {
   const compact = useCompact();
   return (
@@ -49,9 +54,17 @@ export default function PreviewFrame({
     >
       <DialogTitle>
         <Stack direction="row" alignItems="center" spacing={2}>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            {title}
-          </Typography>
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={0.5}
+            sx={{ flexGrow: 1, minWidth: 0 }}
+          >
+            <Typography variant="h6" sx={{ minWidth: 0 }}>
+              {title}
+            </Typography>
+            {help !== undefined && <HelpButton topic={help} />}
+          </Stack>
           <IconButton
             aria-label="Close preview"
             onClick={onClose}

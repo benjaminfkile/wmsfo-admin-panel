@@ -150,6 +150,11 @@ describe("PageEditor", () => {
     await screen.findByRole("button", { name: /add section/i });
     await user.click(screen.getByRole("button", { name: /add section/i }));
 
+    expect(
+      within(await screen.findByRole("dialog")).getByTestId(
+        "help-pages.editor.palette"
+      )
+    ).toBeInTheDocument();
     const allowed = await screen.findByTestId("palette-kind-rich_text");
     const excluded = await screen.findByTestId("palette-kind-map");
     expect(allowed).not.toBeDisabled();
@@ -396,6 +401,7 @@ describe("PageEditor", () => {
     );
 
     const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByTestId("help-pages.editor.move")).toBeInTheDocument();
     await user.click(within(dialog).getByTestId(`move-target-${otherPage.id}`));
     await user.click(within(dialog).getByRole("button", { name: /^move$/i }));
 
@@ -956,5 +962,17 @@ describe("PageEditor", () => {
       navLabel: null,
       icon: { source: "library", id: "cookie" },
     });
+  });
+});
+
+describe("PageEditor help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every card help of the default render", async () => {
+    render(<Harness />);
+    await screen.findByTestId(`section-card-${f.sampleSection.id}`);
+    for (const key of ["pages.editor", "pages.editor.sections"]) {
+      expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
+    }
+    // The autosave help shows only beside the Saving or Saved text.
+    expect(screen.queryByTestId("help-pages.editor.autosave")).toBeNull();
   });
 });

@@ -1147,3 +1147,20 @@ describe("PosterEditor: no attach to an event", () => {
     expect(eventPatches).toEqual([]);
   });
 });
+
+describe("PosterEditor help buttons (admin.md 6.26)", () => {
+  it("mounts the header help and every group help of the default render", async () => {
+    render(<Harness poster={POSTER} />);
+    const studio = await openStudio();
+    expect(screen.getByTestId("help-posters.editor")).toBeInTheDocument();
+    for (const key of [
+      "posters.editor.size",
+      "posters.editor.map-details",
+      "posters.editor.route-styling",
+      "posters.editor.overlays",
+      "posters.editor.generate",
+    ]) {
+      expect(within(studio).getByTestId(`help-${key}`)).toBeInTheDocument();
+    }
+  });
+});

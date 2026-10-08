@@ -22,6 +22,8 @@ import { ApiError } from "../../api/errors";
 import { formatStamp, formatAgeS, ageS } from "../../lib/time";
 import { useNow } from "../../hooks/useNow";
 import VersionsList from "./VersionsList";
+import HelpButton from "../../help/HelpButton";
+import CardTitle from "../../help/CardTitle";
 import PublishLabelDialog from "./PublishLabelDialog";
 import { usePublishMutation } from "./usePublish";
 import type { ProblemRef } from "../../api/types";
@@ -89,30 +91,33 @@ export default function Publish() {
 
   return (
     <Stack spacing={3}>
-      <PageHeader title="Publish" />
+      <PageHeader title="Publish" help="publish" />
 
       {statusQ.error ? (
         <ErrorAlert error={statusQ.error} />
       ) : (
         <Paper sx={{ p: 2 }} variant="outlined" data-testid="content-status">
           <Stack spacing={1}>
-            {published ? (
-              <Typography variant="body1">
-                Published version <strong>{String(published.id ?? "")}</strong>{" "}
-                {published.label ? `(${published.label})` : "(no label)"} by{" "}
-                {published.publishedBy ?? "none"}{" "}
-                <Typography
-                  component="span"
-                  color="text.secondary"
-                  variant="body2"
-                  title={formatStamp(published.publishedAt ?? null)}
-                >
-                  {publishedAge ?? "none"}
+            <Stack direction="row" alignItems="center" spacing={0.5}>
+              {published ? (
+                <Typography variant="body1">
+                  Published version <strong>{String(published.id ?? "")}</strong>{" "}
+                  {published.label ? `(${published.label})` : "(no label)"} by{" "}
+                  {published.publishedBy ?? "none"}{" "}
+                  <Typography
+                    component="span"
+                    color="text.secondary"
+                    variant="body2"
+                    title={formatStamp(published.publishedAt ?? null)}
+                  >
+                    {publishedAge ?? "none"}
+                  </Typography>
                 </Typography>
-              </Typography>
-            ) : (
-              <Typography variant="body1">Nothing published yet.</Typography>
-            )}
+              ) : (
+                <Typography variant="body1">Nothing published yet.</Typography>
+              )}
+              <HelpButton topic="publish.status" />
+            </Stack>
             <Typography variant="body2" color="text.secondary">
               Draft changed{" "}
               <span title={formatStamp(status?.draftUpdatedAt ?? null)}>
@@ -149,9 +154,9 @@ export default function Publish() {
 
       {problems.length > 0 ? (
         <Paper sx={{ p: 2 }} variant="outlined">
-          <Typography variant="h6" gutterBottom>
+          <CardTitle help="publish.problems" gutterBottom>
             Problems
-          </Typography>
+          </CardTitle>
           <List dense data-testid="problem-ref-list">
             {problems.map((p, i) => (
               <ListItem

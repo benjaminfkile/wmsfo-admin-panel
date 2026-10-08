@@ -109,6 +109,7 @@ function PosterEditorBody({ poster }: { poster: Poster }) {
     <>
       <PageHeader
         title="Poster studio"
+        help="posters.editor"
         subtitle={
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ pt: 1 }}>
             <TextField

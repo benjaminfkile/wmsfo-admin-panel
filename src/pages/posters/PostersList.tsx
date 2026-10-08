@@ -121,6 +121,7 @@ export default function PostersList() {
     <>
       <PageHeader
         title="Poster studio"
+        help="posters"
         actions={
           <Button variant="contained" onClick={() => setCreateOpen(true)} data-testid="poster-create">
             Create poster

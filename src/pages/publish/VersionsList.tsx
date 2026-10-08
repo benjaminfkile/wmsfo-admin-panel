@@ -4,12 +4,12 @@ import {
   Button,
   Chip,
   Stack,
-  Typography,
 } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { content as contentApi } from "../../api/resources/content";
 import { keys } from "../../queries/keys";
 import ConfirmDialog from "../../components/ConfirmDialog";
+import CardTitle from "../../help/CardTitle";
 import ErrorAlert from "../../components/ErrorAlert";
 import ResponsiveTable, {
   type Column,
@@ -123,9 +123,9 @@ export default function VersionsList({ currentPublishedId }: Props) {
 
   return (
     <>
-      <Typography variant="h6" sx={{ mb: 1 }}>
+      <CardTitle help="publish.versions" sx={{ mb: 1 }}>
         Versions
-      </Typography>
+      </CardTitle>
       {versionsQ.error ? (
         <ErrorAlert error={versionsQ.error} />
       ) : versions.length === 0 ? (
@@ -183,6 +183,7 @@ export default function VersionsList({ currentPublishedId }: Props) {
       <ConfirmDialog
         open={restoreFor !== null}
         title="Restore version"
+        help="publish.restore"
         body={
           restoreFor
             ? `Replace the current draft with version ${Number(
@@ -201,6 +202,7 @@ export default function VersionsList({ currentPublishedId }: Props) {
       <ConfirmDialog
         open={restorePublishFor !== null}
         title="Restore and publish"
+        help="publish.restore"
         body={
           restorePublishFor
             ? `Replace the current draft with version ${Number(

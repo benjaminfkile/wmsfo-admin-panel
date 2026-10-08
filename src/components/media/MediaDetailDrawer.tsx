@@ -28,6 +28,7 @@ import MediaPicker from "../content/MediaPicker";
 import MediaPreview from "../content/MediaPreview";
 import { MEDIA_DETAIL_LABELS } from "../content/labels";
 import { CREDIT_MAX, creditValue } from "./credit";
+import HelpButton from "../../help/HelpButton";
 
 interface Props {
   asset: MediaAsset | null;
@@ -143,9 +144,17 @@ export default function MediaDetailDrawer({
       {asset ? (
         <Box sx={{ p: 2 }}>
           <Stack direction="row" alignItems="center" spacing={1}>
-            <Typography variant="h6" sx={{ flex: 1 }} noWrap>
-              {asset.filename ?? asset.id}
-            </Typography>
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={0.5}
+              sx={{ flex: 1, minWidth: 0 }}
+            >
+              <Typography variant="h6" sx={{ minWidth: 0 }} noWrap>
+                {asset.filename ?? asset.id}
+              </Typography>
+              <HelpButton topic="media.detail" />
+            </Stack>
             <IconButton onClick={onClose} aria-label="Close">
               <CloseIcon />
             </IconButton>

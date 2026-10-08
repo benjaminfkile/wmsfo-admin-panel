@@ -36,6 +36,7 @@ import type {
   SectionItemAdmin,
 } from "../../api/types";
 import { useDebouncedSave } from "../../hooks/useDebouncedSave";
+import HelpButton from "../../help/HelpButton";
 
 export type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -243,6 +244,16 @@ export default function SectionCard({
                 <Typography variant="caption" color="success.main">
                   Saved
                 </Typography>
+              ) : null}
+              {saveState === "saving" || saveState === "saved" ? (
+                <Box
+                  component="span"
+                  sx={{ display: "inline-flex" }}
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
+                  <HelpButton topic="pages.editor.autosave" />
+                </Box>
               ) : saveState === "error" ? (
                 <Typography variant="caption" color="error.main">
                   Not saved
