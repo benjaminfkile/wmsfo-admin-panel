@@ -1,5 +1,5 @@
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider, CssBaseline } from "@mui/material";
 import { MemoryRouter } from "react-router-dom";
@@ -11,12 +11,18 @@ import { NotifyProvider } from "../../hooks/useNotify";
 import { installClient } from "../../api/client";
 import { buildTheme } from "../../theme/theme";
 import { server } from "../../test/msw/server";
+import { downloadText } from "../../lib/download";
 import * as f from "../../test/msw/fixtures";
 import {
   makeFakeUserManager,
   makeUser,
   testConfig,
 } from "../../test/renderWithProviders";
+
+vi.mock("../../lib/download", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../lib/download")>();
+  return { ...actual, downloadText: vi.fn() };
+});
 
 function Harness() {
   const client = new QueryClient({
@@ -580,5 +586,129 @@ describe("SiteSettings help buttons (admin.md 6.26)", () => {
     ]) {
       expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
     }
+  });
+
+});
+
+describe("SiteSettings: the Tracker field", () => {
+  const BOX = { west: -114.2, south: 46.8, east: -113.9, north: 47.0 };
+
+  function field(side: string): HTMLInputElement {
+    return within(screen.getByTestId("tracker-field")).getByTestId(
+      `bbox-${side}`
+    ) as HTMLInputElement;
+  }
+
+  function capturePut(): Array<{ data?: Record<string, unknown> }> {
+    const bodies: Array<{ data?: Record<string, unknown> }> = [];
+    server.use(
+      http.put(
+        `${testConfig.apiBaseUrl}/admin/site-settings`,
+        async ({ request }) => {
+          bodies.push((await request.json()) as { data?: Record<string, unknown> });
+          return HttpResponse.json({ ...f.siteSettingsDraft, data: FULL_DRAFT });
+        }
+      )
+    );
+    return bodies;
+  }
+
+  it("renders the box editor from tracker.defaultBbox with its label, help, and help key", async () => {
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/site-settings`, () =>
+        HttpResponse.json({
+          ...f.siteSettingsDraft,
+          data: { ...FULL_DRAFT, tracker: { defaultBbox: BOX } },
+        })
+      )
+    );
+    render(<Harness />);
+    const tf = await screen.findByTestId("tracker-field");
+    await waitFor(() => expect(field("west").value).toBe("-114.2000"));
+    expect(field("south").value).toBe("46.8000");
+    expect(field("east").value).toBe("-113.9000");
+    expect(field("north").value).toBe("47.0000");
+    expect(within(tf).getByText("Tracker")).toBeInTheDocument();
+    expect(
+      within(tf).getByText(
+        "The area a new event's tracker starts with. Each event can draw its own."
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("help-site-settings.tracker")).toBeInTheDocument();
+  });
+
+  it("shows the Missoula valley box without the key, exports it as Site default, and saves it", async () => {
+    const bodies = capturePut();
+    const user = userEvent.setup();
+    render(<Harness />);
+    const tf = await screen.findByTestId("tracker-field");
+    expect(field("west").value).toBe("-114.7500");
+    expect(field("north").value).toBe("47.2500");
+
+    await user.click(within(tf).getByRole("button", { name: "Export for tile builder" }));
+    expect(downloadText).toHaveBeenCalledWith(
+      expect.any(String),
+      "Site default.json",
+      "application/json"
+    );
+    const text = vi.mocked(downloadText).mock.calls[0]![0];
+    expect(JSON.parse(text)).toEqual({
+      name: "Site default",
+      bbox: { west: -114.75, south: 46.35, east: -113.3, north: 47.25 },
+      maxZoom: 15,
+      terrainMaxZoom: 13,
+    });
+
+    const snow = screen.getByTestId("theme-snow-default").querySelector("input");
+    if (snow) await user.click(snow);
+    const save = screen.getByTestId("site-settings-save");
+    await waitFor(() => expect(save).not.toBeDisabled());
+    await user.click(save);
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]?.data?.tracker).toEqual({
+      defaultBbox: { west: -114.75, south: 46.35, east: -113.3, north: 47.25 },
+    });
+  });
+
+  it("saves an edited box as tracker.defaultBbox and blocks Save while a rule breaks", async () => {
+    const bodies = capturePut();
+    const user = userEvent.setup();
+    render(<Harness />);
+    await screen.findByTestId("tracker-field");
+    // The draft has loaded once the site name shows.
+    await screen.findByDisplayValue("Western Montana Santa Flyover");
+    fireEvent.change(field("east"), { target: { value: "-115" } });
+    expect(screen.getByText("West must be less than east")).toBeInTheDocument();
+    const save = screen.getByTestId("site-settings-save");
+    expect(save).toBeDisabled();
+    fireEvent.change(field("east"), { target: { value: "-113.5" } });
+    await waitFor(() => expect(save).not.toBeDisabled());
+    await user.click(save);
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]?.data?.tracker).toEqual({
+      defaultBbox: { west: -114.75, south: 46.35, east: -113.5, north: 47.25 },
+    });
+  });
+
+  it("Copy JSON copies the document, or shows it in a field when the clipboard refuses", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockRejectedValue(new Error("denied"));
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    render(<Harness />);
+    const tf = await screen.findByTestId("tracker-field");
+    await user.click(within(tf).getByRole("button", { name: "Copy JSON" }));
+    const fallback = await within(tf).findByLabelText("Area JSON");
+    expect(JSON.parse((fallback as HTMLTextAreaElement).value)).toMatchObject({
+      name: "Site default",
+    });
+    expect(within(tf).getByRole("button", { name: "Select" })).toBeInTheDocument();
+
+    writeText.mockResolvedValue(undefined);
+    await user.click(within(tf).getByRole("button", { name: "Copy JSON" }));
+    expect(await screen.findByText("Copied")).toBeInTheDocument();
+    expect(within(tf).queryByLabelText("Area JSON")).toBeNull();
   });
 });

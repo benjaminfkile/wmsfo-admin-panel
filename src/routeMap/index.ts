@@ -7,6 +7,7 @@ import type { StyleSpecification } from "maplibre-gl";
 import type { Config } from "../config";
 import type { Appearance } from "./flavors";
 import { buildStyle, type LatLng, type StyleOptions } from "./style";
+import { withSources } from "./themeStyle";
 
 export type { Appearance } from "./flavors";
 export { FLAVORS, HILLSHADE_PAINTS, ROUTE_PALETTES } from "./flavors";
@@ -36,6 +37,19 @@ export {
 // The configured basemap base URL, or null when VITE_ROUTE_BASEMAP_URL is unset.
 export function routeBasemapBase(config: Pick<Config, "routeBasemapUrl">): string | null {
   return config.routeBasemapUrl === "" ? null : config.routeBasemapUrl;
+}
+
+// A theme body pointed at the configured basemap instead of a map row:
+// `basemap` at `<base>/tiles.pmtiles` and `terrain` at
+// `<base>/terrain.pmtiles`. The theme preview and the box editors draw
+// with it. Throws when VITE_ROUTE_BASEMAP_URL is unset.
+export function applyDevBasemap(
+  style: StyleSpecification,
+  config: Pick<Config, "routeBasemapUrl">,
+): StyleSpecification {
+  const base = routeBasemapBase(config);
+  if (base === null) throw new Error("VITE_ROUTE_BASEMAP_URL is not set");
+  return withSources(style, `${base}/tiles.pmtiles`, `${base}/terrain.pmtiles`);
 }
 
 // The route map style over the configured basemap, with the hillshade

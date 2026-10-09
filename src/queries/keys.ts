@@ -18,6 +18,7 @@ export const keys = {
   poster: (id: number) => ["posters", id] as const,
   maps: ["maps"] as const,
   themes: ["themes"] as const,
+  themeStyle: (url: string) => ["theme-style", url] as const,
   beacons: ["beacons"] as const,
   beaconLogs: (id: number) => ["beacons", id, "logs"] as const,
   sponsors: ["sponsors"] as const,

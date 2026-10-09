@@ -16,6 +16,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
 import AppDialog from "../../components/AppDialog";
 import type { Event, Route } from "../../api/types";
 import type { CreateEventBody } from "../../api/resources/events";
@@ -23,6 +24,14 @@ import ErrorAlert from "../../components/ErrorAlert";
 import TimeZoneSelect from "../../components/TimeZoneSelect";
 import { browserTimeZone, formatStamp, shiftWallZone, wallTimeToUtc } from "../../lib/time";
 import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
+import BboxEditor from "../../components/bbox/BboxEditor";
+import { bboxValid, siteDefaultBbox, type Bbox } from "../../components/bbox/bbox";
+import { siteSettings as siteSettingsApi } from "../../api/resources/siteSettings";
+import { maps as mapsApi } from "../../api/resources/maps";
+import { themes as themesApi } from "../../api/resources/themes";
+import { keys } from "../../queries/keys";
+import { fieldErrorFor } from "../../lib/fieldErrors";
+import { trackerPreviewLine } from "./trackerPreview";
 
 type RouteChoice = "inherit" | "choose" | "none";
 
@@ -52,7 +61,33 @@ export default function EventCreateDialog({
   const [fundsPercent, setFundsPercent] = useState("0");
   const [routeChoice, setRouteChoice] = useState<RouteChoice>("inherit");
   const [routeId, setRouteId] = useState<number | "">("");
+  // The drawn box, or null while it follows the site setting.
+  const [bbox, setBbox] = useState<Bbox | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const settingsQ = useQuery({
+    queryKey: keys.siteSettings,
+    queryFn: () => siteSettingsApi.get(),
+    enabled: open,
+  });
+  const mapsQ = useQuery({
+    queryKey: keys.maps,
+    queryFn: () => mapsApi.list(),
+    enabled: open,
+  });
+  const themesQ = useQuery({
+    queryKey: keys.themes,
+    queryFn: () => themesApi.list(),
+    enabled: open,
+  });
+  const siteBox = siteDefaultBbox(settingsQ.data?.data);
+  const box = bbox ?? siteBox;
+  const trackerLine = trackerPreviewLine(
+    events,
+    mapsQ.data?.items ?? [],
+    themesQ.data?.items ?? [],
+    box
+  );
 
   useEffect(() => {
     if (open) {
@@ -63,6 +98,7 @@ export default function EventCreateDialog({
       setFundsPercent("0");
       setRouteChoice("inherit");
       setRouteId("");
+      setBbox(null);
       setErrors({});
     }
   }, [open]);
@@ -94,6 +130,7 @@ export default function EventCreateDialog({
       next.fundsPercent = "Must be a whole number between 0 and 100";
     if (routeChoice === "choose" && routeId === "")
       next.routeId = "Choose a route";
+    if (!bboxValid(box)) next.trackerBbox = "Fix the tracker area";
     setErrors(next);
     if (Object.keys(next).length > 0) return { ok: false };
     return {
@@ -107,6 +144,7 @@ export default function EventCreateDialog({
         routeId:
           routeChoice === "choose" ? Number(routeId) : null,
         inheritRoute: routeChoice === "inherit",
+        trackerBbox: box,
       },
     };
   };
@@ -124,7 +162,7 @@ export default function EventCreateDialog({
           {error ? (
             <ErrorAlert
               error={error}
-              handledFields={Object.keys(errors)}
+              handledFields={[...Object.keys(errors), "trackerBbox"]}
             />
           ) : null}
           <TextField
@@ -243,6 +281,31 @@ export default function EventCreateDialog({
               />
             </RadioGroup>
           </FormControl>
+          <Box>
+            <BboxEditor
+              label="Tracker area"
+              value={box}
+              onChange={setBbox}
+              exportName={name.trim() || "New event"}
+              help="events.create.bbox"
+              error={fieldErrorFor(error, "trackerBbox")}
+            />
+            <Button
+              size="small"
+              onClick={() => setBbox(siteBox)}
+              sx={{ mt: 1 }}
+            >
+              Use site default
+            </Button>
+            <Alert
+              severity="info"
+              variant="outlined"
+              sx={{ mt: 1 }}
+              data-testid="tracker-preview"
+            >
+              {trackerLine}
+            </Alert>
+          </Box>
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -250,7 +313,7 @@ export default function EventCreateDialog({
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={submitting}
+          disabled={submitting || !bboxValid(box)}
         >
           Create
         </Button>

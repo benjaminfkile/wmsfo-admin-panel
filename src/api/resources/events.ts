@@ -1,6 +1,7 @@
 import { del, get, patch, post, request } from "../client";
 import type { DeleteImpact } from "../impact";
 import type { RouteMapConfigValue } from "../../routeMap/eventRouteMap";
+import type { Bbox } from "../../validation/bbox";
 import type {
   Event,
   EventMessage,
@@ -21,6 +22,7 @@ export type CreateEventBody = {
   routeId: number | null;
   inheritRoute: boolean;
   scheduleTimeZone: string | null;
+  trackerBbox: Bbox | null;
 };
 
 export type PatchEventBody = Partial<{
@@ -33,6 +35,9 @@ export type PatchEventBody = Partial<{
   fundsPercent: number;
   routeId: number | null;
   routeMapConfig: RouteMapConfigValue | null;
+  trackerBbox: Bbox;
+  trackerMapId: number | null;
+  trackerThemeIds: number[];
 }>;
 
 export type CloneEventBody = {
@@ -42,6 +47,7 @@ export type CloneEventBody = {
     sponsors: boolean;
     route: boolean;
     routeMapConfig: boolean;
+    tracker: boolean;
   };
 };
 
