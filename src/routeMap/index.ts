@@ -1,7 +1,6 @@
 // The route map module's entry point (admin.md 2.11). Every map the panel
 // draws is a tracker theme body over a tracker map row (themeStyle.ts) or,
-// for the theme preview and the box editors, over the configured dev
-// basemap (VITE_ROUTE_BASEMAP_URL through loadConfig); routeLayers.ts adds
+// for the theme preview, over the configured dev basemap (VITE_ROUTE_BASEMAP_URL through loadConfig); routeLayers.ts adds
 // the panel's own route layers over either.
 
 import type { StyleSpecification } from "maplibre-gl";
@@ -41,8 +40,7 @@ export function glyphsUrl(base: string): string {
 
 // A theme body pointed at the configured basemap instead of a map row:
 // `basemap` at `<base>/tiles.pmtiles` and `terrain` at
-// `<base>/terrain.pmtiles`. The theme preview and the box editors draw
-// with it. Throws when VITE_ROUTE_BASEMAP_URL is unset.
+// `<base>/terrain.pmtiles`. The theme preview draws with it. Throws when VITE_ROUTE_BASEMAP_URL is unset.
 export function applyDevBasemap(
   style: StyleSpecification,
   config: Pick<Config, "routeBasemapUrl">,

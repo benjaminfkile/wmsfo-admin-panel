@@ -10,25 +10,13 @@ import {
   Typography,
 } from "@mui/material";
 import CropFreeIcon from "@mui/icons-material/CropFree";
-import type {
-  GeoJSONSource,
-  GeoJSONSourceSpecification,
-  LngLat,
-  Map as MaplibreMap,
-  MapMouseEvent,
-  MapTouchEvent,
-  Marker,
-  StyleSpecification,
-} from "maplibre-gl";
 import { useConfig } from "../../ConfigContext";
 import { useCompact } from "../../hooks/useCompact";
 import { useNotify } from "../../hooks/useNotify";
 import { downloadText } from "../../lib/download";
 import HelpButton from "../../help/HelpButton";
 import type { HelpKey } from "../../help/helpKeys";
-import { applyDevBasemap, glyphsUrl, routeBasemapBase } from "../../routeMap";
-import { loadMaplibre } from "../../routeMap/poster";
-import routeLight from "../../../contracts/fixtures/themes/route-light.json";
+import { loadMaps, loadMarkers } from "../../pages/places/googleMaps";
 import {
   BBOX_SIDES,
   EXPORT_MAX_ZOOM,
@@ -65,21 +53,35 @@ const FIELD_LABELS: Record<BboxSide, string> = {
 };
 
 const FIT_PADDING = 24;
-const MASK_SOURCE = "bbox-mask";
-const BOX_SOURCE = "bbox-box";
+const BOX_COLOR = "#1a56c4";
 
 type Corner = "nw" | "ne" | "sw" | "se";
 const CORNERS: readonly Corner[] = ["nw", "ne", "sw", "se"];
 
-type FeatureData = Exclude<GeoJSONSourceSpecification["data"], string>;
+type Point = { lat: number; lng: number };
 
 type MapState = "unset" | "loading" | "ready" | "failed";
 
-function cornerPoint(b: Bbox, c: Corner): [number, number] {
-  return [c === "nw" || c === "sw" ? b.west : b.east, c === "nw" || c === "ne" ? b.north : b.south];
+// A 16 px white dot with a 3 px border, centred on the corner: a circle
+// of radius 6.5 px whose stroke reaches 8 px.
+const HANDLE_ICON: google.maps.Symbol = {
+  path: "M -6.5 0 A 6.5 6.5 0 1 0 6.5 0 A 6.5 6.5 0 1 0 -6.5 0 Z",
+  fillColor: "#ffffff",
+  fillOpacity: 1,
+  strokeColor: BOX_COLOR,
+  strokeOpacity: 1,
+  strokeWeight: 3,
+  scale: 1,
+};
+
+function cornerPoint(b: Bbox, c: Corner): Point {
+  return {
+    lat: c === "nw" || c === "ne" ? b.north : b.south,
+    lng: c === "nw" || c === "sw" ? b.west : b.east,
+  };
 }
 
-function withCorner(b: Bbox, c: Corner, p: LngLat): Bbox {
+function withCorner(b: Bbox, c: Corner, p: Point): Bbox {
   const next = { ...b };
   if (c === "nw" || c === "sw") next.west = p.lng;
   else next.east = p.lng;
@@ -88,7 +90,7 @@ function withCorner(b: Bbox, c: Corner, p: LngLat): Bbox {
   return roundBbox(next);
 }
 
-function boxFrom(a: LngLat, b: LngLat): Bbox {
+function boxFrom(a: Point, b: Point): Bbox {
   return roundBbox({
     west: Math.min(a.lng, b.lng),
     south: Math.min(a.lat, b.lat),
@@ -97,54 +99,37 @@ function boxFrom(a: LngLat, b: LngLat): Bbox {
   });
 }
 
-function ring(b: Bbox): [number, number][] {
+function pointOf(p: google.maps.LatLng | null | undefined): Point | null {
+  return p ? { lat: p.lat(), lng: p.lng() } : null;
+}
+
+// The world, clockwise, with points at longitude 0 so no edge spans the
+// whole globe.
+const WORLD_RING: readonly Point[] = [
+  { lat: 85, lng: -180 },
+  { lat: 85, lng: 0 },
+  { lat: 85, lng: 180 },
+  { lat: -85, lng: 180 },
+  { lat: -85, lng: 0 },
+  { lat: -85, lng: -180 },
+];
+
+// The box, counterclockwise, so as the mask's second path it cuts a hole.
+function boxRing(b: Bbox): Point[] {
   return [
-    [b.west, b.south],
-    [b.east, b.south],
-    [b.east, b.north],
-    [b.west, b.north],
-    [b.west, b.south],
+    { lat: b.south, lng: b.west },
+    { lat: b.south, lng: b.east },
+    { lat: b.north, lng: b.east },
+    { lat: b.north, lng: b.west },
   ];
 }
 
-// The world with the box cut out, shaded outside the box.
-function maskData(b: Bbox): FeatureData {
-  return {
-    type: "Feature",
-    properties: {},
-    geometry: {
-      type: "Polygon",
-      coordinates: [
-        [
-          [-180, -85],
-          [180, -85],
-          [180, 85],
-          [-180, 85],
-          [-180, -85],
-        ],
-        ring(b).reverse(),
-      ],
-    },
-  };
+function maskPaths(b: Bbox): Point[][] {
+  return [[...WORLD_RING], boxRing(b)];
 }
 
-function boxData(b: Bbox): FeatureData {
-  return { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [ring(b)] } };
-}
-
-function boundsOf(b: Bbox): [[number, number], [number, number]] {
-  return [
-    [b.west, b.south],
-    [b.east, b.north],
-  ];
-}
-
-// The `route-light` seed over the dev basemap, with the basemap's glyphs
-// when the body names none, so its labels draw.
-function editorStyle(config: { routeBasemapUrl: string }): StyleSpecification {
-  const style = applyDevBasemap(routeLight as unknown as StyleSpecification, config);
-  const base = routeBasemapBase(config);
-  return style.glyphs || base === null ? style : { ...style, glyphs: glyphsUrl(base) };
+function boundsOf(b: Bbox): google.maps.LatLngBoundsLiteral {
+  return { north: b.north, south: b.south, east: b.east, west: b.west };
 }
 
 function fieldText(v: number): string {
@@ -152,29 +137,30 @@ function fieldText(v: number): string {
 }
 
 // The one editor of a `{ west, south, east, north }` box (admin.md 6.29):
-// a map over the dev basemap fitted to the box, with the Draw area
-// toggle, four corner handles, and a mask outside the box; four fields in
-// sync with the map; the minimum zoom caption; the rules as field errors;
-// Export for tile builder and Copy JSON. Without VITE_ROUTE_BASEMAP_URL,
-// or when the map fails to load, everything but the map works under a
-// one-line note.
+// a Google map on the panel's Maps key fitted to the box, with the Draw
+// area toggle, four corner handles, an outline, and a mask outside the
+// box; four fields in sync with the map; the minimum zoom caption; the
+// rules as field errors; Export for tile builder and Copy JSON. Without
+// VITE_GOOGLE_MAPS_KEY, or when the map fails to load, everything but the
+// map works under a one-line note.
 export default function BboxEditor({ value, onChange, exportName, help, label, error }: Props) {
   const config = useConfig();
   const compact = useCompact();
   const notify = useNotify();
-  const base = routeBasemapBase(config);
+  const key = config.googleMapsKey;
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<MaplibreMap | null>(null);
-  const markersRef = useRef<Partial<Record<Corner, Marker>>>({});
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const rectRef = useRef<google.maps.Rectangle | null>(null);
+  const maskRef = useRef<google.maps.Polygon | null>(null);
+  const markersRef = useRef<Partial<Record<Corner, google.maps.Marker>>>({});
   const valueRef = useRef(value);
   const onChangeRef = useRef(onChange);
   const drawingRef = useRef(false);
-  const drawStartRef = useRef<LngLat | null>(null);
+  const drawStartRef = useRef<Point | null>(null);
   // The last box the map itself produced; any other box refits the map.
   const fromMapRef = useRef<Bbox | null>(null);
-  const initialRef = useRef(value);
-  const [mapState, setMapState] = useState<MapState>(base === null ? "unset" : "loading");
+  const [mapState, setMapState] = useState<MapState>(key ? "loading" : "unset");
   const [drawing, setDrawing] = useState(false);
 
   const [texts, setTexts] = useState<Record<BboxSide, string>>(() => ({
@@ -209,116 +195,110 @@ export default function BboxEditor({ value, onChange, exportName, help, label, e
   }, [value]);
 
   useEffect(() => {
-    if (base === null) return;
+    if (!key) return;
     let cancelled = false;
     const container = containerRef.current;
     if (!container) return;
+    const listeners: google.maps.MapsEventListener[] = [];
     const fromMap = (next: Bbox) => {
       fromMapRef.current = next;
       onChangeRef.current(next);
     };
-    void loadMaplibre()
-      .then((maplibre) => {
+    (async () => {
+      try {
+        const maps = await loadMaps(key);
         if (cancelled) return;
-        const start = initialRef.current;
-        const map = new maplibre.Map({
-          container,
-          style: editorStyle(config),
-          bounds: boundsOf(start),
-          fitBoundsOptions: { padding: FIT_PADDING },
-          attributionControl: { compact: true },
-          fadeDuration: 0,
+        const b = valueRef.current;
+        const map = new maps.Map(container, {
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+          clickableIcons: false,
+          gestureHandling: "greedy",
         });
+        map.fitBounds(boundsOf(b), FIT_PADDING);
+        // The map is fitted to this box; only a later box refits it.
+        fromMapRef.current = b;
         mapRef.current = map;
-        map.on("error", (e: { error?: unknown }) => {
-          console.warn("bbox editor map:", e.error);
+        maskRef.current = new maps.Polygon({
+          map,
+          paths: maskPaths(b),
+          fillColor: "#000000",
+          fillOpacity: 0.3,
+          strokeWeight: 0,
+          strokeOpacity: 0,
+          clickable: false,
         });
-        map.on("load", () => {
-          if (cancelled) return;
-          const b = valueRef.current;
-          map.addSource(MASK_SOURCE, { type: "geojson", data: maskData(b) });
-          map.addSource(BOX_SOURCE, { type: "geojson", data: boxData(b) });
-          map.addLayer({
-            id: MASK_SOURCE,
-            type: "fill",
-            source: MASK_SOURCE,
-            paint: { "fill-color": "#000000", "fill-opacity": 0.3 },
-          });
-          map.addLayer({
-            id: BOX_SOURCE,
-            type: "line",
-            source: BOX_SOURCE,
-            paint: { "line-color": "#1a56c4", "line-width": 2 },
-          });
-          for (const corner of CORNERS) {
-            const el = document.createElement("div");
-            el.setAttribute("aria-label", `Drag the ${corner} corner`);
-            Object.assign(el.style, {
-              width: "16px",
-              height: "16px",
-              borderRadius: "50%",
-              background: "#ffffff",
-              border: "3px solid #1a56c4",
-              boxSizing: "border-box",
-              cursor: "move",
-            });
-            const marker = new maplibre.Marker({ element: el, draggable: true })
-              .setLngLat(cornerPoint(b, corner))
-              .addTo(map);
-            marker.on("drag", () => {
-              fromMap(withCorner(valueRef.current, corner, marker.getLngLat()));
-            });
-            markersRef.current[corner] = marker;
-          }
-          setMapState("ready");
+        rectRef.current = new maps.Rectangle({
+          map,
+          bounds: boundsOf(b),
+          strokeColor: BOX_COLOR,
+          strokeOpacity: 1,
+          strokeWeight: 2,
+          fillOpacity: 0,
+          editable: false,
+          draggable: false,
+          clickable: false,
         });
+        const markerLib = await loadMarkers(key);
+        if (cancelled) return;
+        for (const corner of CORNERS) {
+          const marker = new markerLib.Marker({
+            map,
+            position: cornerPoint(valueRef.current, corner),
+            draggable: true,
+            icon: HANDLE_ICON,
+            title: `Drag the ${corner} corner`,
+          });
+          listeners.push(
+            marker.addListener("drag", () => {
+              const p = pointOf(marker.getPosition());
+              if (p) fromMap(withCorner(valueRef.current, corner, p));
+            }),
+          );
+          markersRef.current[corner] = marker;
+        }
 
-        const begin = (e: MapMouseEvent | MapTouchEvent) => {
+        const begin = (e: google.maps.MapMouseEvent) => {
           if (!drawingRef.current) return;
-          e.preventDefault();
-          drawStartRef.current = e.lngLat;
+          drawStartRef.current = pointOf(e.latLng);
         };
-        const move = (e: MapMouseEvent | MapTouchEvent) => {
+        const move = (e: google.maps.MapMouseEvent) => {
           const startAt = drawStartRef.current;
-          if (!drawingRef.current || startAt === null) return;
-          fromMap(boxFrom(startAt, e.lngLat));
+          const p = pointOf(e.latLng);
+          if (!drawingRef.current || startAt === null || p === null) return;
+          fromMap(boxFrom(startAt, p));
         };
         const end = () => {
           drawStartRef.current = null;
         };
-        map.on("mousedown", begin);
-        map.on("touchstart", begin);
-        map.on("mousemove", move);
-        map.on("touchmove", move);
-        map.on("mouseup", end);
-        map.on("touchend", end);
-      })
-      .catch((e: unknown) => {
+        for (const name of ["mousedown", "touchstart"]) listeners.push(map.addListener(name, begin));
+        for (const name of ["mousemove", "touchmove"]) listeners.push(map.addListener(name, move));
+        for (const name of ["mouseup", "touchend"]) listeners.push(map.addListener(name, end));
+        setMapState("ready");
+      } catch (e) {
         console.warn("bbox editor map:", e);
         if (!cancelled) setMapState("failed");
-      });
+      }
+    })();
     return () => {
       cancelled = true;
-      for (const m of Object.values(markersRef.current)) m?.remove();
+      for (const l of listeners) l.remove();
+      for (const m of Object.values(markersRef.current)) m?.setMap(null);
       markersRef.current = {};
-      mapRef.current?.remove();
+      rectRef.current?.setMap(null);
+      rectRef.current = null;
+      maskRef.current?.setMap(null);
+      maskRef.current = null;
       mapRef.current = null;
     };
-    // The map is created once; the box reaches it through the effect below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [base]);
+  }, [key]);
 
   // While drawing, a drag draws instead of panning.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || mapState !== "ready") return;
-    if (drawing) {
-      map.dragPan.disable();
-      map.touchZoomRotate.disable();
-    } else {
-      map.dragPan.enable();
-      map.touchZoomRotate.enable();
-    }
+    map.setOptions({ draggable: !drawing });
   }, [drawing, mapState]);
 
   // The mask, outline, and handles follow the box; a box the map did not
@@ -326,11 +306,11 @@ export default function BboxEditor({ value, onChange, exportName, help, label, e
   useEffect(() => {
     const map = mapRef.current;
     if (!map || mapState !== "ready") return;
-    (map.getSource(MASK_SOURCE) as GeoJSONSource | undefined)?.setData(maskData(value));
-    (map.getSource(BOX_SOURCE) as GeoJSONSource | undefined)?.setData(boxData(value));
-    for (const corner of CORNERS) markersRef.current[corner]?.setLngLat(cornerPoint(value, corner));
+    maskRef.current?.setPaths(maskPaths(value));
+    rectRef.current?.setBounds(boundsOf(value));
+    for (const corner of CORNERS) markersRef.current[corner]?.setPosition(cornerPoint(value, corner));
     if (fromMapRef.current !== value && Object.keys(validateBbox(value)).length === 0) {
-      map.fitBounds(boundsOf(value), { padding: FIT_PADDING, animate: false });
+      map.fitBounds(boundsOf(value), FIT_PADDING);
     }
   }, [value, mapState]);
 
@@ -380,7 +360,7 @@ export default function BboxEditor({ value, onChange, exportName, help, label, e
 
   const note =
     mapState === "unset"
-      ? "The map needs VITE_ROUTE_BASEMAP_URL, which is not set."
+      ? "The map needs VITE_GOOGLE_MAPS_KEY, which is not set."
       : mapState === "failed"
         ? "The map could not load."
         : null;
