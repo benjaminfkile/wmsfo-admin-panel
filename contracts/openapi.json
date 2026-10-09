@@ -3160,6 +3160,44 @@
         }
       }
     },
+    "/admin/themes/{id}/impact": {
+      "get": {
+        "tags": [
+          "AdminImpact"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteImpactDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/maps/{id}/impact": {
+      "get": {
+        "tags": [
+          "AdminImpact"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteImpactDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/posters": {
       "get": {
         "tags": [
@@ -3325,6 +3363,388 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/admin/themes": {
+      "get": {
+        "tags": [
+          "AdminThemes"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemsResponseOfTrackerThemeDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "AdminThemes"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTrackerThemeRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTrackerThemeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackerThemeDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/themes/{id}": {
+      "patch": {
+        "tags": [
+          "AdminThemes"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchTrackerThemeRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchTrackerThemeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackerThemeDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "AdminThemes"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteTrackerThemeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/admin/themes/{id}/sprite": {
+      "post": {
+        "tags": [
+          "AdminThemes"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpriteTicketsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpriteTicketsDto"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpriteTicketsDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/themes/{id}/sprite/confirm": {
+      "post": {
+        "tags": [
+          "AdminThemes"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpriteConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackerThemeDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/themes/{id}/default": {
+      "post": {
+        "tags": [
+          "AdminThemes"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetThemeDefaultRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackerThemeDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/maps": {
+      "get": {
+        "tags": [
+          "AdminMaps"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemsResponseOfTrackerMapDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "AdminMaps"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTrackerMapRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackerMapUploadDto"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackerMapUploadDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/maps/{id}/parts": {
+      "post": {
+        "tags": [
+          "AdminMaps"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrackerMapPartsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackerMapPartsDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/maps/{id}/complete": {
+      "post": {
+        "tags": [
+          "AdminMaps"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrackerMapCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackerMapDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/maps/{id}/confirm": {
+      "post": {
+        "tags": [
+          "AdminMaps"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackerMapDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/maps/{id}": {
+      "patch": {
+        "tags": [
+          "AdminMaps"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchTrackerMapRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackerMapDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "AdminMaps"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteTrackerMapRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
           }
         }
       }
@@ -3771,6 +4191,43 @@
           }
         }
       },
+      "Bbox": {
+        "type": "object",
+        "properties": {
+          "west": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "south": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "east": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "north": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "BeaconDto": {
         "type": "object",
         "properties": {
@@ -4063,6 +4520,32 @@
           }
         }
       },
+      "Chrome": {
+        "type": "object",
+        "properties": {
+          "bg": {
+            "type": "string"
+          },
+          "fg": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "tile": {
+            "type": "string"
+          },
+          "tileFg": {
+            "type": "string"
+          },
+          "panel": {
+            "type": "string"
+          },
+          "accent": {
+            "type": "string"
+          }
+        }
+      },
       "CloneEventCopy": {
         "type": "object",
         "properties": {
@@ -4073,6 +4556,9 @@
             "type": "boolean"
           },
           "routeMapConfig": {
+            "type": "boolean"
+          },
+          "tracker": {
             "type": "boolean"
           }
         }
@@ -4622,6 +5108,9 @@
               "null",
               "string"
             ]
+          },
+          "trackerBbox": {
+            "$ref": "#/components/schemas/JsonElement"
           }
         }
       },
@@ -4828,6 +5317,85 @@
           }
         }
       },
+      "CreateTrackerMapRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "bbox": {
+            "$ref": "#/components/schemas/Bbox"
+          },
+          "minZoom": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "maxZoom": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "terrainMaxZoom": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sourceBuild": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreateTrackerThemeRequest": {
+        "type": "object",
+        "properties": {
+          "renderer": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "style": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "chrome": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "overlay": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "thumbnailMediaId": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        },
+        "additionalProperties": false
+      },
       "DeleteImpactDto": {
         "type": "object",
         "properties": {
@@ -4856,6 +5424,36 @@
             }
           }
         }
+      },
+      "DeleteTrackerMapRequest": {
+        "type": "object",
+        "properties": {
+          "replacementId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DeleteTrackerThemeRequest": {
+        "type": "object",
+        "properties": {
+          "replacementId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "additionalProperties": false
       },
       "EmailQuota": {
         "type": "object",
@@ -5084,6 +5682,29 @@
                 "$ref": "#/components/schemas/RouteMapConfig"
               }
             ]
+          },
+          "trackerBbox": {
+            "$ref": "#/components/schemas/Bbox"
+          },
+          "trackerMapId": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "trackerThemeIds": {
+            "type": "array",
+            "items": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int64"
+            }
           },
           "createdBy": {
             "type": "string"
@@ -5633,6 +6254,28 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SubscriptionDto"
+            }
+          }
+        }
+      },
+      "ItemsResponseOfTrackerMapDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrackerMapDto"
+            }
+          }
+        }
+      },
+      "ItemsResponseOfTrackerThemeDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrackerThemeDto"
             }
           }
         }
@@ -6383,6 +7026,12 @@
               "$ref": "#/components/schemas/MediaUsageCookieTypeRef"
             }
           },
+          "themes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MediaUsageThemeRef"
+            }
+          },
           "siteSettings": {
             "type": "boolean"
           },
@@ -6425,6 +7074,22 @@
         }
       },
       "MediaUsageSponsorRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "MediaUsageThemeRef": {
         "type": "object",
         "properties": {
           "id": {
@@ -6731,6 +7396,42 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "Overlay": {
+        "type": "object",
+        "properties": {
+          "routeColor": {
+            "type": "string"
+          },
+          "routeOpacity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "arrowColor": {
+            "type": "string"
+          },
+          "timeLabelBg": {
+            "type": "string"
+          },
+          "timeLabelFg": {
+            "type": "string"
+          },
+          "timeLabelOpacity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "userColor": {
+            "type": "string"
           }
         }
       },
@@ -7150,6 +7851,15 @@
           },
           "routeMapConfig": {
             "$ref": "#/components/schemas/JsonElement"
+          },
+          "trackerBbox": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "trackerMapId": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "trackerThemeIds": {
+            "$ref": "#/components/schemas/JsonElement"
           }
         },
         "additionalProperties": false
@@ -7411,6 +8121,54 @@
             ]
           }
         }
+      },
+      "PatchTrackerMapRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PatchTrackerThemeRequest": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sortOrder": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "style": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "chrome": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "overlay": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "thumbnailMediaId": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        },
+        "additionalProperties": false
       },
       "PersonDto": {
         "type": "object",
@@ -8955,6 +9713,24 @@
           }
         }
       },
+      "SetThemeDefaultRequest": {
+        "type": "object",
+        "properties": {
+          "light": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "dark": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "SettingDto": {
         "type": "object",
         "properties": {
@@ -9325,6 +10101,62 @@
           }
         }
       },
+      "SpriteConfirmRequest": {
+        "type": "object",
+        "properties": {
+          "indexSha256": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SpriteTicketsDto": {
+        "type": "object",
+        "properties": {
+          "indexSha256": {
+            "type": "string"
+          },
+          "uploads": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpriteUploadDto"
+            }
+          }
+        }
+      },
+      "SpriteTicketsRequest": {
+        "type": "object",
+        "properties": {
+          "indexSha256": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SpriteUploadDto": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "uploadUrl": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "StatusHistoryDto": {
         "type": "object",
         "properties": {
@@ -9545,6 +10377,368 @@
           }
         }
       },
+      "TrackerMapCompletePartDto": {
+        "type": "object",
+        "properties": {
+          "partNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "etag": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TrackerMapCompleteRequest": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrackerMapCompletePartDto"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "TrackerMapDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "packageKey": {
+            "type": "string"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "bbox": {
+            "$ref": "#/components/schemas/Bbox"
+          },
+          "minZoom": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "maxZoom": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "terrainMaxZoom": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "tilesBytes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "terrainBytes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "sourceBuild": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "state": {
+            "type": "string"
+          },
+          "builtAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "tilesUrl": {
+            "type": "string"
+          },
+          "terrainUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eventCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedBy": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
+          }
+        }
+      },
+      "TrackerMapPartsDto": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "parts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrackerMapPartUrlDto"
+            }
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TrackerMapPartsRequest": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "partNumbers": {
+            "type": "array",
+            "items": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "TrackerMapPartUrlDto": {
+        "type": "object",
+        "properties": {
+          "partNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "TrackerMapUploadDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "packageKey": {
+            "type": "string"
+          },
+          "uploads": {
+            "$ref": "#/components/schemas/TrackerMapUploadsDto"
+          }
+        }
+      },
+      "TrackerMapUploadIdDto": {
+        "type": "object",
+        "properties": {
+          "uploadId": {
+            "type": "string"
+          }
+        }
+      },
+      "TrackerMapUploadsDto": {
+        "type": "object",
+        "properties": {
+          "tiles": {
+            "$ref": "#/components/schemas/TrackerMapUploadIdDto"
+          },
+          "terrain": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TrackerMapUploadIdDto"
+              }
+            ]
+          }
+        }
+      },
+      "TrackerThemeDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "renderer": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "styleUrl": {
+            "type": "string"
+          },
+          "styleSha256": {
+            "type": "string"
+          },
+          "styleBytes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "spriteSha256": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "spriteUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "chrome": {
+            "$ref": "#/components/schemas/Chrome"
+          },
+          "overlay": {
+            "$ref": "#/components/schemas/Overlay"
+          },
+          "thumbnailMediaId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "defaultLightMode": {
+            "type": "boolean"
+          },
+          "defaultDarkMode": {
+            "type": "boolean"
+          },
+          "eventCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedBy": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "audit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AuditStampDto"
+              }
+            ]
+          }
+        }
+      },
       "UploadRouteRequest": {
         "type": "object",
         "properties": {
@@ -9695,6 +10889,12 @@
     },
     {
       "name": "AdminHelp"
+    },
+    {
+      "name": "AdminThemes"
+    },
+    {
+      "name": "AdminMaps"
     },
     {
       "name": "AdminDiagnostics"

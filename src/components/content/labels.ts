@@ -476,6 +476,11 @@ export const SITE_SETTINGS: FieldLabels = {
   "places.tracker.kinds": { label: "Kinds" },
   "places.routeMap": { label: "Route map" },
   "places.routeMap.kinds": { label: "Kinds" },
+  tracker: { label: "Live tracker" },
+  "tracker.defaultBbox": {
+    label: "Default map area",
+    help: "The area a new event's tracker map shows unless another is drawn for it.",
+  },
   footerLinks: {
     label: "Footer links",
     help: "Links shown at the bottom of every page, up to ten.",
