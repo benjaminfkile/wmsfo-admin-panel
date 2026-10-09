@@ -5,7 +5,12 @@ import { ThemeProvider, CssBaseline } from "@mui/material";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
-import PosterEditor, { NAME_REQUIRED, NO_BASEMAP_HINT, NO_RECORDING_HINT } from "./PosterEditor";
+import PosterEditor, {
+  NAME_REQUIRED,
+  NO_BASEMAP_HINT,
+  NO_RECORDING_HINT,
+  REPLACED_NOTICE,
+} from "./PosterEditor";
 import { NO_START_HINT, SIZE_LIMIT_MESSAGE } from "./PosterStudioWorkspace";
 import { ConfigProvider } from "../../ConfigContext";
 import type { Config } from "../../config";
@@ -13,7 +18,7 @@ import { NotifyProvider } from "../../hooks/useNotify";
 import AuthProvider from "../../auth/AuthProvider";
 import AppRoutes from "../../AppRoutes";
 import { installClient } from "../../api/client";
-import type { Poster } from "../../api/types";
+import type { Poster, TrackerMap } from "../../api/types";
 import { buildTheme } from "../../theme/theme";
 import { server } from "../../test/msw/server";
 import * as f from "../../test/msw/fixtures";
@@ -22,14 +27,11 @@ import {
   makeUser,
   testConfig,
 } from "../../test/renderWithProviders";
-import { ATTRIBUTION_TEXT, resetTerrainProbes } from "../../routeMap/poster";
+import { ATTRIBUTION_TEXT } from "../../routeMap/poster";
 import {
   ARROWS_LAYER,
   DETAIL_LAYERS,
-  HILLSHADE_LAYER,
   ROUTE_ARROW_ICON,
-  ROUTE_PALETTES,
-  TERRAIN_SOURCE,
   TIME_LABELS_SOURCE,
 } from "../../routeMap";
 import { buildPosterStyle } from "../../routeMap/posterStyle";
@@ -136,23 +138,9 @@ vi.mock("../../routeMap/posterStyle", async (importOriginal) => {
   return { ...actual, buildPosterStyle: vi.fn(actual.buildPosterStyle) };
 });
 
-// The terrain probe reads the archive header; each test sets whether it
-// resolves or rejects.
-const terrainProbe = { exists: false, urls: [] as string[] };
-
 vi.mock("pmtiles", () => ({
   Protocol: class {
     tile = () => undefined;
-  },
-  PMTiles: class {
-    constructor(private url: string) {
-      terrainProbe.urls.push(url);
-    }
-    getHeader() {
-      return terrainProbe.exists
-        ? Promise.resolve({ minZoom: 0, maxZoom: 12 })
-        : Promise.reject(new Error("404"));
-    }
   },
 }));
 
@@ -175,11 +163,27 @@ const ctx = {
 
 const API = testConfig.apiBaseUrl;
 const POSTER: Poster = { ...f.posters[0]!, layout: null };
-const DEFAULT_LAYOUT = toLayoutDocument(DEFAULT_DESIGN, []);
+// The seeds: route-light (1, the light default) and route-dark (2); the
+// recording's event draws on the Missoula valley map (1).
+const LIGHT = f.trackerThemes.find((t) => t.key === "route-light")!;
+const DARK = f.trackerThemes.find((t) => t.key === "route-dark")!;
+const VALLEY = f.trackerMaps[0]!;
+// A ready map without a terrain file.
+const FLATHEAD: TrackerMap = {
+  ...VALLEY,
+  id: 5,
+  name: "Flathead",
+  prefix: "maps/5",
+  terrainMaxZoom: null,
+  terrainBytes: null,
+  tilesUrl: "https://cdn.example/maps/5/tiles.pmtiles",
+  terrainUrl: null,
+};
+const DEFAULT_LAYOUT = toLayoutDocument({ ...DEFAULT_DESIGN, themeId: 1, mapId: 1 }, []);
 const READY_ASSET = {
   ...f.mediaAssets[0]!,
   id: "poster-asset-1",
-  filename: "poster-main-street-light-2048x1536.jpg",
+  filename: "poster-main-street-route-light-2048x1536.jpg",
   width: 2048,
   height: 1536,
   state: "ready" as const,
@@ -279,9 +283,6 @@ function installFlowHandlers(opts: { uploadUrlStatus?: number } = {}) {
 }
 
 beforeEach(() => {
-  resetTerrainProbes();
-  terrainProbe.exists = false;
-  terrainProbe.urls.length = 0;
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
   calls.length = 0;
   routeMapIds.length = 0;
@@ -325,6 +326,31 @@ async function openStudio() {
   return screen.findByTestId("poster-studio-workspace");
 }
 
+function serveMaps(items: TrackerMap[]) {
+  server.use(http.get(`${API}/admin/maps`, () => HttpResponse.json({ items })));
+}
+
+function themeSelect(studio: HTMLElement) {
+  return within(studio).getByRole("combobox", { name: "Theme" });
+}
+
+function mapSelect(studio: HTMLElement) {
+  return within(studio).getByRole("combobox", { name: "Map" });
+}
+
+async function pick(
+  user: ReturnType<typeof userEvent.setup>,
+  combo: HTMLElement,
+  name: string,
+) {
+  await user.click(combo);
+  await user.click(await screen.findByRole("option", { name }));
+}
+
+function lastStyleInput() {
+  return vi.mocked(buildPosterStyle).mock.calls.at(-1)![0];
+}
+
 describe("PosterEditor: the page and its guards", () => {
   it("is the page the app routes /posters/:id to", async () => {
     server.use(http.get(`${API}/admin/posters/:id`, () => HttpResponse.json(POSTER)));
@@ -366,7 +392,8 @@ describe("PosterEditor: the page and its guards", () => {
     expect(column.compareDocumentPosition(rail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(await within(column).findByTestId("route-poster-preview")).toBeInTheDocument();
     expect(within(rail).getByTestId("route-poster-generate-run")).toBeInTheDocument();
-    expect(within(rail).getByLabelText("Dark")).toBeInTheDocument();
+    expect(themeSelect(rail)).toHaveTextContent("Route light");
+    expect(mapSelect(rail)).toHaveTextContent("Missoula valley, with terrain");
     expect(screen.queryByRole("dialog")).toBeNull();
     // The map is the chosen recording's.
     await waitFor(() => expect(routeMapIds).toContain(4));
@@ -394,7 +421,7 @@ describe("PosterEditor: the page and its guards", () => {
     const user = userEvent.setup();
     render(<Harness poster={POSTER} />);
     let studio = await openStudio();
-    await user.click(within(studio).getByLabelText("Dark"));
+    await pick(user, themeSelect(studio), "Route dark");
     await user.click(within(studio).getByLabelText("Portrait"));
     await user.click(screen.getByRole("combobox", { name: "Flight recording" }));
     await user.click(await screen.findByRole("option", { name: "No recording" }));
@@ -402,7 +429,7 @@ describe("PosterEditor: the page and its guards", () => {
     await user.click(screen.getByRole("combobox", { name: "Flight recording" }));
     await user.click(await screen.findByRole("option", { name: f.routes[0]!.name! }));
     studio = await openStudio();
-    expect(within(studio).getByLabelText("Dark")).toBeChecked();
+    expect(themeSelect(studio)).toHaveTextContent("Route dark");
     expect(within(studio).getByLabelText("Portrait")).toBeChecked();
   });
 
@@ -411,6 +438,100 @@ describe("PosterEditor: the page and its guards", () => {
     expect(await screen.findByTestId("poster-studio-hint")).toHaveTextContent(NO_BASEMAP_HINT);
     expect(screen.getByTestId("poster-studio-hint")).toHaveTextContent(/VITE_ROUTE_BASEMAP_URL/);
     expect(screen.queryByTestId("poster-studio-workspace")).toBeNull();
+  });
+});
+
+describe("PosterEditor: the Theme and Map selects", () => {
+  it("offers the MapLibre themes in order and the ready maps, defaulting to the light default and the event's map", async () => {
+    const user = userEvent.setup();
+    render(<Harness poster={POSTER} />);
+    const studio = await openStudio();
+    expect(themeSelect(studio)).toHaveTextContent("Route light");
+    expect(mapSelect(studio)).toHaveTextContent("Missoula valley, with terrain");
+    await user.click(themeSelect(studio));
+    expect((await screen.findAllByRole("option")).map((o) => o.textContent)).toEqual([
+      "Route light",
+      "Route dark",
+    ]);
+    await user.keyboard("{Escape}");
+    await user.click(mapSelect(studio));
+    // The pending Bitterroot package is not offered.
+    expect((await screen.findAllByRole("option")).map((o) => o.textContent)).toEqual([
+      "Missoula valley, with terrain",
+    ]);
+  });
+
+  it("defaults the map to the newest event flying the recording, else the valley", async () => {
+    serveMaps([VALLEY, FLATHEAD]);
+    server.use(
+      http.get(`${API}/admin/events`, () =>
+        HttpResponse.json({
+          items: [
+            { ...f.events[0]!, year: 2024, routeId: 4, trackerMapId: 1 },
+            { ...f.events[0]!, id: 9, year: 2025, routeId: 4, trackerMapId: 5 },
+          ],
+        }),
+      ),
+    );
+    const { unmount } = render(<Harness poster={POSTER} />);
+    expect(mapSelect(await openStudio())).toHaveTextContent("Flathead, no terrain");
+    unmount();
+    render(<Harness poster={{ ...POSTER, routeId: 3 }} />);
+    expect(mapSelect(await openStudio())).toHaveTextContent("Missoula valley, with terrain");
+  });
+
+  it("draws the chosen theme's loaded body over the chosen map, with the route colour following the theme", async () => {
+    const user = userEvent.setup();
+    serveMaps([VALLEY, FLATHEAD]);
+    render(<Harness poster={POSTER} />);
+    const studio = await openStudio();
+    await waitFor(() => expect(previews).toHaveLength(1));
+    expect(lastStyleInput().theme).toEqual({ overlay: LIGHT.overlay, body: f.themeStyles["route-light"] });
+    expect(lastStyleInput().map).toMatchObject({ id: 1, tilesUrl: VALLEY.tilesUrl });
+    const hex = within(studio).getByTestId("route-poster-color-hex");
+    expect(hex).toHaveValue(LIGHT.overlay!.routeColor);
+
+    await pick(user, themeSelect(studio), "Route dark");
+    await pick(user, mapSelect(studio), "Flathead, no terrain");
+    await waitFor(() =>
+      expect(lastStyleInput().theme).toEqual({ overlay: DARK.overlay, body: f.themeStyles["route-dark"] }),
+    );
+    expect(lastStyleInput().map).toMatchObject({ id: 5 });
+    expect(lastStyleInput().options.routeColor).toBe(DARK.overlay!.routeColor);
+    expect(hex).toHaveValue(DARK.overlay!.routeColor);
+    const preview = previews[0]!;
+    await waitFor(() => {
+      const last = preview.styles.at(-1) as { sources: Record<string, { url?: string }> };
+      expect(last.sources.basemap?.url).toBe(`pmtiles://${FLATHEAD.tilesUrl}`);
+    });
+  });
+
+  it("opens a layout of the old form on the seed with the notice and saves the ids", async () => {
+    const user = userEvent.setup();
+    const { patches } = installFlowHandlers();
+    const { themeId: _t, mapId: _m, ...rest } = DEFAULT_LAYOUT;
+    void _t;
+    void _m;
+    render(<Harness poster={{ ...POSTER, layout: { ...rest, theme: "dark" } }} />);
+    const studio = await openStudio();
+    expect(screen.getByTestId("poster-replaced-notice")).toHaveTextContent(REPLACED_NOTICE);
+    expect(themeSelect(studio)).toHaveTextContent("Route dark");
+    expect(mapSelect(studio)).toHaveTextContent("Missoula valley");
+    await user.click(screen.getByTestId("poster-save"));
+    await waitFor(() =>
+      expect(patches).toEqual([
+        { name: "Main street", routeId: 4, layout: { ...DEFAULT_LAYOUT, themeId: 2, mapId: 1 } },
+      ]),
+    );
+    await waitFor(() => expect(screen.queryByTestId("poster-replaced-notice")).toBeNull());
+  });
+
+  it("opens a deleted theme or map on the defaults with the notice", async () => {
+    render(<Harness poster={{ ...POSTER, layout: { ...DEFAULT_LAYOUT, themeId: 99, mapId: 2 } }} />);
+    const studio = await openStudio();
+    expect(screen.getByTestId("poster-replaced-notice")).toHaveTextContent(REPLACED_NOTICE);
+    expect(themeSelect(studio)).toHaveTextContent("Route light");
+    expect(mapSelect(studio)).toHaveTextContent("Missoula valley");
   });
 });
 
@@ -423,14 +544,14 @@ describe("PosterEditor: Save", () => {
     const name = screen.getByTestId("poster-name");
     await user.clear(name);
     await user.type(name, "  Downtown  ");
-    await user.click(within(studio).getByLabelText("Dark"));
+    await pick(user, themeSelect(studio), "Route dark");
     await user.click(within(studio).getByLabelText(/flyer/i));
     await user.click(screen.getByTestId("poster-save"));
     await waitFor(() => expect(patches).toHaveLength(1));
     expect(patches[0]).toEqual({
       name: "Downtown",
       routeId: 4,
-      layout: { ...DEFAULT_LAYOUT, theme: "dark", size: "flyer" },
+      layout: { ...DEFAULT_LAYOUT, themeId: 2, mapId: 1, size: "flyer" },
     });
     expect(await screen.findByText("Poster saved")).toBeInTheDocument();
     expect(calls).not.toContain("upload-url");
@@ -464,12 +585,12 @@ describe("PosterEditor: Save", () => {
     );
     render(<Harness poster={POSTER} />);
     const studio = await openStudio();
-    await user.click(within(studio).getByLabelText("Dark"));
+    await pick(user, themeSelect(studio), "Route dark");
     await user.click(screen.getByTestId("poster-save"));
     expect(await screen.findByTestId("poster-save-error")).toHaveTextContent(
       /The poster could not be saved\./,
     );
-    expect(within(studio).getByLabelText("Dark")).toBeChecked();
+    expect(themeSelect(studio)).toHaveTextContent("Route dark");
   });
 });
 
@@ -486,10 +607,10 @@ describe("PosterEditor: generate from the flight recording", () => {
     expect(within(studio).getByLabelText(/facebook post, 1536 x 2048/i)).toBeChecked();
     expect(within(studio).getByLabelText(/flyer, letter at 300 dpi, 2550 x 3300/i)).toBeInTheDocument();
     expect(within(studio).getByLabelText(/poster, 11 x 17 at 300 dpi, 3300 x 5100/i)).toBeInTheDocument();
-    await user.click(within(studio).getByLabelText("Dark"));
+    await pick(user, themeSelect(studio), "Route dark");
     await user.click(within(studio).getByLabelText(/flyer/i));
     expect(within(studio).getByTestId("route-poster-output")).toHaveTextContent(
-      "poster-main-street-dark-2550x3300.jpg",
+      "poster-main-street-route-dark-2550x3300.jpg",
     );
   });
 
@@ -518,7 +639,7 @@ describe("PosterEditor: generate from the flight recording", () => {
       expect.any(Number),
     );
     expect(uploadBodies[0]).toMatchObject({
-      filename: "poster-main-street-light-2048x1536.jpg",
+      filename: "poster-main-street-route-light-2048x1536.jpg",
       contentType: "image/jpeg",
       sizeBytes: 4,
       title: "Main street",
@@ -543,7 +664,7 @@ describe("PosterEditor: generate from the flight recording", () => {
     );
     expect(within(studio).getByTestId("route-poster-generate-run")).toBeEnabled();
     expect(within(studio).getByTestId("route-poster-generate-run")).toHaveTextContent(/try again/i);
-    expect(within(studio).getByLabelText("Dark")).toBeEnabled();
+    expect(themeSelect(studio)).not.toHaveAttribute("aria-disabled");
     expect(calls).not.toContain("put");
   });
 
@@ -563,24 +684,28 @@ describe("PosterEditor: generate from the flight recording", () => {
     expect(within(studio).getByTestId("route-poster-generate-run")).toBeEnabled();
   });
 
-  it("hides the Terrain checkbox when the terrain archive is missing", async () => {
+  it("hides the Terrain checkbox on a map without a terrain file", async () => {
     const user = userEvent.setup();
     installFlowHandlers();
+    serveMaps([VALLEY, FLATHEAD]);
     render(<Harness poster={POSTER} />);
     const studio = await openStudio();
-    await waitFor(() =>
-      expect(terrainProbe.urls).toEqual([`${testConfig.routeBasemapUrl}/terrain.pmtiles`]),
-    );
+    expect(within(studio).getByLabelText("Terrain")).toBeInTheDocument();
+    await pick(user, mapSelect(studio), "Flathead, no terrain");
     expect(within(studio).queryByLabelText("Terrain")).toBeNull();
     await user.click(within(studio).getByTestId("route-poster-generate-run"));
     await within(studio).findByTestId("route-poster-ready");
-    const style = mapOptions[0]!.style as { sources: Record<string, unknown> };
-    expect(style.sources[TERRAIN_SOURCE]).toBeUndefined();
+    const style = mapOptions[0]!.style as {
+      sources: Record<string, { url?: string }>;
+      layers: Array<{ source?: string }>;
+    };
+    expect(style.sources.basemap?.url).toBe(`pmtiles://${FLATHEAD.tilesUrl}`);
+    expect(style.sources.terrain).toBeUndefined();
+    expect(style.layers.some((l) => l.source === "terrain")).toBe(false);
   });
 
-  it("offers Terrain unchecked when the archive exists and draws the hillshade when checked", async () => {
+  it("offers Terrain unchecked on a map with terrain and draws the hillshade when checked", async () => {
     const user = userEvent.setup();
-    terrainProbe.exists = true;
     installFlowHandlers();
     render(<Harness poster={POSTER} />);
     const studio = await openStudio();
@@ -591,10 +716,10 @@ describe("PosterEditor: generate from the flight recording", () => {
     await within(studio).findByTestId("route-poster-ready");
     const plain = mapOptions[0]!.style as {
       sources: Record<string, unknown>;
-      layers: Array<{ id: string }>;
+      layers: Array<{ id: string; source?: string }>;
     };
-    expect(plain.sources[TERRAIN_SOURCE]).toBeUndefined();
-    expect(plain.layers.map((l) => l.id)).not.toContain(HILLSHADE_LAYER);
+    expect(plain.sources.terrain).toBeUndefined();
+    expect(plain.layers.some((l) => l.source === "terrain")).toBe(false);
 
     await user.click(within(studio).getByLabelText("Terrain"));
     expect(within(studio).getByLabelText("Terrain")).toBeChecked();
@@ -602,13 +727,13 @@ describe("PosterEditor: generate from the flight recording", () => {
     await waitFor(() => expect(mapOptions).toHaveLength(2));
     const shaded = mapOptions[1]!.style as {
       sources: Record<string, { type: string; url: string }>;
-      layers: Array<{ id: string }>;
+      layers: Array<{ id: string; source?: string }>;
     };
-    expect(shaded.sources[TERRAIN_SOURCE]).toMatchObject({
+    expect(shaded.sources.terrain).toMatchObject({
       type: "raster-dem",
-      url: `pmtiles://${testConfig.routeBasemapUrl}/terrain.pmtiles`,
+      url: `pmtiles://${VALLEY.terrainUrl}`,
     });
-    expect(shaded.layers.map((l) => l.id)).toContain(HILLSHADE_LAYER);
+    expect(shaded.layers.some((l) => l.source === "terrain")).toBe(true);
   });
 
   it("offers the route styling with its defaults and resets the colour to the theme's", async () => {
@@ -616,9 +741,9 @@ describe("PosterEditor: generate from the flight recording", () => {
     render(<Harness poster={POSTER} />);
     const studio = await openStudio();
     const hex = within(studio).getByTestId("route-poster-color-hex");
-    expect(hex).toHaveValue(ROUTE_PALETTES.light.routeColor);
+    expect(hex).toHaveValue(LIGHT.overlay!.routeColor);
     expect(within(studio).getByTestId("route-poster-color")).toHaveValue(
-      ROUTE_PALETTES.light.routeColor,
+      LIGHT.overlay!.routeColor,
     );
     expect(within(studio).getByTestId("route-poster-color-reset")).toBeDisabled();
     expect(within(studio).getByLabelText("Arrows")).toBeChecked();
@@ -639,15 +764,15 @@ describe("PosterEditor: generate from the flight recording", () => {
     );
     expect(within(studio).queryByTestId("route-poster-format-hint")).toBeNull();
 
-    await user.click(within(studio).getByLabelText("Dark"));
-    expect(hex).toHaveValue(ROUTE_PALETTES.dark.routeColor);
+    await pick(user, themeSelect(studio), "Route dark");
+    expect(hex).toHaveValue(DARK.overlay!.routeColor);
 
     await user.clear(hex);
     await user.type(hex, "#FF8800");
     await user.tab();
     expect(hex).toHaveValue("#ff8800");
     await user.click(within(studio).getByTestId("route-poster-color-reset"));
-    expect(hex).toHaveValue(ROUTE_PALETTES.dark.routeColor);
+    expect(hex).toHaveValue(DARK.overlay!.routeColor);
   });
 
   it("disables the arrow size while the arrows are off", async () => {
@@ -679,7 +804,7 @@ describe("PosterEditor: generate from the flight recording", () => {
     await user.click(await screen.findByRole("option", { name }));
     expect(within(studio).getByRole("combobox", { name: "Arrow size" })).toHaveTextContent(name);
     await waitFor(() =>
-      expect(vi.mocked(buildPosterStyle).mock.calls.at(-1)![1].options.arrowScale).toBe(scale),
+      expect(lastStyleInput().options.arrowScale).toBe(scale),
     );
     const preview = previews[0]!;
     await waitFor(() => {
@@ -694,7 +819,7 @@ describe("PosterEditor: generate from the flight recording", () => {
     await within(studio).findByTestId("route-poster-ready");
     const exportCalls = vi.mocked(buildPosterStyle).mock.calls.slice(previewCalls);
     expect(exportCalls).toHaveLength(1);
-    expect(exportCalls[0]![1].options.arrowScale).toBe(scale);
+    expect(exportCalls[0]![0].options.arrowScale).toBe(scale);
   });
 
   it("offers the three map detail switches on by default", async () => {
@@ -706,7 +831,7 @@ describe("PosterEditor: generate from the flight recording", () => {
       expect(within(group).getByLabelText(label)).toBeChecked();
     }
     await waitFor(() =>
-      expect(vi.mocked(buildPosterStyle).mock.calls.at(-1)![1].options.details).toEqual(DEFAULT_DETAILS),
+      expect(lastStyleInput().options.details).toEqual(DEFAULT_DETAILS),
     );
   });
 
@@ -719,26 +844,25 @@ describe("PosterEditor: generate from the flight recording", () => {
     await waitFor(() => expect(previews).toHaveLength(1));
     const preview = previews[0]!;
     const ids = () => (preview.styles.at(-1) as { layers: Array<{ id: string }> }).layers.map((l) => l.id);
-    for (const id of [...DETAIL_LAYERS.placeNames, ...DETAIL_LAYERS.roadLabels]) {
-      expect(ids()).toContain(id);
-    }
+    // The seed carries every id the three switches name; `pois` is its
+    // layer marked wmsfo:places.
+    const named = [...DETAIL_LAYERS.landmarks, ...DETAIL_LAYERS.placeNames, ...DETAIL_LAYERS.roadLabels];
+    for (const id of named) expect(ids()).toContain(id);
 
     await user.click(within(studio).getByLabelText("Town names"));
     await user.click(within(studio).getByLabelText("Road labels"));
     await user.click(within(studio).getByLabelText("Landmarks"));
     const details = { landmarks: false, placeNames: false, roadLabels: false };
     await waitFor(() =>
-      expect(vi.mocked(buildPosterStyle).mock.calls.at(-1)![1].options.details).toEqual(details),
+      expect(lastStyleInput().options.details).toEqual(details),
     );
     await waitFor(() => {
-      for (const id of [...DETAIL_LAYERS.placeNames, ...DETAIL_LAYERS.roadLabels]) {
-        expect(ids()).not.toContain(id);
-      }
+      for (const id of named) expect(ids()).not.toContain(id);
     });
     await user.click(within(studio).getByLabelText("Landmarks"));
     const kept = { ...details, landmarks: true };
     await waitFor(() =>
-      expect(vi.mocked(buildPosterStyle).mock.calls.at(-1)![1].options.details).toEqual(kept),
+      expect(lastStyleInput().options.details).toEqual(kept),
     );
 
     const previewCalls = vi.mocked(buildPosterStyle).mock.calls.length;
@@ -748,7 +872,7 @@ describe("PosterEditor: generate from the flight recording", () => {
     const exportCalls = vi.mocked(buildPosterStyle).mock.calls.slice(previewCalls);
     expect(exportCalls).toHaveLength(1);
     expect(exportCalls[0]).toEqual(previewInput);
-    expect(exportCalls[0]![1].options.details).toEqual(kept);
+    expect(exportCalls[0]![0].options.details).toEqual(kept);
     expect(mapOptions[0]!.style).toEqual(preview.styles.at(-1));
     expect(patches).toEqual([
       { name: "Main street", routeId: 4, layout: { ...DEFAULT_LAYOUT, details: kept } },
@@ -775,7 +899,7 @@ describe("PosterEditor: generate from the flight recording", () => {
       NO_START_HINT,
     );
     await waitFor(() => expect(previews).toHaveLength(1));
-    const labels = vi.mocked(buildPosterStyle).mock.calls.at(-1)![1].options.timeLabels;
+    const labels = lastStyleInput().options.timeLabels;
     expect(labels?.map((l) => l.label)).toEqual(["0m", "12m"]);
   });
 
@@ -798,10 +922,10 @@ describe("PosterEditor: generate from the flight recording", () => {
 
     // The defaults: arrows on, a label every 15 minutes plus the final
     // entry, on the wall clock from the start time in its zone.
-    const first = vi.mocked(buildPosterStyle).mock.calls.at(-1)![1];
+    const first = lastStyleInput();
     expect(first.options).toEqual({
       details: { landmarks: true, placeNames: true, roadLabels: true },
-      routeColor: ROUTE_PALETTES.light.routeColor,
+      routeColor: LIGHT.overlay!.routeColor,
       arrows: true,
       arrowScale: 1.5,
       timeLabels: [
@@ -875,11 +999,11 @@ function overlayNames(studio: HTMLElement): string[] {
 describe("PosterEditor: opening restores the poster document", () => {
   it("restores the theme, orientation, size, terrain, and every route style choice", async () => {
     const user = userEvent.setup();
-    terrainProbe.exists = true;
     const { patches } = installFlowHandlers();
     const layout: PosterLayout = {
       version: 1,
-      theme: "dark",
+      themeId: 2,
+      mapId: 1,
       orientation: "portrait",
       size: "flyer",
       terrain: true,
@@ -894,7 +1018,7 @@ describe("PosterEditor: opening restores the poster document", () => {
     };
     render(<Harness poster={{ ...POSTER, layout }} />);
     const studio = await openStudio();
-    expect(within(studio).getByLabelText("Dark")).toBeChecked();
+    expect(themeSelect(studio)).toHaveTextContent("Route dark");
     expect(within(studio).getByLabelText("Portrait")).toBeChecked();
     expect(within(studio).getByLabelText(/flyer, letter at 300 dpi, 2550 x 3300/i)).toBeChecked();
     expect(await within(studio).findByLabelText("Terrain")).toBeChecked();
@@ -913,12 +1037,14 @@ describe("PosterEditor: opening restores the poster document", () => {
     expect(within(studio).getByTestId("route-poster-start")).toHaveValue("2026-12-21T18:00");
     expect(within(studio).getByRole("combobox", { name: "Timezone" })).toHaveValue("America/Denver");
     expect(within(studio).getByTestId("route-poster-output")).toHaveTextContent(
-      "poster-main-street-dark-2550x3300.jpg",
+      "poster-main-street-route-dark-2550x3300.jpg",
     );
+    expect(screen.queryByTestId("poster-replaced-notice")).toBeNull();
     // The preview draws the restored style: 18:00 in Denver is the first label.
     await waitFor(() => {
-      const input = vi.mocked(buildPosterStyle).mock.calls.at(-1)![1];
-      expect(input.theme).toBe("dark");
+      const input = lastStyleInput();
+      expect(input.theme.overlay).toEqual(DARK.overlay);
+      expect(input.map).toMatchObject({ id: 1 });
       expect(input.terrain).toBe(true);
       expect(input.options.arrowScale).toBe(2);
       expect(input.options.details).toEqual({ landmarks: true, placeNames: false, roadLabels: false });
@@ -1154,6 +1280,8 @@ describe("PosterEditor help buttons (admin.md 6.26)", () => {
     const studio = await openStudio();
     expect(screen.getByTestId("help-posters.editor")).toBeInTheDocument();
     for (const key of [
+      "posters.theme",
+      "posters.map",
       "posters.editor.size",
       "posters.editor.map-details",
       "posters.editor.route-styling",

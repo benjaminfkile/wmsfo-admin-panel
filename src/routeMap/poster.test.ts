@@ -5,13 +5,14 @@ import {
   POSTER_PIXEL_RATIO,
   POSTER_PRESETS,
   composePoster,
+  darkChrome,
   fiveMinuteMarks,
   posterFilename,
   posterFitPadding,
   posterSize,
   renderRouteMap,
 } from "./poster";
-import { ROUTE_ARROW_ICON } from "./style";
+import { ROUTE_ARROW_ICON } from "./routeLayers";
 
 type MapOptions = {
   container: HTMLElement;
@@ -116,13 +117,20 @@ describe("poster presets", () => {
     }
   });
 
-  it("names the file by the poster's name, the theme, and the size", () => {
-    expect(posterFilename("Main Street, 2026!", "dark", { width: 2550, height: 3300 })).toBe(
-      "poster-main-street-2026-dark-2550x3300.jpg",
+  it("names the file by the poster's name, the theme key, and the size", () => {
+    expect(posterFilename("Main Street, 2026!", "route-dark", { width: 2550, height: 3300 })).toBe(
+      "poster-main-street-2026-route-dark-2550x3300.jpg",
     );
-    expect(posterFilename("***", "light", { width: 2048, height: 1536 })).toBe(
-      "poster-light-2048x1536.jpg",
+    expect(posterFilename("***", "route-light", { width: 2048, height: 1536 })).toBe(
+      "poster-route-light-2048x1536.jpg",
     );
+  });
+
+  it("reads the chrome as dark when its bg has a relative luminance under 0.5", () => {
+    expect(darkChrome({ chrome: { bg: "#0f1a2b" } })).toBe(true);
+    expect(darkChrome({ chrome: { bg: "#ffffff" } })).toBe(false);
+    expect(darkChrome({ chrome: { bg: "#ffffffe6" } })).toBe(false);
+    expect(darkChrome({ chrome: {} })).toBe(false);
   });
 
   it("marks every whole 5 minutes between the start and the end", () => {
@@ -144,6 +152,9 @@ describe("poster presets", () => {
   });
 });
 
+const LIGHT = { chrome: { bg: "#ffffff" } };
+const DARK = { chrome: { bg: "#0f1a2b" } };
+
 describe("composePoster", () => {
   it("draws the map and the attribution text into the composed canvas", () => {
     const ctx = fakeContext();
@@ -151,7 +162,7 @@ describe("composePoster", () => {
       ctx as unknown as CanvasRenderingContext2D,
     );
     const map = document.createElement("canvas");
-    const out = composePoster(map, { width: 2048, height: 1536 }, "light");
+    const out = composePoster(map, { width: 2048, height: 1536 }, LIGHT);
     expect(out.width).toBe(2048);
     expect(out.height).toBe(1536);
     expect(ctx.drawImage).toHaveBeenCalledWith(map, 0, 0, 2048, 1536);
@@ -174,11 +185,12 @@ describe("composePoster", () => {
     );
     const map = document.createElement("canvas");
     const overlay = document.createElement("canvas");
-    composePoster(map, { width: 2550, height: 3300 }, "dark", overlay);
+    composePoster(map, { width: 2550, height: 3300 }, DARK, overlay);
     expect(ctx.drawImage.mock.calls).toEqual([
       [map, 0, 0, 2550, 3300],
       [overlay, 0, 0, 2550, 3300],
     ]);
+    expect(ctx.fillStyle).toBe("#f2f6ff");
     const [mapAt, overlayAt] = ctx.drawImage.mock.invocationCallOrder;
     expect(mapAt!).toBeLessThan(overlayAt!);
     expect(overlayAt!).toBeLessThan(ctx.fillText.mock.invocationCallOrder[0]!);

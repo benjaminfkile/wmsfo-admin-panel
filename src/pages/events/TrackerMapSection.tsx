@@ -18,7 +18,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { events as eventsApi, type PatchEventBody } from "../../api/resources/events";
 import { maps as mapsApi } from "../../api/resources/maps";
 import { themes as themesApi } from "../../api/resources/themes";
-import { media as mediaApi } from "../../api/resources/media";
 import { siteSettings as siteSettingsApi } from "../../api/resources/siteSettings";
 import type { Event, TrackerMap, TrackerTheme } from "../../api/types";
 import { keys } from "../../queries/keys";
@@ -33,6 +32,7 @@ import {
   type Bbox,
 } from "../../components/bbox/bbox";
 import ErrorAlert from "../../components/ErrorAlert";
+import ThemeThumb from "../../components/ThemeThumb";
 import CardTitle from "../../help/CardTitle";
 import HelpButton from "../../help/HelpButton";
 import { useNotify } from "../../hooks/useNotify";
@@ -65,48 +65,6 @@ function covers(map: TrackerMap, box: Bbox): boolean {
 
 function bySortOrder(a: TrackerTheme, b: TrackerTheme): number {
   return Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0);
-}
-
-// The theme's thumbnail: the `480` variant of its media asset at 48 px,
-// or a swatch of its chrome `bg` and `accent` when it has none.
-function ThemeThumb({ theme }: { theme: TrackerTheme }) {
-  const mediaId = theme.thumbnailMediaId ?? "";
-  const q = useQuery({
-    queryKey: keys.mediaAsset(mediaId),
-    queryFn: () => mediaApi.get(mediaId),
-    enabled: mediaId !== "",
-    staleTime: Infinity,
-    retry: false,
-  });
-  const v480 = q.data?.variants?.["480"];
-  const src = typeof v480 === "string" && v480 !== "" ? v480 : q.data?.url;
-  if (mediaId !== "" && src) {
-    return (
-      <Box
-        component="img"
-        src={src}
-        alt=""
-        data-testid={`theme-thumb-${String(theme.id)}`}
-        sx={{ width: 48, height: 48, objectFit: "cover", borderRadius: 0.5, flexShrink: 0 }}
-      />
-    );
-  }
-  return (
-    <Box
-      data-testid={`theme-swatch-${String(theme.id)}`}
-      sx={{
-        width: 48,
-        height: 48,
-        borderRadius: 0.5,
-        flexShrink: 0,
-        border: 1,
-        borderColor: "divider",
-        background: `linear-gradient(135deg, ${theme.chrome?.bg ?? "#ffffff"} 50%, ${
-          theme.chrome?.accent ?? "#000000"
-        } 50%)`,
-      }}
-    />
-  );
 }
 
 // The Tracker map card on the event detail page (admin.md 6.3): a draft
