@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  EXPORT_TERRAIN_MAX_ZOOM,
   MISSOULA_VALLEY_BBOX,
+  TERRAIN_MAX_ZOOM_RANGE,
   bboxContains,
   bboxValid,
   clampZoom,
@@ -87,6 +89,16 @@ describe("the export document", () => {
     expect(clampZoom("20", { min: 8, max: 15 }, 15)).toBe(15);
     expect(clampZoom("3", { min: 8, max: 13 }, 13)).toBe(8);
     expect(clampZoom("x", { min: 8, max: 13 }, 13)).toBe(13);
+  });
+
+  it("takes a terrain max zoom of 8 to 15 and starts at 13", () => {
+    expect(TERRAIN_MAX_ZOOM_RANGE).toEqual({ min: 8, max: 15 });
+    expect(EXPORT_TERRAIN_MAX_ZOOM).toBe(13);
+    const fifteen = clampZoom("15", TERRAIN_MAX_ZOOM_RANGE, EXPORT_TERRAIN_MAX_ZOOM);
+    expect(fifteen).toBe(15);
+    expect(exportDocument("Site default", BOX, 15, fifteen)).toMatchObject({ terrainMaxZoom: 15 });
+    expect(clampZoom("16", TERRAIN_MAX_ZOOM_RANGE, EXPORT_TERRAIN_MAX_ZOOM)).toBe(15);
+    expect(clampZoom("", TERRAIN_MAX_ZOOM_RANGE, EXPORT_TERRAIN_MAX_ZOOM)).toBe(13);
   });
 });
 
