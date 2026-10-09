@@ -110,6 +110,14 @@ export const handlers: HttpHandler[] = [
   }),
   http.delete("*/admin/maps/:id", () => new HttpResponse(null, { status: 204 })),
   http.get("*/admin/themes", () => HttpResponse.json({ items: f.trackerThemes })),
+  http.patch("*/admin/themes/:id", async ({ params, request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    const theme = f.trackerThemes.find((t) => String(t.id) === String(params.id));
+    return theme
+      ? HttpResponse.json({ ...theme, ...body })
+      : HttpResponse.json(NOT_FOUND, { status: 404 });
+  }),
+  http.delete("*/admin/themes/:id", () => new HttpResponse(null, { status: 204 })),
 
   // Beacons
   http.get("*/admin/beacons", () =>

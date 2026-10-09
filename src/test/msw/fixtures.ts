@@ -999,6 +999,14 @@ export const impactByResource: Record<string, DeleteImpact> = {
     ],
   },
   "maps/2": emptyImpact,
+  // themes/1 is Route light, the MapLibre light default, offered by the
+  // live event.
+  "themes/1": {
+    blocked: null,
+    deletes: [],
+    unlinks: [{ entity: "event", count: 1, names: ["Santa Flyover 2026"] }],
+    warnings: ["MapLibre loses its light default."],
+  },
   "routes/4": {
     blocked: null,
     deletes: [],
