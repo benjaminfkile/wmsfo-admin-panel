@@ -25,7 +25,7 @@ export const DESKTOP_VIEWPORT = { width: 1280, height: 800 } as const;
 export const EXPORT_MAX_ZOOM = 15;
 export const EXPORT_TERRAIN_MAX_ZOOM = 13;
 export const MAX_ZOOM_RANGE = { min: 8, max: 15 } as const;
-export const TERRAIN_MAX_ZOOM_RANGE = { min: 8, max: 13 } as const;
+export const TERRAIN_MAX_ZOOM_RANGE = { min: 8, max: 15 } as const;
 
 // MapLibre draws a 512 px world at zoom 0.
 const TILE_SIZE = 512;
