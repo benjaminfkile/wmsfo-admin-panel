@@ -19,12 +19,14 @@ import DialogTitleWithHelp from "../help/DialogTitleWithHelp";
 import type { HelpKey } from "../help/helpKeys";
 import { impact, type DeleteImpact, type ImpactGroup, type ImpactResource } from "../api/impact";
 
-// A page holding a role must hand it to another page before it can be
-// deleted (admin.md 8.3). The dialog surfaces a required select over the
-// candidate pages and hands the id back to the caller as `roleTo`.
-export type RoleTakeover = {
-  role: string;
-  candidates: Array<{ id: number; title: string }>;
+// A row another row can take over on delete (admin.md 8.3). A required
+// replacement (a page holding a role) always shows and gates Delete; an
+// optional one (a tracker map or theme) shows only when the impact
+// unlinks something. The chosen id is handed back as `replacementId`.
+export type Replacement = {
+  label: string;
+  candidates: Array<{ id: number; name: string }>;
+  required?: boolean;
 };
 
 interface Props {
@@ -33,10 +35,12 @@ interface Props {
   id: number | string;
   name: string;
   confirmLabel?: string;
-  roleTakeover?: RoleTakeover | null;
+  replacement?: Replacement | null;
   disabled?: boolean;
+  // A failed confirm, shown in the dialog's alert.
+  error?: unknown;
   onCancel: () => void;
-  onConfirm: (opts: { roleTo: number | null }) => void;
+  onConfirm: (opts: { replacementId: number | null }) => void;
   help?: HelpKey;
 }
 
@@ -106,8 +110,9 @@ export default function DeleteDialog({
   id,
   name,
   confirmLabel = "Delete",
-  roleTakeover,
+  replacement,
   disabled,
+  error,
   onCancel,
   onConfirm,
   help,
@@ -120,28 +125,30 @@ export default function DeleteDialog({
     gcTime: 0,
   });
 
-  const [roleTo, setRoleTo] = useState<number | "">("");
+  const [replacementId, setReplacementId] = useState<number | "">("");
   useEffect(() => {
-    if (open) setRoleTo("");
+    if (open) setReplacementId("");
   }, [open, id]);
 
   const data: DeleteImpact | undefined = impactQ.data;
   const loaded = !!data;
   const blocked = data?.blocked ?? null;
 
-  const needsRoleTo = roleTakeover !== undefined && roleTakeover !== null;
-  const roleToOk = !needsRoleTo || (typeof roleTo === "number");
+  const deletes = useMemo(() => data?.deletes ?? [], [data]);
+  const unlinks = useMemo(() => data?.unlinks ?? [], [data]);
+  const warnings = useMemo(() => data?.warnings ?? [], [data]);
+
+  const required = !!replacement?.required;
+  const showReplacement =
+    !!replacement && (required || unlinks.length > 0);
+  const replacementOk = !required || typeof replacementId === "number";
 
   const confirmDisabled =
     !loaded ||
     !!blocked ||
     !!disabled ||
     !!impactQ.error ||
-    !roleToOk;
-
-  const deletes = useMemo(() => data?.deletes ?? [], [data]);
-  const unlinks = useMemo(() => data?.unlinks ?? [], [data]);
-  const warnings = useMemo(() => data?.warnings ?? [], [data]);
+    !replacementOk;
 
   return (
     <AppDialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
@@ -204,30 +211,39 @@ export default function DeleteDialog({
               </>
             )}
 
-            {needsRoleTo ? (
+            {showReplacement ? (
               <TextField
                 select
-                required
-                label={`Page that takes the ${roleTakeover!.role} role`}
-                value={roleTo === "" ? "" : String(roleTo)}
+                required={required}
+                label={replacement!.label}
+                value={replacementId === "" ? "" : String(replacementId)}
                 onChange={(e) =>
-                  setRoleTo(e.target.value === "" ? "" : Number(e.target.value))
+                  setReplacementId(
+                    e.target.value === "" ? "" : Number(e.target.value)
+                  )
                 }
                 fullWidth
               >
-                {roleTakeover!.candidates.length === 0 ? (
+                {required ? null : (
+                  <MenuItem value="">
+                    <em>None</em>
+                  </MenuItem>
+                )}
+                {required && replacement!.candidates.length === 0 ? (
                   <MenuItem value="" disabled>
-                    No other pages to hand the role to
+                    Nothing to choose from
                   </MenuItem>
                 ) : (
-                  roleTakeover!.candidates.map((c) => (
+                  replacement!.candidates.map((c) => (
                     <MenuItem key={String(c.id)} value={String(c.id)}>
-                      {c.title}
+                      {c.name}
                     </MenuItem>
                   ))
                 )}
               </TextField>
             ) : null}
+
+            {error ? <ErrorAlert error={error} /> : null}
           </Stack>
         )}
       </DialogContent>
@@ -239,7 +255,10 @@ export default function DeleteDialog({
             variant="contained"
             onClick={() =>
               onConfirm({
-                roleTo: needsRoleTo && typeof roleTo === "number" ? roleTo : null,
+                replacementId:
+                  showReplacement && typeof replacementId === "number"
+                    ? replacementId
+                    : null,
               })
             }
             disabled={confirmDisabled}

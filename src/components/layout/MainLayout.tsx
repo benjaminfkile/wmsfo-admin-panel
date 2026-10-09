@@ -37,6 +37,8 @@ const ALL_ENTRIES: Record<NavKey, NavEntry> = {
   dashboard: { key: "dashboard", label: "Dashboard", to: "/" },
   events: { key: "events", label: "Events", to: "/events" },
   routes: { key: "routes", label: "Flight recordings", to: "/routes" },
+  maps: { key: "maps", label: "Maps", to: "/maps" },
+  themes: { key: "themes", label: "Tracker themes", to: "/themes" },
   beacons: { key: "beacons", label: "Beacons", to: "/beacons" },
   "qr-codes": { key: "qr-codes", label: "QR codes", to: "/qr-codes" },
   places: { key: "places", label: "Places", to: "/places" },

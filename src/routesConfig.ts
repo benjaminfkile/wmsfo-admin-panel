@@ -10,6 +10,8 @@ export const ALL_ROUTES: RouteDef[] = [
   { key: "dashboard", path: "/", label: "Dashboard" },
   { key: "events", path: "/events", label: "Events" },
   { key: "routes", path: "/routes", label: "Flight recordings" },
+  { key: "maps", path: "/maps", label: "Maps" },
+  { key: "themes", path: "/themes", label: "Tracker themes" },
   { key: "beacons", path: "/beacons", label: "Beacons" },
   { key: "qr-codes", path: "/qr-codes", label: "QR codes" },
   { key: "places", path: "/places", label: "Places" },

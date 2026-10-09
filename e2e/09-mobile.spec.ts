@@ -13,6 +13,8 @@ const STATIC_ROUTES = [
   "/",
   "/events",
   "/routes",
+  "/maps",
+  "/themes",
   "/beacons",
   "/qr-codes",
   "/places",

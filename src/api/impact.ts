@@ -30,7 +30,9 @@ export type ImpactResource =
   | "subscribers"
   | "people"
   | "contact-messages"
-  | "posters";
+  | "posters"
+  | "maps"
+  | "themes";
 
 export const impact = {
   get: (resource: ImpactResource, id: number | string) =>

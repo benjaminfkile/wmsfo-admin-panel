@@ -17,6 +17,7 @@ import { RASTER_MAX_BYTES, SVG_MAX_BYTES } from "../../validation/image";
 import { useMediaUpload, type UploadItem } from "./useMediaUpload";
 import HelpButton from "../../help/HelpButton";
 import type { HelpKey } from "../../help/helpKeys";
+import { formatBytes } from "../../lib/bytes";
 
 interface Props {
   onReady?: (asset: MediaAsset) => void;
@@ -215,8 +216,3 @@ function statusLabel(row: UploadItem): string {
   }
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${Math.round(bytes / (1024 * 1024))} MB`;
-  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${bytes} B`;
-}

@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import EventsList from "./pages/events/EventsList";
 import EventDetail from "./pages/events/EventDetail";
 import RoutesList from "./pages/routes/RoutesList";
+import MapsList from "./pages/maps/MapsList";
 import BeaconsList from "./pages/beacons/BeaconsList";
 import BeaconDetail from "./pages/beacons/BeaconDetail";
 import MediaLibrary from "./pages/media/MediaLibrary";
@@ -69,6 +70,7 @@ const CUSTOM_ELEMENTS: Partial<Record<NavKey, ReactElement>> = {
   dashboard: <Dashboard />,
   events: <EventsList />,
   routes: <RoutesList />,
+  maps: <MapsList />,
   beacons: <BeaconsList />,
   media: <MediaLibrary />,
   posters: <PostersList />,
