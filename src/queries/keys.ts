@@ -16,6 +16,8 @@ export const keys = {
   routeMap: (id: number) => ["routes", id, "route-map"] as const,
   posters: ["posters"] as const,
   poster: (id: number) => ["posters", id] as const,
+  maps: ["maps"] as const,
+  themes: ["themes"] as const,
   beacons: ["beacons"] as const,
   beaconLogs: (id: number) => ["beacons", id, "logs"] as const,
   sponsors: ["sponsors"] as const,

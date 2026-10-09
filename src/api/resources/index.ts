@@ -28,5 +28,8 @@ export type {
 } from "./qr";
 export { places } from "./places";
 export { posters } from "./posters";
+export { maps } from "./maps";
+export { themes } from "./themes";
+export type { Chrome, Overlay, ThemeBody } from "./themes";
 export { help } from "./help";
 export type { HelpTopicBody } from "./help";

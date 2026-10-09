@@ -4,6 +4,8 @@ export type NavKey =
   | "dashboard"
   | "events"
   | "routes"
+  | "maps"
+  | "themes"
   | "beacons"
   | "qr-codes"
   | "places"
@@ -25,13 +27,15 @@ export type NavKey =
   | "audit"
   | "help";
 
-// Drawer order per admin.md 6.1: admin sees QR codes, Places, and Scan
-// after Beacons; editor gets them beside content; canvasser sees only
+// Drawer order per admin.md 6.1: admin sees Maps and Tracker themes
+// after Flight recordings and QR codes, Places, and Scan after Beacons; editor gets them beside content; canvasser sees only
 // those three and lands on Scan.
 export const ADMIN_NAV: NavKey[] = [
   "dashboard",
   "events",
   "routes",
+  "maps",
+  "themes",
   "beacons",
   "qr-codes",
   "places",

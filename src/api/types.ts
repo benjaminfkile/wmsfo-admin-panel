@@ -72,6 +72,9 @@ export type AuditEntry = S["AuditEntryDto"];
 export type EmailQuota = S["EmailQuota"];
 export type HelpTopic = S["HelpTopicDto"];
 export type HelpLink = S["HelpLinkDto"];
+export type TrackerMap = S["TrackerMapDto"];
+export type TrackerTheme = S["TrackerThemeDto"];
+export type SpriteTickets = S["SpriteTicketsDto"];
 
 export type Page<T> = { items: T[]; nextCursor: string | null };
 export type StatusId = 1 | 2 | 3 | 4 | 5 | 6;

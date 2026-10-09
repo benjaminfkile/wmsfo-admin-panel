@@ -25,6 +25,21 @@ describe("navFor", () => {
     expect(CANVASSER_NAV).not.toContain("posters");
   });
 
+  it("puts Maps and Tracker themes right after Flight recordings for admin only", () => {
+    const routesAt = ADMIN_NAV.indexOf("routes");
+    expect(ADMIN_NAV[routesAt + 1]).toBe("maps");
+    expect(ADMIN_NAV[routesAt + 2]).toBe("themes");
+    expect(ADMIN_NAV[routesAt + 3]).toBe("beacons");
+    expect(EDITOR_NAV).not.toContain("maps");
+    expect(EDITOR_NAV).not.toContain("themes");
+    expect(CANVASSER_NAV).not.toContain("maps");
+    expect(CANVASSER_NAV).not.toContain("themes");
+    expect(canAccess("admin", "maps")).toBe(true);
+    expect(canAccess("admin", "themes")).toBe(true);
+    expect(canAccess("editor", "maps")).toBe(false);
+    expect(canAccess("editor", "themes")).toBe(false);
+  });
+
   it("gives the editor QR codes, Places, and Scan alongside content", () => {
     expect(EDITOR_NAV).toContain("qr-codes");
     expect(EDITOR_NAV).toContain("places");

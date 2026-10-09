@@ -100,6 +100,16 @@ export const handlers: HttpHandler[] = [
     return HttpResponse.json({ ...poster, ...body });
   }),
   http.delete("*/admin/posters/:id", () => new HttpResponse(null, { status: 204 })),
+  http.get("*/admin/maps", () => HttpResponse.json({ items: f.trackerMaps })),
+  http.patch("*/admin/maps/:id", async ({ params, request }) => {
+    const body = (await request.json()) as { name: string };
+    const map = f.trackerMaps.find((m) => String(m.id) === String(params.id));
+    return map
+      ? HttpResponse.json({ ...map, name: body.name })
+      : HttpResponse.json(NOT_FOUND, { status: 404 });
+  }),
+  http.delete("*/admin/maps/:id", () => new HttpResponse(null, { status: 204 })),
+  http.get("*/admin/themes", () => HttpResponse.json({ items: f.trackerThemes })),
 
   // Beacons
   http.get("*/admin/beacons", () =>
@@ -486,6 +496,8 @@ export const handlers: HttpHandler[] = [
       "people",
       "contact-messages",
       "posters",
+      "maps",
+      "themes",
     ] as const
   ).map((resource) =>
     http.get(`*/admin/${resource}/:id/impact`, ({ params }) => {

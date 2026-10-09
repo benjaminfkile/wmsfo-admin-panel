@@ -36,29 +36,10 @@ import PageSettingsDialog, {
 } from "./PageSettingsDialog";
 import type { Icon, PageAdmin } from "../../api/types";
 import CardTitle from "../../help/CardTitle";
+import { statusRoleLabel } from "./statusRoleLabel";
+import { pageRoleReplacement } from "./pageRoleReplacement";
 
 const STATUS_ORDER = ["no_event", "planned", "scheduled", "live", "ended", "cancelled", "postponed"];
-
-function statusRoleLabel(role: string): string {
-  switch (role) {
-    case "no_event":
-      return "No event";
-    case "planned":
-      return "Planned";
-    case "scheduled":
-      return "Scheduled";
-    case "live":
-      return "Live";
-    case "ended":
-      return "Ended";
-    case "cancelled":
-      return "Cancelled";
-    case "postponed":
-      return "Postponed";
-    default:
-      return role;
-  }
-}
 
 // The Pages index (admin.md 6.13). Two groups: status pages in status
 // order (locked from delete/reorder), and content ("none") pages in
@@ -479,12 +460,13 @@ export default function PagesList() {
           resource="pages"
           id={Number(deleteFor.id ?? 0)}
           name={deleteFor.title ?? "page"}
+          replacement={pageRoleReplacement(deleteFor, items)}
           disabled={deleteMut.isPending}
           onCancel={() => setDeleteFor(null)}
-          onConfirm={({ roleTo }) =>
+          onConfirm={({ replacementId }) =>
             deleteMut.mutate({
               id: Number(deleteFor.id ?? 0),
-              roleTo,
+              roleTo: replacementId,
             })
           }
         />

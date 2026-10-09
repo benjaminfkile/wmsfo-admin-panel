@@ -43,8 +43,11 @@ import type {
   StatusHistory,
   SubscriberAdmin,
   Subscription,
+  TrackerMap,
+  TrackerTheme,
   UploadTicket,
 } from "../../api/types";
+import themeSeed from "../../../contracts/fixtures/themes/seed.json";
 
 const NOW = "2026-12-22T01:31:07.412Z";
 const AUTHOR = "editor@example.com";
@@ -95,6 +98,8 @@ export const events: Event[] = [
     fundsPercent: 63,
     routeId: 4,
     routeUrl: "https://cdn.example/routes/9c0e77ab.json",
+    trackerMapId: 1,
+    trackerThemeIds: [1, 2],
     createdBy: AUTHOR,
     createdAt: NOW,
     updatedAt: NOW,
@@ -813,6 +818,73 @@ export const placePins: PlacePin[] = [
 // resource so handlers can return the appropriate shape without extra
 // bookkeeping. The default for anything not overridden is a `blocked:
 // null` empty impact ("Nothing else is affected").
+// The seeded Missoula valley map (prefix `basemap`) and one package
+// whose upload has not been confirmed (admin.md 6.27).
+export const trackerMaps: TrackerMap[] = [
+  {
+    id: 1,
+    name: "Missoula valley",
+    packageKey: "missoula-valley",
+    prefix: "basemap",
+    bbox: { west: -114.75, south: 46.35, east: -113.3, north: 47.25 },
+    minZoom: 0,
+    maxZoom: 15,
+    terrainMaxZoom: 13,
+    tilesBytes: 1503238553,
+    terrainBytes: 268435456,
+    sourceBuild: "2026-10-01",
+    state: "ready",
+    builtAt: "2026-09-20T18:00:00.000Z",
+    tilesUrl: "https://cdn.example/basemap/tiles.pmtiles",
+    terrainUrl: "https://cdn.example/basemap/terrain.pmtiles",
+    eventCount: 1,
+    createdBy: AUTHOR,
+    createdAt: "2026-09-20T18:00:00.000Z",
+    updatedBy: AUTHOR,
+    updatedAt: "2026-09-20T18:00:00.000Z",
+    audit: null,
+  },
+  {
+    id: 2,
+    name: "Bitterroot",
+    packageKey: "bitterroot",
+    prefix: "maps/2",
+    bbox: { west: -114.4, south: 46.2, east: -113.9, north: 46.8 },
+    minZoom: 0,
+    maxZoom: 14,
+    terrainMaxZoom: null,
+    tilesBytes: 314572800,
+    terrainBytes: null,
+    sourceBuild: null,
+    state: "pending",
+    builtAt: null,
+    tilesUrl: "https://cdn.example/maps/2/tiles.pmtiles",
+    terrainUrl: null,
+    eventCount: 0,
+    createdBy: AUTHOR,
+    createdAt: NOW,
+    updatedBy: AUTHOR,
+    updatedAt: NOW,
+    audit: null,
+  },
+];
+
+// The eight seeded themes, chrome and overlay from the vendored seed.
+export const trackerThemes: TrackerTheme[] = themeSeed.map((t, i) => ({
+  ...t,
+  id: i + 1,
+  styleUrl: `https://cdn.example/themes/${t.renderer}/${t.key}.json`,
+  spriteSha256: null,
+  spriteUrl: null,
+  thumbnailMediaId: null,
+  eventCount: i < 2 ? 1 : 0,
+  createdBy: AUTHOR,
+  createdAt: NOW,
+  updatedBy: AUTHOR,
+  updatedAt: NOW,
+  audit: null,
+}));
+
 import type { DeleteImpact } from "../../api/impact";
 
 export const emptyImpact: DeleteImpact = {
@@ -916,6 +988,16 @@ export const impactByResource: Record<string, DeleteImpact> = {
     warnings: [],
   },
   "contact-messages/12": emptyImpact,
+  // maps/1 is the map the live event draws on.
+  "maps/1": {
+    blocked: null,
+    deletes: [],
+    unlinks: [{ entity: "event", count: 1, names: ["Santa Flyover 2026"] }],
+    warnings: [
+      "Santa Flyover 2026 is live and loses its map: its viewers get Google Maps.",
+    ],
+  },
+  "maps/2": emptyImpact,
   "routes/4": {
     blocked: null,
     deletes: [],
