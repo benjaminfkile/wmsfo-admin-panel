@@ -1,8 +1,8 @@
 // The poster layout document stored on a poster as its `layout`: the
-// whole design of the poster studio (theme, orientation, size, terrain,
-// the map details, the route styling) and the overlay elements drawn over
-// the map. The
-// shape is the panel's own (admin.md 6.3, Poster studio). Every position
+// whole design of the poster studio (the tracker theme and tracker map by
+// id, orientation, size, terrain, the map details, the route styling) and
+// the overlay elements drawn over the map, with the defaults of the Theme
+// and Map selects. The shape is the panel's own (admin.md 6.3, Poster studio). Every position
 // and size is a fraction of the poster's width and height, so one layout
 // fits every preset and both orientations.
 
@@ -25,7 +25,7 @@ import {
   type PosterPresetId,
   type PosterSize,
 } from "./poster";
-import type { Appearance } from "./flavors";
+import type { Event, TrackerMap, TrackerTheme } from "../api/types";
 
 export const POSTER_LAYOUT_VERSION = 1;
 
@@ -49,10 +49,12 @@ export type LayoutLabels = {
   zone: string | null;
 };
 
-// The map choices of the studio: the theme, the orientation, the size
-// preset, and whether the hillshade is drawn.
+// The map choices of the studio: the tracker theme and the tracker map
+// by id (null only while there is none to choose), the orientation, the
+// size preset, and whether the hillshade is drawn.
 export type LayoutMap = {
-  theme: Appearance;
+  themeId: number | null;
+  mapId: number | null;
   orientation: PosterOrientation;
   size: PosterPresetId;
   terrain: boolean;
@@ -105,7 +107,8 @@ export const DEFAULT_ROUTE_STYLE: LayoutRouteStyle = {
 };
 
 export const DEFAULT_MAP: LayoutMap = {
-  theme: "light",
+  themeId: null,
+  mapId: null,
   orientation: "landscape",
   size: "facebook",
   terrain: false,
@@ -133,7 +136,8 @@ export function toLayoutDocument(
   const { labels } = routeStyle;
   return {
     version: POSTER_LAYOUT_VERSION,
-    theme: design.theme,
+    themeId: design.themeId,
+    mapId: design.mapId,
     orientation: design.orientation,
     size: design.size,
     terrain: design.terrain,
@@ -213,9 +217,8 @@ function parseDetails(raw: unknown): LayoutDetails {
 
 const WALL_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
-function parseMap(raw: Record<string, unknown>): LayoutMap {
+function parseMap(raw: Record<string, unknown>): Omit<LayoutMap, "themeId" | "mapId"> {
   return {
-    theme: raw.theme === "dark" || raw.theme === "light" ? raw.theme : DEFAULT_MAP.theme,
     orientation:
       raw.orientation === "portrait" || raw.orientation === "landscape"
         ? raw.orientation
@@ -247,23 +250,127 @@ function parseElement(raw: unknown): LayoutElement | null {
   return null;
 }
 
+// The seed theme a layout saved before themes were rows names by its
+// `theme` value.
+export const LEGACY_THEME_KEYS: Readonly<Record<string, string>> = {
+  light: "route-light",
+  dark: "route-dark",
+};
+
+// What the Theme and Map selects offer and where they start.
+export type LayoutChoices = {
+  themes: readonly Pick<TrackerTheme, "id" | "key">[];
+  maps: readonly Pick<TrackerMap, "id">[];
+  defaultThemeId: number | null;
+  defaultMapId: number | null;
+};
+
+export type ParsedPosterLayout = {
+  layout: PosterLayout;
+  // True when the theme or the map read as the default of its select: a
+  // `theme` of the old form, or a `themeId` or `mapId` missing or naming
+  // a row that is not offered.
+  replaced: boolean;
+};
+
+function offeredId(
+  rows: readonly { id?: unknown }[],
+  value: unknown,
+): number | null {
+  const id = finite(value);
+  return id !== null && rows.some((r) => Number(r.id) === id) ? id : null;
+}
+
 // Reads a saved layout. Anything that is not a version 1 document is
-// null; a missing or unknown map choice or route style value reads its
-// default, a detail switch reads on unless it is false, elements of an unknown type or without a placement are
-// dropped, and the rest come back in stacking order.
-export function parsePosterLayout(raw: unknown): PosterLayout | null {
+// null. `themeId` and `mapId` keep an offered row; a document of the old
+// form maps its `theme` (`light` or `dark`) to the `route-light` or
+// `route-dark` seed by key, and a missing or unknown id reads as the
+// default of its select, with `replaced` set. A missing or unknown map
+// choice or route style value reads its default, a detail switch reads
+// on unless it is false, elements of an unknown type or without a
+// placement are dropped, and the rest come back in stacking order.
+export function parsePosterLayout(raw: unknown, choices: LayoutChoices): ParsedPosterLayout | null {
   if (!isRecord(raw) || raw.version !== POSTER_LAYOUT_VERSION) return null;
   const elements = (Array.isArray(raw.elements) ? raw.elements : [])
     .map(parseElement)
     .filter((el): el is LayoutElement => el !== null)
     .sort((a, b) => a.z - b.z)
     .map((el, z) => ({ ...el, z }));
+  const legacyKey = typeof raw.theme === "string" ? LEGACY_THEME_KEYS[raw.theme] : undefined;
+  const legacy = raw.themeId === undefined && legacyKey !== undefined;
+  const legacyTheme = legacy ? choices.themes.find((t) => t.key === legacyKey) : undefined;
+  const themeId = legacyTheme ? Number(legacyTheme.id) : offeredId(choices.themes, raw.themeId);
+  const mapId = offeredId(choices.maps, raw.mapId);
   return {
-    version: POSTER_LAYOUT_VERSION,
-    ...parseMap(raw),
-    details: parseDetails(raw.details),
-    routeStyle: parseRouteStyle(raw.routeStyle),
-    elements,
+    layout: {
+      version: POSTER_LAYOUT_VERSION,
+      themeId: themeId ?? choices.defaultThemeId,
+      mapId: mapId ?? choices.defaultMapId,
+      ...parseMap(raw),
+      details: parseDetails(raw.details),
+      routeStyle: parseRouteStyle(raw.routeStyle),
+      elements,
+    },
+    replaced: legacy || themeId === null || mapId === null,
+  };
+}
+
+// The document of a poster without a layout: every default.
+export function defaultPosterLayout(choices: LayoutChoices): PosterLayout {
+  return toLayoutDocument(
+    { ...DEFAULT_DESIGN, themeId: choices.defaultThemeId, mapId: choices.defaultMapId },
+    [],
+  );
+}
+
+function bySortOrder(a: TrackerTheme, b: TrackerTheme): number {
+  return (
+    Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0) ||
+    Number(a.id ?? 0) - Number(b.id ?? 0)
+  );
+}
+
+// The Theme select's options: the MapLibre themes in their order.
+export function posterThemes(themes: readonly TrackerTheme[]): TrackerTheme[] {
+  return themes.filter((t) => t.renderer === "maplibre").sort(bySortOrder);
+}
+
+// The Map select's options: the ready maps by name.
+export function posterMaps(maps: readonly TrackerMap[]): TrackerMap[] {
+  return maps
+    .filter((m) => m.state === "ready")
+    .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
+}
+
+// The prefix of the seeded Missoula valley map.
+export const SEEDED_MAP_PREFIX = "basemap";
+
+// The defaults of the two selects over their options: the theme carrying
+// `defaultLightMode`, else the first; the map of the most recent event by
+// year whose `routeId` is the poster's recording, else the seeded
+// Missoula valley map, else the first.
+export function layoutChoices(
+  themes: readonly TrackerTheme[],
+  maps: readonly TrackerMap[],
+  events: readonly Pick<Event, "year" | "routeId" | "trackerMapId">[],
+  routeId: number | null,
+): LayoutChoices {
+  const theme = themes.find((t) => t.defaultLightMode === true) ?? themes[0];
+  const offered = (id: unknown) => maps.find((m) => Number(m.id) === Number(id));
+  const eventMap =
+    routeId === null
+      ? undefined
+      : [...events]
+          .filter((e) => e.routeId != null && Number(e.routeId) === routeId)
+          .sort((a, b) => Number(b.year) - Number(a.year))
+          .map((e) => (e.trackerMapId == null ? undefined : offered(e.trackerMapId)))
+          .find((m) => m !== undefined);
+  const map = eventMap ?? maps.find((m) => m.prefix === SEEDED_MAP_PREFIX) ?? maps[0];
+  return {
+    themes,
+    maps,
+    defaultThemeId: theme ? Number(theme.id) : null,
+    defaultMapId: map ? Number(map.id) : null,
   };
 }
 

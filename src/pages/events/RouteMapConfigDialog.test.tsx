@@ -17,9 +17,13 @@ import {
   makeUser,
   testConfig,
 } from "../../test/renderWithProviders";
-import { eventRouteMapStyle } from "../../routeMap/eventRouteMap";
-import { buildRouteMapStyle } from "../../routeMap";
-import { TIME_LABELS_LAYER } from "../../routeMap/style";
+import {
+  NO_MAP_HINT,
+  NO_THEME_HINT,
+  eventRouteMapStyle,
+  resolveRouteMapConfig,
+} from "../../routeMap/eventRouteMap";
+import { TIME_LABELS_LAYER } from "../../routeMap";
 
 vi.setConfig({ testTimeout: 20_000 });
 
@@ -86,11 +90,6 @@ vi.mock("../places/googleMaps", () => ({
 vi.mock("../../routeMap/eventRouteMap", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../routeMap/eventRouteMap")>();
   return { ...actual, eventRouteMapStyle: vi.fn(actual.eventRouteMapStyle) };
-});
-
-vi.mock("../../routeMap", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../routeMap")>();
-  return { ...actual, buildRouteMapStyle: vi.fn(actual.buildRouteMapStyle) };
 });
 
 const FULL_CONFIG = {
@@ -180,7 +179,7 @@ async function openDialog(event: Event): Promise<HTMLElement> {
 }
 
 function lastStyleInput() {
-  return vi.mocked(eventRouteMapStyle).mock.calls.at(-1)![1];
+  return vi.mocked(eventRouteMapStyle).mock.calls.at(-1)![0];
 }
 
 // The preview map's current style is the one the shared call built last.
@@ -335,8 +334,42 @@ describe("the Route map modal", () => {
     expect(input.routeMap.path).toEqual(ROUTE_MAP.routeMap.path);
     expect(input.routeMapConfig).toEqual({});
     expectPreviewInSync();
+    // The event's map and its enabled MapLibre theme carrying the light
+    // default, with that theme's loaded body.
+    const light = f.trackerThemes.find((t) => t.key === "route-light")!;
+    expect(input.map).toMatchObject({ id: 1, tilesUrl: f.trackerMaps[0]!.tilesUrl });
+    expect(input.theme.overlay).toEqual(light.overlay);
+    expect(input.theme.body).toEqual(f.themeStyles["route-light"]);
+    const built = maps.at(-1)!.styles.at(-1) as { sources: Record<string, { url?: string }> };
+    expect(built.sources.basemap?.url).toBe(`pmtiles://${f.trackerMaps[0]!.tilesUrl}`);
     expect(within(dialog).getByTestId("route-map-preview-fullscreen")).toBeInTheDocument();
     expect(within(dialog).getByTestId("route-map-preview-terrain")).toBeInTheDocument();
+  });
+
+  it("previews the theme carrying the dark default when Dark is picked", async () => {
+    const dialog = await openDialog(makeEvent({ routeMapConfig: null }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Dark" }));
+    const dark = f.trackerThemes.find((t) => t.key === "route-dark")!;
+    await waitFor(() => expect(lastStyleInput().theme.overlay).toEqual(dark.overlay));
+    await waitFor(() => expect(lastStyleInput().theme.body).toEqual(f.themeStyles["route-dark"]));
+    expectPreviewInSync();
+  });
+
+  it("shows the one-line hint for an event without a map or a MapLibre theme", async () => {
+    const cases: Array<[Partial<Event>, string]> = [
+      [{ trackerMapId: null }, NO_MAP_HINT],
+      [{ trackerThemeIds: [3] }, NO_THEME_HINT],
+    ];
+    for (const [over, hint] of cases) {
+      serve(makeEvent(over));
+      const { unmount } = render(<Harness event={makeEvent({ ...over, routeMapConfig: null })} />);
+      fireEvent.click(screen.getByRole("button", { name: "Configure route map" }));
+      const dialog = await screen.findByRole("dialog", { name: "Route map" });
+      expect(await within(dialog).findByTestId("route-map-preview-hint")).toHaveTextContent(hint);
+      expect(within(dialog).queryByTestId("route-map-preview")).not.toBeInTheDocument();
+      expect(vi.mocked(eventRouteMapStyle)).not.toHaveBeenCalled();
+      unmount();
+    }
   });
 
   it("renders no Viewpoints editor", async () => {
@@ -456,7 +489,7 @@ describe("the Route map modal", () => {
       await new Promise((r) => setTimeout(r, 50));
     });
     for (const call of vi.mocked(eventRouteMapStyle).mock.calls) {
-      expect(call[1].poiKinds).toBeUndefined();
+      expect(call[0].poiKinds).toBeUndefined();
     }
   });
 
@@ -492,7 +525,7 @@ describe("the Route map modal", () => {
     expect(
       within(display).getByText("How big the time labels and viewpoint names are drawn.")
     ).toBeInTheDocument();
-    const lastScale = () => vi.mocked(buildRouteMapStyle).mock.calls.at(-1)![5]?.labelScale;
+    const lastScale = () => resolveRouteMapConfig(lastStyleInput().routeMapConfig).labelScale;
     expect(lastScale()).toBe(1);
 
     pickOption(dialog, "route-map-display-labelSize", "Large");
@@ -512,7 +545,7 @@ describe("the Route map modal", () => {
     await openDialog(
       makeEvent({ routeMapConfig: FULL_CONFIG as unknown as Event["routeMapConfig"] })
     );
-    expect(vi.mocked(buildRouteMapStyle).mock.calls.at(-1)![5]?.labelScale).toBe(0.8);
+    expect(resolveRouteMapConfig(lastStyleInput().routeMapConfig).labelScale).toBe(0.8);
     const style = maps.at(-1)!.styles.at(-1) as { layers: { id: string; layout?: Record<string, unknown> }[] };
     const timeLabels = style.layers.find((l) => l.id === TIME_LABELS_LAYER);
     expect(timeLabels?.layout?.["text-size"]).toEqual([

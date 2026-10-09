@@ -5,17 +5,15 @@
 
 import type { StyleSpecification } from "maplibre-gl";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-import type { RouteMapResponse } from "../api/types";
-import type { Appearance } from "./flavors";
+import type { RouteMapResponse, TrackerTheme } from "../api/types";
 import {
   OSM_ATTRIBUTION,
   ROUTE_ARROW_ICON,
   makeRouteArrowImage,
   pathBounds,
-  terrainUrl,
   type LatLng,
   type RouteArrowImage,
-} from "./style";
+} from "./routeLayers";
 
 export type PosterPresetId = "facebook" | "flyer" | "poster";
 export type PosterOrientation = "portrait" | "landscape";
@@ -75,11 +73,11 @@ export function posterSize(
     : { width: long, height: short };
 }
 
-// "poster-<name>-<theme>-<width>x<height>.jpg", the poster's name
+// "poster-<name>-<theme key>-<width>x<height>.jpg", the poster's name
 // lowercased with every run of other characters as one hyphen.
 export function posterFilename(
   name: string,
-  theme: Appearance,
+  theme: string,
   size: PosterSize,
 ): string {
   const slug = name
@@ -133,17 +131,35 @@ export function fiveMinuteMarks(routeMap: RouteMapData): LatLng[] {
 // The attribution text without its link markup.
 export const ATTRIBUTION_TEXT = OSM_ATTRIBUTION.replace(/<[^>]*>/g, "");
 
-const CHIP_COLORS: Record<Appearance, { fill: string; text: string }> = {
+const CHIP_COLORS: Record<"light" | "dark", { fill: string; text: string }> = {
   light: { fill: "rgba(255, 255, 255, 0.85)", text: "#202124" },
   dark: { fill: "rgba(15, 26, 43, 0.85)", text: "#f2f6ff" },
 };
 
-// Draws the attribution as a rounded chip in the bottom right corner. The
-// font scales with the image so it stays legible in print and on a phone.
+export type ChipTheme = Pick<TrackerTheme, "chrome">;
+
+function channel(hex: string): number {
+  const c = parseInt(hex, 16) / 255;
+  return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+}
+
+// Whether the theme's chrome is dark: its `bg` has a relative luminance
+// under 0.5. A missing or unreadable `bg` reads light.
+export function darkChrome(theme: ChipTheme): boolean {
+  const bg = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(theme.chrome?.bg ?? "");
+  if (!bg) return false;
+  const luminance =
+    0.2126 * channel(bg[1]!) + 0.7152 * channel(bg[2]!) + 0.0722 * channel(bg[3]!);
+  return luminance < 0.5;
+}
+
+// Draws the attribution as a rounded chip in the bottom right corner,
+// light or dark to match the theme's chrome. The font scales with the
+// image so it stays legible in print and on a phone.
 export function drawAttribution(
   ctx: CanvasRenderingContext2D,
   size: PosterSize,
-  theme: Appearance,
+  theme: ChipTheme,
 ): void {
   const fontPx = Math.max(14, Math.round(Math.min(size.width, size.height) / 80));
   const padX = Math.round(fontPx * 0.6);
@@ -158,7 +174,7 @@ export function drawAttribution(
   const chipH = fontPx + padY * 2;
   const x = size.width - margin - chipW;
   const y = size.height - margin - chipH;
-  const colors = CHIP_COLORS[theme];
+  const colors = CHIP_COLORS[darkChrome(theme) ? "dark" : "light"];
   ctx.fillStyle = colors.fill;
   ctx.beginPath();
   ctx.roundRect(x, y, chipW, chipH, Math.round(chipH / 2));
@@ -174,7 +190,7 @@ export function drawAttribution(
 export function composePoster(
   mapCanvas: HTMLCanvasElement,
   size: PosterSize,
-  theme: Appearance,
+  theme: ChipTheme,
   overlay: CanvasImageSource | null = null,
 ): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
@@ -231,31 +247,6 @@ function ensurePmtilesProtocol(
     });
   }
   return protocolReady;
-}
-
-const terrainProbes = new Map<string, Promise<boolean>>();
-
-// Reads the header of `<base>/terrain.pmtiles` once per base per page
-// load, on the first call, and resolves whether the archive exists. A
-// missing or failing archive logs once and resolves false.
-export function probeTerrain(base: string): Promise<boolean> {
-  let probe = terrainProbes.get(base);
-  if (!probe) {
-    probe = import("pmtiles")
-      .then(({ PMTiles }) => new PMTiles(terrainUrl(base)).getHeader())
-      .then(() => true)
-      .catch((error: unknown) => {
-        console.warn("route poster: no terrain archive, the terrain option is hidden", error);
-        return false;
-      });
-    terrainProbes.set(base, probe);
-  }
-  return probe;
-}
-
-// Forgets every probe result (tests only).
-export function resetTerrainProbes(): void {
-  terrainProbes.clear();
 }
 
 export const RENDER_TIMEOUT_MS = 60_000;
@@ -354,7 +345,7 @@ export async function renderPosterImage(opts: {
   style: StyleSpecification;
   path: readonly LatLng[];
   size: PosterSize;
-  theme: Appearance;
+  theme: ChipTheme;
   overlay?: CanvasImageSource | null;
 }): Promise<Blob> {
   const { canvas, dispose } = await renderRouteMap(opts);

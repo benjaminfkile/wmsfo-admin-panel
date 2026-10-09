@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   Alert,
   Box,
@@ -22,26 +22,29 @@ import AppDialog from "../../components/AppDialog";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import ErrorAlert from "../../components/ErrorAlert";
 import RouteMapDisplayControls from "../../components/content/fields/RouteMapDisplayControls";
-import { useConfig } from "../../ConfigContext";
 import { events as eventsApi } from "../../api/resources/events";
+import { maps as mapsApi } from "../../api/resources/maps";
+import { themes as themesApi } from "../../api/resources/themes";
 import { siteSettings as siteSettingsApi } from "../../api/resources/siteSettings";
 import { placesPart } from "../../components/content/places";
 import type { Event } from "../../api/types";
 import { useNotify } from "../../hooks/useNotify";
 import { keys } from "../../queries/keys";
-import { routeBasemapBase, type Appearance } from "../../routeMap";
 import {
   ROUTE_MAP_CONTROL_KEYS,
   ROUTE_MAP_CONTROL_LABELS,
+  eventRouteMapSource,
   eventRouteMapStyle,
   readControl,
   routeMapConfigBody,
   toRouteMapConfig,
   withControl,
   withGroup,
+  type Appearance,
   type RouteMapConfigValue,
 } from "../../routeMap/eventRouteMap";
-import { probeTerrain, toRouteMapData } from "../../routeMap/poster";
+import { toRouteMapData } from "../../routeMap/poster";
+import { themeStyleQuery } from "../../routeMap/themeStyle";
 import EventRouteMapPreview from "./EventRouteMapPreview";
 import RouteMapCopyFrom from "./RouteMapCopyFrom";
 import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
@@ -54,23 +57,22 @@ interface Props {
 const NO_RECORDING_HINT =
   "Link a flight recording to this event under Flight history to preview its route map.";
 const NO_PATH_HINT = "The linked flight recording has no path to draw.";
-const NO_BASEMAP_HINT =
-  "The route map preview needs VITE_ROUTE_BASEMAP_URL, which is not set.";
 
 // Configures the event's route map: a live preview of this event's route
 // beside "Copy from another event" and two groups of controls (Display,
 // with a caption that points to Site settings for the places, and
 // Controls). Full screen on phones and nearly the whole window on desktop.
 // The dialog edits a draft of `routeMapConfig`; every change rebuilds the
-// preview's style through `eventRouteMapStyle`, which labels the places
-// of the site settings draft (`places.routeMap.kinds`, none when absent). Copying replaces the whole draft with the picked
-// event's config and writes nothing until Save. Save sends
-// `PATCH { routeMapConfig }` (null when no group is set); Cancel drops the
-// draft; Clear all, after a confirm, sends `routeMapConfig: null`. With no
-// linked recording, no path, or no basemap URL the preview area holds only
-// the hint.
+// preview's style through `eventRouteMapStyle`, which draws the event's
+// tracker map with its enabled MapLibre theme carrying the default flag
+// for the Light or Dark toggle and labels the places of the site settings
+// draft (`places.routeMap.kinds`, none when absent). Copying replaces the
+// whole draft with the picked event's config and writes nothing until
+// Save. Save sends `PATCH { routeMapConfig }` (null when no group is set);
+// Cancel drops the draft; Clear all, after a confirm, sends
+// `routeMapConfig: null`. With no linked recording, no path, no tracker
+// map, or no enabled MapLibre theme the preview area holds only the hint.
 export default function RouteMapConfigDialog({ event, onClose }: Props) {
-  const config = useConfig();
   const qc = useQueryClient();
   const notify = useNotify();
   const id = Number(event.id);
@@ -80,20 +82,19 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
   );
   const [appearance, setAppearance] = useState<Appearance>("light");
   const [terrainOn, setTerrainOn] = useState(false);
-  const [terrainAvailable, setTerrainAvailable] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
 
-  const base = routeBasemapBase(config);
-  useEffect(() => {
-    if (base === null) return;
-    let active = true;
-    void probeTerrain(base).then((found) => {
-      if (active) setTerrainAvailable(found);
-    });
-    return () => {
-      active = false;
-    };
-  }, [base]);
+  const mapsQ = useQuery({ queryKey: keys.maps, queryFn: () => mapsApi.list() });
+  const themesQ = useQuery({ queryKey: keys.themes, queryFn: () => themesApi.list() });
+  const source =
+    mapsQ.data && themesQ.data
+      ? eventRouteMapSource(event, mapsQ.data.items, themesQ.data.items, appearance)
+      : null;
+  const theme = source?.theme ?? null;
+  const map = source?.map ?? null;
+  const styleUrl = theme?.styleUrl ?? "";
+  const bodyQ = useQuery({ ...themeStyleQuery(styleUrl), enabled: styleUrl !== "" });
+  const terrainAvailable = !!map?.terrainUrl;
 
   const routeMapQ = useQuery({
     queryKey: keys.eventRouteMap(id, routeId),
@@ -115,18 +116,20 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
   const drawable = routeMap && routeMap.path.length > 0 ? routeMap : null;
 
   const terrainKept = readControl(draft.controls, "terrain");
+  const body = bodyQ.data ?? null;
   const previewStyle = useMemo(
     () =>
-      drawable && base !== null
-        ? eventRouteMapStyle(config, {
-            appearance,
+      drawable && theme && map && body
+        ? eventRouteMapStyle({
+            theme: { overlay: theme.overlay, body },
+            map,
             routeMap: drawable,
             routeMapConfig: draft,
             terrain: terrainOn && terrainAvailable,
             poiKinds,
           })
         : null,
-    [drawable, base, config, appearance, draft, terrainOn, terrainAvailable, poiKinds]
+    [drawable, theme, map, body, draft, terrainOn, terrainAvailable, poiKinds]
   );
 
   const saveMut = useMutation({
@@ -149,12 +152,12 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
 
   const preview = (() => {
     if (routeId === null) return <Hint>{NO_RECORDING_HINT}</Hint>;
-    if (base === null) return <Hint>{NO_BASEMAP_HINT}</Hint>;
-    if (routeMapQ.isError) {
+    if (source?.hint) return <Hint>{source.hint}</Hint>;
+    const failed = routeMapQ.error ?? mapsQ.error ?? themesQ.error ?? bodyQ.error;
+    if (failed) {
       return (
         <Alert severity="warning" data-testid="route-map-preview-hint">
-          The preview could not load.{" "}
-          {routeMapQ.error instanceof Error ? routeMapQ.error.message : ""}
+          The preview could not load. {failed instanceof Error ? failed.message : ""}
         </Alert>
       );
     }
@@ -168,7 +171,17 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
         </Box>
       );
     }
-    if (!drawable || !previewStyle) return <Hint>{NO_PATH_HINT}</Hint>;
+    if (!drawable) return <Hint>{NO_PATH_HINT}</Hint>;
+    if (!previewStyle) {
+      return (
+        <Box data-testid="route-map-preview-loading">
+          <Typography variant="body2" sx={{ mb: 0.5 }}>
+            Loading the preview
+          </Typography>
+          <LinearProgress />
+        </Box>
+      );
+    }
     return (
       <EventRouteMapPreview
         style={previewStyle}

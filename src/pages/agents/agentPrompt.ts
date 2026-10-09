@@ -32,7 +32,7 @@ Base URL: ${baseUrl}
 ## 3. Wire conventions
 - JSON: requests with a body send \`Content-Type: application/json\`. Responses are JSON. Names are camelCase. Unknown request fields are 400 validation_failed. Strings are trimmed before validation; lengths count UTF-16 code units.
 - Status by verb: GET 200, POST that creates 201, PUT 200, PATCH 200, DELETE 204 with no body.
-- These POSTs answer 200, not 201: POST /admin/events/{id}/status, POST /admin/events/{id}/current, POST /admin/events/{id}/notify, POST /admin/qr-codes/{id}/attach, POST /admin/qr-codes/{id}/detach, POST /admin/beacons/{id}/activate, POST /admin/beacons/{id}/deactivate, POST /admin/beacons/{id}/rotate, POST /admin/beacons/{id}/revoke, POST /admin/content/versions/{id}/restore, and PUT /admin/sponsors/{id}/years/{eventYear} (an upsert). POST /admin/routes answers 200 with the existing row when an identical recording exists. Other POSTs that create nothing also answer 200: media confirm, section move, sponsors import, snapshot rebuild, live republish, map parts, complete, and confirm, theme sprite confirm, and theme default.
+- These POSTs answer 200, not 201: POST /admin/events/{id}/status, POST /admin/events/{id}/current, POST /admin/events/{id}/notify, POST /admin/qr-codes/{id}/attach, POST /admin/qr-codes/{id}/detach, POST /admin/beacons/{id}/activate, POST /admin/beacons/{id}/deactivate, POST /admin/beacons/{id}/rotate, POST /admin/beacons/{id}/revoke, POST /admin/content/versions/{id}/restore, and PUT /admin/sponsors/{id}/years/{eventYear} (an upsert). POST /admin/routes answers 200 with the existing row when an identical recording exists. Other POSTs that create nothing also answer 200: media confirm, section move, sponsors import, snapshot rebuild, live republish, map parts, complete, and confirm, theme sprite confirm, theme default, and help reset. DELETE /admin/places/{id}/location answers 200 with the Place, not 204.
 - Error body on every non-2xx: \`{"code","message","details","requestId"}\`. Switch on code. validation_failed carries details.fields (field path to message). rate_limited carries details.retryAfterSeconds. A 405 has no body.
 - Error codes by status:
   - 400: validation_failed, slug_reserved (page slug), unknown_kind (section create), role_needs_page (role page delete without roleTo), place_cycle (place moved under itself).
@@ -49,7 +49,7 @@ Base URL: ${baseUrl}
   - 503: unavailable.
 - Paging: paged lists answer \`{"items":[...],"nextCursor":null|"..."}\` and take ?limit= and ?cursor=. limit defaults to 50 and caps at 500, except GET /admin/audit, which caps at 200 and answers 400 above it. Paged lists: media, audit, contact messages, subscribers, people, event locations. A list without nextCursor is unpaged.
 - Timestamps: RFC 3339 UTC with Z and three fractional digits on output. Inputs take any offset. Bare dates are rejected.
-- Ids: numbers, except media ids (UUID strings), settings keys, and QR tags (\`qr-001\`).
+- Ids: numbers, except media ids (UUID strings), settings keys, help keys, and QR tags (\`qr-001\`).
 - Money: amountDonated is a number with at most two decimals. Display it; never compute with it.
 - PATCH sends only the fields to change. Absent leaves a field unchanged; null clears it where the field allows null. One exception: a sponsor's logoMediaId is cleared with an empty string; null or absent leaves it unchanged.
 - Body limits: 64 KB for JSON, 256 KB for section, item, and site settings bodies, 5 MB for route uploads. Over the limit: 413 payload_too_large.
@@ -110,6 +110,7 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
   - logoMedia MediaRef|null (the site logo image), headerShowsSiteName bool|null (null means true).
   - landmarks, shown to people as Viewpoints: 0..50 of \`{ name 1..80, lat, lng, icon?, description? 1..300 }\`. Both maps draw them.
   - places: \`{ tracker: { kinds: PlaceKind[] 0..9 }, routeMap: { kinds: string[] up to 100 } }\`. PlaceKind is attraction, business, government, medical, park, place_of_worship, school, sports_complex, or transit. routeMap kinds match ^[a-z0-9_]+$, 1..50 each.
+  - tracker: \`{ defaultBbox: Bbox }\`, each side 0.05 to 20 degrees, no other key: the box a new event takes when its create body names none. Absent means the built-in Missoula valley box. Changing it leaves existing events alone.
 - Validation has two levels. Draft (every working set write) checks types, enums, and unknown keys but not required fields, minimums, or references: a section can be saved half filled and its problems array says what is missing. Publish checks the full schema plus: every MediaRef and media Icon names a ready asset, every library icon id exists, every href is valid, site paths name existing non-hidden pages, anchors are unique per page, map sits only on the live page. Publish fails with 422 content_invalid and details.problems.
 
 ## 7. Endpoint reference by capability
@@ -163,7 +164,7 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
   - Contrast: text on bg and tileFg on tile at 4.5:1 or better (400 at chrome.text or chrome.tileFg).
   - thumbnailMediaId: a ready raster media asset id, or null. 409 media_not_ready.
 - PATCH /admin/themes/{id}: any of key, name, sortOrder, style, chrome, overlay, thumbnailMediaId. renderer is 400.
-- POST /admin/themes/{id}/sprite \`{ indexSha256 }\`: 201 with four upload tickets (sprite.json, sprite.png, sprite@2x.json, sprite@2x.png); PUT each with exactly its headers, then POST .../sprite/confirm \`{ indexSha256 }\` (200). The media ticket flow four times. MapLibre themes only (400 at renderer for a Google theme).
+- POST /admin/themes/{id}/sprite \`{ indexSha256 }\`: 201 with four upload tickets (sprite.json, sprite.png, sprite@2x.json, sprite@2x.png), or 200 with the same tickets when the theme already carries that set; PUT each with exactly its headers, then POST .../sprite/confirm \`{ indexSha256 }\` (200). The media ticket flow four times. MapLibre themes only (400 at renderer for a Google theme).
 - POST /admin/themes/{id}/default \`{ light?, dark? }\` (200): setting a flag true moves it off the renderer's previous holder; false clears it on this theme.
 - GET /admin/themes/{id}/impact.
 - DELETE /admin/themes/{id} with an optional \`{ replacementId }\`: another theme of the same renderer; its events enable the replacement and it takes the default flags. 409 last_google_theme when the theme is the only Google theme enabled on an event and no Google replacement is given.
@@ -276,7 +277,7 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
 ## 9. Media pipeline
 1. POST /admin/media/upload-url \`{ filename, contentType, sizeBytes, alt, title }\`. alt (0..500) and title (0..200) are required; write a real alt. contentType is image/png, image/jpeg, image/webp, image/gif, or image/svg+xml, and the filename extension must match it. 413 over 20 MB for raster or gif, 1 MB for SVG. It answers an UploadTicket \`{ media, uploadUrl, method:"PUT", headers, expiresAt }\`.
 2. PUT the bytes to uploadUrl with exactly the ticket's headers. The presigned PUT expires in 15 minutes.
-3. POST /admin/media/{id}/confirm: 200 with state ready. Errors: 404 upload_not_found (the bytes never arrived), 409 media_not_ready or media_not_pending, 413 (too large), 400 (the type sniff, SVG rules, or decode failed; the row is removed).
+3. POST /admin/media/{id}/confirm: 200 with state ready. Errors: 404 upload_not_found (the bytes never arrived), 409 media_not_pending (already confirmed), 413 (too large), 400 (the type sniff, SVG rules, or decode failed; the row is removed).
 - SVG is refused if it carries script, foreignObject, on* attributes, or external hrefs.
 - Raster gets WebP variants and, from 2048 px, a zoom pyramid. Reference media by id; never hotlink.
 - Orphans: a ready asset referenced nowhere for 30 days becomes orphaned, then is deleted. GET /admin/media?state=orphaned shows what is about to go.

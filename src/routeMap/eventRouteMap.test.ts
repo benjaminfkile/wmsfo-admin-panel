@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
+import type { StyleSpecification } from "maplibre-gl";
+import type { TrackerMap, TrackerTheme } from "../api/types";
+import themeSeed from "../../contracts/fixtures/themes/seed.json";
+import routeLightStyle from "../../contracts/fixtures/themes/route-light.json";
 import {
+  NO_MAP_HINT,
+  NO_THEME_HINT,
   eventRouteMapOptions,
+  eventRouteMapSource,
   eventRouteMapStyle,
   readControl,
   resolveRouteMapConfig,
@@ -11,7 +18,7 @@ import {
   withControl,
   withGroup,
 } from "./eventRouteMap";
-import { HILLSHADE_LAYER, TERRAIN_SOURCE } from "./style";
+import { ROUTE_LAYER, TIME_LABELS_LAYER } from "./routeLayers";
 import type { RouteMapData } from "./poster";
 
 const routeMap: RouteMapData = {
@@ -29,7 +36,6 @@ const routeMap: RouteMapData = {
   durationMinutes: 60,
 };
 
-const config = { routeBasemapUrl: "https://basemap.test" };
 
 describe("toRouteMapConfig", () => {
   it("reads null and {} as no group", () => {
@@ -119,41 +125,121 @@ describe("siteTimeLabels", () => {
   });
 });
 
+const THEMES = themeSeed.map((t, i) => ({ ...t, id: i + 1 })) as TrackerTheme[];
+const LIGHT = THEMES.find((t) => t.key === "route-light")!;
+const BODY = routeLightStyle as StyleSpecification;
+const MAPS: TrackerMap[] = [
+  {
+    id: 1,
+    name: "Missoula valley",
+    tilesUrl: "https://cdn.example/basemap/tiles.pmtiles",
+    terrainUrl: "https://cdn.example/basemap/terrain.pmtiles",
+  },
+  { id: 2, name: "Bitterroot", tilesUrl: "https://cdn.example/maps/2/tiles.pmtiles", terrainUrl: null },
+];
+
 describe("eventRouteMapOptions and eventRouteMapStyle", () => {
-  it("passes the given place kinds, arrows, and scales, and no landmarks", () => {
-    const options = eventRouteMapOptions(
-      routeMap,
-      { display: { arrows: false, arrowSize: "large", routeWidth: "thick", timeLabelIntervalMinutes: 30 } },
-      ["park"]
-    );
+  it("passes the arrows and scales of the config", () => {
+    const options = eventRouteMapOptions(routeMap, {
+      display: { arrows: false, arrowSize: "large", routeWidth: "thick", timeLabelIntervalMinutes: 30 },
+    });
     expect(options.arrows).toBeUndefined();
     expect(options.arrowScale).toBe(1.5);
     expect(options.routeWidthScale).toBe(1.5);
     expect(options.labelScale).toBe(1);
     expect(eventRouteMapOptions(routeMap, { display: { labelSize: "large" } }).labelScale).toBe(1.3);
     expect(options.timeLabels?.map((l) => l.label)).toEqual(["30m"]);
-    expect(options.landmarks).toBeUndefined();
-    expect(options.poiKinds).toEqual(["park"]);
     const defaults = eventRouteMapOptions(routeMap, {});
     expect(defaults.arrows).toBe(true);
-    expect(defaults.landmarks).toBeUndefined();
-    expect(defaults.poiKinds).toBeUndefined();
     expect(defaults.labelScale).toBe(1);
     expect(defaults.labelCurve).toBeUndefined();
   });
 
-  it("draws the hillshade only while the config keeps the terrain toggle", () => {
-    const layers = (terrain: boolean, kept: boolean) =>
-      eventRouteMapStyle(config, {
-        appearance: "light",
+  it("draws the theme body over the event's map with the route in the theme's colours", () => {
+    const style = eventRouteMapStyle({
+      theme: { overlay: LIGHT.overlay, body: BODY },
+      map: MAPS[1]!,
+      routeMap,
+      routeMapConfig: {},
+      terrain: false,
+    });
+    expect(style.sources.basemap).toMatchObject({ url: `pmtiles://${MAPS[1]!.tilesUrl}` });
+    const ids = style.layers.map((l) => l.id);
+    expect(ids.indexOf("earth")).toBeLessThan(ids.indexOf(ROUTE_LAYER));
+    expect(ids).toContain(TIME_LABELS_LAYER);
+    const line = style.layers.find((l) => l.id === ROUTE_LAYER) as { paint: Record<string, unknown> };
+    expect(line.paint["line-color"]).toBe(LIGHT.overlay?.routeColor);
+  });
+
+  it("keeps the places layers to the given kinds and hides them without any", () => {
+    const pois = (poiKinds?: readonly string[]) =>
+      eventRouteMapStyle({
+        theme: { overlay: LIGHT.overlay, body: BODY },
+        map: MAPS[0]!,
+        routeMap,
+        routeMapConfig: {},
+        terrain: false,
+        poiKinds,
+      }).layers.find((l) => l.id === "pois") as {
+        filter?: unknown;
+        layout?: Record<string, unknown>;
+      };
+    expect(JSON.stringify(pois(["park"]).filter)).toContain('"park"');
+    expect(pois(undefined).layout?.visibility).toBe("none");
+    expect(pois([]).layout?.visibility).toBe("none");
+  });
+
+  it("draws the hillshade only while the config keeps the terrain toggle and the map has terrain", () => {
+    const style = (terrain: boolean, kept: boolean, map = MAPS[0]!) =>
+      eventRouteMapStyle({
+        theme: { overlay: LIGHT.overlay, body: BODY },
+        map,
         routeMap,
         routeMapConfig: kept ? {} : { controls: { terrain: false } },
         terrain,
       });
-    expect(layers(true, true).sources[TERRAIN_SOURCE]).toBeDefined();
-    expect(layers(true, true).layers.some((l) => l.id === HILLSHADE_LAYER)).toBe(true);
-    expect(layers(true, false).sources[TERRAIN_SOURCE]).toBeUndefined();
-    expect(layers(false, true).sources[TERRAIN_SOURCE]).toBeUndefined();
+    const shaded = (s: StyleSpecification) =>
+      s.sources.terrain !== undefined &&
+      s.layers.some((l) => (l as { source?: string }).source === "terrain");
+    expect(shaded(style(true, true))).toBe(true);
+    expect(style(true, true).sources.terrain).toMatchObject({ url: `pmtiles://${MAPS[0]!.terrainUrl}` });
+    expect(shaded(style(true, false))).toBe(false);
+    expect(shaded(style(false, true))).toBe(false);
+    expect(shaded(style(true, true, MAPS[1]!))).toBe(false);
+  });
+});
+
+describe("eventRouteMapSource", () => {
+  const event = { trackerMapId: 1, trackerThemeIds: [1, 2, 3] };
+
+  it("picks the event's map and its MapLibre theme carrying the appearance's default", () => {
+    const light = eventRouteMapSource(event, MAPS, THEMES, "light");
+    expect(light.hint).toBeNull();
+    expect(light.map?.id).toBe(1);
+    expect(light.theme?.key).toBe("route-light");
+    expect(eventRouteMapSource(event, MAPS, THEMES, "dark").theme?.key).toBe("route-dark");
+    expect(eventRouteMapSource({ ...event, trackerMapId: 2 }, MAPS, THEMES, "dark").map?.id).toBe(2);
+  });
+
+  it("falls back to the first enabled MapLibre theme without the flag", () => {
+    const only = { ...event, trackerThemeIds: [2, 3] };
+    expect(eventRouteMapSource(only, MAPS, THEMES, "light").theme?.key).toBe("route-dark");
+  });
+
+  it("gives the hint without a map or without an enabled MapLibre theme", () => {
+    for (const trackerMapId of [null, undefined, 42]) {
+      expect(eventRouteMapSource({ ...event, trackerMapId }, MAPS, THEMES, "light")).toEqual({
+        theme: null,
+        map: null,
+        hint: NO_MAP_HINT,
+      });
+    }
+    expect(eventRouteMapSource({ ...event, trackerThemeIds: [3, 7] }, MAPS, THEMES, "light").hint).toBe(
+      NO_THEME_HINT,
+    );
+    expect(eventRouteMapSource({ ...event, trackerThemeIds: [] }, MAPS, THEMES, "dark").hint).toBe(
+      NO_THEME_HINT,
+    );
   });
 });
 
