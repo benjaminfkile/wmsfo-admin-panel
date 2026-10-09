@@ -72,11 +72,13 @@ describe("AgentsPage", () => {
     expect(screen.getByTestId("copy-prompt-button")).toBeInTheDocument();
   });
 
-  it("the prompt names all 19 capabilities with the routes each reaches", () => {
+  it("the prompt names all 21 capabilities with the routes each reaches", () => {
     const prompt = buildAgentPrompt("https://api.example");
     const caps = [
       "events",
       "routes",
+      "maps",
+      "themes",
       "beacons",
       "sponsors",
       "cookie_types",
@@ -95,12 +97,12 @@ describe("AgentsPage", () => {
       "qr",
       "help",
     ];
-    expect(caps).toHaveLength(19);
+    expect(caps).toHaveLength(21);
     for (const cap of caps) {
       expect(prompt).toContain(`- \`${cap}\`: `);
       expect(prompt).toContain(`### ${cap}\n`);
     }
-    expect(prompt).toContain("There are 19.");
+    expect(prompt).toContain("There are 21.");
   });
 
   it("the prompt lists the five Cognito-only routes", () => {
@@ -140,7 +142,7 @@ describe("AgentsPage", () => {
 
   it("the prompt carries none of the stale statements and no dashes", () => {
     const prompt = buildAgentPrompt("https://api.example");
-    for (const stale of ["SVG only", "1 to 100", "16 capabilities", "tight|normal|loose|none"]) {
+    for (const stale of ["SVG only", "1 to 100", "16 capabilities", "There are 19.", "tight|normal|loose|none"]) {
       expect(prompt).not.toContain(stale);
     }
     expect(prompt).not.toMatch(/[\u2013\u2014]/);
