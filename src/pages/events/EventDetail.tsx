@@ -46,6 +46,7 @@ import MessagesSection from "./MessagesSection";
 import SeedCookiesSection from "./SeedCookiesSection";
 import RouteSection from "./RouteSection";
 import RouteMapSection from "./RouteMapSection";
+import TrackerMapSection from "./TrackerMapSection";
 import LocationsSection from "./LocationsSection";
 import StatusDialog from "./StatusDialog";
 import { historyPollInterval } from "./historyPolling";
@@ -606,6 +607,9 @@ export default function EventDetail() {
         </Grid>
         <Grid size={12}>
           <RouteMapSection event={event} />
+        </Grid>
+        <Grid size={12}>
+          <TrackerMapSection event={event} />
         </Grid>
         <Grid size={12}>
           <LocationsSection event={event} />

@@ -6,6 +6,7 @@ import {
   DialogContent,
   FormControlLabel,
   FormGroup,
+  FormHelperText,
   Stack,
   TextField,
   Typography,
@@ -17,6 +18,7 @@ import ErrorAlert from "../../components/ErrorAlert";
 import { ApiError } from "../../api/errors";
 import { fieldErrorFor } from "../../lib/fieldErrors";
 import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
+import HelpButton from "../../help/HelpButton";
 
 interface Props {
   open: boolean;
@@ -48,6 +50,7 @@ export default function EventCloneDialog({
   const [sponsors, setSponsors] = useState(true);
   const [route, setRoute] = useState(true);
   const [routeMapConfig, setRouteMapConfig] = useState(true);
+  const [tracker, setTracker] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -59,6 +62,7 @@ export default function EventCloneDialog({
     setSponsors(true);
     setRoute(true);
     setRouteMapConfig(true);
+    setTracker(true);
     setErrors({});
   }, [open, source]);
 
@@ -85,7 +89,7 @@ export default function EventCloneDialog({
       body: {
         year: y,
         name: trimmedName,
-        copy: { sponsors, route, routeMapConfig },
+        copy: { sponsors, route, routeMapConfig, tracker },
       },
     };
   };
@@ -157,6 +161,21 @@ export default function EventCloneDialog({
               }
               label="Route map settings"
             />
+            <Stack direction="row" alignItems="center" spacing={0.5}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={tracker}
+                    onChange={(_, v) => setTracker(v)}
+                  />
+                }
+                label="Tracker map and themes"
+              />
+              <HelpButton topic="events.clone.tracker" />
+            </Stack>
+            <FormHelperText sx={{ mt: 0, ml: 4 }}>
+              The tracker area copies either way.
+            </FormHelperText>
           </FormGroup>
         </Stack>
       </DialogContent>

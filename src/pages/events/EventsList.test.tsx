@@ -177,7 +177,7 @@ describe("EventsList rows", () => {
     ).toBeInTheDocument();
   });
 
-  it("Clone opens the dialog with defaults (source year + 1, name with year replaced, all three flags on)", async () => {
+  it("Clone opens the dialog with defaults (source year + 1, name with year replaced, all four flags on)", async () => {
     const user = userEvent.setup();
     render(<Harness />);
     const row = await screen.findByTestId(`event-row-${f.events[0]!.id}`);
@@ -203,11 +203,16 @@ describe("EventsList rows", () => {
       /sponsors for the year/i,
       /flight history/i,
       /route map settings/i,
+      /tracker map and themes/i,
     ]) {
       const cb = within(dialog).getByRole("checkbox", { name: label });
       expect(cb).toBeChecked();
     }
-    expect(within(dialog).getAllByRole("checkbox")).toHaveLength(3);
+    expect(within(dialog).getAllByRole("checkbox")).toHaveLength(4);
+    expect(
+      within(dialog).getByText("The tracker area copies either way.")
+    ).toBeInTheDocument();
+    expect(within(dialog).getByTestId("help-events.clone.tracker")).toBeInTheDocument();
     expect(within(dialog).queryByRole("checkbox", { name: /route poster/i })).toBeNull();
   });
 
@@ -251,6 +256,7 @@ describe("EventsList rows", () => {
       sponsors: false,
       route: true,
       routeMapConfig: true,
+      tracker: true,
     });
   });
 
@@ -285,6 +291,40 @@ describe("EventsList rows", () => {
     await waitFor(() => expect(posts.length).toBe(1));
     expect(posts[0]).toMatchObject({
       copy: { sponsors: true, route: true, routeMapConfig: false },
+    });
+  });
+
+  it("Clone sends tracker: false when Tracker map and themes is unchecked", async () => {
+    const user = userEvent.setup();
+    const posts: unknown[] = [];
+    server.use(
+      http.post(
+        `${testConfig.apiBaseUrl}/admin/events/:id/clone`,
+        async ({ request }) => {
+          posts.push(await request.json());
+          return HttpResponse.json(
+            { ...f.events[0]!, id: 99, year: 2027 },
+            { status: 201 }
+          );
+        }
+      )
+    );
+    render(<Harness />);
+    const row = await screen.findByTestId(`event-row-${f.events[0]!.id}`);
+    await user.click(
+      within(row).getByRole("button", { name: /actions for/i })
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: /^clone$/i })
+    );
+    const dialog = await screen.findByRole("dialog", { name: /clone event/i });
+    await user.click(
+      within(dialog).getByRole("checkbox", { name: /tracker map and themes/i })
+    );
+    await user.click(within(dialog).getByRole("button", { name: /^clone$/i }));
+    await waitFor(() => expect(posts.length).toBe(1));
+    expect(posts[0]).toMatchObject({
+      copy: { sponsors: true, route: true, routeMapConfig: true, tracker: false },
     });
   });
 

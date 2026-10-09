@@ -902,10 +902,10 @@ describe("EventDetail: the schedule timezone (admin.md 7.5)", () => {
     expect(screen.getByLabelText(/went live at/i)).toHaveValue(
       "2026-12-22T10:02"
     );
-    expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled();
+    expect(within(screen.getByTestId("event-details-actions")).getByRole("button", { name: /^save$/i })).toBeDisabled();
 
     fireEvent.change(scheduled, { target: { value: "2026-12-22T12:00" } });
-    await user.click(screen.getByRole("button", { name: /^save$/i }));
+    await user.click(within(screen.getByTestId("event-details-actions")).getByRole("button", { name: /^save$/i }));
 
     await waitFor(() => expect(patches.length).toBe(1));
     expect(patches[0]).toEqual({ scheduledAt: "2026-12-22T03:00:00.000Z" });
@@ -940,10 +940,10 @@ describe("EventDetail: the schedule timezone (admin.md 7.5)", () => {
     // 01:00 UTC on Dec 22 is 18:00 MST on Dec 21.
     await waitFor(() => expect(scheduled).toHaveValue("2026-12-21T18:00"));
     expect(zone).toHaveValue("America/Denver");
-    expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled();
+    expect(within(screen.getByTestId("event-details-actions")).getByRole("button", { name: /^save$/i })).toBeDisabled();
 
     fireEvent.change(scheduled, { target: { value: "2026-12-21T19:00" } });
-    await user.click(screen.getByRole("button", { name: /^save$/i }));
+    await user.click(within(screen.getByTestId("event-details-actions")).getByRole("button", { name: /^save$/i }));
 
     await waitFor(() => expect(patches.length).toBe(1));
     expect(patches[0]).toEqual({
@@ -988,7 +988,7 @@ describe("EventDetail: the schedule timezone (admin.md 7.5)", () => {
     // Same instant, one hour later on the wall.
     await waitFor(() => expect(scheduled).toHaveValue("2026-12-21T19:00"));
 
-    await user.click(screen.getByRole("button", { name: /^save$/i }));
+    await user.click(within(screen.getByTestId("event-details-actions")).getByRole("button", { name: /^save$/i }));
     await waitFor(() => expect(patches.length).toBe(1));
     // The instants are untouched, so only the zone is patched.
     expect(patches[0]).toEqual({ scheduleTimeZone: "America/Chicago" });
@@ -1033,7 +1033,7 @@ describe("EventDetail: the schedule timezone (admin.md 7.5)", () => {
     expect(wentLive).toHaveValue("");
     expect(ended).toHaveValue("");
 
-    await user.click(screen.getByRole("button", { name: /^save$/i }));
+    await user.click(within(screen.getByTestId("event-details-actions")).getByRole("button", { name: /^save$/i }));
     await waitFor(() => expect(patches.length).toBe(1));
     // A time edit also persists the zone it was edited in (the defaulted
     // browser zone here).

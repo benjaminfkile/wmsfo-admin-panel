@@ -20,13 +20,15 @@ import { useNotify } from "../../hooks/useNotify";
 import siteSettingsSchema from "../../../contracts/schema/site-settings.schema.json";
 import type { Problem } from "../../api/types";
 import { withoutEmptyMediaRefs } from "./emptyMedia";
+import { bboxValid, siteDefaultBbox } from "../../components/bbox/bbox";
 
 const SCHEMA = siteSettingsSchema as Record<string, unknown>;
 
 // UiSchema puts the logo fields after the site name, hands the theme
 // object off to the ThemeField, the viewpoints list (`landmarks`) to the
-// ViewpointsField, and the places both maps label (`places`) to the
-// PlacesField, gives the heavier text areas some room,
+// ViewpointsField, the places both maps label (`places`) to the
+// PlacesField, and the default tracker area (`tracker`) to the
+// TrackerField, gives the heavier text areas some room,
 // and names each entry of the link lists. The first field of each group
 // carries the group's help key (`ui:helpKey`), shown as a help button
 // beside it. SchemaForm merges it over the uiSchema it builds from the
@@ -40,6 +42,7 @@ const UI_SCHEMA: UiSchema = {
     "ui:helpKey": "site-settings.viewpoints",
   },
   places: { "ui:field": "PlacesField", "ui:helpKey": "site-settings.places" },
+  tracker: { "ui:field": "TrackerField", "ui:helpKey": "site-settings.tracker" },
   contactEmail: { "ui:helpKey": "site-settings.contact" },
   navExtraLinks: {
     "ui:helpKey": "site-settings.links",
@@ -53,9 +56,11 @@ const UI_SCHEMA: UiSchema = {
 // Site settings page (admin.md 6.16). One SchemaForm over the vendored
 // site-settings schema, labelled from `SITE_SETTINGS`, with the shared
 // custom fields plus ThemeField for the theme object, ViewpointsField
-// for the viewpoints list (`landmarks`), and PlacesField for `places`. Save PUTs the
-// whole document (a media reference left without a picked asset goes as
-// null, emptyMedia.ts); problems from GET render inline. "Preview site" opens
+// for the viewpoints list (`landmarks`), PlacesField for `places`, and
+// TrackerField for `tracker`. Save PUTs the whole document (a media
+// reference left without a picked asset goes as null, emptyMedia.ts; a
+// draft without `tracker` writes the Missoula valley box), and stays
+// disabled while the tracker box breaks a rule; problems from GET render inline. "Preview site" opens
 // the preview dialog at the home page.
 export default function SiteSettings() {
   const qc = useQueryClient();
@@ -75,8 +80,13 @@ export default function SiteSettings() {
     setDirty(false);
   }, [draftQ.data]);
 
+  const trackerBox = siteDefaultBbox(data);
+
   const saveMut = useMutation({
-    mutationFn: () => siteSettingsApi.put(withoutEmptyMediaRefs(data)),
+    mutationFn: () =>
+      siteSettingsApi.put(
+        withoutEmptyMediaRefs({ ...data, tracker: { defaultBbox: trackerBox } })
+      ),
     onSuccess: (row) => {
       notify("Site settings saved");
       setDirty(false);
@@ -104,7 +114,7 @@ export default function SiteSettings() {
             <Button
               variant="contained"
               onClick={() => saveMut.mutate()}
-              disabled={saveMut.isPending || !dirty}
+              disabled={saveMut.isPending || !dirty || !bboxValid(trackerBox)}
               data-testid="site-settings-save"
             >
               {saveMut.isPending ? "Saving…" : "Save"}

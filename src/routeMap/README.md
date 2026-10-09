@@ -7,7 +7,10 @@ first and synced here by copying both files unchanged. Never edit them in this
 repository.
 
 `index.ts`, `poster.ts`, `posterStyle.ts`, `posterLayout.ts`, `posterOverlay.ts`,
-`overlayImage.ts`, and `eventRouteMap.ts` belong to the panel. `poster.ts`
+`overlayImage.ts`, `eventRouteMap.ts`, and `themeStyle.ts` belong to the panel.
+`themeStyle.ts` loads a tracker theme's style body and points it at a
+tracker map row (`applyMap`); `index.ts` points one at the dev basemap
+(`applyDevBasemap`) for the box editors. `poster.ts`
 holds the poster generator's presets, the lazy probe of
 `<base>/terrain.pmtiles`, the offscreen render, the arrowhead image added to
 every poster map, and the composed JPEG with the attribution drawn into it.

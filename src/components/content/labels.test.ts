@@ -190,7 +190,15 @@ describe("labels.ts: Places on the maps", () => {
     expect(SITE_SETTINGS.places?.help).toBe(
       "Which places each map labels. The two lists differ because the two maps sort places differently."
     );
-    expect(SITE_SETTINGS_ORDER.slice(-2)).toEqual(["landmarks", "places"]);
+    expect(SITE_SETTINGS_ORDER.slice(-3, -1)).toEqual(["landmarks", "places"]);
+  });
+
+  it("labels the tracker area last, after the places", () => {
+    expect(SITE_SETTINGS.tracker?.label).toBe("Tracker");
+    expect(SITE_SETTINGS.tracker?.help).toBe(
+      "The area a new event's tracker starts with. Each event can draw its own."
+    );
+    expect(SITE_SETTINGS_ORDER.slice(-1)).toEqual(["tracker"]);
   });
 });
 

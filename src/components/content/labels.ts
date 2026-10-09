@@ -476,11 +476,11 @@ export const SITE_SETTINGS: FieldLabels = {
   "places.tracker.kinds": { label: "Kinds" },
   "places.routeMap": { label: "Route map" },
   "places.routeMap.kinds": { label: "Kinds" },
-  tracker: { label: "Live tracker" },
-  "tracker.defaultBbox": {
-    label: "Default map area",
-    help: "The area a new event's tracker map shows unless another is drawn for it.",
+  tracker: {
+    label: "Tracker",
+    help: "The area a new event's tracker starts with. Each event can draw its own.",
   },
+  "tracker.defaultBbox": { label: "Default area" },
   footerLinks: {
     label: "Footer links",
     help: "Links shown at the bottom of every page, up to ten.",
@@ -608,7 +608,8 @@ export function orderFor(kind: string, isItem: boolean): string[] | undefined {
 
 // The top-level field order of the site settings form: the logo fields
 // sit right after the site name, the header links right after the
-// extra menu links, and the places right after the viewpoints, last.
+// extra menu links, the places right after the viewpoints, and the
+// tracker area last.
 export const SITE_SETTINGS_ORDER = [
   "siteName",
   "logoMedia",
@@ -623,6 +624,7 @@ export const SITE_SETTINGS_ORDER = [
   "*",
   "landmarks",
   "places",
+  "tracker",
 ];
 
 // The labels for the site settings form.

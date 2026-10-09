@@ -98,6 +98,7 @@ export const events: Event[] = [
     fundsPercent: 63,
     routeId: 4,
     routeUrl: "https://cdn.example/routes/9c0e77ab.json",
+    trackerBbox: { west: -114.3, south: 46.75, east: -113.8, north: 47.05 },
     trackerMapId: 1,
     trackerThemeIds: [1, 2],
     createdBy: AUTHOR,
