@@ -44,10 +44,19 @@ import type {
   SubscriberAdmin,
   Subscription,
   TrackerMap,
+  SpriteTickets,
   TrackerTheme,
   UploadTicket,
 } from "../../api/types";
 import themeSeed from "../../../contracts/fixtures/themes/seed.json";
+import blizzardStyle from "../../../contracts/fixtures/themes/blizzard.json";
+import charcoalStyle from "../../../contracts/fixtures/themes/charcoal.json";
+import expeditionStyle from "../../../contracts/fixtures/themes/expedition.json";
+import nebulaStyle from "../../../contracts/fixtures/themes/nebula.json";
+import nightStyle from "../../../contracts/fixtures/themes/night.json";
+import routeDarkStyle from "../../../contracts/fixtures/themes/route-dark.json";
+import routeLightStyle from "../../../contracts/fixtures/themes/route-light.json";
+import standardStyle from "../../../contracts/fixtures/themes/standard.json";
 
 const NOW = "2026-12-22T01:31:07.412Z";
 const AUTHOR = "editor@example.com";
@@ -885,6 +894,35 @@ export const trackerThemes: TrackerTheme[] = themeSeed.map((t, i) => ({
   updatedAt: NOW,
   audit: null,
 }));
+
+// The style bodies of the seeded themes by key, served at their styleUrl.
+export const themeStyles: Record<string, unknown> = {
+  blizzard: blizzardStyle,
+  charcoal: charcoalStyle,
+  expedition: expeditionStyle,
+  nebula: nebulaStyle,
+  night: nightStyle,
+  "route-dark": routeDarkStyle,
+  "route-light": routeLightStyle,
+  standard: standardStyle,
+};
+
+// The four presigned sprite PUTs for a theme.
+export function spriteTickets(themeId: number, indexSha256: string): SpriteTickets {
+  return {
+    indexSha256,
+    uploads: ["sprite.json", "sprite.png", "sprite@2x.json", "sprite@2x.png"].map((file) => ({
+      file,
+      uploadUrl: `https://s3.example/themes/${themeId}/sprites/${indexSha256}/${file}`,
+      method: "PUT",
+      headers: {
+        "Content-Type": file.endsWith(".png") ? "image/png" : "application/json; charset=utf-8",
+        "x-amz-tagging": "state=pending",
+      },
+      expiresAt: NOW,
+    })),
+  };
+}
 
 import type { DeleteImpact } from "../../api/impact";
 
