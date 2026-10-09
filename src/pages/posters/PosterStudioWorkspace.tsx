@@ -22,25 +22,26 @@ import {
   Typography,
 } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
+import type { StyleSpecification } from "maplibre-gl";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "../../api/errors";
 import { media as mediaApi } from "../../api/resources/media";
 import { routes as routesApi } from "../../api/resources/routes";
 import { siteSettings as siteSettingsApi } from "../../api/resources/siteSettings";
 import { UploadFailed, uploadToS3 } from "../../api/resources/upload";
-import type { MediaAsset, QrCode } from "../../api/types";
+import type { MediaAsset, QrCode, TrackerMap, TrackerTheme } from "../../api/types";
 import { useConfig } from "../../ConfigContext";
 import TimeZoneSelect from "../../components/TimeZoneSelect";
 import { useCompact } from "../../hooks/useCompact";
 import { keys } from "../../queries/keys";
 import { RASTER_MAX_BYTES } from "../../validation/image";
 import { browserTimeZone, wallTimeToUtc } from "../../lib/time";
-import { routeBasemapBase, type Appearance } from "../../routeMap";
+import ThemeThumb from "../../components/ThemeThumb";
+import { themeStyleQuery } from "../../routeMap/themeStyle";
 import {
   POSTER_PRESETS,
   posterFilename,
   posterSize,
-  probeTerrain,
   renderPosterImage,
   toRouteMapData,
   POSTER_MIME,
@@ -58,6 +59,7 @@ import {
   themeRouteColor,
   type ArrowScale,
   type PosterStyleInput,
+  type ThemeWithBody,
   type TimeLabelFormat,
   type TimeLabelInterval,
 } from "../../routeMap/posterStyle";
@@ -81,6 +83,11 @@ interface Props {
   posterName: string;
   // The flight recording the map is built from.
   routeId: number;
+  // The Theme select's options, the MapLibre themes in their order; never
+  // empty.
+  themes: readonly TrackerTheme[];
+  // The Map select's options, the ready maps by name; never empty.
+  maps: readonly TrackerMap[];
   // The design the workspace opens with; null for the defaults.
   initialLayout: PosterLayout | null;
   // Receives the layout document after every change of the design.
@@ -115,10 +122,11 @@ const NEW_ELEMENT_WIDTH: Record<LayoutElement["type"], number> = {
 
 // The workspace of the poster editor (admin.md 6.3, Poster studio). The
 // working column holds a large live preview of the recording's route map
-// at the chosen theme, orientation, size, and route styling (colour,
-// arrows, time labels), with the hillshade when Terrain is checked
-// (offered only once the probe finds `<base>/terrain.pmtiles`) and the
-// basemap details the Map details switches keep, and the
+// drawn with the chosen tracker theme over the chosen tracker map, at the
+// chosen orientation, size, and route styling (colour, arrows, time
+// labels), with the hillshade when Terrain is checked (offered only while
+// the map has a terrain file) and the theme's details the Map details
+// switches keep, and the
 // overlay composer over it (images, the site logo, QR codes). The controls
 // sit in a rail on the right on desktop and stack under the preview below
 // md. Mounting restores `initialLayout` once; every change of the design
@@ -129,6 +137,8 @@ const NEW_ELEMENT_WIDTH: Record<LayoutElement["type"], number> = {
 export default function PosterStudioWorkspace({
   posterName,
   routeId,
+  themes,
+  maps,
   initialLayout,
   onLayoutChange,
   onSave,
@@ -140,11 +150,11 @@ export default function PosterStudioWorkspace({
   // The design the workspace opened with; read once, on mount, so a save
   // that refreshes the poster leaves the workspace alone.
   const [initial] = useState(() => initialLayout ?? { ...DEFAULT_DESIGN, elements: [] });
-  const [theme, setTheme] = useState<Appearance>(initial.theme);
+  const [themeId, setThemeId] = useState<number | null>(initial.themeId);
+  const [mapId, setMapId] = useState<number | null>(initial.mapId);
   const [orientation, setOrientation] = useState<PosterOrientation>(initial.orientation);
   const [preset, setPreset] = useState<PosterPresetId>(initial.size);
   const [terrain, setTerrain] = useState(initial.terrain);
-  const [terrainAvailable, setTerrainAvailable] = useState(false);
   const [details, setDetails] = useState<LayoutDetails>(initial.details);
   // The picked route colour, or null for the theme's.
   const [customColor, setCustomColor] = useState<string | null>(initial.routeStyle.colour);
@@ -178,17 +188,12 @@ export default function PosterStudioWorkspace({
     };
   }, []);
 
-  const base = routeBasemapBase(config);
-  useEffect(() => {
-    if (base === null) return;
-    let active = true;
-    void probeTerrain(base).then((found) => {
-      if (active) setTerrainAvailable(found);
-    });
-    return () => {
-      active = false;
-    };
-  }, [base]);
+  const theme = themes.find((t) => Number(t.id) === themeId) ?? themes[0]!;
+  const map = maps.find((m) => Number(m.id) === mapId) ?? maps[0]!;
+  const terrainAvailable = map.terrainMaxZoom != null && !!map.terrainUrl;
+  const bodyQuery = themeStyleQuery(theme.styleUrl ?? "");
+  const bodyResult = useQuery({ ...bodyQuery, enabled: !!theme.styleUrl });
+  const themeBody = bodyResult.data ?? null;
 
   const size = useMemo(() => posterSize(preset, orientation), [preset, orientation]);
   const routeColor = customColor ?? themeRouteColor(theme);
@@ -198,7 +203,7 @@ export default function PosterStudioWorkspace({
   const withTerrain = terrain && terrainAvailable;
   const styling = useMemo<PosterStyling>(
     () => ({
-      theme,
+      map,
       terrain: withTerrain,
       details,
       routeColor,
@@ -209,7 +214,7 @@ export default function PosterStudioWorkspace({
       scheduledAt,
       zone,
     }),
-    [theme, withTerrain, details, routeColor, arrows, arrowScale, labelInterval, labelFormat, scheduledAt, zone],
+    [map, withTerrain, details, routeColor, arrows, arrowScale, labelInterval, labelFormat, scheduledAt, zone],
   );
 
   const siteSettingsResult = useQuery({
@@ -228,9 +233,16 @@ export default function PosterStudioWorkspace({
   const routeMap = routeMapResult.data ?? null;
 
   const drawable = routeMap && routeMap.path.length > 0 ? routeMap : null;
+  // The theme the preview draws: the chosen one once its body has loaded,
+  // the one before it until then, so the preview map stays and takes the
+  // new style through setStyle.
+  const [previewTheme, setPreviewTheme] = useState<ThemeWithBody | null>(null);
+  useEffect(() => {
+    if (themeBody) setPreviewTheme({ overlay: theme.overlay, body: themeBody });
+  }, [theme, themeBody]);
   const previewStyle = useMemo(
-    () => (drawable && base !== null ? posterStyle(config, drawable, styling) : null),
-    [drawable, base, config, styling],
+    () => (drawable && previewTheme ? posterStyle(previewTheme, drawable, styling) : null),
+    [drawable, previewTheme, styling],
   );
   const busy = phase === "rendering" || phase === "uploading" || phase === "confirming";
 
@@ -238,7 +250,8 @@ export default function PosterStudioWorkspace({
     () =>
       toLayoutDocument(
         {
-          theme,
+          themeId: Number(theme.id),
+          mapId: Number(map.id),
           orientation,
           size: preset,
           terrain,
@@ -252,7 +265,7 @@ export default function PosterStudioWorkspace({
         },
         elements,
       ),
-    [theme, orientation, preset, terrain, details, customColor, arrows, arrowScale, labelInterval, format, start, startZone, elements],
+    [theme, map, orientation, preset, terrain, details, customColor, arrows, arrowScale, labelInterval, format, start, startZone, elements],
   );
   const onLayoutChangeRef = useRef(onLayoutChange);
   onLayoutChangeRef.current = onLayoutChange;
@@ -323,10 +336,11 @@ export default function PosterStudioWorkspace({
       if (!data || data.path.length === 0) {
         throw new Error(NO_PATH_MESSAGE);
       }
+      const body: StyleSpecification = themeBody ?? (await qc.fetchQuery(bodyQuery));
       const loaded = await whenReady(elements);
       if (!live()) return;
       const overlay = elements.length > 0 ? renderOverlayCanvas(elements, loaded, size) : null;
-      const style = posterStyle(config, data, styling);
+      const style = posterStyle({ overlay: theme.overlay, body }, data, styling);
       blob = await renderPosterImage({ style, path: data.path, size, theme, overlay });
     } catch (e) {
       if (live()) {
@@ -341,7 +355,7 @@ export default function PosterStudioWorkspace({
     }
 
     setPhase("uploading");
-    const filename = posterFilename(posterName, theme, size);
+    const filename = posterFilename(posterName, theme.key ?? "", size);
     let ready: MediaAsset;
     try {
       const ticket = await mediaApi.uploadUrl({
@@ -404,11 +418,15 @@ export default function PosterStudioWorkspace({
           />
         )}
       />
+    ) : bodyResult.isError ? (
+      <Alert severity="warning" data-testid="route-poster-preview-error">
+        The theme style could not load. {messageOf(bodyResult.error)}
+      </Alert>
     ) : routeMapResult.isError ? (
       <Alert severity="warning" data-testid="route-poster-preview-error">
         The preview could not load. {messageOf(routeMapResult.error)}
       </Alert>
-    ) : routeMapResult.isSuccess ? (
+    ) : routeMapResult.isSuccess && !drawable ? (
       <Alert severity="warning" data-testid="route-poster-preview-error">
         {NO_PATH_MESSAGE}
       </Alert>
@@ -432,18 +450,45 @@ export default function PosterStudioWorkspace({
       </Grid>
       <Grid size={{ xs: 12, md: 4, lg: 3 }} data-testid="poster-studio-rail">
         <Stack spacing={2}>
-          <FormControl disabled={busy}>
-            <FormLabel id="poster-theme">Theme</FormLabel>
-            <RadioGroup
-              row
-              aria-labelledby="poster-theme"
-              value={theme}
-              onChange={(e) => setTheme(e.target.value as Appearance)}
-            >
-              <FormControlLabel value="light" control={<Radio />} label="Light" />
-              <FormControlLabel value="dark" control={<Radio />} label="Dark" />
-            </RadioGroup>
-          </FormControl>
+          <Stack direction="row" alignItems="center" spacing={0.5}>
+            <FormControl size="small" disabled={busy} fullWidth>
+              <InputLabel id="poster-theme">Theme</InputLabel>
+              <Select
+                labelId="poster-theme"
+                label="Theme"
+                value={String(theme.id)}
+                onChange={(e) => setThemeId(Number(e.target.value))}
+                data-testid="poster-theme"
+                renderValue={() => <ThemeOption theme={theme} />}
+              >
+                {themes.map((t) => (
+                  <MenuItem key={String(t.id)} value={String(t.id)}>
+                    <ThemeOption theme={t} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <HelpButton topic="posters.theme" />
+          </Stack>
+          <Stack direction="row" alignItems="center" spacing={0.5}>
+            <FormControl size="small" disabled={busy} fullWidth>
+              <InputLabel id="poster-map">Map</InputLabel>
+              <Select
+                labelId="poster-map"
+                label="Map"
+                value={String(map.id)}
+                onChange={(e) => setMapId(Number(e.target.value))}
+                data-testid="poster-map"
+              >
+                {maps.map((m) => (
+                  <MenuItem key={String(m.id)} value={String(m.id)}>
+                    {mapOptionLabel(m)}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <HelpButton topic="posters.map" />
+          </Stack>
           <FormControl disabled={busy}>
             <FormLabel id="poster-orientation">Orientation</FormLabel>
             <RadioGroup
@@ -658,7 +703,7 @@ export default function PosterStudioWorkspace({
           />
 
           <Typography variant="body2" color="text.secondary" data-testid="route-poster-output">
-            {posterFilename(posterName, theme, size)}
+            {posterFilename(posterName, theme.key ?? "", size)}
           </Typography>
 
           <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
@@ -710,7 +755,7 @@ export default function PosterStudioWorkspace({
 }
 
 type PosterStyling = {
-  theme: Appearance;
+  map: TrackerMap;
   terrain: boolean;
   details: LayoutDetails;
   routeColor: string;
@@ -724,13 +769,10 @@ type PosterStyling = {
 
 // The poster style for the studio's choices. The preview and the export
 // both draw through this one call.
-function posterStyle(
-  config: Parameters<typeof buildPosterStyle>[0],
-  routeMap: RouteMapData,
-  styling: PosterStyling,
-) {
+function posterStyle(theme: ThemeWithBody, routeMap: RouteMapData, styling: PosterStyling) {
   const input: PosterStyleInput = {
-    theme: styling.theme,
+    theme,
+    map: styling.map,
     routeMap,
     terrain: styling.terrain,
     options: {
@@ -750,7 +792,24 @@ function posterStyle(
       }),
     },
   };
-  return buildPosterStyle(config, input);
+  return buildPosterStyle(input);
+}
+
+// A Theme option: the theme's thumbnail and its name.
+function ThemeOption({ theme }: { theme: TrackerTheme }) {
+  return (
+    <Stack direction="row" spacing={1} alignItems="center">
+      <ThemeThumb theme={theme} size={24} />
+      <span>{theme.name}</span>
+    </Stack>
+  );
+}
+
+// A Map option: the map's name and whether it has a terrain file.
+function mapOptionLabel(map: TrackerMap): string {
+  return `${map.name ?? `#${String(map.id)}`}, ${
+    map.terrainMaxZoom != null ? "with terrain" : "no terrain"
+  }`;
 }
 
 // The space the shell's bar and the page header take above the preview,

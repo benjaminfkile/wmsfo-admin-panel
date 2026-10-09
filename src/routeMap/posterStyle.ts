@@ -4,13 +4,19 @@
 // through, so the two always draw the same map.
 
 import type { StyleSpecification } from "maplibre-gl";
-import type { Config } from "../config";
+import type { TrackerMap, TrackerTheme } from "../api/types";
 import { utcToWallTime } from "../lib/time";
-import type { Appearance } from "./flavors";
-import { ROUTE_PALETTES } from "./flavors";
-import { buildRouteMapStyle } from "./index";
 import { fiveMinuteMarks, type RouteMapData } from "./poster";
-import { POSTER_LABELS, type StyleOptions, type TimeLabel } from "./style";
+import {
+  POSTER_LABELS,
+  themeOverlay,
+  withRouteLayers,
+  withoutDetails,
+  type RouteLayerOptions,
+  type StyleDetails,
+  type TimeLabel,
+} from "./routeLayers";
+import { applyMap } from "./themeStyle";
 
 // 0 turns the time labels off; the others are minutes between labels.
 export type TimeLabelInterval = 0 | 5 | 10 | 15 | 30;
@@ -52,9 +58,9 @@ export function isHexColor(value: string): boolean {
   return HEX_COLOR.test(value);
 }
 
-// The route colour of the theme, the colour picker's default.
-export function themeRouteColor(theme: Appearance): string {
-  return ROUTE_PALETTES[theme].routeColor;
+// The route colour of the theme row, the colour picker's default.
+export function themeRouteColor(theme: Pick<TrackerTheme, "overlay">): string {
+  return themeOverlay(theme).routeColor;
 }
 
 type TimelineEntry = RouteMapData["timeline"][number];
@@ -124,27 +130,40 @@ export function posterTimeLabels(
   }));
 }
 
+// A tracker theme row with its style body loaded.
+export type ThemeWithBody = Pick<TrackerTheme, "overlay"> & { body: StyleSpecification };
+
+// The tracker map row a style draws over.
+export type StyleMap = Pick<TrackerMap, "tilesUrl" | "terrainUrl">;
+
+export type PosterStyleOptions = RouteLayerOptions & { details?: StyleDetails };
+
 export type PosterStyleInput = {
-  theme: Appearance;
+  theme: ThemeWithBody;
+  map: StyleMap;
   routeMap: RouteMapData;
   terrain: boolean;
-  options: StyleOptions;
+  options: PosterStyleOptions;
 };
 
-// The poster's style: the route map over the path with the 5 minute marks,
-// the hillshade when `terrain` is set, and the route styling options, with
-// the labels at POSTER_LABELS (their full sizes at every zoom). The preview
-// and the export render both call this with the same input.
-export function buildPosterStyle(
-  config: Pick<Config, "routeBasemapUrl">,
-  input: PosterStyleInput,
-): StyleSpecification {
-  return buildRouteMapStyle(
-    config,
-    input.theme,
+// The poster's style: the theme body over the map row (the hillshade only
+// when `terrain` is set and the map has a terrain file), without the
+// layers of each Map details group turned off, and the route over the
+// path with the 5 minute marks in the theme's overlay colours and the
+// route styling options, with the labels at POSTER_LABELS (their full
+// sizes at every zoom). The preview and the export render both call this
+// with the same input.
+export function buildPosterStyle(input: PosterStyleInput): StyleSpecification {
+  const { details, ...route } = input.options;
+  const base = withoutDetails(
+    applyMap(input.theme.body, input.map, { terrain: input.terrain }),
+    details ?? {},
+  );
+  return withRouteLayers(
+    base,
+    themeOverlay(input.theme),
     input.routeMap.path,
     fiveMinuteMarks(input.routeMap),
-    input.terrain,
-    { ...input.options, ...POSTER_LABELS },
+    { ...route, ...POSTER_LABELS },
   );
 }

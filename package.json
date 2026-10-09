@@ -27,7 +27,6 @@
     "@maplibre/maplibre-gl-style-spec": "26.4.4",
     "@mui/icons-material": "^7.3.6",
     "@mui/material": "^7.3.6",
-    "@protomaps/basemaps": "^5.7.2",
     "@rjsf/core": "^6.8.0",
     "@rjsf/mui": "^6.8.0",
     "@rjsf/utils": "^6.8.0",

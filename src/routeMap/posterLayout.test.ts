@@ -4,15 +4,36 @@ import {
   DEFAULT_DETAILS,
   DEFAULT_MAP,
   DEFAULT_ROUTE_STYLE,
+  defaultPosterLayout,
   elementPixels,
+  layoutChoices,
   parsePosterLayout,
   placementFromPixels,
   snapShift,
   toLayoutDocument,
+  type LayoutChoices,
   type LayoutElement,
 } from "./posterLayout";
 import { posterSize } from "./poster";
 import { ARROW_SCALES, DEFAULT_ARROW_SCALE } from "./posterStyle";
+
+// route-light (1) and route-dark (2) seeds and one theme of the admin's
+// own; the Missoula valley map (1) and another (3).
+const CHOICES: LayoutChoices = {
+  themes: [
+    { id: 1, key: "route-light" },
+    { id: 2, key: "route-dark" },
+    { id: 9, key: "harbour" },
+  ],
+  maps: [{ id: 1 }, { id: 3 }],
+  defaultThemeId: 1,
+  defaultMapId: 1,
+};
+
+const parse = (raw: unknown) => parsePosterLayout(raw, CHOICES)?.layout ?? null;
+
+// The default design with an offered theme and map.
+const DESIGN = { ...DEFAULT_DESIGN, themeId: 9, mapId: 3 };
 
 const landscape = posterSize("facebook", "landscape");
 const portrait = posterSize("poster", "portrait");
@@ -53,7 +74,7 @@ describe("the poster layout document", () => {
   it("round-trips each element type through JSON and onto another size", () => {
     const doc = toLayoutDocument(
       {
-        ...DEFAULT_DESIGN,
+        ...DESIGN,
         routeStyle: {
           colour: "#aa0011",
           arrows: false,
@@ -63,7 +84,7 @@ describe("the poster layout document", () => {
       },
       PLACED.map((p) => p.el),
     );
-    const parsed = parsePosterLayout(JSON.parse(JSON.stringify(doc)));
+    const parsed = parse(JSON.parse(JSON.stringify(doc)));
     expect(parsed).toEqual(doc);
     PLACED.forEach(({ el, aspect }, i) => {
       const back = parsed!.elements[i]!;
@@ -85,7 +106,7 @@ describe("the poster layout document", () => {
   });
 
   it("orders by z, drops unknown or incomplete elements, and defaults the route style", () => {
-    const parsed = parsePosterLayout({
+    const parsed = parse({
       version: 1,
       routeStyle: { colour: "red", labels: { interval: 7 } },
       elements: [
@@ -96,28 +117,28 @@ describe("the poster layout document", () => {
       ],
     });
     expect(parsed!.routeStyle).toEqual(DEFAULT_ROUTE_STYLE);
-    expect(parsed).toMatchObject(DEFAULT_MAP);
+    expect(parsed).toMatchObject({ ...DEFAULT_MAP, themeId: 1, mapId: 1 });
     expect(parsed!.elements).toEqual([
       { type: "image", mediaId: "a", x: 0.2, y: 0.2, width: 0.2, rotation: 0, z: 0 },
       { type: "logo", mediaId: "b", x: 0.1, y: 0.1, width: 0.1, rotation: 0, z: 1 },
     ]);
-    expect(parsePosterLayout(null)).toBeNull();
-    expect(parsePosterLayout({ version: 2, elements: [] })).toBeNull();
+    expect(parse(null)).toBeNull();
+    expect(parse({ version: 2, elements: [] })).toBeNull();
   });
 
   it("round-trips every arrow size and reads an absent or unknown one as Large", () => {
     for (const { value } of ARROW_SCALES) {
       const doc = toLayoutDocument(
-        { ...DEFAULT_DESIGN, routeStyle: { ...DEFAULT_ROUTE_STYLE, arrowScale: value } },
+        { ...DESIGN, routeStyle: { ...DEFAULT_ROUTE_STYLE, arrowScale: value } },
         [],
       );
       expect(doc.routeStyle.arrowScale).toBe(value);
-      expect(parsePosterLayout(JSON.parse(JSON.stringify(doc)))!.routeStyle.arrowScale).toBe(value);
+      expect(parse(JSON.parse(JSON.stringify(doc)))!.routeStyle.arrowScale).toBe(value);
     }
     const absent = { colour: null, arrows: true, labels: { interval: 15, format: "wall" } };
-    expect(parsePosterLayout({ version: 1, routeStyle: absent, elements: [] })!.routeStyle.arrowScale).toBe(1.5);
+    expect(parse({ version: 1, routeStyle: absent, elements: [] })!.routeStyle.arrowScale).toBe(1.5);
     expect(
-      parsePosterLayout({ version: 1, routeStyle: { ...absent, arrowScale: 3 }, elements: [] })!.routeStyle
+      parse({ version: 1, routeStyle: { ...absent, arrowScale: 3 }, elements: [] })!.routeStyle
         .arrowScale,
     ).toBe(1.5);
     expect(DEFAULT_ARROW_SCALE).toBe(1.5);
@@ -126,7 +147,8 @@ describe("the poster layout document", () => {
 
   it("round-trips the whole design and defaults an unknown map choice", () => {
     const design = {
-      theme: "dark",
+      themeId: 2,
+      mapId: 3,
       orientation: "portrait",
       size: "poster",
       terrain: true,
@@ -140,17 +162,18 @@ describe("the poster layout document", () => {
     } as const;
     const doc = toLayoutDocument(design, []);
     expect(doc).toEqual({ version: 1, ...design, elements: [] });
-    expect(parsePosterLayout(JSON.parse(JSON.stringify(doc)))).toEqual(doc);
-    const odd = parsePosterLayout({
+    expect(parse(JSON.parse(JSON.stringify(doc)))).toEqual(doc);
+    const odd = parse({
       version: 1,
-      theme: "sepia",
+      themeId: "sepia",
+      mapId: 3.5,
       orientation: "diagonal",
       size: "billboard",
       terrain: "yes",
       routeStyle: { labels: { start: "tomorrow", zone: "" } },
       elements: [],
     });
-    expect(odd).toMatchObject(DEFAULT_MAP);
+    expect(odd).toMatchObject({ ...DEFAULT_MAP, themeId: 1, mapId: 1 });
     expect(odd!.routeStyle.labels).toMatchObject({ start: null, zone: null });
   });
 
@@ -159,20 +182,95 @@ describe("the poster layout document", () => {
     expect(toLayoutDocument(DEFAULT_DESIGN, []).details).toEqual(DEFAULT_DETAILS);
     for (const key of ["landmarks", "placeNames", "roadLabels"] as const) {
       const details = { ...DEFAULT_DETAILS, [key]: false };
-      const doc = toLayoutDocument({ ...DEFAULT_DESIGN, details }, []);
+      const doc = toLayoutDocument({ ...DESIGN, details }, []);
       expect(doc.details).toEqual(details);
-      expect(parsePosterLayout(JSON.parse(JSON.stringify(doc)))!.details).toEqual(details);
+      expect(parse(JSON.parse(JSON.stringify(doc)))!.details).toEqual(details);
     }
     // A document saved without details, or with some of them, reads the
     // missing switches as on; anything but false reads on.
-    expect(parsePosterLayout({ version: 1, elements: [] })!.details).toEqual(DEFAULT_DETAILS);
+    expect(parse({ version: 1, elements: [] })!.details).toEqual(DEFAULT_DETAILS);
     expect(
-      parsePosterLayout({ version: 1, details: { roadLabels: false }, elements: [] })!.details,
+      parse({ version: 1, details: { roadLabels: false }, elements: [] })!.details,
     ).toEqual({ landmarks: true, placeNames: true, roadLabels: false });
     expect(
-      parsePosterLayout({ version: 1, details: { landmarks: "no", placeNames: null }, elements: [] })!
+      parse({ version: 1, details: { landmarks: "no", placeNames: null }, elements: [] })!
         .details,
     ).toEqual(DEFAULT_DETAILS);
+  });
+
+  it("round-trips a document of either form, the old one onto the seed rows", () => {
+    const doc = toLayoutDocument({ ...DESIGN, themeId: 2, mapId: 3 }, []);
+    expect(doc).toMatchObject({ themeId: 2, mapId: 3 });
+    expect(doc).not.toHaveProperty("theme");
+    expect(parsePosterLayout(JSON.parse(JSON.stringify(doc)), CHOICES)).toEqual({
+      layout: doc,
+      replaced: false,
+    });
+
+    // A document saved before themes were rows: `theme` in place of the
+    // ids, mapped to the seed by key, the map the default, and the
+    // notice raised. Saving it writes the new form, which reads back as is.
+    const old = { ...doc, theme: "dark", themeId: undefined, mapId: undefined };
+    const read = parsePosterLayout(JSON.parse(JSON.stringify(old)), CHOICES)!;
+    expect(read.replaced).toBe(true);
+    expect(read.layout).toEqual({ ...doc, themeId: 2, mapId: 1 });
+    expect(parsePosterLayout({ version: 1, theme: "light", elements: [] }, CHOICES)!.layout)
+      .toMatchObject({ themeId: 1, mapId: 1 });
+    const saved = toLayoutDocument(read.layout, read.layout.elements);
+    expect(parsePosterLayout(JSON.parse(JSON.stringify(saved)), CHOICES)).toEqual({
+      layout: saved,
+      replaced: false,
+    });
+  });
+
+  it("reads a deleted seed of the old form as the default theme", () => {
+    const choices = { ...CHOICES, themes: [{ id: 9, key: "harbour" }], defaultThemeId: 9 };
+    const read = parsePosterLayout({ version: 1, theme: "dark", mapId: 3, elements: [] }, choices)!;
+    expect(read.layout).toMatchObject({ themeId: 9, mapId: 3 });
+    expect(read.replaced).toBe(true);
+  });
+
+  it("reads a missing or deleted theme or map as its default with the notice", () => {
+    const cases: Array<[Record<string, unknown>, { themeId: number; mapId: number }]> = [
+      [{ mapId: 3 }, { themeId: 1, mapId: 3 }],
+      [{ themeId: 9 }, { themeId: 9, mapId: 1 }],
+      [{ themeId: 42, mapId: 3 }, { themeId: 1, mapId: 3 }],
+      [{ themeId: 9, mapId: 42 }, { themeId: 9, mapId: 1 }],
+    ];
+    for (const [ids, expected] of cases) {
+      const read = parsePosterLayout({ version: 1, ...ids, elements: [] }, CHOICES)!;
+      expect(read.layout).toMatchObject(expected);
+      expect(read.replaced).toBe(true);
+    }
+    expect(parsePosterLayout({ version: 1, themeId: 9, mapId: 3, elements: [] }, CHOICES)!.replaced)
+      .toBe(false);
+  });
+
+  it("opens a poster without a layout on the defaults", () => {
+    expect(defaultPosterLayout(CHOICES)).toEqual(
+      toLayoutDocument({ ...DEFAULT_DESIGN, themeId: 1, mapId: 1 }, []),
+    );
+  });
+
+  it("picks the light default theme and the map of the newest event flying the recording", () => {
+    const theme = (id: number, light: boolean) =>
+      ({ id, key: `t${id}`, renderer: "maplibre", defaultLightMode: light });
+    const map = (id: number, prefix: string) => ({ id, prefix, state: "ready" });
+    const themes = [theme(4, false), theme(5, true)];
+    const maps = [map(3, "maps/3"), map(1, "basemap"), map(6, "maps/6")];
+    const events = [
+      { year: 2024, routeId: 7, trackerMapId: 3 },
+      { year: 2025, routeId: 7, trackerMapId: 6 },
+      { year: 2026, routeId: 8, trackerMapId: 3 },
+    ];
+    expect(layoutChoices(themes, maps, events, 7)).toMatchObject({ defaultThemeId: 5, defaultMapId: 6 });
+    expect(layoutChoices(themes, maps, events, 9).defaultMapId).toBe(1);
+    expect(layoutChoices(themes, maps, events, null).defaultMapId).toBe(1);
+    expect(layoutChoices([theme(4, false)], [map(3, "maps/3")], [], null)).toMatchObject({
+      defaultThemeId: 4,
+      defaultMapId: 3,
+    });
+    expect(layoutChoices([], [], [], null)).toMatchObject({ defaultThemeId: null, defaultMapId: null });
   });
 
   it("snaps the nearest edge or centre within the threshold", () => {

@@ -1,8 +1,9 @@
 // An event's route map: its `routeMapConfig` (RouteMapConfig in
 // primitives.schema.json) as the panel edits it, the values the site
 // resolves from it (santa's routeMapConfig.ts rules), the summary the
-// event page shows, and `eventRouteMapStyle`, the one style call the
-// route map modal's live preview draws with.
+// event page shows, the theme and map the preview draws
+// (`eventRouteMapSource`), and `eventRouteMapStyle`, the one style call
+// the route map modal's live preview draws with.
 //
 // Every group and every key is optional. The site resolves each value on
 // its own: a display key falls back to its built-in default, and each
@@ -10,7 +11,7 @@
 // stored as null.
 
 import type { StyleSpecification } from "maplibre-gl";
-import type { Config } from "../config";
+import type { Event, TrackerMap, TrackerTheme } from "../api/types";
 import { ROUTE_MAP_DISPLAY_LABELS } from "../components/content/labels";
 import {
   ROUTE_MAP_DEFAULTS,
@@ -19,11 +20,15 @@ import {
   resolveDisplayKey,
   type RouteMapDisplay,
 } from "../components/content/routeMapDisplay";
-import type { Appearance } from "./flavors";
-import { buildRouteMapStyle } from "./index";
 import type { RouteMapData } from "./poster";
-import { formatElapsed } from "./posterStyle";
-import type { StyleOptions, TimeLabel } from "./style";
+import { formatElapsed, type StyleMap, type ThemeWithBody } from "./posterStyle";
+import {
+  themeOverlay,
+  withRouteLayers,
+  type RouteLayerOptions,
+  type TimeLabel,
+} from "./routeLayers";
+import { applyMap } from "./themeStyle";
 
 export type RouteMapControlKey = "fullscreen" | "terrain";
 
@@ -174,8 +179,57 @@ export function siteTimeLabels(timeline: readonly TimelineEntry[], every: number
   return out;
 }
 
+export type Appearance = "light" | "dark";
+
+export const NO_MAP_HINT =
+  "This event has no tracker map, so the site draws its route map on Google Maps. Choose one under Tracker map to preview it here.";
+export const NO_THEME_HINT = "Enable a MapLibre theme under Tracker map to preview the route map.";
+
+export type EventRouteMapSource =
+  | { theme: TrackerTheme; map: TrackerMap; hint: null }
+  | { theme: null; map: null; hint: string };
+
+function bySortOrder(a: TrackerTheme, b: TrackerTheme): number {
+  return (
+    Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0) ||
+    Number(a.id ?? 0) - Number(b.id ?? 0)
+  );
+}
+
+// What the preview draws for the event and the appearance, the way the
+// site's route mode does: the event's tracker map, and among its enabled
+// MapLibre themes (in their order) the one carrying the default flag for
+// the appearance, else the first. Without a map, or without an enabled
+// MapLibre theme, the one-line hint instead.
+export function eventRouteMapSource(
+  event: Pick<Event, "trackerMapId" | "trackerThemeIds">,
+  maps: readonly TrackerMap[],
+  themes: readonly TrackerTheme[],
+  appearance: Appearance,
+): EventRouteMapSource {
+  const mapId = event.trackerMapId;
+  const map =
+    mapId === null || mapId === undefined
+      ? undefined
+      : maps.find((m) => Number(m.id) === Number(mapId));
+  if (!map) return { theme: null, map: null, hint: NO_MAP_HINT };
+  const enabled = new Set((event.trackerThemeIds ?? []).map(Number));
+  const candidates = themes
+    .filter((t) => t.renderer === "maplibre" && enabled.has(Number(t.id)))
+    .sort(bySortOrder);
+  const flagged = candidates.find((t) =>
+    appearance === "dark" ? t.defaultDarkMode === true : t.defaultLightMode === true,
+  );
+  const theme = flagged ?? candidates[0];
+  if (!theme) return { theme: null, map: null, hint: NO_THEME_HINT };
+  return { theme, map, hint: null };
+}
+
 export interface EventRouteMapStyleInput {
-  appearance: Appearance;
+  // The event's MapLibre theme with its body loaded.
+  theme: ThemeWithBody;
+  // The event's tracker map.
+  map: StyleMap;
   routeMap: RouteMapData;
   routeMapConfig: RouteMapConfigValue;
   // The hillshade, drawn only while the config keeps the terrain toggle.
@@ -185,17 +239,14 @@ export interface EventRouteMapStyleInput {
   poiKinds?: readonly string[];
 }
 
-// The style options the site builds for a config over a route map, with
-// the sitewide place kinds when given.
+// The route layer options the site builds for a config over a route map.
 export function eventRouteMapOptions(
   routeMap: RouteMapData,
   routeMapConfig: RouteMapConfigValue,
-  poiKinds?: readonly string[]
-): StyleOptions {
+): RouteLayerOptions {
   const resolved = resolveRouteMapConfig(routeMapConfig);
   return {
     timeLabels: siteTimeLabels(routeMap.timeline, resolved.timeLabelIntervalMinutes),
-    ...(poiKinds !== undefined ? { poiKinds } : {}),
     ...(resolved.arrows ? { arrows: true } : {}),
     arrowScale: resolved.arrowScale,
     routeWidthScale: resolved.routeWidthScale,
@@ -203,23 +254,25 @@ export function eventRouteMapOptions(
   };
 }
 
-// The site's route map for the event: the path with every timeline point
-// as a mark, the time labels, arrows, widths, and label scale of the
-// config, the place kinds of the input, and the hillshade when `terrain` is set and the config
-// keeps the terrain toggle.
-export function eventRouteMapStyle(
-  config: Pick<Config, "routeBasemapUrl">,
-  input: EventRouteMapStyleInput
-): StyleSpecification {
+// The site's route map for the event: the theme body over the event's
+// map with the places layers kept to the input's kinds, the hillshade
+// when `terrain` is set, the config keeps the terrain toggle, and the map
+// has a terrain file, and the route in the theme's overlay colours with
+// every timeline point as a mark and the time labels, arrows, widths, and
+// label scale of the config.
+export function eventRouteMapStyle(input: EventRouteMapStyleInput): StyleSpecification {
   const { routeMap, routeMapConfig } = input;
   const terrain = input.terrain && readControl(routeMapConfig.controls, "terrain");
-  return buildRouteMapStyle(
-    config,
-    input.appearance,
+  const base = applyMap(input.theme.body, input.map, {
+    terrain,
+    poiKinds: input.poiKinds ?? [],
+  });
+  return withRouteLayers(
+    base,
+    themeOverlay(input.theme),
     routeMap.path,
     routeMap.timeline.map((t) => ({ lat: t.lat, lng: t.lng })),
-    terrain,
-    eventRouteMapOptions(routeMap, routeMapConfig, input.poiKinds)
+    eventRouteMapOptions(routeMap, routeMapConfig),
   );
 }
 

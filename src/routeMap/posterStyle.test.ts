@@ -8,18 +8,31 @@ import {
   themeRouteColor,
   timeLabelEntries,
 } from "./posterStyle";
-import { ROUTE_PALETTES } from "./flavors";
+import type { StyleSpecification } from "maplibre-gl";
+import themeSeed from "../../contracts/fixtures/themes/seed.json";
+import routeLightStyle from "../../contracts/fixtures/themes/route-light.json";
+import routeDarkStyle from "../../contracts/fixtures/themes/route-dark.json";
 import {
   ARROWS_LAYER,
-  LANDMARKS_LAYER,
-  LANDMARK_DOTS_LAYER,
+  DETAIL_LAYERS,
+  ENDS_LAYER,
+  MARKS_LAYER,
   ROUTE_LAYER,
   TIME_LABELS_LAYER,
   TIME_LABELS_SOURCE,
   TIME_LABEL_DOTS_LAYER,
-} from "./style";
+} from "./routeLayers";
 
-const BASE = "https://basemap.example.com/v4";
+const seed = (key: string) => themeSeed.find((t) => t.key === key)!;
+const LIGHT = { overlay: seed("route-light").overlay, body: routeLightStyle as StyleSpecification };
+const DARK = { overlay: seed("route-dark").overlay, body: routeDarkStyle as StyleSpecification };
+const MAP = {
+  tilesUrl: "https://cdn.example/maps/7/tiles.pmtiles",
+  terrainUrl: "https://cdn.example/maps/7/terrain.pmtiles",
+};
+const FLAT_MAP = { tilesUrl: "https://cdn.example/maps/8/tiles.pmtiles", terrainUrl: null };
+
+type Painted = { paint?: Record<string, unknown>; layout?: Record<string, unknown> };
 
 // A 47 minute flight with an entry every minute.
 const TIMELINE = Array.from({ length: 48 }, (_, minutes) => ({
@@ -105,37 +118,133 @@ describe("buildPosterStyle", () => {
     timeline: TIMELINE,
     durationMinutes: 47,
   };
+  const layer = (style: StyleSpecification, id: string) =>
+    style.layers.find((l) => l.id === id) as Painted;
 
-  it("draws the colour, the arrows, and the time labels", () => {
-    const style = buildPosterStyle(
-      { routeBasemapUrl: BASE },
-      {
-        theme: "light",
+  it("draws the theme body over the map row and the route over it", () => {
+    const style = buildPosterStyle({ theme: LIGHT, map: MAP, routeMap, terrain: false, options: {} });
+    expect(style.sources.basemap).toMatchObject({ url: `pmtiles://${MAP.tilesUrl}` });
+    expect(style.glyphs).toBe(LIGHT.body.glyphs);
+    const ids = style.layers.map((l) => l.id);
+    const themeIds = routeLightStyle.layers
+      .filter((l) => (l as { source?: string }).source !== "terrain")
+      .map((l) => l.id);
+    expect(ids.slice(0, themeIds.length)).toEqual(themeIds);
+    expect(ids.slice(themeIds.length)).toEqual([ROUTE_LAYER, MARKS_LAYER, ENDS_LAYER]);
+  });
+
+  it("colours the route, the arrows, the marks, and the labels from the theme's overlay", () => {
+    for (const [theme, key] of [[LIGHT, "route-light"], [DARK, "route-dark"]] as const) {
+      const overlay = seed(key).overlay;
+      const style = buildPosterStyle({
+        theme,
+        map: MAP,
         routeMap,
         terrain: false,
-        options: {
-          routeColor: "#ff0000",
-          arrows: true,
-          timeLabels: [{ lat: 46, lng: -114, label: "0m" }],
-        },
+        options: { arrows: true, timeLabels: [{ lat: 46, lng: -114, label: "0m" }] },
+      });
+      expect(layer(style, ROUTE_LAYER).paint).toMatchObject({
+        "line-color": overlay.routeColor,
+        "line-opacity": overlay.routeOpacity,
+      });
+      expect(layer(style, ARROWS_LAYER).paint?.["icon-color"]).toBe(overlay.arrowColor);
+      expect(layer(style, MARKS_LAYER).paint).toMatchObject({
+        "circle-color": overlay.timeLabelBg,
+        "circle-stroke-color": overlay.routeColor,
+      });
+      expect(layer(style, TIME_LABELS_LAYER).paint).toMatchObject({
+        "text-color": overlay.timeLabelFg,
+        "text-halo-color": overlay.timeLabelBg,
+        "text-opacity": overlay.timeLabelOpacity,
+      });
+    }
+  });
+
+  it("draws the picked colour, the arrows, and the time labels", () => {
+    const style = buildPosterStyle({
+      theme: LIGHT,
+      map: MAP,
+      routeMap,
+      terrain: false,
+      options: {
+        routeColor: "#ff0000",
+        arrows: true,
+        timeLabels: [{ lat: 46, lng: -114, label: "0m" }],
       },
-    );
+    });
     const ids = style.layers.map((l) => l.id);
-    const line = style.layers.find((l) => l.id === ROUTE_LAYER) as { paint: Record<string, unknown> };
-    expect(line.paint["line-color"]).toBe("#ff0000");
-    expect(ids).toContain(ARROWS_LAYER);
+    expect(layer(style, ROUTE_LAYER).paint?.["line-color"]).toBe("#ff0000");
+    expect(layer(style, ARROWS_LAYER).paint?.["icon-color"]).toBe("#ff0000");
     expect(ids).toContain(TIME_LABELS_LAYER);
     expect(style.sources[TIME_LABELS_SOURCE]).toBeDefined();
   });
 
   it("leaves the arrows and labels out when they are off", () => {
-    const style = buildPosterStyle(
-      { routeBasemapUrl: BASE },
-      { theme: "dark", routeMap, terrain: false, options: { arrows: false, timeLabels: [] } },
-    );
+    const style = buildPosterStyle({
+      theme: DARK,
+      map: MAP,
+      routeMap,
+      terrain: false,
+      options: { arrows: false, timeLabels: [] },
+    });
     const ids = style.layers.map((l) => l.id);
     expect(ids).not.toContain(ARROWS_LAYER);
     expect(ids).not.toContain(TIME_LABELS_LAYER);
+  });
+
+  it("draws the hillshade only with terrain on a map with a terrain file", () => {
+    const hillshade = (style: StyleSpecification) =>
+      style.layers.filter((l) => (l as { source?: string }).source === "terrain").map((l) => l.id);
+    const shaded = buildPosterStyle({ theme: LIGHT, map: MAP, routeMap, terrain: true, options: {} });
+    expect(hillshade(shaded)).toEqual(["terrain-hillshade"]);
+    expect(shaded.sources.terrain).toMatchObject({ url: `pmtiles://${MAP.terrainUrl}` });
+    for (const [map, terrain] of [[MAP, false], [FLAT_MAP, true]] as const) {
+      const flat = buildPosterStyle({ theme: LIGHT, map, routeMap, terrain, options: {} });
+      expect(hillshade(flat)).toEqual([]);
+      expect(flat.sources.terrain).toBeUndefined();
+    }
+  });
+
+  it("drops the seed layers of each detail group turned off and keeps the rest", () => {
+    const all = buildPosterStyle({ theme: LIGHT, map: MAP, routeMap, terrain: false, options: {} })
+      .layers.map((l) => l.id);
+    for (const group of ["landmarks", "placeNames", "roadLabels"] as const) {
+      for (const id of DETAIL_LAYERS[group]) expect(all).toContain(id);
+      const ids = buildPosterStyle({
+        theme: LIGHT,
+        map: MAP,
+        routeMap,
+        terrain: false,
+        options: { details: { [group]: false } },
+      }).layers.map((l) => l.id);
+      expect(ids).toEqual(all.filter((id) => !DETAIL_LAYERS[group].includes(id)));
+    }
+  });
+
+  it("drops every layer marked wmsfo:places with Landmarks off", () => {
+    const body: StyleSpecification = {
+      ...LIGHT.body,
+      layers: [
+        ...LIGHT.body.layers,
+        {
+          id: "my-places",
+          type: "symbol",
+          source: "basemap",
+          "source-layer": "pois",
+          metadata: { "wmsfo:places": true },
+        },
+      ],
+    };
+    const ids = (landmarks: boolean) =>
+      buildPosterStyle({
+        theme: { ...LIGHT, body },
+        map: MAP,
+        routeMap,
+        terrain: false,
+        options: { details: { landmarks } },
+      }).layers.map((l) => l.id);
+    expect(ids(true)).toContain("my-places");
+    expect(ids(false)).not.toContain("my-places");
   });
 });
 
@@ -146,44 +255,30 @@ describe("the poster's label sizes", () => {
     durationMinutes: 47,
   };
 
-  // The poster's labels: 20 px times and 14 px landmark names at every
-  // zoom, their dots on their own zoom stops.
+  // The poster's labels: 20 px times at every zoom, their dots on their
+  // own zoom stops.
   it("keeps the full label sizes at every zoom whatever label options it is given", () => {
     for (const extra of [{}, { labelScale: 1.3 }, { labelCurve: "zoom" as const }]) {
-      const style = buildPosterStyle(
-        { routeBasemapUrl: BASE },
-        {
-          theme: "light",
-          routeMap,
-          terrain: false,
-          options: {
-            timeLabels: [{ lat: 46, lng: -114, label: "0m" }],
-            landmarks: [{ lat: 46.1, lng: -114.1, label: "Depot" }],
-            ...extra,
-          },
-        },
-      );
-      const layer = (id: string) =>
-        style.layers.find((l) => l.id === id) as {
-          layout?: Record<string, unknown>;
-          paint?: Record<string, unknown>;
-        };
+      const style = buildPosterStyle({
+        theme: LIGHT,
+        map: MAP,
+        routeMap,
+        terrain: false,
+        options: { timeLabels: [{ lat: 46, lng: -114, label: "0m" }], ...extra },
+      });
+      const layer = (id: string) => style.layers.find((l) => l.id === id) as Painted;
       expect(layer(TIME_LABELS_LAYER).layout?.["text-size"]).toBe(20);
-      expect(layer(LANDMARKS_LAYER).layout?.["text-size"]).toBe(14);
       expect(layer(TIME_LABEL_DOTS_LAYER).paint?.["circle-radius"]).toEqual([
         "interpolate", ["linear"], ["zoom"], 8, 3.5, 14, 4.5,
-      ]);
-      expect(layer(LANDMARK_DOTS_LAYER).paint?.["circle-radius"]).toEqual([
-        "interpolate", ["linear"], ["zoom"], 8, 2.5, 14, 3.5,
       ]);
     }
   });
 });
 
 describe("route colour", () => {
-  it("defaults to the theme's route colour and accepts only #rrggbb", () => {
-    expect(themeRouteColor("light")).toBe(ROUTE_PALETTES.light.routeColor);
-    expect(themeRouteColor("dark")).toBe(ROUTE_PALETTES.dark.routeColor);
+  it("defaults to the theme's overlay route colour and accepts only #rrggbb", () => {
+    expect(themeRouteColor(LIGHT)).toBe("#1a56c4");
+    expect(themeRouteColor(DARK)).toBe("#33d6ff");
     expect(isHexColor("#1A56c4")).toBe(true);
     expect(isHexColor("#1a56c")).toBe(false);
     expect(isHexColor("1a56c4")).toBe(false);
