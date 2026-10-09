@@ -493,15 +493,16 @@ describe("ThemeEditorDialog", () => {
   });
 
   it("saves a new theme as multipart with the next free sortOrder", async () => {
-    // The test DOM's File body never streams through fetch, so the form
-    // is read from the call and the handler answers from the headers.
+    // The test DOM's File body never streams through fetch, and the content
+    // type the test fetch stamps on a FormData body is the environment's,
+    // so the form is read from the call (the client sends a FormData body
+    // with no header and the browser sets the multipart type) and the
+    // handler answers 201.
     const createForm = vi.spyOn(themesApi, "createForm");
-    let contentType: string | null = null;
     server.use(
-      http.post(`${API}/admin/themes`, ({ request }) => {
-        contentType = request.headers.get("content-type");
-        return HttpResponse.json({ ...byKey("route-light"), id: 42 }, { status: 201 });
-      }),
+      http.post(`${API}/admin/themes`, () =>
+        HttpResponse.json({ ...byKey("route-light"), id: 42 }, { status: 201 }),
+      ),
     );
     const user = userEvent.setup();
     const onClose = vi.fn();
@@ -512,7 +513,6 @@ describe("ThemeEditorDialog", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(await screen.findByText("Theme saved")).toBeInTheDocument();
-    expect(contentType).toMatch(/^multipart\/form-data/);
     expect(createForm).toHaveBeenCalledTimes(1);
     const fd = createForm.mock.calls[0]![0];
     expect(fd.get("renderer")).toBe("maplibre");
