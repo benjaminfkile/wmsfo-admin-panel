@@ -118,6 +118,34 @@ export const handlers: HttpHandler[] = [
       : HttpResponse.json(NOT_FOUND, { status: 404 });
   }),
   http.delete("*/admin/themes/:id", () => new HttpResponse(null, { status: 204 })),
+  http.post("*/admin/themes", () =>
+    HttpResponse.json({ ...f.trackerThemes[0], id: 99 }, { status: 201 })
+  ),
+  http.post("*/admin/themes/:id/sprite", async ({ params, request }) => {
+    const body = (await request.json()) as { indexSha256: string };
+    return HttpResponse.json(f.spriteTickets(Number(params.id), body.indexSha256), {
+      status: 201,
+    });
+  }),
+  http.post("*/admin/themes/:id/sprite/confirm", async ({ params, request }) => {
+    const body = (await request.json()) as { indexSha256: string };
+    const theme = f.trackerThemes.find((t) => String(t.id) === String(params.id));
+    return HttpResponse.json({ ...(theme ?? f.trackerThemes[0]), spriteSha256: body.indexSha256 });
+  }),
+  http.post("*/admin/themes/:id/default", async ({ params, request }) => {
+    const body = (await request.json()) as { light?: boolean; dark?: boolean };
+    const theme = f.trackerThemes.find((t) => String(t.id) === String(params.id));
+    return HttpResponse.json({
+      ...(theme ?? f.trackerThemes[0]),
+      ...(body.light !== undefined ? { defaultLightMode: body.light } : {}),
+      ...(body.dark !== undefined ? { defaultDarkMode: body.dark } : {}),
+    });
+  }),
+  http.get("https://cdn.example/themes/:renderer/:file", ({ params }) => {
+    const key = String(params.file).replace(/\.json$/, "");
+    const style = f.themeStyles[key];
+    return style ? HttpResponse.json(style) : HttpResponse.json(NOT_FOUND, { status: 404 });
+  }),
 
   // Beacons
   http.get("*/admin/beacons", () =>

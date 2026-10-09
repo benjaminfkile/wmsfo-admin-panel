@@ -37,6 +37,8 @@ export type ThemeBody = {
 export const themes = {
   list: () => get<{ items: TrackerTheme[] }>("/admin/themes"),
   create: (b: ThemeBody) => post<TrackerTheme>("/admin/themes", b),
+  createForm: (form: FormData) =>
+    request<TrackerTheme>({ method: "POST", path: "/admin/themes", form }),
   patch: (id: number, b: Partial<Omit<ThemeBody, "renderer">>) =>
     patch<TrackerTheme>(`/admin/themes/${id}`, b),
   spriteTickets: (id: number, indexSha256: string) =>

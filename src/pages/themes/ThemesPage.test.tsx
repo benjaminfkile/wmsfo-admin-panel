@@ -26,6 +26,35 @@ import {
 import routeLight from "../../../contracts/fixtures/themes/route-light.json";
 import type { TrackerTheme } from "../../api/types";
 
+vi.mock("maplibre-gl", () => {
+  class Map {
+    on() {
+      return this;
+    }
+    remove() {
+      return undefined;
+    }
+    addImage() {
+      return undefined;
+    }
+    hasImage() {
+      return false;
+    }
+  }
+  return { Map, addProtocol: () => undefined, setWorkerUrl: () => undefined };
+});
+
+vi.mock("pmtiles", () => ({
+  Protocol: class {
+    tile = () => undefined;
+  },
+  PMTiles: class {},
+}));
+
+vi.mock("../places/googleMaps", () => ({
+  loadMaps: () => new Promise(() => undefined),
+}));
+
 const downloads = vi.hoisted(() => [] as Array<{ blob: Blob; filename: string }>);
 vi.mock("../../lib/download", () => ({
   downloadBlob: (blob: Blob, filename: string) => {
@@ -291,7 +320,7 @@ describe("ThemesPage", () => {
     expect(
       await screen.findByRole("dialog", { name: "New theme" })
     ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /^close$/i }));
+    await user.click(screen.getByRole("button", { name: /^cancel$/i }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     await user.click(screen.getByRole("button", { name: /edit night/i }));
     expect(
