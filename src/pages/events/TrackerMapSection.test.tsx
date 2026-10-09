@@ -21,29 +21,36 @@ import {
 
 vi.setConfig({ testTimeout: 20_000 });
 
-// The box editor's map: created over the dev basemap, never loaded here.
+// The box editor's map: a Google map on the Maps key, never drawn here.
 const created: Record<string, unknown>[] = [];
-vi.mock("maplibre-gl", () => {
+vi.mock("../../pages/places/googleMaps", () => {
   class Map {
-    constructor(opts: Record<string, unknown>) {
+    constructor(_div: HTMLElement, opts: Record<string, unknown>) {
       created.push(opts);
     }
-    on() {
-      return this;
-    }
-    remove() {
-      return undefined;
+    fitBounds() {}
+    setOptions() {}
+    addListener() {
+      return { remove: () => undefined };
     }
   }
-  return { Map, Marker: class {}, addProtocol: () => undefined, setWorkerUrl: () => undefined };
+  class Overlay {
+    setMap() {}
+    setBounds() {}
+    setPaths() {}
+  }
+  class Marker extends Overlay {
+    setPosition() {}
+    addListener() {
+      return { remove: () => undefined };
+    }
+  }
+  return {
+    loadMaps: vi.fn(async () => ({ Map, Rectangle: Overlay, Polygon: Overlay })),
+    loadMarkers: vi.fn(async () => ({ Marker })),
+    loadPlaces: vi.fn(async () => ({})),
+  };
 });
-
-vi.mock("pmtiles", () => ({
-  Protocol: class {
-    tile = () => undefined;
-  },
-  PMTiles: class {},
-}));
 
 const BOX = { west: -114.3, south: 46.75, east: -113.8, north: 47.05 };
 const SITE_BOX = { west: -114.2, south: 46.8, east: -113.9, north: 47.0 };
@@ -153,10 +160,9 @@ describe("TrackerMapSection", () => {
     expect(field("east").value).toBe("-113.8000");
     expect(field("north").value).toBe("47.0500");
     expect(within(card).getByTestId("bbox-min-zoom")).toHaveTextContent(/^Minimum zoom: .+ on a phone, .+ on a desktop$/);
-    // The editor's map is drawn over the dev basemap.
+    // The editor's map is a Google map.
     await waitFor(() => expect(created).toHaveLength(1));
-    const style = created[0]!.style as { sources: Record<string, { url?: string }> };
-    expect(style.sources.basemap?.url).toBe("pmtiles://https://basemap.test/tiles.pmtiles");
+    expect(created[0]).toMatchObject({ gestureHandling: "greedy" });
 
     expect(within(card).getByRole("checkbox", { name: "Route light" })).toBeChecked();
     expect(within(card).getByRole("checkbox", { name: "Route dark" })).toBeChecked();

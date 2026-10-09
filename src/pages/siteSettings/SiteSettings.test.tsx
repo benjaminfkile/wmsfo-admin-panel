@@ -19,6 +19,13 @@ import {
   testConfig,
 } from "../../test/renderWithProviders";
 
+// The Google maps on the page never load here.
+vi.mock("../../pages/places/googleMaps", () => ({
+  loadMaps: vi.fn(() => new Promise(() => undefined)),
+  loadMarkers: vi.fn(() => new Promise(() => undefined)),
+  loadPlaces: vi.fn(() => new Promise(() => undefined)),
+}));
+
 vi.mock("../../lib/download", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/download")>();
   return { ...actual, downloadText: vi.fn() };

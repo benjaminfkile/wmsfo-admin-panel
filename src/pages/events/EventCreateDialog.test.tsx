@@ -20,8 +20,8 @@ import {
   testConfig,
 } from "../../test/renderWithProviders";
 
-// Without the basemap variable the box editor shows its fields alone.
-const config = { ...testConfig, routeBasemapUrl: "" };
+// Without the Maps key the box editor shows its fields alone.
+const config = { ...testConfig, googleMapsKey: "" };
 
 vi.setConfig({ testTimeout: 15_000 });
 
