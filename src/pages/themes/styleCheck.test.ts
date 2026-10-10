@@ -42,11 +42,29 @@ describe("checkStyle", () => {
     );
   });
 
-  it("refuses a MapLibre style with a url on a source", () => {
-    const style = withSource("basemap", { type: "vector", url: "pmtiles://tiles.pmtiles" });
-    expect(reason(checkStyle("maplibre", JSON.stringify(style)))).toBe(
-      'The "basemap" source must not have a url or tiles; the map supplies them.',
-    );
+  it("strips glyphs, sprite, and the source url and tiles before the rules run", () => {
+    const style = {
+      ...routeLight,
+      glyphs: "https://basemap.test/glyphs/{fontstack}/{range}.pbf",
+      sprite: "https://basemap.test/sprite",
+      sources: {
+        ...routeLight.sources,
+        basemap: {
+          ...routeLight.sources.basemap,
+          url: "pmtiles://https://basemap.test/tiles.pmtiles",
+          tiles: ["https://basemap.test/{z}/{x}/{y}.pbf"],
+        },
+      },
+    };
+    const c = checkStyle("maplibre", JSON.stringify(style));
+    if (!c.ok) throw new Error(c.reason);
+    const out = c.style as Record<string, unknown> & { sources: Record<string, object> };
+    expect(out).not.toHaveProperty("glyphs");
+    expect(out).not.toHaveProperty("sprite");
+    expect(out.sources.basemap).not.toHaveProperty("url");
+    expect(out.sources.basemap).not.toHaveProperty("tiles");
+    expect(out).toEqual(routeLight);
+    expect(c.canonicalBytes).toBe(new TextEncoder().encode(JSON.stringify(routeLight)).length);
   });
 
   it("refuses a source other than basemap and terrain", () => {
