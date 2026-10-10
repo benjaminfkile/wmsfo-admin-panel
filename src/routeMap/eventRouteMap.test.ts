@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { StyleSpecification } from "maplibre-gl";
 import type { TrackerMap, TrackerTheme } from "../api/types";
 import themeSeed from "../../contracts/fixtures/themes/seed.json";
-import routeLightStyle from "../../contracts/fixtures/themes/route-light.json";
+import lightStyle from "../../contracts/fixtures/themes/light.json";
 import {
   NO_MAP_HINT,
   NO_THEME_HINT,
@@ -126,8 +126,8 @@ describe("siteTimeLabels", () => {
 });
 
 const THEMES = themeSeed.map((t, i) => ({ ...t, id: i + 1 })) as TrackerTheme[];
-const LIGHT = THEMES.find((t) => t.key === "route-light")!;
-const BODY = routeLightStyle as StyleSpecification;
+const LIGHT = THEMES.find((t) => t.key === "light")!;
+const BODY = lightStyle as StyleSpecification;
 const MAPS: TrackerMap[] = [
   {
     id: 1,
@@ -216,14 +216,14 @@ describe("eventRouteMapSource", () => {
     const light = eventRouteMapSource(event, MAPS, THEMES, "light");
     expect(light.hint).toBeNull();
     expect(light.map?.id).toBe(1);
-    expect(light.theme?.key).toBe("route-light");
-    expect(eventRouteMapSource(event, MAPS, THEMES, "dark").theme?.key).toBe("route-dark");
+    expect(light.theme?.key).toBe("light");
+    expect(eventRouteMapSource(event, MAPS, THEMES, "dark").theme?.key).toBe("dark");
     expect(eventRouteMapSource({ ...event, trackerMapId: 2 }, MAPS, THEMES, "dark").map?.id).toBe(2);
   });
 
   it("falls back to the first enabled MapLibre theme without the flag", () => {
     const only = { ...event, trackerThemeIds: [2, 3] };
-    expect(eventRouteMapSource(only, MAPS, THEMES, "light").theme?.key).toBe("route-dark");
+    expect(eventRouteMapSource(only, MAPS, THEMES, "light").theme?.key).toBe("dark");
   });
 
   it("gives the hint without a map or without an enabled MapLibre theme", () => {

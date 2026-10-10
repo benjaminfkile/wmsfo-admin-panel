@@ -336,10 +336,10 @@ describe("the Route map modal", () => {
     expectPreviewInSync();
     // The event's map and its enabled MapLibre theme carrying the light
     // default, with that theme's loaded body.
-    const light = f.trackerThemes.find((t) => t.key === "route-light")!;
+    const light = f.trackerThemes.find((t) => t.key === "light")!;
     expect(input.map).toMatchObject({ id: 1, tilesUrl: f.trackerMaps[0]!.tilesUrl });
     expect(input.theme.overlay).toEqual(light.overlay);
-    expect(input.theme.body).toEqual(f.themeStyles["route-light"]);
+    expect(input.theme.body).toEqual(f.themeStyles.light);
     const built = maps.at(-1)!.styles.at(-1) as { sources: Record<string, { url?: string }> };
     expect(built.sources.basemap?.url).toBe(`pmtiles://${f.trackerMaps[0]!.tilesUrl}`);
     expect(within(dialog).getByTestId("route-map-preview-fullscreen")).toBeInTheDocument();
@@ -349,9 +349,9 @@ describe("the Route map modal", () => {
   it("previews the theme carrying the dark default when Dark is picked", async () => {
     const dialog = await openDialog(makeEvent({ routeMapConfig: null }));
     fireEvent.click(within(dialog).getByRole("button", { name: "Dark" }));
-    const dark = f.trackerThemes.find((t) => t.key === "route-dark")!;
+    const dark = f.trackerThemes.find((t) => t.key === "dark")!;
     await waitFor(() => expect(lastStyleInput().theme.overlay).toEqual(dark.overlay));
-    await waitFor(() => expect(lastStyleInput().theme.body).toEqual(f.themeStyles["route-dark"]));
+    await waitFor(() => expect(lastStyleInput().theme.body).toEqual(f.themeStyles.dark));
     expectPreviewInSync();
   });
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { StyleSpecification } from "maplibre-gl";
-import routeLight from "../../contracts/fixtures/themes/route-light.json";
-import routeDark from "../../contracts/fixtures/themes/route-dark.json";
+import lightStyle from "../../contracts/fixtures/themes/light.json";
+import darkStyle from "../../contracts/fixtures/themes/dark.json";
 import { applyMap, isPlacesLayer } from "./themeStyle";
 import { applyDevBasemap, forMaputnik } from "./index";
 import { testConfig } from "../test/renderWithProviders";
@@ -107,7 +107,7 @@ describe("applyDevBasemap", () => {
 
 describe("forMaputnik", () => {
   const base = testConfig.routeBasemapUrl;
-  const seed = routeLight as unknown as StyleSpecification;
+  const seed = lightStyle as unknown as StyleSpecification;
 
   it("gives the seed the glyph template and the two pmtiles URLs", () => {
     const out = forMaputnik(seed, testConfig);
@@ -134,8 +134,8 @@ describe("forMaputnik", () => {
 
 describe("the two seed fixtures", () => {
   for (const [name, seed] of [
-    ["route-light", routeLight],
-    ["route-dark", routeDark],
+    ["light", lightStyle],
+    ["dark", darkStyle],
   ] as const) {
     it(`${name} passes through both unchanged apart from its sources`, () => {
       const style = seed as unknown as StyleSpecification;

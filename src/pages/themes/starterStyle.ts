@@ -1,13 +1,13 @@
 import type { StyleSpecification } from "maplibre-gl";
-import routeLight from "../../../contracts/fixtures/themes/route-light.json";
+import lightStyle from "../../../contracts/fixtures/themes/light.json";
 import type { Config } from "../../config";
 import { downloadBlob } from "../../lib/download";
 import { forMaputnik } from "../../routeMap";
 
-// The starter style (admin.md 6.28): the vendored `route-light` seed,
+// The starter style (admin.md 6.28): the vendored `light` seed,
 // with sources named `basemap` and `terrain` and its places layer
 // marked, for a Maputnik edit and an import back as a theme.
-export const starterStyle: unknown = routeLight;
+export const starterStyle: unknown = lightStyle;
 
 export const STARTER_STYLE_FILENAME = "starter-style.json";
 

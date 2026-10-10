@@ -10,8 +10,8 @@ import {
 } from "./posterStyle";
 import type { StyleSpecification } from "maplibre-gl";
 import themeSeed from "../../contracts/fixtures/themes/seed.json";
-import routeLightStyle from "../../contracts/fixtures/themes/route-light.json";
-import routeDarkStyle from "../../contracts/fixtures/themes/route-dark.json";
+import lightStyle from "../../contracts/fixtures/themes/light.json";
+import darkStyle from "../../contracts/fixtures/themes/dark.json";
 import {
   ARROWS_LAYER,
   DETAIL_LAYERS,
@@ -24,8 +24,8 @@ import {
 } from "./routeLayers";
 
 const seed = (key: string) => themeSeed.find((t) => t.key === key)!;
-const LIGHT = { overlay: seed("route-light").overlay, body: routeLightStyle as StyleSpecification };
-const DARK = { overlay: seed("route-dark").overlay, body: routeDarkStyle as StyleSpecification };
+const LIGHT = { overlay: seed("light").overlay, body: lightStyle as StyleSpecification };
+const DARK = { overlay: seed("dark").overlay, body: darkStyle as StyleSpecification };
 const MAP = {
   tilesUrl: "https://cdn.example/maps/7/tiles.pmtiles",
   terrainUrl: "https://cdn.example/maps/7/terrain.pmtiles",
@@ -126,7 +126,7 @@ describe("buildPosterStyle", () => {
     expect(style.sources.basemap).toMatchObject({ url: `pmtiles://${MAP.tilesUrl}` });
     expect(style.glyphs).toBe(LIGHT.body.glyphs);
     const ids = style.layers.map((l) => l.id);
-    const themeIds = routeLightStyle.layers
+    const themeIds = lightStyle.layers
       .filter((l) => (l as { source?: string }).source !== "terrain")
       .map((l) => l.id);
     expect(ids.slice(0, themeIds.length)).toEqual(themeIds);
@@ -134,7 +134,7 @@ describe("buildPosterStyle", () => {
   });
 
   it("colours the route, the arrows, the marks, and the labels from the theme's overlay", () => {
-    for (const [theme, key] of [[LIGHT, "route-light"], [DARK, "route-dark"]] as const) {
+    for (const [theme, key] of [[LIGHT, "light"], [DARK, "dark"]] as const) {
       const overlay = seed(key).overlay;
       const style = buildPosterStyle({
         theme,

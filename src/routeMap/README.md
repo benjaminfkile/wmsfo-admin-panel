@@ -3,7 +3,7 @@
 Every file here belongs to the panel. The panel builds no basemap style of
 its own: every map it draws is a tracker theme's style body over a tracker
 map row, the way the site draws it, and the two seeded MapLibre themes
-(`route-light` and `route-dark`) are the route map style the site used
+(`light` and `dark`) are the route map style the site used
 before themes were rows. The fixtures under `contracts/fixtures/themes/`
 are the fidelity check against the site.
 

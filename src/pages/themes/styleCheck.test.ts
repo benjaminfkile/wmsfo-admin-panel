@@ -2,7 +2,7 @@
 // renderers, then `validateStyleMin` for MapLibre.
 
 import { describe, expect, it } from "vitest";
-import routeLight from "../../../contracts/fixtures/themes/route-light.json";
+import lightStyle from "../../../contracts/fixtures/themes/light.json";
 import standard from "../../../contracts/fixtures/themes/standard.json";
 import { checkStyle, type StyleCheck } from "./styleCheck";
 
@@ -12,14 +12,14 @@ function reason(c: StyleCheck): string {
 }
 
 function withSource(id: string, source: Record<string, unknown>) {
-  return { ...routeLight, sources: { ...routeLight.sources, [id]: source } };
+  return { ...lightStyle, sources: { ...lightStyle.sources, [id]: source } };
 }
 
 describe("checkStyle", () => {
   it("passes the two seed fixtures with their layer counts", () => {
-    const light = checkStyle("maplibre", JSON.stringify(routeLight));
+    const light = checkStyle("maplibre", JSON.stringify(lightStyle));
     expect(light.ok).toBe(true);
-    if (light.ok) expect(light.layerCount).toBe(routeLight.layers.length);
+    if (light.ok) expect(light.layerCount).toBe(lightStyle.layers.length);
     const google = checkStyle("google", JSON.stringify(standard));
     expect(google.ok).toBe(true);
     if (google.ok) expect(google.layerCount).toBe(standard.length);
@@ -37,20 +37,20 @@ describe("checkStyle", () => {
   });
 
   it("refuses a MapLibre style for the Google renderer", () => {
-    expect(reason(checkStyle("google", JSON.stringify(routeLight)))).toBe(
+    expect(reason(checkStyle("google", JSON.stringify(lightStyle)))).toBe(
       "A Google Maps style is a JSON array of style rules.",
     );
   });
 
   it("strips glyphs, sprite, and the source url and tiles before the rules run", () => {
     const style = {
-      ...routeLight,
+      ...lightStyle,
       glyphs: "https://basemap.test/glyphs/{fontstack}/{range}.pbf",
       sprite: "https://basemap.test/sprite",
       sources: {
-        ...routeLight.sources,
+        ...lightStyle.sources,
         basemap: {
-          ...routeLight.sources.basemap,
+          ...lightStyle.sources.basemap,
           url: "pmtiles://https://basemap.test/tiles.pmtiles",
           tiles: ["https://basemap.test/{z}/{x}/{y}.pbf"],
         },
@@ -63,8 +63,8 @@ describe("checkStyle", () => {
     expect(out).not.toHaveProperty("sprite");
     expect(out.sources.basemap).not.toHaveProperty("url");
     expect(out.sources.basemap).not.toHaveProperty("tiles");
-    expect(out).toEqual(routeLight);
-    expect(c.canonicalBytes).toBe(new TextEncoder().encode(JSON.stringify(routeLight)).length);
+    expect(out).toEqual(lightStyle);
+    expect(c.canonicalBytes).toBe(new TextEncoder().encode(JSON.stringify(lightStyle)).length);
   });
 
   it("refuses a source other than basemap and terrain", () => {
@@ -76,8 +76,8 @@ describe("checkStyle", () => {
 
   it("refuses a layer on an unknown source", () => {
     const style = {
-      ...routeLight,
-      layers: [...routeLight.layers, { id: "stray", type: "line", source: "roads", "source-layer": "x" }],
+      ...lightStyle,
+      layers: [...lightStyle.layers, { id: "stray", type: "line", source: "roads", "source-layer": "x" }],
     };
     expect(reason(checkStyle("maplibre", JSON.stringify(style)))).toBe(
       'The layer "stray" uses the source "roads"; layers draw from "basemap" or "terrain".',
@@ -86,9 +86,9 @@ describe("checkStyle", () => {
 
   it("refuses a string starting with http", () => {
     const style = {
-      ...routeLight,
+      ...lightStyle,
       layers: [
-        ...routeLight.layers,
+        ...lightStyle.layers,
         {
           id: "icons",
           type: "symbol",
@@ -99,12 +99,12 @@ describe("checkStyle", () => {
       ],
     };
     expect(reason(checkStyle("maplibre", JSON.stringify(style)))).toBe(
-      `The string at layers[${routeLight.layers.length}].layout.icon-image starts with http; the style must not name a URL.`,
+      `The string at layers[${lightStyle.layers.length}].layout.icon-image starts with http; the style must not name a URL.`,
     );
   });
 
   it("refuses a version other than 8", () => {
-    expect(reason(checkStyle("maplibre", JSON.stringify({ ...routeLight, version: 7 })))).toBe(
+    expect(reason(checkStyle("maplibre", JSON.stringify({ ...lightStyle, version: 7 })))).toBe(
       "The style's version must be 8.",
     );
   });
@@ -120,14 +120,14 @@ describe("checkStyle", () => {
       type: "background",
       paint: { "background-color": "#ffffff" },
     }));
-    expect(reason(checkStyle("maplibre", JSON.stringify({ ...routeLight, layers })))).toMatch(
+    expect(reason(checkStyle("maplibre", JSON.stringify({ ...lightStyle, layers })))).toMatch(
       /the limit is 512 KB\.$/,
     );
   });
 
   it("shows the first problem validateStyleMin finds", () => {
     const style = {
-      ...routeLight,
+      ...lightStyle,
       layers: [
         { id: "bad", type: "line", source: "basemap", "source-layer": "roads", paint: { "line-color": "nope" } },
       ],
