@@ -17,12 +17,12 @@ import {
 import { posterSize } from "./poster";
 import { ARROW_SCALES, DEFAULT_ARROW_SCALE } from "./posterStyle";
 
-// route-light (1) and route-dark (2) seeds and one theme of the admin's
+// light (1) and dark (2) seeds and one theme of the admin's
 // own; the Missoula valley map (1) and another (3).
 const CHOICES: LayoutChoices = {
   themes: [
-    { id: 1, key: "route-light" },
-    { id: 2, key: "route-dark" },
+    { id: 1, key: "light" },
+    { id: 2, key: "dark" },
     { id: 9, key: "harbour" },
   ],
   maps: [{ id: 1 }, { id: 3 }],

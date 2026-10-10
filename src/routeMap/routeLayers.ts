@@ -113,7 +113,7 @@ export function withoutDetails(
   };
 }
 
-// The overlay colours of the route-light seed, for a theme row that lacks
+// The overlay colours of the light seed, for a theme row that lacks
 // one of them.
 const FALLBACK_OVERLAY: Overlay = {
   routeColor: "#1a56c4",

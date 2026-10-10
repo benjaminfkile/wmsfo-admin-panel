@@ -51,11 +51,11 @@ import type {
 import themeSeed from "../../../contracts/fixtures/themes/seed.json";
 import blizzardStyle from "../../../contracts/fixtures/themes/blizzard.json";
 import charcoalStyle from "../../../contracts/fixtures/themes/charcoal.json";
+import darkStyle from "../../../contracts/fixtures/themes/dark.json";
 import expeditionStyle from "../../../contracts/fixtures/themes/expedition.json";
+import lightStyle from "../../../contracts/fixtures/themes/light.json";
 import nebulaStyle from "../../../contracts/fixtures/themes/nebula.json";
 import nightStyle from "../../../contracts/fixtures/themes/night.json";
-import routeDarkStyle from "../../../contracts/fixtures/themes/route-dark.json";
-import routeLightStyle from "../../../contracts/fixtures/themes/route-light.json";
 import standardStyle from "../../../contracts/fixtures/themes/standard.json";
 
 const NOW = "2026-12-22T01:31:07.412Z";
@@ -899,11 +899,11 @@ export const trackerThemes: TrackerTheme[] = themeSeed.map((t, i) => ({
 export const themeStyles: Record<string, unknown> = {
   blizzard: blizzardStyle,
   charcoal: charcoalStyle,
+  dark: darkStyle,
   expedition: expeditionStyle,
+  light: lightStyle,
   nebula: nebulaStyle,
   night: nightStyle,
-  "route-dark": routeDarkStyle,
-  "route-light": routeLightStyle,
   standard: standardStyle,
 };
 
@@ -1037,7 +1037,7 @@ export const impactByResource: Record<string, DeleteImpact> = {
     ],
   },
   "maps/2": emptyImpact,
-  // themes/1 is Route light, the MapLibre light default, offered by the
+  // themes/1 is Light, the MapLibre light default, offered by the
   // live event.
   "themes/1": {
     blocked: null,

@@ -164,8 +164,8 @@ describe("TrackerMapSection", () => {
     await waitFor(() => expect(created).toHaveLength(1));
     expect(created[0]).toMatchObject({ gestureHandling: "greedy" });
 
-    expect(within(card).getByRole("checkbox", { name: "Route light" })).toBeChecked();
-    expect(within(card).getByRole("checkbox", { name: "Route dark" })).toBeChecked();
+    expect(within(card).getByRole("checkbox", { name: "Light" })).toBeChecked();
+    expect(within(card).getByRole("checkbox", { name: "Dark" })).toBeChecked();
     expect(within(card).getByRole("checkbox", { name: "Standard" })).toBeChecked();
     expect(within(card).getByRole("checkbox", { name: "Night" })).not.toBeChecked();
     expect(within(card).getByTestId("tracker-map-note")).toHaveTextContent(
@@ -274,7 +274,7 @@ describe("TrackerMapSection", () => {
       })
     );
     const card = await renderCard();
-    await user.click(within(card).getByRole("checkbox", { name: "Route dark" }));
+    await user.click(within(card).getByRole("checkbox", { name: "Dark" }));
     await user.click(within(card).getByTestId("tracker-map-save"));
     await waitFor(() => expect(bodies).toHaveLength(1));
     expect(bodies[0]).toEqual({ trackerThemeIds: [1, 3] });

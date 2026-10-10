@@ -140,13 +140,13 @@ describe("EventCreateDialog: Tracker area", () => {
     const line = await screen.findByTestId("tracker-preview");
     await waitFor(() =>
       expect(line).toHaveTextContent(
-        "Will use the map Missoula valley and the themes Route light, Route dark from Santa Flyover 2026"
+        "Will use the map Missoula valley and the themes Light, Dark from Santa Flyover 2026"
       )
     );
     // A box past the map's package drops the map.
     fireEvent.change(field("west"), { target: { value: "-116" } });
     expect(line).toHaveTextContent(
-      "Will use no map (the map of Santa Flyover 2026 does not cover this area) and the themes Route light, Route dark from Santa Flyover 2026"
+      "Will use no map (the map of Santa Flyover 2026 does not cover this area) and the themes Light, Dark from Santa Flyover 2026"
     );
   });
 

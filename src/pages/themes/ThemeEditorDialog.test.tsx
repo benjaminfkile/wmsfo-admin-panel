@@ -21,7 +21,7 @@ import { buildTheme } from "../../theme/theme";
 import { server } from "../../test/msw/server";
 import * as f from "../../test/msw/fixtures";
 import { makeFakeUserManager, makeUser, testConfig } from "../../test/renderWithProviders";
-import routeLight from "../../../contracts/fixtures/themes/route-light.json";
+import lightStyle from "../../../contracts/fixtures/themes/light.json";
 import standard from "../../../contracts/fixtures/themes/standard.json";
 import { themes as themesApi } from "../../api/resources/themes";
 import type { Config } from "../../config";
@@ -272,15 +272,15 @@ describe("ThemeEditorDialog", () => {
     const user = userEvent.setup();
     render(<Harness theme={null} />);
     await screen.findByRole("dialog");
-    await dropStyle(user, { ...routeLight, version: 7 });
+    await dropStyle(user, { ...lightStyle, version: 7 });
     expect(await screen.findByTestId("style-error")).toHaveTextContent(
       "The style's version must be 8.",
     );
     expect(maps.created).toHaveLength(0);
 
-    await dropStyle(user, routeLight);
+    await dropStyle(user, lightStyle);
     expect(await screen.findByTestId("style-summary")).toHaveTextContent(
-      `${routeLight.layers.length} layers`,
+      `${lightStyle.layers.length} layers`,
     );
     await waitFor(() => expect(maps.created).toHaveLength(2));
     expect(maps.created.map((m) => m.zoom)).toEqual([11, 14]);
@@ -311,7 +311,7 @@ describe("ThemeEditorDialog", () => {
     const onClose = vi.fn();
     render(<Harness theme={null} onClose={onClose} config={{ ...testConfig, routeBasemapUrl: "" }} />);
     await screen.findByRole("dialog");
-    await dropStyle(user, routeLight);
+    await dropStyle(user, lightStyle);
     expect(await screen.findByText(BASEMAP_NOTE)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Render thumbnail" })).toBeDisabled();
     await fillKeyAndName(user, "candy-cane", "Candy cane");
@@ -342,7 +342,7 @@ describe("ThemeEditorDialog", () => {
     render(<Harness theme={null} />);
     await screen.findByRole("dialog");
     await fillKeyAndName(user, "candy-cane", "Candy cane");
-    await dropStyle(user, routeLight);
+    await dropStyle(user, lightStyle);
     await waitFor(() => expect(maps.created).toHaveLength(2));
     await user.click(screen.getByRole("button", { name: "Render thumbnail" }));
     await waitFor(() =>
@@ -366,7 +366,7 @@ describe("ThemeEditorDialog", () => {
   });
 
   it("reads out the contrast per pair and a failing pair blocks Save", async () => {
-    render(<Harness theme={byKey("route-light")} />);
+    render(<Harness theme={byKey("light")} />);
     await screen.findByRole("dialog");
     const text = screen.getByTestId("contrast-text");
     const tile = screen.getByTestId("contrast-tileFg");
@@ -383,7 +383,7 @@ describe("ThemeEditorDialog", () => {
   });
 
   it("repaints the chrome strip on a colour change", async () => {
-    render(<Harness theme={byKey("route-light")} />);
+    render(<Harness theme={byKey("light")} />);
     await screen.findByRole("dialog");
     await waitFor(() => expect(screen.getAllByTestId("chrome-strip")).toHaveLength(2));
     expect(screen.getAllByTestId("chrome-pill")[0]).toHaveAttribute("data-bg", "#ffffff");
@@ -403,21 +403,21 @@ describe("ThemeEditorDialog", () => {
     server.use(
       http.post(`${API}/admin/themes/:id/default`, async ({ request }) => {
         flags = await request.json();
-        return HttpResponse.json(byKey("route-dark"));
+        return HttpResponse.json(byKey("dark"));
       }),
     );
     const user = userEvent.setup();
     const onClose = vi.fn();
-    const { unmount } = render(<Harness theme={byKey("route-dark")} onClose={onClose} />);
+    const { unmount } = render(<Harness theme={byKey("dark")} onClose={onClose} />);
     await screen.findByRole("dialog");
     const light = screen.getByRole("switch", { name: "Default in light mode" });
     const dark = screen.getByRole("switch", { name: "Default in dark mode" });
     expect(dark).toBeChecked();
-    // Route dark already holds the dark flag: no caption.
+    // Dark already holds the dark flag: no caption.
     expect(screen.queryByTestId("default-dark-caption")).toBeNull();
     await user.click(light);
     expect(screen.getByTestId("default-light-caption")).toHaveTextContent(
-      "Replaces Route light as the light default",
+      "Replaces Light as the light default",
     );
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
@@ -427,7 +427,7 @@ describe("ThemeEditorDialog", () => {
 
     writes = [];
     const closed = vi.fn();
-    render(<Harness theme={byKey("route-dark")} onClose={closed} />);
+    render(<Harness theme={byKey("dark")} onClose={closed} />);
     await screen.findByRole("dialog");
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(closed).toHaveBeenCalled());
@@ -446,12 +446,12 @@ describe("ThemeEditorDialog", () => {
       }),
       http.post(`${API}/admin/themes/:id/sprite/confirm`, async ({ request }) => {
         confirmBody = (await request.json()) as { indexSha256: string };
-        return HttpResponse.json(byKey("route-light"));
+        return HttpResponse.json(byKey("light"));
       }),
     );
     const user = userEvent.setup();
     const onClose = vi.fn();
-    render(<Harness theme={byKey("route-light")} onClose={onClose} />);
+    render(<Harness theme={byKey("light")} onClose={onClose} />);
     await screen.findByRole("dialog");
     const input = screen.getByTestId<HTMLInputElement>("sprite-file-input");
     await user.upload(input, [jsonFile({ pin: { x: 0 } }, "sprite.json")]);
@@ -486,7 +486,7 @@ describe("ThemeEditorDialog", () => {
 
   it("shows Sprite: 4 files and Replace on a theme that has one", async () => {
     const user = userEvent.setup();
-    render(<Harness theme={{ ...byKey("route-light"), spriteSha256: "a".repeat(64) }} />);
+    render(<Harness theme={{ ...byKey("light"), spriteSha256: "a".repeat(64) }} />);
     expect(await screen.findByTestId("sprite-current")).toHaveTextContent("Sprite: 4 files");
     await user.click(screen.getByRole("button", { name: "Replace" }));
     expect(screen.getByTestId("sprite-drop-zone")).toBeInTheDocument();
@@ -501,7 +501,7 @@ describe("ThemeEditorDialog", () => {
     const createForm = vi.spyOn(themesApi, "createForm");
     server.use(
       http.post(`${API}/admin/themes`, () =>
-        HttpResponse.json({ ...byKey("route-light"), id: 42 }, { status: 201 }),
+        HttpResponse.json({ ...byKey("light"), id: 42 }, { status: 201 }),
       ),
     );
     const user = userEvent.setup();
@@ -512,12 +512,12 @@ describe("ThemeEditorDialog", () => {
     // A Maputnik export: the seed with the glyph template, a sprite, and
     // the source URLs the editor wrote into it.
     const exported = {
-      ...routeLight,
+      ...lightStyle,
       glyphs: "https://example.invalid/glyphs/{fontstack}/{range}.pbf",
       sprite: "https://example.invalid/sprite",
       sources: {
-        basemap: { ...routeLight.sources.basemap, url: "pmtiles://https://example.invalid/tiles.pmtiles" },
-        terrain: { ...routeLight.sources.terrain, url: "pmtiles://https://example.invalid/terrain.pmtiles" },
+        basemap: { ...lightStyle.sources.basemap, url: "pmtiles://https://example.invalid/tiles.pmtiles" },
+        terrain: { ...lightStyle.sources.terrain, url: "pmtiles://https://example.invalid/terrain.pmtiles" },
       },
     };
     await dropStyle(user, exported, "candy.json");
@@ -531,13 +531,13 @@ describe("ThemeEditorDialog", () => {
     expect(fd.get("name")).toBe("Candy cane");
     // The MapLibre group holds 10 and 20.
     expect(fd.get("sortOrder")).toBe("30");
-    expect(JSON.parse(fd.get("chrome") as string)).toEqual(byKey("route-light").chrome);
-    expect(JSON.parse(fd.get("overlay") as string)).toEqual(byKey("route-light").overlay);
+    expect(JSON.parse(fd.get("chrome") as string)).toEqual(byKey("light").chrome);
+    expect(JSON.parse(fd.get("overlay") as string)).toEqual(byKey("light").overlay);
     // The file part is the checked document: what the API and the map own
     // is gone, so the export goes up as it was dropped.
     const style = fd.get("style") as File;
     expect(style.name).toBe("candy.json");
-    expect(JSON.parse(await readText(style))).toEqual(routeLight);
+    expect(JSON.parse(await readText(style))).toEqual(lightStyle);
     expect(writes.map((w) => `${w.method} ${w.path}`)).toEqual(["POST /admin/themes"]);
   });
 
@@ -578,7 +578,7 @@ describe("ThemeEditorDialog", () => {
     render(<Harness theme={null} />);
     await screen.findByRole("dialog");
     await fillKeyAndName(user, "candy-cane", "Candy cane");
-    await dropStyle(user, routeLight);
+    await dropStyle(user, lightStyle);
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByText("A MapLibre theme with this key exists")).toBeInTheDocument();
   });
@@ -610,7 +610,7 @@ describe("ThemeEditorDialog", () => {
   it("closes on Cancel without a request", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    render(<Harness theme={byKey("route-light")} onClose={onClose} />);
+    render(<Harness theme={byKey("light")} onClose={onClose} />);
     await screen.findByRole("dialog");
     await user.type(screen.getByRole("textbox", { name: /^name/i }), " changed");
     await user.click(screen.getByRole("button", { name: "Cancel" }));

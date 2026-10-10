@@ -80,7 +80,7 @@ function seedRow(key: string): SeedRow {
 
 // The colours a new theme starts from: the light seed of the renderer.
 function starterColours(renderer: Renderer): { chrome: Chrome; overlay: Overlay } {
-  const row = seedRow(renderer === "google" ? "standard" : "route-light");
+  const row = seedRow(renderer === "google" ? "standard" : "light");
   return { chrome: { ...row.chrome }, overlay: { ...row.overlay } };
 }
 

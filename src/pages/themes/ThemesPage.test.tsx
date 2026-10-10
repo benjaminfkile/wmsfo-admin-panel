@@ -23,7 +23,7 @@ import {
   makeUser,
   testConfig,
 } from "../../test/renderWithProviders";
-import routeLight from "../../../contracts/fixtures/themes/route-light.json";
+import lightStyle from "../../../contracts/fixtures/themes/light.json";
 import type { TrackerTheme } from "../../api/types";
 
 vi.mock("maplibre-gl", () => {
@@ -197,12 +197,12 @@ describe("ThemesPage", () => {
     expect(cardIds("google")).toEqual(
       ids(["standard", "expedition", "blizzard", "charcoal", "night", "nebula"])
     );
-    expect(cardIds("maplibre")).toEqual(ids(["route-light", "route-dark"]));
+    expect(cardIds("maplibre")).toEqual(ids(["light", "dark"]));
 
-    const light = byKey("route-light");
+    const light = byKey("light");
     const card = screen.getByTestId(`theme-card-${String(light.id)}`);
-    expect(within(card).getByText("Route light")).toBeInTheDocument();
-    const key = within(card).getByText("route-light");
+    expect(within(card).getByText("Light")).toBeInTheDocument();
+    const key = within(card).getByText("light");
     expect(key).toHaveStyle({ fontFamily: "monospace" });
     expect(within(card).getByTestId(`theme-swatch-${String(light.id)}`)).toBeInTheDocument();
     const chrome = within(card).getByTestId(`theme-chrome-${String(light.id)}`);
@@ -218,8 +218,8 @@ describe("ThemesPage", () => {
         "Used by 1 event"
       )
     );
-    expect(within(card).getByRole("button", { name: /edit route light/i })).toBeInTheDocument();
-    expect(within(card).getByRole("button", { name: /audit route light/i })).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: /edit light/i })).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: /audit light/i })).toBeInTheDocument();
 
     const night = screen.getByTestId(`theme-card-${String(byKey("night").id)}`);
     expect(within(night).getByText("Dark default")).toBeInTheDocument();
@@ -325,11 +325,11 @@ describe("ThemesPage", () => {
       reader.readAsText(blob);
     });
     expect(JSON.parse(text)).toEqual({
-      ...routeLight,
+      ...lightStyle,
       glyphs: `${BASE}/glyphs/{fontstack}/{range}.pbf`,
       sources: {
-        basemap: { ...routeLight.sources.basemap, url: `pmtiles://${BASE}/tiles.pmtiles` },
-        terrain: { ...routeLight.sources.terrain, url: `pmtiles://${BASE}/terrain.pmtiles` },
+        basemap: { ...lightStyle.sources.basemap, url: `pmtiles://${BASE}/tiles.pmtiles` },
+        terrain: { ...lightStyle.sources.terrain, url: `pmtiles://${BASE}/terrain.pmtiles` },
       },
     });
     expect(screen.getByTestId("help-themes.starter-style")).toBeInTheDocument();
@@ -337,13 +337,13 @@ describe("ThemesPage", () => {
   });
 
   it("Download style on a MapLibre card saves <key>.json with the sources filled", async () => {
-    const light = byKey("route-light");
+    const light = byKey("light");
     render(<Harness />);
     await openMenuItem(light, /^download style$/i);
     await waitFor(() => expect(downloads).toHaveLength(1));
-    expect(downloads[0]!.filename).toBe("route-light.json");
+    expect(downloads[0]!.filename).toBe("light.json");
     const body = JSON.parse(await blobText(downloads[0]!.blob));
-    const seed = f.themeStyles["route-light"] as typeof routeLight;
+    const seed = f.themeStyles.light as typeof lightStyle;
     expect(body.glyphs).toBe(`${BASE}/glyphs/{fontstack}/{range}.pbf`);
     expect(body.sources.basemap).toEqual({
       ...seed.sources.basemap,
@@ -372,7 +372,7 @@ describe("ThemesPage", () => {
       )
     );
     render(<Harness />);
-    await openMenuItem(byKey("route-dark"), /^download style$/i);
+    await openMenuItem(byKey("dark"), /^download style$/i);
     expect(
       await screen.findByText("The theme style could not load (500).")
     ).toBeInTheDocument();
@@ -402,12 +402,12 @@ describe("ThemesPage", () => {
         return new HttpResponse(null, { status: 204 });
       })
     );
-    const light = byKey("route-light");
-    const dark = byKey("route-dark");
+    const light = byKey("light");
+    const dark = byKey("dark");
     render(<Harness />);
     const user = await openDelete(light);
     const dialog = await screen.findByRole("dialog");
-    expect(dialog).toHaveTextContent(/delete route light\?/i);
+    expect(dialog).toHaveTextContent(/delete light\?/i);
     expect(within(dialog).getByTestId("help-themes.delete")).toBeInTheDocument();
     await within(dialog).findByText(/loses its light default/i);
     const select = await within(dialog).findByRole("combobox", {
@@ -418,12 +418,12 @@ describe("ThemesPage", () => {
     const options = within(listbox)
       .getAllByRole("option")
       .map((o) => o.textContent);
-    expect(options).toContain("Route dark");
-    expect(options).not.toContain("Route light");
+    expect(options).toContain("Dark");
+    expect(options).not.toContain("Light");
     for (const g of ["Standard", "Night", "Nebula"]) {
       expect(options).not.toContain(g);
     }
-    await user.click(within(listbox).getByRole("option", { name: "Route dark" }));
+    await user.click(within(listbox).getByRole("option", { name: "Dark" }));
     await user.click(within(dialog).getByRole("button", { name: /^delete$/i }));
     await waitFor(() => expect(deleted).not.toBeNull());
     expect(new URL(deleted!.url).pathname).toBe(`/admin/themes/${String(light.id)}`);

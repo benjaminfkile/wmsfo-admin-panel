@@ -253,8 +253,8 @@ function parseElement(raw: unknown): LayoutElement | null {
 // The seed theme a layout saved before themes were rows names by its
 // `theme` value.
 export const LEGACY_THEME_KEYS: Readonly<Record<string, string>> = {
-  light: "route-light",
-  dark: "route-dark",
+  light: "light",
+  dark: "dark",
 };
 
 // What the Theme and Map selects offer and where they start.
@@ -283,8 +283,8 @@ function offeredId(
 
 // Reads a saved layout. Anything that is not a version 1 document is
 // null. `themeId` and `mapId` keep an offered row; a document of the old
-// form maps its `theme` (`light` or `dark`) to the `route-light` or
-// `route-dark` seed by key, and a missing or unknown id reads as the
+// form maps its `theme` (`light` or `dark`) to the `light` or
+// `dark` seed by key, and a missing or unknown id reads as the
 // default of its select, with `replaced` set. A missing or unknown map
 // choice or route style value reads its default, a detail switch reads
 // on unless it is false, elements of an unknown type or without a
