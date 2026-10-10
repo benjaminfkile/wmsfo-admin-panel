@@ -236,8 +236,10 @@ export function createBody(f: ThemeForm, style: unknown, sortOrder: number): The
 }
 
 // The create body as multipart: the scalar fields as text, `chrome` and
-// `overlay` as JSON, and `style` as the file part.
-export function createForm(body: ThemeBody, file: File): FormData {
+// `overlay` as JSON, and `style` as a file part holding the checked
+// document (`styleCheck.ts`, which has dropped what the API and the map
+// own) under the dropped file's name.
+export function createForm(body: ThemeBody, fileName: string): FormData {
   const form = new FormData();
   form.append("renderer", body.renderer);
   form.append("key", body.key);
@@ -246,7 +248,8 @@ export function createForm(body: ThemeBody, file: File): FormData {
   form.append("chrome", JSON.stringify(body.chrome));
   form.append("overlay", JSON.stringify(body.overlay));
   if (body.thumbnailMediaId !== null) form.append("thumbnailMediaId", body.thumbnailMediaId);
-  form.append("style", file, file.name);
+  const part = new File([JSON.stringify(body.style)], fileName, { type: "application/json" });
+  form.append("style", part, fileName);
   return form;
 }
 

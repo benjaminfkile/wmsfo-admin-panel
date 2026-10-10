@@ -509,7 +509,18 @@ describe("ThemeEditorDialog", () => {
     render(<Harness theme={null} onClose={onClose} />);
     await screen.findByRole("dialog");
     await fillKeyAndName(user, "candy-cane", "Candy cane");
-    await dropStyle(user, routeLight, "candy.json");
+    // A Maputnik export: the seed with the glyph template, a sprite, and
+    // the source URLs the editor wrote into it.
+    const exported = {
+      ...routeLight,
+      glyphs: "https://example.invalid/glyphs/{fontstack}/{range}.pbf",
+      sprite: "https://example.invalid/sprite",
+      sources: {
+        basemap: { ...routeLight.sources.basemap, url: "pmtiles://https://example.invalid/tiles.pmtiles" },
+        terrain: { ...routeLight.sources.terrain, url: "pmtiles://https://example.invalid/terrain.pmtiles" },
+      },
+    };
+    await dropStyle(user, exported, "candy.json");
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(await screen.findByText("Theme saved")).toBeInTheDocument();
@@ -522,6 +533,8 @@ describe("ThemeEditorDialog", () => {
     expect(fd.get("sortOrder")).toBe("30");
     expect(JSON.parse(fd.get("chrome") as string)).toEqual(byKey("route-light").chrome);
     expect(JSON.parse(fd.get("overlay") as string)).toEqual(byKey("route-light").overlay);
+    // The file part is the checked document: what the API and the map own
+    // is gone, so the export goes up as it was dropped.
     const style = fd.get("style") as File;
     expect(style.name).toBe("candy.json");
     expect(JSON.parse(await readText(style))).toEqual(routeLight);

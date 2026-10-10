@@ -173,7 +173,7 @@ export default function ThemeEditorDialog({ theme, onClose }: Props) {
             check?.ok ? check.style : null,
             nextSortOrder(allThemes, renderer),
           );
-          saved = await themesApi.createForm(createForm(body, styleFile!.file));
+          saved = await themesApi.createForm(createForm(body, styleFile!.file.name));
           created.current = saved;
         }
       } else {
