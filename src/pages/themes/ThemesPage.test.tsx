@@ -133,6 +133,22 @@ afterEach(() => {
 });
 
 const API = testConfig.apiBaseUrl;
+const BASE = testConfig.routeBasemapUrl;
+
+function blobText(blob: Blob): Promise<string> {
+  return new Promise<string>((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.readAsText(blob);
+  });
+}
+
+async function openMenuItem(theme: TrackerTheme, name: RegExp) {
+  const user = userEvent.setup();
+  const card = await screen.findByTestId(`theme-card-${String(theme.id)}`);
+  await user.click(within(card).getByRole("button", { name: /actions for/i }));
+  await user.click(await screen.findByRole("menuitem", { name }));
+}
 const byKey = (key: string) => f.trackerThemes.find((t) => t.key === key)!;
 
 function cardIds(renderer: "google" | "maplibre"): string[] {
@@ -293,7 +309,7 @@ describe("ThemesPage", () => {
     ]);
   });
 
-  it("Download starter style serves the route-light seed as starter-style.json", async () => {
+  it("Download starter style serves the seed prepared for Maputnik as starter-style.json", async () => {
     const user = userEvent.setup();
     render(<Harness />);
     await user.click(
@@ -308,9 +324,59 @@ describe("ThemesPage", () => {
       reader.onload = () => resolve(String(reader.result));
       reader.readAsText(blob);
     });
-    expect(JSON.parse(text)).toEqual(routeLight);
+    expect(JSON.parse(text)).toEqual({
+      ...routeLight,
+      glyphs: `${BASE}/glyphs/{fontstack}/{range}.pbf`,
+      sources: {
+        basemap: { ...routeLight.sources.basemap, url: `pmtiles://${BASE}/tiles.pmtiles` },
+        terrain: { ...routeLight.sources.terrain, url: `pmtiles://${BASE}/terrain.pmtiles` },
+      },
+    });
     expect(screen.getByTestId("help-themes.starter-style")).toBeInTheDocument();
     expect(screen.getByTestId("help-themes")).toBeInTheDocument();
+  });
+
+  it("Download style on a MapLibre card saves <key>.json with the sources filled", async () => {
+    const light = byKey("route-light");
+    render(<Harness />);
+    await openMenuItem(light, /^download style$/i);
+    await waitFor(() => expect(downloads).toHaveLength(1));
+    expect(downloads[0]!.filename).toBe("route-light.json");
+    const body = JSON.parse(await blobText(downloads[0]!.blob));
+    const seed = f.themeStyles["route-light"] as typeof routeLight;
+    expect(body.glyphs).toBe(`${BASE}/glyphs/{fontstack}/{range}.pbf`);
+    expect(body.sources.basemap).toEqual({
+      ...seed.sources.basemap,
+      url: `pmtiles://${BASE}/tiles.pmtiles`,
+    });
+    expect(body.sources.terrain).toEqual({
+      ...seed.sources.terrain,
+      url: `pmtiles://${BASE}/terrain.pmtiles`,
+    });
+    expect(body.layers).toEqual(seed.layers);
+  });
+
+  it("Download style on a Google card saves the array as <key>.json", async () => {
+    const night = byKey("night");
+    render(<Harness />);
+    await openMenuItem(night, /^download style$/i);
+    await waitFor(() => expect(downloads).toHaveLength(1));
+    expect(downloads[0]!.filename).toBe("night.json");
+    expect(JSON.parse(await blobText(downloads[0]!.blob))).toEqual(f.themeStyles.night);
+  });
+
+  it("Download style toasts a failed fetch", async () => {
+    server.use(
+      http.get("https://cdn.example/themes/:renderer/:file", () =>
+        HttpResponse.json({}, { status: 500 })
+      )
+    );
+    render(<Harness />);
+    await openMenuItem(byKey("route-dark"), /^download style$/i);
+    expect(
+      await screen.findByText("The theme style could not load (500).")
+    ).toBeInTheDocument();
+    expect(downloads).toHaveLength(0);
   });
 
   it("New theme and the pencil open the editor dialog", async () => {

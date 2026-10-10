@@ -3,7 +3,8 @@ import type { StyleSpecification } from "maplibre-gl";
 import routeLight from "../../contracts/fixtures/themes/route-light.json";
 import routeDark from "../../contracts/fixtures/themes/route-dark.json";
 import { applyMap, isPlacesLayer } from "./themeStyle";
-import { applyDevBasemap } from "./index";
+import { applyDevBasemap, forMaputnik } from "./index";
+import { testConfig } from "../test/renderWithProviders";
 
 const MAP = {
   tilesUrl: "https://cdn.example/basemap/tiles.pmtiles",
@@ -101,6 +102,33 @@ describe("applyDevBasemap", () => {
 
   it("refuses while the variable is unset", () => {
     expect(() => applyDevBasemap(STYLE, { routeBasemapUrl: "" })).toThrow(/VITE_ROUTE_BASEMAP_URL/);
+  });
+});
+
+describe("forMaputnik", () => {
+  const base = testConfig.routeBasemapUrl;
+  const seed = routeLight as unknown as StyleSpecification;
+
+  it("gives the seed the glyph template and the two pmtiles URLs", () => {
+    const out = forMaputnik(seed, testConfig);
+    expect(out.glyphs).toBe(`${base}/glyphs/{fontstack}/{range}.pbf`);
+    expect(out.sources.basemap).toEqual({
+      ...seed.sources.basemap,
+      url: `pmtiles://${base}/tiles.pmtiles`,
+    });
+    expect(out.sources.terrain).toEqual({
+      ...seed.sources.terrain,
+      url: `pmtiles://${base}/terrain.pmtiles`,
+    });
+    expect(out.layers).toEqual(seed.layers);
+  });
+
+  it("keeps the glyphs a body already names", () => {
+    expect(forMaputnik(STYLE, testConfig).glyphs).toBe(STYLE.glyphs);
+  });
+
+  it("returns the body unchanged without a basemap base", () => {
+    expect(forMaputnik(seed, { routeBasemapUrl: "" })).toBe(seed);
   });
 });
 

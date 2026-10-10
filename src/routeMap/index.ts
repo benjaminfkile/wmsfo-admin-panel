@@ -49,3 +49,19 @@ export function applyDevBasemap(
   if (base === null) throw new Error("VITE_ROUTE_BASEMAP_URL is not set");
   return withSources(style, `${base}/tiles.pmtiles`, `${base}/terrain.pmtiles`);
 }
+
+// A theme body ready to open in Maputnik: `glyphs` at the glyph template
+// under the configured basemap when the body names none, `basemap` at
+// `pmtiles://<base>/tiles.pmtiles`, and `terrain` at
+// `pmtiles://<base>/terrain.pmtiles`. The starter style and the theme
+// downloads serve it. With VITE_ROUTE_BASEMAP_URL unset the body comes
+// back unchanged.
+export function forMaputnik(
+  style: StyleSpecification,
+  config: Pick<Config, "routeBasemapUrl">,
+): StyleSpecification {
+  const base = routeBasemapBase(config);
+  if (base === null) return style;
+  const pointed = withSources(style, `${base}/tiles.pmtiles`, `${base}/terrain.pmtiles`);
+  return { ...pointed, glyphs: style.glyphs ?? glyphsUrl(base) };
+}

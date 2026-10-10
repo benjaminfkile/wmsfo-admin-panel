@@ -35,9 +35,12 @@ import PageHeader from "../../components/layout/PageHeader";
 import HelpButton from "../../help/HelpButton";
 import { useCompact } from "../../hooks/useCompact";
 import { useNotify } from "../../hooks/useNotify";
+import { useConfig } from "../../ConfigContext";
+import { forMaputnik } from "../../routeMap";
+import { loadThemeStyle } from "../../routeMap/themeStyle";
 import ThemeCard from "./ThemeCard";
 import ThemeEditorDialog from "./ThemeEditorDialog";
-import { downloadStarterStyle } from "./starterStyle";
+import { downloadStarterStyle, downloadStyle } from "./starterStyle";
 import { bySortOrder, sortOrderPatches } from "./themeOrder";
 import type { TrackerTheme } from "../../api/types";
 
@@ -50,10 +53,12 @@ const GROUPS: Array<{ renderer: Renderer; title: string }> = [
 
 // The Tracker themes page (admin.md 6.28): the Google Maps and MapLibre
 // groups of theme cards, each reordered by drag, with New theme, the
-// starter style download, and the delete with a replacement.
+// starter style download, the per-theme style download, and the delete
+// with a replacement.
 export default function ThemesPage() {
   const qc = useQueryClient();
   const notify = useNotify();
+  const config = useConfig();
   const compact = useCompact();
   const [editing, setEditing] = useState<{ theme: TrackerTheme | null } | null>(
     null
@@ -123,6 +128,25 @@ export default function ThemesPage() {
     },
   });
 
+  // A theme's body as `<key>.json`: a MapLibre body through
+  // `forMaputnik`, a Google array as it is.
+  const downloadMut = useMutation({
+    mutationFn: async (t: TrackerTheme) => {
+      const style: unknown = await loadThemeStyle(t.styleUrl ?? "");
+      return { t, style };
+    },
+    onSuccess: ({ t, style }) => {
+      downloadStyle(
+        t.renderer === "maplibre"
+          ? forMaputnik(style as Parameters<typeof forMaputnik>[0], config)
+          : style,
+        `${t.key}.json`
+      );
+    },
+    onError: (e) =>
+      notify(e instanceof Error ? e.message : "Download failed", "error"),
+  });
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -174,7 +198,10 @@ export default function ThemesPage() {
               New theme
             </Button>
             <Stack direction="row" alignItems="center">
-              <Button startIcon={<DownloadIcon />} onClick={downloadStarterStyle}>
+              <Button
+                startIcon={<DownloadIcon />}
+                onClick={() => downloadStarterStyle(config)}
+              >
                 Download starter style
               </Button>
               <HelpButton topic="themes.starter-style" />
@@ -245,6 +272,15 @@ export default function ThemesPage() {
 
       {menuAnchor ? (
         <Menu open anchorEl={menuAnchor.el} onClose={() => setMenuAnchor(null)}>
+          <MenuItem
+            disabled={!menuAnchor.theme.styleUrl}
+            onClick={() => {
+              downloadMut.mutate(menuAnchor.theme);
+              setMenuAnchor(null);
+            }}
+          >
+            Download style
+          </MenuItem>
           <MenuItem
             onClick={() => {
               deleteMut.reset();

@@ -4,7 +4,11 @@ import { validateStyleMin } from "@maplibre/maplibre-gl-style-spec";
 // (admin.md 6.28): the API's shape rules of contracts 4.5 Themes (Style
 // rules), so a refusal here reads the same as the API's `400
 // validation_failed` at `style`, then, for MapLibre, the whole document
-// through `validateStyleMin`, whose first problem is the reason.
+// through `validateStyleMin`, whose first problem is the reason. A
+// MapLibre document is checked and returned without what the API and the
+// map own: the top level `glyphs` and `sprite` and the `url` and `tiles`
+// of the `basemap` and `terrain` sources, so a Maputnik export imports as
+// it is.
 
 export type Renderer = "google" | "maplibre";
 
@@ -14,7 +18,9 @@ export const MAPLIBRE_MAX_BYTES = 512 * 1024;
 const GOOGLE_KEYS = new Set(["featureType", "elementType", "stylers"]);
 const SOURCE_TYPES: Record<string, string> = { basemap: "vector", terrain: "raster-dem" };
 // Replaced by the API with its own glyph template and sprite base.
-const API_OWNED = new Set(["glyphs", "sprite"]);
+const API_OWNED = ["glyphs", "sprite"];
+// Supplied by the map the theme draws over.
+const MAP_OWNED = ["url", "tiles"];
 
 export type StyleCheck =
   | { ok: true; style: unknown; canonicalBytes: number; layerCount: number }
@@ -45,7 +51,6 @@ function httpString(value: unknown, path: string): string | null {
   }
   if (isObject(value)) {
     for (const [k, v] of Object.entries(value)) {
-      if (path === "" && API_OWNED.has(k)) continue;
       const hit = httpString(v, path === "" ? k : `${path}.${k}`);
       if (hit !== null) return hit;
     }
@@ -84,9 +89,6 @@ function checkMaplibre(style: unknown): string | null {
     if (!isObject(source) || source.type !== type) {
       return `The "${id}" source must have type "${type}".`;
     }
-    if ("url" in source || "tiles" in source) {
-      return `The "${id}" source must not have a url or tiles; the map supplies them.`;
-    }
   }
   if (!Array.isArray(style.layers)) return "The style has no layers array.";
   for (const layer of style.layers as unknown[]) {
@@ -104,14 +106,36 @@ function checkMaplibre(style: unknown): string | null {
   return null;
 }
 
+// A copy of a MapLibre document without the top level `glyphs` and
+// `sprite` and without `url` and `tiles` on the `basemap` and `terrain`
+// sources. Anything that is not an object comes back as it is.
+function stripOwned(style: unknown): unknown {
+  if (!isObject(style)) return style;
+  const out: Record<string, unknown> = { ...style };
+  for (const k of API_OWNED) delete out[k];
+  if (isObject(style.sources)) {
+    const sources: Record<string, unknown> = { ...style.sources };
+    for (const id of Object.keys(SOURCE_TYPES)) {
+      const source = sources[id];
+      if (!isObject(source)) continue;
+      const copy: Record<string, unknown> = { ...source };
+      for (const k of MAP_OWNED) delete copy[k];
+      sources[id] = copy;
+    }
+    out.sources = sources;
+  }
+  return out;
+}
+
 // Checks the text of a dropped style file for the renderer.
 export function checkStyle(renderer: Renderer, text: string): StyleCheck {
-  let style: unknown;
+  let parsed: unknown;
   try {
-    style = JSON.parse(text);
+    parsed = JSON.parse(text);
   } catch {
     return { ok: false, reason: "The file is not valid JSON." };
   }
+  const style = renderer === "maplibre" ? stripOwned(parsed) : parsed;
   const canonicalBytes = byteLength(JSON.stringify(style));
   const max = renderer === "google" ? GOOGLE_MAX_BYTES : MAPLIBRE_MAX_BYTES;
   const shape = renderer === "google" ? checkGoogle(style) : checkMaplibre(style);
