@@ -81,6 +81,8 @@ export const events = {
   routeMap: (id: number) =>
     get<RouteMapResponse>(`/admin/events/${id}/route-map`),
   setCurrent: (id: number) => post<Event>(`/admin/events/${id}/current`),
+  clearCurrent: (id: number) =>
+    request<Event>({ method: "DELETE", path: `/admin/events/${id}/current` }),
   clone: (id: number, b: CloneEventBody) =>
     post<Event>(`/admin/events/${id}/clone`, b),
   setStatus: (id: number, b: StatusBody) =>
