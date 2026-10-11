@@ -123,7 +123,7 @@ describe("MapsList", () => {
     expect(within(row).getByText("Ready")).toBeInTheDocument();
     expect(within(row).getByText("0 to 15")).toBeInTheDocument();
     expect(within(row).getByText("1.4 GB")).toBeInTheDocument();
-    expect(within(row).getByText("256 MB to zoom 13")).toBeInTheDocument();
+    expect(within(row).getByText("256 MB to zoom 15")).toBeInTheDocument();
     expect(within(row).getByText("Oct 1, 2026")).toBeInTheDocument();
     const count = await within(row).findByTestId(`map-events-${missoula.id}`);
     expect(count).toHaveTextContent("1");

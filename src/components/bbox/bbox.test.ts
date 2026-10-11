@@ -68,12 +68,12 @@ describe("fitZoom", () => {
 });
 
 describe("the export document", () => {
-  it("carries the name, the box, and the zoom defaults 15 and 13", () => {
+  it("carries the name, the box, and the zoom defaults 15 and 15", () => {
     expect(exportDocument("Santa Flyover 2026", BOX)).toEqual({
       name: "Santa Flyover 2026",
       bbox: BOX,
       maxZoom: 15,
-      terrainMaxZoom: 13,
+      terrainMaxZoom: 15,
     });
     expect(exportDocument("Site default", BOX, 12, 10)).toMatchObject({ maxZoom: 12, terrainMaxZoom: 10 });
   });
@@ -91,14 +91,14 @@ describe("the export document", () => {
     expect(clampZoom("x", { min: 8, max: 13 }, 13)).toBe(13);
   });
 
-  it("takes a terrain max zoom of 8 to 15 and starts at 13", () => {
+  it("takes a terrain max zoom of 8 to 15 and starts at 15", () => {
     expect(TERRAIN_MAX_ZOOM_RANGE).toEqual({ min: 8, max: 15 });
-    expect(EXPORT_TERRAIN_MAX_ZOOM).toBe(13);
+    expect(EXPORT_TERRAIN_MAX_ZOOM).toBe(15);
     const fifteen = clampZoom("15", TERRAIN_MAX_ZOOM_RANGE, EXPORT_TERRAIN_MAX_ZOOM);
     expect(fifteen).toBe(15);
     expect(exportDocument("Site default", BOX, 15, fifteen)).toMatchObject({ terrainMaxZoom: 15 });
     expect(clampZoom("16", TERRAIN_MAX_ZOOM_RANGE, EXPORT_TERRAIN_MAX_ZOOM)).toBe(15);
-    expect(clampZoom("", TERRAIN_MAX_ZOOM_RANGE, EXPORT_TERRAIN_MAX_ZOOM)).toBe(13);
+    expect(clampZoom("", TERRAIN_MAX_ZOOM_RANGE, EXPORT_TERRAIN_MAX_ZOOM)).toBe(15);
   });
 });
 

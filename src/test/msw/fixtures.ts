@@ -839,7 +839,7 @@ export const trackerMaps: TrackerMap[] = [
     bbox: { west: -114.75, south: 46.35, east: -113.3, north: 47.25 },
     minZoom: 0,
     maxZoom: 15,
-    terrainMaxZoom: 13,
+    terrainMaxZoom: 15,
     tilesBytes: 1503238553,
     terrainBytes: 268435456,
     sourceBuild: "2026-10-01",
