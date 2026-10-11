@@ -663,7 +663,7 @@ describe("SiteSettings: the Tracker field", () => {
       name: "Site default",
       bbox: { west: -114.75, south: 46.35, east: -113.3, north: 47.25 },
       maxZoom: 15,
-      terrainMaxZoom: 13,
+      terrainMaxZoom: 15,
     });
 
     const snow = screen.getByTestId("theme-snow-default").querySelector("input");
