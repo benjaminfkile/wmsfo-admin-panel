@@ -140,6 +140,14 @@ describe("AgentsPage", () => {
     }
   });
 
+  it("the prompt names the clear current route and the no_event page", () => {
+    const prompt = buildAgentPrompt("https://api.example");
+    expect(prompt).toContain(
+      "- DELETE /admin/events/{id}/current: 200 Event with isCurrent false; no event is current and / renders the no_event page."
+    );
+    expect(prompt).toContain("with no current event, / renders the no_event page");
+  });
+
   it("the prompt carries none of the stale statements and no dashes", () => {
     const prompt = buildAgentPrompt("https://api.example");
     for (const stale of ["SVG only", "1 to 100", "16 capabilities", "There are 19.", "tight|normal|loose|none"]) {

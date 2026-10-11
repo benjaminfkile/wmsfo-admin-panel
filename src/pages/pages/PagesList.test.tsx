@@ -146,6 +146,14 @@ describe("PagesList", () => {
     ).toBeInTheDocument();
   });
 
+  it("the no_event role chip reads Off season (no current event)", async () => {
+    render(<Harness />);
+    const statusRow = await screen.findByTestId(`page-row-${1}`);
+    expect(
+      within(statusRow).getByText("Off season (no current event)")
+    ).toBeInTheDocument();
+  });
+
   it("drag reorder sends PUT /admin/pages/order with every `none` id in the new order", async () => {
     // Provide two `none` pages so a reorder is meaningful.
     const nonePages: PageAdmin[] = [

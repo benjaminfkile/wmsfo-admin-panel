@@ -15,6 +15,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import EventDetail from "./EventDetail";
+import AuthProvider from "../../auth/AuthProvider";
 import { keys } from "../../queries/keys";
 import { ConfigProvider } from "../../ConfigContext";
 import { NotifyProvider } from "../../hooks/useNotify";
@@ -104,6 +105,11 @@ function recorder<T>() {
   };
 }
 
+// The page reads the signed-in role for its admin only controls.
+const harnessUserManager = makeFakeUserManager(
+  makeUser({ email: "admin@example.com", "cognito:groups": ["admin"] })
+);
+
 function Harness() {
   const client = new QueryClient({
     defaultOptions: {
@@ -117,11 +123,13 @@ function Harness() {
       <ConfigProvider config={testConfig}>
         <QueryClientProvider client={client}>
           <MemoryRouter initialEntries={[`/events/${eventId}`]}>
-            <NotifyProvider>
-              <Routes>
-                <Route path="/events/:id" element={<EventDetail />} />
-              </Routes>
-            </NotifyProvider>
+            <AuthProvider userManager={harnessUserManager}>
+              <NotifyProvider>
+                <Routes>
+                  <Route path="/events/:id" element={<EventDetail />} />
+                </Routes>
+              </NotifyProvider>
+            </AuthProvider>
           </MemoryRouter>
         </QueryClientProvider>
       </ConfigProvider>

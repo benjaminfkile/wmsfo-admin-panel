@@ -388,7 +388,9 @@ describe("DeleteDialog", () => {
     const rolePage = pages.find((p) => p.role === "no_event")!;
     const replacement = pageRoleReplacement(rolePage, pages)!;
     expect(replacement.required).toBe(true);
-    expect(replacement.label).toBe("Page that takes the No event role");
+    expect(replacement.label).toBe(
+      "Page that takes the Off season (no current event) role"
+    );
     expect(replacement.candidates.length).toBeGreaterThan(0);
     expect(
       replacement.candidates.every((c) => {
@@ -415,7 +417,7 @@ describe("DeleteDialog", () => {
     const dialog = await screen.findByRole("dialog");
     const btn = await within(dialog).findByRole("button", { name: /^delete$/i });
     const select = await within(dialog).findByRole("combobox", {
-      name: /page that takes the no event role/i,
+      name: /page that takes the off season \(no current event\) role/i,
     });
     expect(btn).toBeDisabled();
     const user = userEvent.setup();

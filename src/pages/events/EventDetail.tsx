@@ -51,6 +51,7 @@ import LocationsSection from "./LocationsSection";
 import StatusDialog from "./StatusDialog";
 import { historyPollInterval } from "./historyPolling";
 import NotifyDialog from "./NotifyDialog";
+import ClearCurrentEvent from "./ClearCurrentEvent";
 import CardTitle from "../../help/CardTitle";
 
 export default function EventDetail() {
@@ -337,6 +338,7 @@ export default function EventDetail() {
             {event.isCurrent ? (
               <Chip size="small" color="info" label="Current event" />
             ) : null}
+            <ClearCurrentEvent event={event} />
           </>
         }
       />

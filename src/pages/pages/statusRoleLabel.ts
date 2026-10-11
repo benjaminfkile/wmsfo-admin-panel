@@ -1,7 +1,7 @@
 export function statusRoleLabel(role: string): string {
   switch (role) {
     case "no_event":
-      return "No event";
+      return "Off season (no current event)";
     case "planned":
       return "Planned";
     case "scheduled":
