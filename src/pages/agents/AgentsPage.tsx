@@ -58,7 +58,7 @@ export default function AgentsPage() {
           <ol style={{ margin: 0, paddingLeft: "1.25rem" }}>
             <li>
               Mint a key below. Pick the capabilities the job needs (content work is pages,
-              sections, media, icons, and publish) and an expiry. The full key is shown{" "}
+              sections, content, media, and icons) and an expiry. The full key is shown{" "}
               <strong>once</strong>. The API has three groups (admin, editor, and canvasser);
               a key ignores them and reaches whatever its capabilities name, so a key with{" "}
               <code>qr</code> reaches the canvasser routes, the two deletes included.
@@ -90,7 +90,7 @@ export default function AgentsPage() {
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 720 }}>
               Copy this into the agent&apos;s instructions. It teaches the agent the API: auth,
-              the wire conventions, what goes public when, the 18 capabilities and the routes
+              the wire conventions, what goes public when, the 21 capabilities and the routes
               each reaches, the content model, delete safety, media, the event lifecycle, the
               workflows, and the rules. The base URL is this environment&apos;s.
             </Typography>

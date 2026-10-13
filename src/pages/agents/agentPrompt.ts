@@ -47,12 +47,12 @@ Base URL: ${baseUrl}
   - 500: internal_error.
   - 502: snapshot_write_failed, route_write_failed, media_write_failed, upstream_failed.
   - 503: unavailable.
-- Paging: paged lists answer \`{"items":[...],"nextCursor":null|"..."}\` and take ?limit= and ?cursor=. limit defaults to 50 and caps at 500, except GET /admin/audit, which caps at 200 and answers 400 above it. Paged lists: media, audit, contact messages, subscribers, people, event locations. A list without nextCursor is unpaged.
+- Paging: paged lists answer \`{"items":[...],"nextCursor":null|"..."}\` and take ?limit= and ?cursor=. limit caps at 500 and defaults to 50 for media and 100 for contact messages, subscribers, people, and event locations. GET /admin/audit defaults to 50, caps at 200, and answers 400 above it. A list without nextCursor is unpaged.
 - Timestamps: RFC 3339 UTC with Z and three fractional digits on output. Inputs take any offset. Bare dates are rejected.
 - Ids: numbers, except media ids (UUID strings), settings keys, help keys, and QR tags (\`qr-001\`).
 - Money: amountDonated is a number with at most two decimals. Display it; never compute with it.
 - PATCH sends only the fields to change. Absent leaves a field unchanged; null clears it where the field allows null. One exception: a sponsor's logoMediaId is cleared with an empty string; null or absent leaves it unchanged.
-- Body limits: 64 KB for JSON, 256 KB for section, item, and site settings bodies, 5 MB for route uploads. Over the limit: 413 payload_too_large.
+- Body limits: 64 KB for JSON, 256 KB for section, item, and site settings bodies, 1 MB for a theme create or patch, 5 MB for route uploads. Over the limit: 413 payload_too_large.
 - Rate buckets: /admin/* allows 20 requests a second with a burst of 40 per key. POST /admin/media/upload-url has its own bucket of 30 a minute. On 429 wait details.retryAfterSeconds. Do not poll faster than every 5 s. Back off on 5xx.
 - Every DTO carries \`audit: { action, by, at } | null\`: the newest audit row for that entity.
 
@@ -71,10 +71,10 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
 - \`beacons\`: /admin/beacons/*.
 - \`sponsors\`: /admin/sponsors/* (years, copy-from, import, order).
 - \`cookie_types\`: /admin/cookie-types/*.
-- \`pages\`: /admin/pages, /admin/pages/{id}, /admin/pages/order, /admin/pages/{id}/impact.
-- \`sections\`: /admin/pages/{id}/sections, /admin/sections/*, /admin/items/*, GET /admin/content/kinds.
+- \`pages\`: /admin/pages, /admin/pages/{id}, /admin/pages/order, /admin/pages/{id}/impact, and POST /admin/pages/{id}/sections (adding a section to a page rides pages, not sections).
+- \`sections\`: /admin/sections/*, /admin/items/*, PUT /admin/pages/{id}/sections/order.
 - \`site_settings\`: /admin/site-settings.
-- \`content\`: /admin/content/status, draft, publish, versions, preview-token.
+- \`content\`: /admin/content/kinds, status, draft, publish, versions, preview-token (reading the kinds needs content, not sections).
 - \`media\`: /admin/media/*.
 - \`icons\`: GET /admin/icons.
 - \`settings\`: /admin/settings/*.
@@ -121,7 +121,7 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
 - What the create body leaves out: the box comes from the published site settings' tracker.defaultBbox, or the built-in Missoula valley box when there is none; the map and the enabled theme set are copied from the event with the greatest year, the map only when its package contains the box.
 - GET /admin/events/{id}; PATCH with any of name, year, scheduledAt, wentLiveAt, endedAt, fundsPercent, routeId, scheduleTimeZone (an IANA id such as America/Denver, or null), routeMapConfig (an object or null; unknown fields are 400), trackerBbox (a Bbox; never null; while the event has a map it must stay inside the map's package), trackerMapId (a ready map whose package contains the event's box, or null), trackerThemeIds (the whole enabled set: distinct theme ids, at least one Google theme). A broken tracker rule is 400 validation_failed at its field; an unknown map or theme id is 404. 409 year_taken, scheduled_at_required.
 - routeMapConfig: \`{ display: { timeLabelIntervalMinutes 0|5|10|15|30, arrows bool, arrowSize small|medium|large|xlarge, routeWidth thin|normal|thick|xthick, labelSize small|medium|large }, controls: { fullscreen bool, terrain bool } }\`. Every key optional. Landmarks never go here; they are site settings.
-- DELETE /admin/events/{id}: takes messages, cookies, status history, and locations. 409 event_live or event_current. GET .../impact is blocked while live or current.
+- DELETE /admin/events/{id}: takes messages, cookies, status history, and locations. 409 event_live or event_current. GET .../impact answers blocked with the reason while the event is live or current.
 - POST /admin/events/{id}/current: 200. 409 current_event_live.
 - DELETE /admin/events/{id}/current: 200 Event with isCurrent false; no event is current and / renders the no_event page. On an event that is not current it is a no-op 200. 409 current_event_live while the current event is live.
 - POST /admin/events/{id}/status \`{ statusId, notify, message? 1..1000 }\`: statusId 1 planned, 2 scheduled, 3 live, 4 ended, 5 cancelled, 6 postponed. See section 10.
@@ -191,17 +191,17 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
 
 ### pages
 - GET/POST /admin/pages (\`{ slug, title, navLabel?, icon?, navPosition?, isHidden? }\`; role is always none), GET/PATCH/DELETE /admin/pages/{id}, GET .../impact, PUT /admin/pages/order \`{ ids }\` with every role none page once.
+- POST /admin/pages/{id}/sections \`{ kind, position?, data?, presentation? }\`: 201. 400 unknown_kind, 409 kind_not_allowed. This one rides pages; the section routes below ride sections.
 
 ### sections
-- POST /admin/pages/{id}/sections \`{ kind, position?, data?, presentation? }\`. 400 unknown_kind, 409 kind_not_allowed.
 - PATCH /admin/sections/{id} (data, presentation, isHidden), DELETE, POST .../duplicate (201), POST .../move \`{ pageId, position }\`, PUT /admin/pages/{id}/sections/order \`{ ids }\`.
 - POST /admin/sections/{id}/items \`{ data, position? }\`, PATCH/DELETE /admin/items/{id} (data, isHidden), PUT /admin/sections/{id}/items/order \`{ ids }\`.
-- GET /admin/content/kinds.
 
 ### site_settings
 - GET /admin/site-settings: \`{ data, problems, updatedBy, updatedAt }\`. PUT \`{ data }\` with the whole document.
 
 ### content
+- GET /admin/content/kinds: every kind with its schemas and defaults. Read it before you build section data.
 - GET /admin/content/status: published version, draftSha256, hasUnpublishedChanges, problems.
 - GET /admin/content/draft: the bundle a publish would produce.
 - POST /admin/content/publish \`{ label }\`, label null or 1..200. 201. 409 content_unchanged, 422 content_invalid.
@@ -263,7 +263,7 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
 ### help
 - The admin panel's help popovers; never public. Change them only when the human asks.
 - GET /admin/help: every topic \`{ key, page, label, title, body, links, edited, editedBy, editedAt, defaultChanged }\`.
-- PUT /admin/help/{key} \`{ title 1..120, body 1..2000, links 0..6 of { label 1..60, to } }\`: to is a panel path starting with one / or an https:// URL. Plain text: blank lines split paragraphs, lines starting with "- " are bullets.
+- PUT /admin/help/{key} \`{ title 1..120, body 1..2000, links 0..6 of { label 1..60, to } }\`: to is a panel path starting with one / or an https:// URL. Plain text: blank lines split paragraphs, lines starting with "- " are bullets. An em dash or en dash in any field is 400 validation_failed.
 - POST /admin/help/{key}/reset (200): back to the shipped default.
 
 ## 8. Delete safety
@@ -293,7 +293,7 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
 - After: end it (4), optionally save the flight with POST /admin/routes/from-event/{eventId}, clone it for next year.
 
 ## 11. Common workflows
-1. Edit a page: GET /admin/pages, GET /admin/pages/{id}, GET /admin/content/kinds for the kind, PATCH the section with the whole data object, GET /admin/content/status for problems, mint a preview token and hand the human the URL, publish with a short label only when told.
+1. Edit a page: GET /admin/pages, GET /admin/pages/{id}, GET /admin/content/kinds for the kind, PATCH the section with the whole data object, GET /admin/content/status for problems, mint a preview token and hand the human the URL, publish with a short label only when told. Content work needs pages, sections, content, media, and icons.
 2. Add a page: POST /admin/pages, POST a section for each block of content, PUT /admin/pages/order if placement matters, preview, publish on approval.
 3. Add a picture: upload-url, PUT, confirm, then reference the id from a MediaRef, a media Icon, a sponsor logo, or a cookie type icon.
 4. Add a sponsor: POST /admin/sponsors, upload the logo and PATCH logoMediaId, PUT the year. No publish step.

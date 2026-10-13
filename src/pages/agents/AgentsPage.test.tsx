@@ -105,6 +105,35 @@ describe("AgentsPage", () => {
     expect(prompt).toContain("There are 21.");
   });
 
+  it("the prompt files section create under pages and the kinds read under content, as the API does", () => {
+    const prompt = buildAgentPrompt("https://api.example");
+    const lineFor = (cap: string) =>
+      prompt.split("\n").find((l) => l.startsWith(`- \`${cap}\`: `)) ?? "";
+    expect(lineFor("pages")).toContain("POST /admin/pages/{id}/sections");
+    expect(lineFor("sections")).not.toContain("/admin/pages/{id}/sections,");
+    expect(lineFor("sections")).toContain("PUT /admin/pages/{id}/sections/order");
+    expect(lineFor("sections")).not.toContain("/admin/content/kinds");
+    expect(lineFor("content")).toContain("/admin/content/kinds");
+    const pagesRef = prompt.slice(prompt.indexOf("### pages\n"), prompt.indexOf("### sections\n"));
+    expect(pagesRef).toContain("POST /admin/pages/{id}/sections");
+    const contentRef = prompt.slice(prompt.indexOf("### content\n"), prompt.indexOf("### media\n"));
+    expect(contentRef).toContain("GET /admin/content/kinds");
+  });
+
+  it("the prompt states the paging defaults and the theme body limit the API enforces", () => {
+    const prompt = buildAgentPrompt("https://api.example");
+    expect(prompt).toContain(
+      "limit caps at 500 and defaults to 50 for media and 100 for contact messages, subscribers, people, and event locations"
+    );
+    expect(prompt).toContain("GET /admin/audit defaults to 50, caps at 200");
+    expect(prompt).toContain("1 MB for a theme create or patch");
+  });
+
+  it("the page subtitle counts the capabilities the prompt lists", () => {
+    render(<Harness />);
+    expect(screen.getByText(/the 21 capabilities and the routes/)).toBeInTheDocument();
+  });
+
   it("the prompt lists the five Cognito-only routes", () => {
     const prompt = buildAgentPrompt("https://api.example");
     for (const route of [
@@ -150,7 +179,14 @@ describe("AgentsPage", () => {
 
   it("the prompt carries none of the stale statements and no dashes", () => {
     const prompt = buildAgentPrompt("https://api.example");
-    for (const stale of ["SVG only", "1 to 100", "16 capabilities", "There are 19.", "tight|normal|loose|none"]) {
+    for (const stale of [
+      "SVG only",
+      "1 to 100",
+      "16 capabilities",
+      "There are 19.",
+      "tight|normal|loose|none",
+      "limit defaults to 50 and caps at 500",
+    ]) {
       expect(prompt).not.toContain(stale);
     }
     expect(prompt).not.toMatch(/[\u2013\u2014]/);

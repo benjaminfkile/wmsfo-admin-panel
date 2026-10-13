@@ -47,6 +47,8 @@ export const CAPABILITY_LABELS: ReadonlyArray<{
   { value: "audit", label: "Audit" },
   { value: "qr", label: "QR codes and places" },
   { value: "help", label: "Help texts" },
+  { value: "maps", label: "Maps" },
+  { value: "themes", label: "Tracker themes" },
 ];
 
 interface Props {

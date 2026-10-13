@@ -5,7 +5,7 @@ import { ThemeProvider, CssBaseline } from "@mui/material";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NotifyProvider } from "../../hooks/useNotify";
 import { buildTheme } from "../../theme/theme";
-import ApiKeyCreateDialog from "./ApiKeyCreateDialog";
+import ApiKeyCreateDialog, { CAPABILITY_LABELS } from "./ApiKeyCreateDialog";
 import type { ApiKeyCreateBody } from "../../api/resources/apiKeys";
 import { ApiError } from "../../api/errors";
 
@@ -172,6 +172,24 @@ describe("ApiKeyCreateDialog validation", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
     const body = onSubmit.mock.calls[0]![0] as ApiKeyCreateBody;
     expect(body.capabilities).toContain("qr");
+  });
+
+  it("offers all 21 capabilities, maps and themes included, and sends their wire names", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderDialog({ onSubmit });
+    await user.type(screen.getByLabelText(/^name$/i), "tracker-bot");
+    await user.click(screen.getByLabelText(/^all capabilities$/i));
+    expect(CAPABILITY_LABELS).toHaveLength(21);
+    for (const { label } of CAPABILITY_LABELS) {
+      expect(screen.getByLabelText(new RegExp(`^${label}$`, "i"))).toBeInTheDocument();
+    }
+    await user.click(screen.getByLabelText(/^maps$/i));
+    await user.click(screen.getByLabelText(/^tracker themes$/i));
+    await user.click(screen.getByRole("button", { name: /^create$/i }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    const body = onSubmit.mock.calls[0]![0] as ApiKeyCreateBody;
+    expect(body.capabilities).toEqual(["maps", "themes"]);
   });
 
   it("renders a field error on the Name input when the server returns 409 name_taken", async () => {

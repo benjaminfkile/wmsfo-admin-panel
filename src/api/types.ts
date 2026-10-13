@@ -36,7 +36,9 @@ export type ApiKeyCapability =
   | "diagnostics"
   | "audit"
   | "qr"
-  | "help";
+  | "help"
+  | "maps"
+  | "themes";
 export type CookieType = S["CookieTypeDto"];
 export type CookiePick = S["CookiePick"];
 export type SeedCookiesRequest = S["SeedCookiesRequest"];
