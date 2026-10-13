@@ -204,11 +204,7 @@ describe("StatusDialog", () => {
     render(
       <Harness event={f.events[0]!} target={4 as StatusId} onConfirm={vi.fn()} />
     );
-    const paragraph = stockParagraph(
-      4,
-      f.events[0]!.name ?? "",
-      f.events[0]!.scheduledAt ?? null
-    );
+    const paragraph = stockParagraph(4, f.events[0]!.name ?? "");
     const notice = screen.getByTestId("default-message-notice");
     expect(notice).toHaveTextContent(
       "No message typed. This default message will be posted on the site, and emailed to subscribers:"
@@ -257,7 +253,7 @@ describe("StatusDialog", () => {
     const field = screen.getByLabelText(/message/i);
     expect(field).toHaveAttribute(
       "placeholder",
-      stockParagraph(3, f.events[0]!.name ?? "", f.events[0]!.scheduledAt ?? null)
+      stockParagraph(3, f.events[0]!.name ?? "")
     );
   });
 
