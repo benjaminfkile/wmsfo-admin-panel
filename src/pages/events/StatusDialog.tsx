@@ -103,7 +103,7 @@ export default function StatusDialog({
 
   const fromName = statusName(Number(event.statusId));
   const toName = statusName(target);
-  const placeholder = stockParagraph(target, event.name ?? "", event.scheduledAt ?? null);
+  const placeholder = stockParagraph(target, event.name ?? "");
 
   const verifiedCount = summaryQ.data?.verified;
   const consequence =

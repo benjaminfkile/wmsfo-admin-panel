@@ -1,24 +1,18 @@
 import type { StatusId } from "../api/types";
-import { formatStamp } from "./time";
 
 // The stock paragraph the API's email template ({{customMessage}}) uses
 // when the admin does not type a custom message on a status change or
 // announce (contracts 7.8, `EmailTemplates.StockParagraph`). Kept in
-// sync with the API so `StatusDialog` and `NotifyDialog` can show the
-// admin exactly what goes out.
-export function stockParagraph(
-  statusId: StatusId,
-  eventName: string,
-  scheduledAt: string | null
-): string {
+// sync with the API by hand so `StatusDialog` and `NotifyDialog` can show
+// the admin exactly what goes out. The scheduled paragraph carries no
+// time (A109): the site shows the time in the visitor's zone on its own.
+export function stockParagraph(statusId: StatusId, eventName: string): string {
   const name = eventName || "The event";
   switch (statusId) {
     case 1:
       return `${name} is on the calendar. A specific time will be announced when it is known.`;
     case 2:
-      return scheduledAt
-        ? `${name} is scheduled. Lift-off is planned for ${formatStamp(scheduledAt)}.`
-        : `${name} is scheduled.`;
+      return `${name} is scheduled.`;
     case 3:
       return `${name} is live. Watch Santa's flight now.`;
     case 4:
