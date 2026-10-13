@@ -90,11 +90,7 @@ describe("NotifyDialog", () => {
     const user = userEvent.setup();
     render(<Harness onConfirm={vi.fn()} />);
     const event = f.events[0]!;
-    const paragraph = stockParagraph(
-      Number(event.statusId) as StatusId,
-      event.name ?? "",
-      event.scheduledAt ?? null
-    );
+    const paragraph = stockParagraph(Number(event.statusId) as StatusId, event.name ?? "");
     const notice = screen.getByTestId("default-message-notice");
     expect(notice).toHaveTextContent(
       "No message typed. This default message will be emailed:"

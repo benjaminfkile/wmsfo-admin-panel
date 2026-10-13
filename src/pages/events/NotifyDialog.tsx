@@ -51,11 +51,7 @@ export default function NotifyDialog({
     enabled: open,
   });
   const statusId = Number(event.statusId) as StatusId;
-  const placeholder = stockParagraph(
-    statusId,
-    event.name ?? "",
-    event.scheduledAt ?? null
-  );
+  const placeholder = stockParagraph(statusId, event.name ?? "");
   const consequence = verifiedLine(summaryQ.data?.verified);
   const trimmed = message.trim();
   const send = () => onConfirm(trimmed.length > 0 ? trimmed : null);
