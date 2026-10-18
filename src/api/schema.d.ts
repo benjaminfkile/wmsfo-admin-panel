@@ -230,6 +230,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/beacons/me/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BeaconStateResponse"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BeaconStateBody"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BeaconStateWriteResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/contact": {
         parameters: {
             query?: never;
@@ -5977,6 +6035,8 @@ export interface components {
             ingestChannel?: string;
             /** Format: int64 */
             liveEventId?: null | number | string;
+            /** Format: int64 */
+            stateVersion?: number | string;
             /** Format: date-time */
             serverTime?: string;
         };
@@ -5984,6 +6044,28 @@ export interface components {
             items?: components["schemas"]["BeaconDto"][];
             /** Format: int32 */
             staleAfterS?: number | string;
+        };
+        BeaconStateBody: {
+            state?: components["schemas"]["JsonElement"];
+            /** Format: int64 */
+            expectedVersion?: number | string;
+        };
+        BeaconStateResponse: {
+            state?: null | components["schemas"]["JsonElement"];
+            /** Format: int64 */
+            stateVersion?: number | string;
+            /** Format: date-time */
+            updatedAt?: null | string;
+            /** Format: date-time */
+            serverTime?: string;
+        };
+        BeaconStateWriteResponse: {
+            /** Format: int64 */
+            stateVersion?: number | string;
+            /** Format: date-time */
+            updatedAt?: string;
+            /** Format: date-time */
+            serverTime?: string;
         };
         BeaconWithKeyResponse: {
             beacon?: components["schemas"]["BeaconDto"];
@@ -6361,6 +6443,8 @@ export interface components {
             /** Format: int64 */
             liveEventId?: null | number | string;
             isActive?: boolean;
+            /** Format: int64 */
+            stateVersion?: number | string;
             /** Format: date-time */
             serverTime?: string;
         };

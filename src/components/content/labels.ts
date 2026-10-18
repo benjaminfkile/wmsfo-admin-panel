@@ -106,6 +106,12 @@ export const ROUTE_MAP_DISPLAY_LABELS: FieldLabels = {
 
 const SECTION: Record<string, FieldLabels> = {
   rich_text: {
+    textSize: {
+      label: "Text size",
+      help: "Large makes this section's paragraphs, lists, and quotes bigger.",
+      options: { normal: "Normal", large: "Large" },
+      unset: "normal",
+    },
     blocks: { label: "Blocks" },
   },
   hero: {
@@ -595,9 +601,11 @@ export function labelsFor(kind: string, isItem: boolean): FieldLabels {
 
 // The field order of a section form where it differs from the schema's
 // property order; "*" stands for every field not named. The hero's
-// logo switch and Icon size sit right after its Icon.
+// logo switch and Icon size sit right after its Icon; the rich text
+// section's Text size sits above its Blocks.
 const SECTION_ORDER: Record<string, string[]> = {
   hero: ["title", "tagline", "icon", "showLogo", "iconSize", "*"],
+  rich_text: ["textSize", "*"],
 };
 
 // The top-level field order for a kind's form, or undefined to keep the

@@ -2,9 +2,11 @@ import { useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
+  Checkbox,
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   IconButton,
   Menu,
   MenuItem,
@@ -42,6 +44,11 @@ interface Props {
 
 const COUNTER_THRESHOLD = 0.9;
 
+// One whole inline link, `[label](href)` with an optional `{newtab}`
+// marker directly after it (contracts 1.3a).
+const WHOLE_LINK = /^\[([^\]]+)\]\(([^)]+)\)(\{newtab\})?$/;
+const NEWTAB_MARKER = "{newtab}";
+
 // The single inline text editor used by InlineField and by every block
 // text field (admin.md 6.14). A text input with a compact toolbar
 // (Bold, Italic, Link, Insert icon, Insert event field), a one-line
@@ -62,6 +69,8 @@ export default function InlineText({
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkHref, setLinkHref] = useState("");
+  const [linkNewTab, setLinkNewTab] = useState(false);
+  const [linkLabel, setLinkLabel] = useState<string | null>(null);
   const [savedRange, setSavedRange] = useState<[number, number] | null>(null);
   const [iconOpen, setIconOpen] = useState(false);
   const [eventAnchor, setEventAnchor] = useState<HTMLElement | null>(null);
@@ -108,9 +117,26 @@ export default function InlineText({
     applyReplacement(start, end, replacement);
   };
 
+  // When the selection is exactly one existing link, the dialog opens
+  // with its address and new tab marker and Insert replaces it in place;
+  // a marker directly after a selected bare link is taken into the range.
   const openLinkDialog = () => {
-    setSavedRange(getSelection());
-    setLinkHref("");
+    const [start, end] = getSelection();
+    const existing = WHOLE_LINK.exec(value.slice(start, end));
+    if (existing) {
+      const trailing =
+        existing[3] === undefined &&
+        value.startsWith(NEWTAB_MARKER, end);
+      setSavedRange([start, trailing ? end + NEWTAB_MARKER.length : end]);
+      setLinkLabel(existing[1] ?? "link");
+      setLinkHref(existing[2] ?? "");
+      setLinkNewTab(existing[3] !== undefined || trailing);
+    } else {
+      setSavedRange([start, end]);
+      setLinkLabel(null);
+      setLinkHref("");
+      setLinkNewTab(false);
+    }
     setLinkOpen(true);
   };
 
@@ -118,12 +144,13 @@ export default function InlineText({
     const range = savedRange ?? getSelection();
     const [start, end] = range;
     const selected = value.slice(start, end);
-    const label = selected.length > 0 ? selected : "link";
+    const label = linkLabel ?? (selected.length > 0 ? selected : "link");
     const href = linkHref.trim() || "/";
-    const replacement = `[${label}](${href})`;
+    const replacement = `[${label}](${href})${linkNewTab ? NEWTAB_MARKER : ""}`;
     applyReplacement(start, end, replacement);
     setLinkOpen(false);
     setSavedRange(null);
+    setLinkLabel(null);
   };
 
   const openIconPicker = () => {
@@ -292,6 +319,16 @@ export default function InlineText({
             fullWidth
             size="small"
             inputProps={{ "aria-label": "Link address" }}
+          />
+          <FormControlLabel
+            sx={{ mt: 1 }}
+            control={
+              <Checkbox
+                checked={linkNewTab}
+                onChange={(e) => setLinkNewTab(e.target.checked)}
+              />
+            }
+            label="Open in a new tab"
           />
         </DialogContent>
         <DialogActions>

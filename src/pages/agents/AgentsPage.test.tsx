@@ -177,6 +177,12 @@ describe("AgentsPage", () => {
     expect(prompt).toContain("with no current event, / renders the no_event page");
   });
 
+  it("the prompt names the new tab link marker and the rich text size", () => {
+    const prompt = buildAgentPrompt("https://api.example");
+    expect(prompt).toContain("[label](href){newtab} (opens in a new tab");
+    expect(prompt).toContain("rich_text data takes textSize normal|large");
+  });
+
   it("the prompt carries none of the stale statements and no dashes", () => {
     const prompt = buildAgentPrompt("https://api.example");
     for (const stale of [
@@ -186,6 +192,7 @@ describe("AgentsPage", () => {
       "There are 19.",
       "tight|normal|loose|none",
       "limit defaults to 50 and caps at 500",
+      "backtick code, [label](href), a newline for a line break",
     ]) {
       expect(prompt).not.toContain(stale);
     }
