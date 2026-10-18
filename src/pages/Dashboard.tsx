@@ -255,6 +255,13 @@ export default function Dashboard() {
           />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
+          <EmailQuotaCard
+            quota={emailQuotaQ.data ?? null}
+            error={emailQuotaQ.error}
+            loading={emailQuotaQ.isLoading}
+          />
+        </Grid>
+        <Grid size={12}>
           <LiveObjectCard
             cdn={cdnQ.data ?? null}
             liveState={liveQ.data ?? null}
@@ -269,13 +276,6 @@ export default function Dashboard() {
                 : {}
             }
             now={now}
-          />
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
-          <EmailQuotaCard
-            quota={emailQuotaQ.data ?? null}
-            error={emailQuotaQ.error}
-            loading={emailQuotaQ.isLoading}
           />
         </Grid>
       </Grid>
