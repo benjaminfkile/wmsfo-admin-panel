@@ -1,9 +1,10 @@
-// An event's route map: its `routeMapConfig` (RouteMapConfig in
+// The site route's map: its `settings.route.mapConfig` (RouteMapConfig in
 // primitives.schema.json) as the panel edits it, the values the site
 // resolves from it (santa's routeMapConfig.ts rules), the summary the
-// event page shows, the theme and map the preview draws
+// Site settings Route card shows, the event the route view follows
+// (`routeViewEvent`), the theme and map the preview draws
 // (`eventRouteMapSource`), and `eventRouteMapStyle`, the one style call
-// the route map modal's live preview draws with.
+// the Route map settings dialog's live preview draws with.
 //
 // Every group and every key is optional. The site resolves each value on
 // its own: a display key falls back to its built-in default, and each
@@ -223,6 +224,16 @@ export function eventRouteMapSource(
   const theme = flagged ?? candidates[0];
   if (!theme) return { theme: null, map: null, hint: NO_THEME_HINT };
   return { theme, map, hint: null };
+}
+
+// The event whose tracker map and themes the preview draws over, the way
+// the snapshot's `routeView` picks it: the current event, else the one
+// with the greatest year; undefined with no event.
+export function routeViewEvent(events: readonly Event[]): Event | undefined {
+  return (
+    events.find((e) => e.isCurrent === true) ??
+    [...events].sort((a, b) => Number(b.year) - Number(a.year))[0]
+  );
 }
 
 export interface EventRouteMapStyleInput {

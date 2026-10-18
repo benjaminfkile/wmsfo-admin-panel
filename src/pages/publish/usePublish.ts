@@ -6,7 +6,8 @@ import { useNotify } from "../../hooks/useNotify";
 
 // The publish write shared by the Publish page and the bar's Publish
 // button: posts the label, toasts the new version, and refreshes the
-// status and the versions list. A `content_invalid` answer refreshes the
+// status, the versions list, and the routes (the published site route
+// and the Routes page's Site route chip follow the new version). A `content_invalid` answer refreshes the
 // status so the problem list shows what blocks publishing.
 export function usePublishMutation() {
   const qc = useQueryClient();
@@ -17,6 +18,7 @@ export function usePublishMutation() {
       notify(`Published version ${String(v.id ?? "")}`);
       void qc.invalidateQueries({ queryKey: keys.contentStatus });
       void qc.invalidateQueries({ queryKey: keys.versions });
+      void qc.invalidateQueries({ queryKey: keys.routes });
     },
     onError: (err) => {
       if (err instanceof ApiError && err.code === "content_invalid") {

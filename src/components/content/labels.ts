@@ -52,7 +52,7 @@ const THEME_OPTIONS: Record<string, string> = {
 };
 
 // The four route map display knobs (`display` of RouteMapConfig in
-// primitives.schema.json), keyed by field name. The event Route map
+// primitives.schema.json), keyed by field name. The Route map settings
 // dialog's `RouteMapDisplayControls` draws each control from these
 // entries.
 // `options` keys are the stored values as text.
@@ -487,6 +487,12 @@ export const SITE_SETTINGS: FieldLabels = {
     help: "The area a new event's tracker starts with. Each event can draw its own.",
   },
   "tracker.defaultBbox": { label: "Default area" },
+  route: {
+    label: "Route",
+    help: "The flight recording the whole site draws: the route map, the tracker's flight history, and every poster. It reaches the site when you publish.",
+  },
+  "route.routeId": { label: "Recording" },
+  "route.mapConfig": { label: "Route map settings" },
   footerLinks: {
     label: "Footer links",
     help: "Links shown at the bottom of every page, up to ten.",
@@ -616,8 +622,8 @@ export function orderFor(kind: string, isItem: boolean): string[] | undefined {
 
 // The top-level field order of the site settings form: the logo fields
 // sit right after the site name, the header links right after the
-// extra menu links, the places right after the viewpoints, and the
-// tracker area last.
+// extra menu links, the places right after the viewpoints, then the
+// tracker area, and the site route last.
 export const SITE_SETTINGS_ORDER = [
   "siteName",
   "logoMedia",
@@ -633,6 +639,7 @@ export const SITE_SETTINGS_ORDER = [
   "landmarks",
   "places",
   "tracker",
+  "route",
 ];
 
 // The labels for the site settings form.

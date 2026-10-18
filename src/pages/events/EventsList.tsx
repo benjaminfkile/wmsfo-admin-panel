@@ -15,7 +15,6 @@ import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { events as eventsApi } from "../../api/resources/events";
 import type { CreateEventBody, CloneEventBody } from "../../api/resources/events";
-import { routes as routesApi } from "../../api/resources/routes";
 import { keys } from "../../queries/keys";
 import StatusChip from "../../components/StatusChip";
 import ConfirmDialog from "../../components/ConfirmDialog";
@@ -47,10 +46,6 @@ export default function EventsList() {
   const eventsQ = useQuery({
     queryKey: keys.events,
     queryFn: () => eventsApi.list(),
-  });
-  const routesQ = useQuery({
-    queryKey: keys.routes,
-    queryFn: () => routesApi.list(),
   });
 
   const createMut = useMutation({
@@ -97,15 +92,6 @@ export default function EventsList() {
   });
 
   const events = eventsQ.data?.items ?? [];
-  const routesById = new Map(
-    (routesQ.data?.items ?? []).map((r) => [Number(r.id), r.name])
-  );
-
-  const routeLabelFor = (e: Event): string => {
-    const rid = e.routeId === null ? null : Number(e.routeId);
-    if (rid === null) return "none";
-    return routesById.get(rid) ?? `#${rid}`;
-  };
 
   const columns: Column<Event>[] = [
     {
@@ -148,12 +134,6 @@ export default function EventsList() {
       header: "Scheduled at",
       role: "line",
       render: (e) => formatStamp(e.scheduledAt) || "none",
-    },
-    {
-      key: "route",
-      header: "Route",
-      role: "line",
-      render: (e) => routeLabelFor(e),
     },
     {
       key: "fundsPercent",
@@ -222,7 +202,6 @@ export default function EventsList() {
       <EventCreateDialog
         open={createOpen}
         events={events}
-        routes={routesQ.data?.items ?? []}
         submitting={createMut.isPending}
         error={createMut.error}
         onCancel={() => {

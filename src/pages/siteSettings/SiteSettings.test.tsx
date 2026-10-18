@@ -26,6 +26,34 @@ vi.mock("../../pages/places/googleMaps", () => ({
   loadPlaces: vi.fn(() => new Promise(() => undefined)),
 }));
 
+// The route map preview's map never draws here.
+vi.mock("maplibre-gl", () => {
+  class Map {
+    on() {
+      return this;
+    }
+    hasImage() {
+      return false;
+    }
+    addImage() {
+      return undefined;
+    }
+    setStyle() {
+      return undefined;
+    }
+    fitBounds() {
+      return this;
+    }
+    resize() {
+      return this;
+    }
+    remove() {
+      return undefined;
+    }
+  }
+  return { Map, addProtocol: () => undefined, setWorkerUrl: () => undefined };
+});
+
 vi.mock("../../lib/download", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/download")>();
   return { ...actual, downloadText: vi.fn() };
@@ -590,6 +618,8 @@ describe("SiteSettings help buttons (admin.md 6.26)", () => {
       "site-settings.contact",
       "site-settings.viewpoints",
       "site-settings.places",
+      "site-settings.tracker",
+      "site-settings.route",
     ]) {
       expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();
     }
@@ -717,5 +747,144 @@ describe("SiteSettings: the Tracker field", () => {
     await user.click(within(tf).getByRole("button", { name: "Copy JSON" }));
     expect(await screen.findByText("Copied")).toBeInTheDocument();
     expect(within(tf).queryByLabelText("Area JSON")).toBeNull();
+  });
+});
+
+describe("SiteSettings: the Route card", () => {
+  const SECOND = { ...f.routes[0]!, id: 9, name: "2025 flight", isSiteRoute: false, isDraftRoute: false };
+  const CONFIG = { display: { routeWidth: "thick" } };
+
+  function serveDraft(route: unknown) {
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/site-settings`, () =>
+        HttpResponse.json({
+          ...f.siteSettingsDraft,
+          data: route === undefined ? FULL_DRAFT : { ...FULL_DRAFT, route },
+        })
+      ),
+      http.get(`${testConfig.apiBaseUrl}/admin/routes`, () =>
+        HttpResponse.json({ items: [f.routes[0], SECOND] })
+      )
+    );
+  }
+
+  function capturePut(): Array<{ data?: Record<string, unknown> }> {
+    const bodies: Array<{ data?: Record<string, unknown> }> = [];
+    server.use(
+      http.put(`${testConfig.apiBaseUrl}/admin/site-settings`, async ({ request }) => {
+        bodies.push((await request.json()) as { data?: Record<string, unknown> });
+        return HttpResponse.json({ ...f.siteSettingsDraft, data: FULL_DRAFT });
+      })
+    );
+    return bodies;
+  }
+
+  async function pickRecording(user: ReturnType<typeof userEvent.setup>, name: string) {
+    const card = await screen.findByTestId("route-field");
+    await user.click(within(card).getByRole("combobox", { name: "Recording" }));
+    await user.click(await screen.findByRole("option", { name }));
+  }
+
+  async function saveDraft(user: ReturnType<typeof userEvent.setup>) {
+    const save = screen.getByTestId("site-settings-save");
+    await waitFor(() => expect(save).not.toBeDisabled());
+    await user.click(save);
+  }
+
+  it("shows the card with its label, help key, every recording plus None, the published route, and a preview", async () => {
+    const user = userEvent.setup();
+    serveDraft({ routeId: 4, mapConfig: CONFIG });
+    render(<Harness />);
+    const card = await screen.findByTestId("route-field");
+    expect(within(card).getByText("Route")).toBeInTheDocument();
+    expect(screen.getByTestId("help-site-settings.route")).toBeInTheDocument();
+    const select = within(card).getByRole("combobox", { name: "Recording" });
+    await waitFor(() => expect(select).toHaveTextContent("2026 draft"));
+    expect(await within(card).findByTestId("site-route-published")).toHaveTextContent(
+      "The site shows 2026 draft."
+    );
+    expect(await within(card).findByTestId("site-route-preview")).toBeInTheDocument();
+    expect(within(card).getByTestId("site-route-map-changed")).toHaveTextContent("Route line: Thick");
+    expect(within(card).getByTestId("site-route-map-settings")).toBeEnabled();
+    await user.click(select);
+    expect((await screen.findAllByRole("option")).map((o) => o.textContent)).toEqual([
+      "None",
+      "2026 draft",
+      "2025 flight",
+    ]);
+  });
+
+  it("the select writes routeId, keeping the map settings", async () => {
+    const bodies = capturePut();
+    const user = userEvent.setup();
+    serveDraft({ routeId: 4, mapConfig: CONFIG });
+    render(<Harness />);
+    await screen.findByDisplayValue("Western Montana Santa Flyover");
+    await pickRecording(user, "2025 flight");
+    await saveDraft(user);
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]?.data?.route).toEqual({ routeId: 9, mapConfig: CONFIG });
+  });
+
+  it("None writes routeId null and disables Route map settings", async () => {
+    const bodies = capturePut();
+    const user = userEvent.setup();
+    serveDraft({ routeId: 4 });
+    render(<Harness />);
+    await screen.findByDisplayValue("Western Montana Santa Flyover");
+    await pickRecording(user, "None");
+    const card = screen.getByTestId("route-field");
+    expect(within(card).getByTestId("site-route-map-settings")).toBeDisabled();
+    expect(within(card).queryByTestId("site-route-preview")).toBeNull();
+    await saveDraft(user);
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]?.data?.route).toEqual({ routeId: null });
+  });
+
+  it("a draft without a route shows None and saves no route key until one is picked", async () => {
+    const bodies = capturePut();
+    const user = userEvent.setup();
+    serveDraft(undefined);
+    render(<Harness />);
+    await screen.findByDisplayValue("Western Montana Santa Flyover");
+    const card = await screen.findByTestId("route-field");
+    expect(within(card).getByRole("combobox", { name: "Recording" })).toHaveTextContent("None");
+    expect(within(card).getByTestId("site-route-map-settings")).toBeDisabled();
+    const snow = screen.getByTestId("theme-snow-default").querySelector("input");
+    if (snow) await user.click(snow);
+    await saveDraft(user);
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]?.data && "route" in bodies[0].data).toBe(false);
+  });
+
+  it("the Route map settings dialog writes mapConfig into the draft", async () => {
+    const bodies = capturePut();
+    const user = userEvent.setup();
+    serveDraft({ routeId: 4 });
+    render(<Harness />);
+    await screen.findByDisplayValue("Western Montana Santa Flyover");
+    const card = await screen.findByTestId("route-field");
+    await user.click(within(card).getByTestId("site-route-map-settings"));
+    const dialog = await screen.findByRole("dialog", { name: "Route map settings" });
+    await user.click(
+      within(within(dialog).getByRole("region", { name: "Controls" })).getByRole("switch", {
+        name: "Fullscreen button",
+      })
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Route map settings" })).toBeNull()
+    );
+    expect(within(card).getByTestId("site-route-map-changed")).toHaveTextContent(
+      "Fullscreen button: Off"
+    );
+    // The dialog writes only the draft; Save sends it with the rest.
+    expect(bodies).toHaveLength(0);
+    await saveDraft(user);
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]?.data?.route).toEqual({
+      routeId: 4,
+      mapConfig: { controls: { fullscreen: false } },
+    });
   });
 });

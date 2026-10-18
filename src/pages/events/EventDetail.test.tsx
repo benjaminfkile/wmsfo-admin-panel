@@ -107,172 +107,36 @@ afterEach(() => {
   server.resetHandlers();
 });
 
-describe("EventDetail: no route poster card; the flight history block", () => {
-  it("renders no route poster card", async () => {
+describe("EventDetail: no route controls; the site route line", () => {
+  it("shows no flight history, route map, or route poster card", async () => {
     render(<Harness id={Number(f.events[0]!.id)} />);
-    await screen.findByRole("heading", { name: /flight history/i });
+    await screen.findByTestId("event-site-route");
+    expect(screen.queryByRole("heading", { name: /flight history/i })).toBeNull();
+    expect(screen.queryByTestId("route-map-card")).toBeNull();
+    expect(screen.queryByRole("button", { name: /configure route map/i })).toBeNull();
     expect(screen.queryByRole("heading", { name: /route poster/i })).toBeNull();
-    expect(screen.queryByTestId("route-poster-choose")).toBeNull();
-    expect(screen.queryByTestId("route-poster-remove")).toBeNull();
-    expect(screen.queryByRole("button", { name: /choose poster/i })).toBeNull();
-    expect(screen.queryByRole("link", { name: /open poster studio/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /record from this event/i })).toBeNull();
+    expect(screen.queryByTestId("help-events.detail.flight-history")).toBeNull();
+    expect(screen.queryByTestId("help-events.detail.route-map")).toBeNull();
   });
 
-  it("Record from this event calls the /routes/from-event endpoint then PATCH routeId", async () => {
-    const user = userEvent.setup();
-    const posts: string[] = [];
-    const patches: Array<{ body: unknown }> = [];
+  it("names the published site route and links to Site settings", async () => {
+    render(<Harness id={Number(f.events[0]!.id)} />);
+    const line = await screen.findByTestId("event-site-route");
+    expect(line).toHaveTextContent("Route: 2026 draft (site setting)");
+    expect(within(line).getByRole("link")).toHaveAttribute("href", "/site-settings");
+  });
+
+  it("says none set when no route is published", async () => {
     server.use(
-      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
-        HttpResponse.json({
-          ...f.events[0]!,
-          routeId: null,
-        })
-      ),
-      http.post(
-        `${testConfig.apiBaseUrl}/admin/routes/from-event/:eventId`,
-        ({ request }) => {
-          posts.push(request.url);
-          return HttpResponse.json({ ...f.routes[0]!, id: 42 }, { status: 201 });
-        }
-      ),
-      http.patch(
-        `${testConfig.apiBaseUrl}/admin/events/:id`,
-        async ({ request }) => {
-          patches.push({ body: await request.json() });
-          return HttpResponse.json(f.events[0]);
-        }
+      http.get(`${testConfig.apiBaseUrl}/admin/route`, () =>
+        HttpResponse.json({ published: null, draft: { routeId: 4, name: "2026 draft", mapConfig: null } })
       )
     );
     render(<Harness id={Number(f.events[0]!.id)} />);
-    await screen.findByRole("heading", { name: /flight history/i });
-    await user.click(screen.getByTestId("flight-history-record"));
-    await waitFor(() => expect(posts.length).toBeGreaterThan(0));
-    expect(posts[0]).toMatch(/\/admin\/routes\/from-event\//);
-    await waitFor(() => expect(patches.length).toBeGreaterThan(0));
-    expect(patches[0]?.body).toEqual({ routeId: 42 });
-  });
-
-  it("Unlink sends PATCH { routeId: null }", async () => {
-    const user = userEvent.setup();
-    const captured: Array<{ body: unknown }> = [];
-    server.use(
-      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
-        HttpResponse.json({
-          ...f.events[0]!,
-          routeId: 4,
-        })
-      ),
-      http.patch(
-        `${testConfig.apiBaseUrl}/admin/events/:id`,
-        async ({ request }) => {
-          captured.push({ body: await request.json() });
-          return HttpResponse.json(f.events[0]);
-        }
-      )
-    );
-    render(<Harness id={Number(f.events[0]!.id)} />);
-    await screen.findByRole("heading", { name: /flight history/i });
-    await user.click(await screen.findByTestId("flight-history-unlink"));
-    await waitFor(() => expect(captured.length).toBeGreaterThan(0));
-    expect(captured[0]?.body).toEqual({ routeId: null });
-  });
-
-  it("flight history select preselects the current recording; Use sends PATCH { routeId }", async () => {
-    const user = userEvent.setup();
-    const patches: Array<{ body: unknown }> = [];
-    server.use(
-      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
-        HttpResponse.json({ ...f.events[0]!, routeId: 4 })
-      ),
-      http.get(`${testConfig.apiBaseUrl}/admin/routes`, () =>
-        HttpResponse.json({
-          items: [
-            {
-              ...f.routes[0]!,
-              id: 4,
-              name: "2026 draft",
-              pointCount: 42,
-              createdAt: "2026-11-01T00:00:00.000Z",
-            },
-            {
-              ...f.routes[0]!,
-              id: 3,
-              name: "2024 recording",
-              pointCount: 100,
-              createdAt: "2024-11-01T00:00:00.000Z",
-            },
-          ],
-        })
-      ),
-      http.get(`${testConfig.apiBaseUrl}/admin/events`, () =>
-        HttpResponse.json({
-          items: [
-            { ...f.events[0]!, routeId: 4, year: 2026 },
-            { ...f.events[1]!, routeId: 3, year: 2024 },
-          ],
-        })
-      ),
-      http.patch(
-        `${testConfig.apiBaseUrl}/admin/events/:id`,
-        async ({ request }) => {
-          patches.push({ body: await request.json() });
-          return HttpResponse.json(f.events[0]);
-        }
-      )
-    );
-    render(<Harness id={Number(f.events[0]!.id)} />);
-    await screen.findByRole("heading", { name: /flight history/i });
-    // Wait for the select to be preselected with the current route (id 4)
-    const select = await screen.findByTestId("flight-history-choose");
-    await waitFor(() =>
-      expect(within(select).getByText(/2026 draft/i)).toBeInTheDocument()
-    );
-    // Use is disabled when the selected route is the current one.
-    const useBtn = screen.getByTestId("flight-history-use");
-    expect(useBtn).toBeDisabled();
-    // Open the select and pick the other option.
-    await user.click(within(select).getByRole("combobox"));
-    const option = await screen.findByRole("option", {
-      name: /2024 recording.*100 points.*used by 2024/i,
-    });
-    await user.click(option);
-    await waitFor(() => expect(useBtn).not.toBeDisabled());
-    await user.click(useBtn);
-    await waitFor(() => expect(patches.length).toBeGreaterThan(0));
-    expect(patches[0]?.body).toEqual({ routeId: 3 });
-  });
-
-  it("flight history select option 'used by' shows 'no event' when no event links the recording", async () => {
-    server.use(
-      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
-        HttpResponse.json({ ...f.events[0]!, routeId: null })
-      ),
-      http.get(`${testConfig.apiBaseUrl}/admin/routes`, () =>
-        HttpResponse.json({
-          items: [
-            {
-              ...f.routes[0]!,
-              id: 99,
-              name: "Orphan route",
-              pointCount: 12,
-              createdAt: "2026-01-02T00:00:00.000Z",
-            },
-          ],
-        })
-      ),
-      http.get(`${testConfig.apiBaseUrl}/admin/events`, () =>
-        HttpResponse.json({ items: [{ ...f.events[0]!, routeId: null }] })
-      )
-    );
-    const user = userEvent.setup();
-    render(<Harness id={Number(f.events[0]!.id)} />);
-    await screen.findByRole("heading", { name: /flight history/i });
-    const select = await screen.findByTestId("flight-history-choose");
-    await user.click(within(select).getByRole("combobox"));
-    expect(
-      await screen.findByRole("option", { name: /orphan route.*used by no event/i })
-    ).toBeInTheDocument();
+    const line = await screen.findByTestId("event-site-route");
+    expect(line).toHaveTextContent("Route: none set");
+    expect(within(line).getByRole("link")).toHaveAttribute("href", "/site-settings");
   });
 });
 
@@ -717,28 +581,6 @@ describe("EventDetail: the schedule timezone (admin.md 7.5)", () => {
   });
 });
 
-describe("EventDetail: the Route map card (admin.md 6.3)", () => {
-  it("shows the card with its summary", async () => {
-    server.use(
-      http.get(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
-        HttpResponse.json({
-          ...f.events[0],
-          routeMapConfig: {
-            display: { routeWidth: "thick" },
-          },
-        })
-      )
-    );
-    render(<Harness id={Number(f.events[0]!.id)} />);
-    const card = await screen.findByTestId("route-map-card");
-    expect(within(card).queryByTestId("route-map-landmarks")).toBeNull();
-    expect(within(card).getByText("Route line: Thick")).toBeInTheDocument();
-    expect(
-      within(card).getByRole("button", { name: "Configure route map" })
-    ).toBeInTheDocument();
-  });
-});
-
 describe("EventDetail: the Postponed status", () => {
   it("offers an enabled Postponed button and posts statusId 6", async () => {
     const user = userEvent.setup();
@@ -775,8 +617,6 @@ describe("EventDetail help buttons (admin.md 6.26)", () => {
       "events.detail.details",
       "events.detail.status",
       "events.detail.messages",
-      "events.detail.flight-history",
-      "events.detail.route-map",
       "events.detail.locations",
     ]) {
       expect(await screen.findByTestId(`help-${key}`)).toBeInTheDocument();

@@ -16,7 +16,6 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { posters as postersApi } from "../../api/resources/posters";
-import { routes as routesApi } from "../../api/resources/routes";
 import type { PosterSummary } from "../../api/types";
 import AppDialog from "../../components/AppDialog";
 import CommentBox from "../../components/CommentBox";
@@ -30,10 +29,10 @@ import { keys } from "../../queries/keys";
 import { copyName } from "./copyName";
 
 // The poster list, /posters (admin.md 6.3, Poster studio): every poster
-// newest first with its name, its flight recording, and when it was last
-// saved. Create poster asks a name and opens the editor on the new
-// poster; the row menu opens, duplicates (the whole poster under
-// "<name> copy"), or deletes through the impact preview.
+// newest first with its name and when it was last saved. Create poster
+// asks a name and opens the editor on the new poster; the row menu
+// opens, duplicates (the whole poster under "<name> copy"), or deletes
+// through the impact preview.
 export default function PostersList() {
   const qc = useQueryClient();
   const notify = useNotify();
@@ -45,7 +44,6 @@ export default function PostersList() {
   );
 
   const postersQ = useQuery({ queryKey: keys.posters, queryFn: () => postersApi.list() });
-  const routesQ = useQuery({ queryKey: keys.routes, queryFn: () => routesApi.list() });
 
   const createMut = useMutation({
     mutationFn: (name: string) => postersApi.create({ name }),
@@ -61,7 +59,6 @@ export default function PostersList() {
       const source = await postersApi.get(Number(summary.id));
       return postersApi.create({
         name: copyName(source.name ?? summary.name ?? ""),
-        routeId: source.routeId === null || source.routeId === undefined ? null : Number(source.routeId),
         layout: (source.layout as object | null | undefined) ?? null,
       });
     },
@@ -84,13 +81,6 @@ export default function PostersList() {
   });
 
   const posters = postersQ.data?.items ?? [];
-  const recordings = routesQ.data?.items ?? [];
-
-  const recordingLabel = (p: PosterSummary): string => {
-    if (p.routeId === null || p.routeId === undefined) return "No recording";
-    const found = recordings.find((r) => Number(r.id) === Number(p.routeId));
-    return found?.name ?? `#${p.routeId}`;
-  };
 
   const columns: Column<PosterSummary>[] = [
     {
@@ -102,12 +92,6 @@ export default function PostersList() {
           {p.name}
         </Link>
       ),
-    },
-    {
-      key: "recording",
-      header: "Flight recording",
-      role: "line",
-      render: (p) => recordingLabel(p),
     },
     {
       key: "updated",
@@ -129,9 +113,9 @@ export default function PostersList() {
         }
       />
       <CommentBox>
-        Posters of a flight recording's route map with images, the logo, and QR codes over it.
-        Generate saves the image in the media library, where an event can choose it as its
-        route poster.
+        Posters of the site route&apos;s map with images, the logo, and QR codes over it. Every
+        poster draws the route published in Site settings; after the route changes, generate
+        the posters again. Generate saves the image in the media library.
       </CommentBox>
 
       {postersQ.error ? (

@@ -8,10 +8,9 @@ import { http, HttpResponse } from "msw";
 import PosterEditor, {
   NAME_REQUIRED,
   NO_BASEMAP_HINT,
-  NO_RECORDING_HINT,
   REPLACED_NOTICE,
 } from "./PosterEditor";
-import { NO_START_HINT, SIZE_LIMIT_MESSAGE } from "./PosterStudioWorkspace";
+import { NO_SITE_ROUTE_NOTICE, NO_START_HINT, SIZE_LIMIT_MESSAGE } from "./PosterStudioWorkspace";
 import { ConfigProvider } from "../../ConfigContext";
 import type { Config } from "../../config";
 import { NotifyProvider } from "../../hooks/useNotify";
@@ -51,8 +50,8 @@ vi.setConfig({ testTimeout: 15_000 });
 
 // Every step of the flow appends here so the tests can check the order.
 const calls: string[] = [];
-// The recordings whose route map was read.
-const routeMapIds: number[] = [];
+// How many times the studio read the site route (GET /admin/route).
+let siteRouteReads = 0;
 // The offscreen export maps.
 const mapOptions: Array<{ pixelRatio: number; style: unknown }> = [];
 // The preview maps: the style they were created with, every style set
@@ -164,7 +163,7 @@ const ctx = {
 const API = testConfig.apiBaseUrl;
 const POSTER: Poster = { ...f.posters[0]!, layout: null };
 // The seeds: light (1, the light default) and dark (2); the
-// recording's event draws on the Missoula valley map (1).
+// current event draws on the Missoula valley map (1).
 const LIGHT = f.trackerThemes.find((t) => t.key === "light")!;
 const DARK = f.trackerThemes.find((t) => t.key === "dark")!;
 const VALLEY = f.trackerMaps[0]!;
@@ -207,6 +206,21 @@ const ROUTE_MAP = {
   },
 };
 
+// GET /admin/route: recording 4 is the published site route.
+const SITE_ROUTE = {
+  published: { name: "2026 draft", routeMap: ROUTE_MAP.routeMap, mapConfig: null },
+  draft: { name: "2026 draft", mapConfig: null },
+};
+
+function serveSiteRoute(body: Record<string, unknown>) {
+  server.use(
+    http.get(`${API}/admin/route`, () => {
+      siteRouteReads += 1;
+      return HttpResponse.json(body);
+    }),
+  );
+}
+
 // The editor at /posters/:id, with the poster list standing in as a marker
 // so leaving the editor shows.
 function Harness({ poster, config = testConfig }: { poster: Poster; config?: Config }) {
@@ -240,11 +254,6 @@ function installFlowHandlers(opts: { uploadUrlStatus?: number } = {}) {
   const uploadBodies: Array<Record<string, unknown>> = [];
   const patches: unknown[] = [];
   server.use(
-    http.get(`${API}/admin/routes/:id/route-map`, ({ params }) => {
-      calls.push("route-map");
-      routeMapIds.push(Number(params.id));
-      return HttpResponse.json(ROUTE_MAP);
-    }),
     http.post(`${API}/admin/media/upload-url`, async ({ request }) => {
       calls.push("upload-url");
       uploadBodies.push((await request.json()) as Record<string, unknown>);
@@ -285,7 +294,7 @@ function installFlowHandlers(opts: { uploadUrlStatus?: number } = {}) {
 beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
   calls.length = 0;
-  routeMapIds.length = 0;
+  siteRouteReads = 0;
   mapOptions.length = 0;
   previews.length = 0;
   exportImages.length = 0;
@@ -314,7 +323,7 @@ beforeEach(() => {
     makeUser({ email: "admin@example.com", "cognito:groups": ["admin"] }),
   );
   installClient({ config: testConfig, userManager: um, onMfaRequired: () => undefined });
-  server.use(http.get(`${API}/admin/routes/:id/route-map`, () => HttpResponse.json(ROUTE_MAP)));
+  serveSiteRoute(SITE_ROUTE);
 });
 
 afterEach(() => {
@@ -375,16 +384,14 @@ describe("PosterEditor: the page and its guards", () => {
     expect(screen.getByTestId("poster-name")).toHaveValue(POSTER.name);
   });
 
-  it("holds the name and the recording in the header and links back to the list", async () => {
+  it("holds the name in the header with no recording select and links back to the list", async () => {
     const user = userEvent.setup();
     installFlowHandlers();
     render(<Harness poster={POSTER} />);
     const workspace = await openStudio();
     expect(screen.getByRole("heading", { name: "Poster studio" })).toBeInTheDocument();
     expect(screen.getByTestId("poster-name")).toHaveValue("Main street");
-    expect(await screen.findByRole("combobox", { name: "Flight recording" })).toHaveTextContent(
-      f.routes[0]!.name!,
-    );
+    expect(screen.queryByRole("combobox", { name: "Flight recording" })).toBeNull();
     expect(screen.getByTestId("poster-back")).toHaveAttribute("href", "/posters");
     // The preview column comes first, the rail with the controls after it.
     const column = within(workspace).getByTestId("poster-studio-preview-column");
@@ -395,43 +402,41 @@ describe("PosterEditor: the page and its guards", () => {
     expect(themeSelect(rail)).toHaveTextContent("Light");
     expect(mapSelect(rail)).toHaveTextContent("Missoula valley, with terrain");
     expect(screen.queryByRole("dialog")).toBeNull();
-    // The map is the chosen recording's.
-    await waitFor(() => expect(routeMapIds).toContain(4));
     await user.click(screen.getByTestId("poster-back"));
     expect(await screen.findByTestId("posters-page")).toBeInTheDocument();
   });
 
-  it("shows the hint in place of the workspace without a recording, and a picked one opens it", async () => {
-    const user = userEvent.setup();
-    installFlowHandlers();
-    render(<Harness poster={{ ...POSTER, routeId: null }} />);
-    expect(await screen.findByTestId("poster-studio-hint")).toHaveTextContent(NO_RECORDING_HINT);
-    expect(screen.queryByTestId("poster-studio-workspace")).toBeNull();
-    expect(screen.getByTestId("poster-save")).toBeEnabled();
-    const picker = screen.getByRole("combobox", { name: "Flight recording" });
-    expect(picker).toHaveTextContent("No recording");
-    await user.click(picker);
-    await user.click(await screen.findByRole("option", { name: f.routes[0]!.name! }));
-    expect(await openStudio()).toBeInTheDocument();
-    expect(screen.queryByTestId("poster-studio-hint")).toBeNull();
-    await waitFor(() => expect(routeMapIds).toEqual([4]));
+  it("draws the published site route", async () => {
+    render(<Harness poster={POSTER} />);
+    await openStudio();
+    await waitFor(() => expect(previews).toHaveLength(1));
+    expect(siteRouteReads).toBeGreaterThan(0);
+    expect(lastStyleInput().routeMap.path).toEqual(ROUTE_MAP.routeMap.path);
+    expect(screen.queryByTestId("poster-no-site-route")).toBeNull();
+    expect(screen.getByTestId("route-poster-generate-run")).toBeEnabled();
   });
 
-  it("keeps the design across a switch to no recording and back", async () => {
+  it("with no published route shows the notice in place of the map, keeps the layout editable, and disables export", async () => {
     const user = userEvent.setup();
+    const { patches } = installFlowHandlers();
+    serveSiteRoute({ published: null, draft: { name: "2026 draft", mapConfig: null } });
     render(<Harness poster={POSTER} />);
-    let studio = await openStudio();
+    const studio = await openStudio();
+    expect(await within(studio).findByTestId("poster-no-site-route")).toHaveTextContent(
+      NO_SITE_ROUTE_NOTICE,
+    );
+    expect(NO_SITE_ROUTE_NOTICE).toBe("Set a route in Site settings and publish to draw it here.");
+    expect(within(studio).queryByTestId("route-poster-preview")).toBeNull();
+    expect(previews).toHaveLength(0);
+    expect(within(studio).getByTestId("route-poster-generate-run")).toBeDisabled();
     await pick(user, themeSelect(studio), "Dark");
     await user.click(within(studio).getByLabelText("Portrait"));
-    await user.click(screen.getByRole("combobox", { name: "Flight recording" }));
-    await user.click(await screen.findByRole("option", { name: "No recording" }));
-    expect(await screen.findByTestId("poster-studio-hint")).toHaveTextContent(NO_RECORDING_HINT);
-    await user.click(screen.getByRole("combobox", { name: "Flight recording" }));
-    await user.click(await screen.findByRole("option", { name: f.routes[0]!.name! }));
-    studio = await openStudio();
-    expect(themeSelect(studio)).toHaveTextContent("Dark");
-    expect(within(studio).getByLabelText("Portrait")).toBeChecked();
+    await user.click(screen.getByTestId("poster-save"));
+    await waitFor(() => expect(patches).toHaveLength(1));
+    expect(patches[0]).toMatchObject({ layout: { themeId: 2, orientation: "portrait" } });
+    expect(calls).not.toContain("upload-url");
   });
+
 
   it("shows the hint in place of the workspace when VITE_ROUTE_BASEMAP_URL is unset", async () => {
     render(<Harness poster={POSTER} config={{ ...testConfig, routeBasemapUrl: "" }} />);
@@ -461,22 +466,40 @@ describe("PosterEditor: the Theme and Map selects", () => {
     ]);
   });
 
-  it("defaults the map to the newest event flying the recording, else the valley", async () => {
+  it("defaults the map to the current event's, else the newest event's, else the valley", async () => {
     serveMaps([VALLEY, FLATHEAD]);
     server.use(
       http.get(`${API}/admin/events`, () =>
         HttpResponse.json({
           items: [
-            { ...f.events[0]!, year: 2024, routeId: 4, trackerMapId: 1 },
-            { ...f.events[0]!, id: 9, year: 2025, routeId: 4, trackerMapId: 5 },
+            { ...f.events[0]!, year: 2024, isCurrent: true, trackerMapId: 5 },
+            { ...f.events[0]!, id: 9, year: 2025, isCurrent: false, trackerMapId: 1 },
           ],
         }),
       ),
     );
-    const { unmount } = render(<Harness poster={POSTER} />);
+    const first = render(<Harness poster={POSTER} />);
     expect(mapSelect(await openStudio())).toHaveTextContent("Flathead, no terrain");
-    unmount();
-    render(<Harness poster={{ ...POSTER, routeId: 3 }} />);
+    first.unmount();
+    server.use(
+      http.get(`${API}/admin/events`, () =>
+        HttpResponse.json({
+          items: [
+            { ...f.events[0]!, year: 2024, isCurrent: false, trackerMapId: 1 },
+            { ...f.events[0]!, id: 9, year: 2025, isCurrent: false, trackerMapId: 5 },
+          ],
+        }),
+      ),
+    );
+    const second = render(<Harness poster={POSTER} />);
+    expect(mapSelect(await openStudio())).toHaveTextContent("Flathead, no terrain");
+    second.unmount();
+    server.use(
+      http.get(`${API}/admin/events`, () =>
+        HttpResponse.json({ items: [{ ...f.events[0]!, isCurrent: true, trackerMapId: null }] }),
+      ),
+    );
+    render(<Harness poster={POSTER} />);
     expect(mapSelect(await openStudio())).toHaveTextContent("Missoula valley, with terrain");
   });
 
@@ -520,7 +543,7 @@ describe("PosterEditor: the Theme and Map selects", () => {
     await user.click(screen.getByTestId("poster-save"));
     await waitFor(() =>
       expect(patches).toEqual([
-        { name: "Main street", routeId: 4, layout: { ...DEFAULT_LAYOUT, themeId: 2, mapId: 1 } },
+        { name: "Main street", layout: { ...DEFAULT_LAYOUT, themeId: 2, mapId: 1 } },
       ]),
     );
     await waitFor(() => expect(screen.queryByTestId("poster-replaced-notice")).toBeNull());
@@ -536,7 +559,7 @@ describe("PosterEditor: the Theme and Map selects", () => {
 });
 
 describe("PosterEditor: Save", () => {
-  it("saves the name, the recording, and the whole design", async () => {
+  it("saves the name and the whole design", async () => {
     const user = userEvent.setup();
     const { patches } = installFlowHandlers();
     render(<Harness poster={POSTER} />);
@@ -550,26 +573,23 @@ describe("PosterEditor: Save", () => {
     await waitFor(() => expect(patches).toHaveLength(1));
     expect(patches[0]).toEqual({
       name: "Downtown",
-      routeId: 4,
       layout: { ...DEFAULT_LAYOUT, themeId: 2, mapId: 1, size: "flyer" },
     });
     expect(await screen.findByText("Poster saved")).toBeInTheDocument();
     expect(calls).not.toContain("upload-url");
   });
 
-  it("saves a poster without a recording as null and refuses an empty name", async () => {
+  it("refuses an empty name", async () => {
     const user = userEvent.setup();
     const { patches } = installFlowHandlers();
-    render(<Harness poster={{ ...POSTER, routeId: null }} />);
-    await screen.findByTestId("poster-studio-hint");
+    render(<Harness poster={POSTER} />);
+    await openStudio();
     await user.clear(screen.getByTestId("poster-name"));
     expect(screen.getByTestId("poster-save")).toBeDisabled();
     expect(screen.getByText(NAME_REQUIRED)).toBeInTheDocument();
     await user.type(screen.getByTestId("poster-name"), "Flyer");
     await user.click(screen.getByTestId("poster-save"));
-    await waitFor(() =>
-      expect(patches).toEqual([{ name: "Flyer", routeId: null, layout: DEFAULT_LAYOUT }]),
-    );
+    await waitFor(() => expect(patches).toEqual([{ name: "Flyer", layout: DEFAULT_LAYOUT }]));
   });
 
   it("shows a failed save and keeps the design", async () => {
@@ -594,7 +614,7 @@ describe("PosterEditor: Save", () => {
   });
 });
 
-describe("PosterEditor: generate from the flight recording", () => {
+describe("PosterEditor: generate from the site route", () => {
   it("lists the presets and swaps the pair with the orientation", async () => {
     const user = userEvent.setup();
     render(<Harness poster={POSTER} />);
@@ -623,7 +643,6 @@ describe("PosterEditor: generate from the flight recording", () => {
 
     await within(studio).findByTestId("route-poster-ready");
     expect(calls).toEqual([
-      "route-map",
       "render",
       "compose",
       "encode",
@@ -649,7 +668,7 @@ describe("PosterEditor: generate from the flight recording", () => {
       "/media?id=poster-asset-1",
     );
     // A successful Generate saves the poster; nothing is set on an event.
-    expect(patches).toEqual([{ name: "Main street", routeId: 4, layout: DEFAULT_LAYOUT }]);
+    expect(patches).toEqual([{ name: "Main street", layout: DEFAULT_LAYOUT }]);
     expect(screen.queryByRole("button", { name: /set as route poster/i })).toBeNull();
   });
 
@@ -668,20 +687,14 @@ describe("PosterEditor: generate from the flight recording", () => {
     expect(calls).not.toContain("put");
   });
 
-  it("a render failure surfaces a readable message", async () => {
-    const user = userEvent.setup();
-    server.use(
-      http.get(`${API}/admin/routes/:id/route-map`, () =>
-        HttpResponse.json({ routeMap: null }),
-      ),
-    );
+  it("a published route without a path shows the message and disables Generate", async () => {
+    serveSiteRoute({ ...SITE_ROUTE, published: { ...SITE_ROUTE.published, routeMap: null } });
     render(<Harness poster={POSTER} />);
     const studio = await openStudio();
-    await user.click(within(studio).getByTestId("route-poster-generate-run"));
-    expect(await within(studio).findByTestId("route-poster-error")).toHaveTextContent(
-      /could not be drawn.*no path/i,
+    expect(await within(studio).findByTestId("route-poster-preview-error")).toHaveTextContent(
+      /no path/i,
     );
-    expect(within(studio).getByTestId("route-poster-generate-run")).toBeEnabled();
+    expect(within(studio).getByTestId("route-poster-generate-run")).toBeDisabled();
   });
 
   it("hides the Terrain checkbox on a map without a terrain file", async () => {
@@ -875,7 +888,7 @@ describe("PosterEditor: generate from the flight recording", () => {
     expect(exportCalls[0]![0].options.details).toEqual(kept);
     expect(mapOptions[0]!.style).toEqual(preview.styles.at(-1));
     expect(patches).toEqual([
-      { name: "Main street", routeId: 4, layout: { ...DEFAULT_LAYOUT, details: kept } },
+      { name: "Main street", layout: { ...DEFAULT_LAYOUT, details: kept } },
     ]);
   });
 
@@ -1053,7 +1066,7 @@ describe("PosterEditor: opening restores the poster document", () => {
 
     // Saved back unchanged.
     await user.click(screen.getByTestId("poster-save"));
-    await waitFor(() => expect(patches).toEqual([{ name: "Main street", routeId: 4, layout }]));
+    await waitFor(() => expect(patches).toEqual([{ name: "Main street", layout }]));
   });
 });
 
@@ -1088,7 +1101,6 @@ describe("PosterEditor: the overlay composer", () => {
     expect(patches).toEqual([
       {
         name: "Main street",
-        routeId: 4,
         layout: {
           ...SAVED_LAYOUT,
           elements: [SAVED_LAYOUT.elements[1], SAVED_LAYOUT.elements[0]],
@@ -1154,7 +1166,6 @@ describe("PosterEditor: the overlay composer", () => {
     await waitFor(() => expect(patches).toHaveLength(1));
     expect(patches[0]).toEqual({
       name: "Main street",
-      routeId: 4,
       layout: {
         ...DEFAULT_LAYOUT,
         elements: [{ type: "qr", qrId: 100, tag: "qr-001", x: 0.5, y: 0.5, width: 0.15, rotation: 0, z: 0 }],
@@ -1214,7 +1225,7 @@ describe("PosterEditor: the overlay composer", () => {
     await user.click(screen.getByTestId("poster-save"));
     await waitFor(() =>
       expect(patches).toEqual([
-        { name: "Main street", routeId: 4, layout: { ...SAVED_LAYOUT, elements: [] } },
+        { name: "Main street", layout: { ...SAVED_LAYOUT, elements: [] } },
       ]),
     );
   });

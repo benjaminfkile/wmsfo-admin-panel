@@ -39,8 +39,6 @@ const baseCurrent: Event = {
   wentLiveAt: NOW,
   endedAt: null,
   fundsPercent: 63,
-  routeId: 4,
-  routeUrl: null,
   createdBy: "a@b",
   createdAt: NOW,
   updatedAt: NOW,

@@ -1,24 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Box,
   Button,
   DialogActions,
   DialogContent,
-  FormControl,
-  FormControlLabel,
-  FormLabel,
-  MenuItem,
-  Radio,
-  RadioGroup,
-  Select,
   Stack,
   TextField,
-  Typography,
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import AppDialog from "../../components/AppDialog";
-import type { Event, Route } from "../../api/types";
+import type { Event } from "../../api/types";
 import type { CreateEventBody } from "../../api/resources/events";
 import ErrorAlert from "../../components/ErrorAlert";
 import TimeZoneSelect from "../../components/TimeZoneSelect";
@@ -33,12 +25,9 @@ import { keys } from "../../queries/keys";
 import { fieldErrorFor } from "../../lib/fieldErrors";
 import { trackerPreviewLine } from "./trackerPreview";
 
-type RouteChoice = "inherit" | "choose" | "none";
-
 interface Props {
   open: boolean;
   events: Event[];
-  routes: Route[];
   submitting: boolean;
   error: unknown;
   onCancel: () => void;
@@ -48,7 +37,6 @@ interface Props {
 export default function EventCreateDialog({
   open,
   events,
-  routes,
   submitting,
   error,
   onCancel,
@@ -59,8 +47,6 @@ export default function EventCreateDialog({
   const [scheduledAt, setScheduledAt] = useState("");
   const [timeZone, setTimeZone] = useState(browserTimeZone);
   const [fundsPercent, setFundsPercent] = useState("0");
-  const [routeChoice, setRouteChoice] = useState<RouteChoice>("inherit");
-  const [routeId, setRouteId] = useState<number | "">("");
   // The drawn box, or null while it follows the site setting.
   const [bbox, setBbox] = useState<Bbox | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -96,24 +82,10 @@ export default function EventCreateDialog({
       setScheduledAt("");
       setTimeZone(browserTimeZone());
       setFundsPercent("0");
-      setRouteChoice("inherit");
-      setRouteId("");
       setBbox(null);
       setErrors({});
     }
   }, [open]);
-
-  // Preview which route the "inherit" rule selects.
-  const inheritPreview = useMemo(() => {
-    const withRoutes = events.filter((e) => e.routeId !== null);
-    if (withRoutes.length === 0) return null;
-    const latest = withRoutes.reduce((a, b) =>
-      Number(a.year) >= Number(b.year) ? a : b
-    );
-    const route =
-      routes.find((r) => Number(r.id) === Number(latest.routeId)) ?? null;
-    return { event: latest, route };
-  }, [events, routes]);
 
   const validate = (): { ok: boolean; body?: CreateEventBody } => {
     const next: Record<string, string> = {};
@@ -128,8 +100,6 @@ export default function EventCreateDialog({
     const fp = Number(fundsPercent);
     if (!Number.isInteger(fp) || fp < 0 || fp > 100)
       next.fundsPercent = "Must be a whole number between 0 and 100";
-    if (routeChoice === "choose" && routeId === "")
-      next.routeId = "Choose a route";
     if (!bboxValid(box)) next.trackerBbox = "Fix the tracker area";
     setErrors(next);
     if (Object.keys(next).length > 0) return { ok: false };
@@ -141,9 +111,6 @@ export default function EventCreateDialog({
         scheduledAt: wallTimeToUtc(scheduledAt, timeZone),
         scheduleTimeZone: timeZone,
         fundsPercent: fp,
-        routeId:
-          routeChoice === "choose" ? Number(routeId) : null,
-        inheritRoute: routeChoice === "inherit",
         trackerBbox: box,
       },
     };
@@ -215,72 +182,6 @@ export default function EventCreateDialog({
             fullWidth
             inputProps={{ min: 0, max: 100 }}
           />
-          <FormControl>
-            <FormLabel>Route</FormLabel>
-            <RadioGroup
-              value={routeChoice}
-              onChange={(e) => setRouteChoice(e.target.value as RouteChoice)}
-            >
-              <FormControlLabel
-                value="inherit"
-                control={<Radio />}
-                label="Inherit the most recent route"
-              />
-              {routeChoice === "inherit" ? (
-                <Box sx={{ ml: 4, mb: 1 }}>
-                  {inheritPreview ? (
-                    <Alert severity="info" variant="outlined">
-                      Will inherit{" "}
-                      {inheritPreview.route?.name ??
-                        `route #${inheritPreview.event.routeId}`}{" "}
-                      from {inheritPreview.event.name}
-                    </Alert>
-                  ) : (
-                    <Alert severity="warning" variant="outlined">
-                      No earlier event has a route
-                    </Alert>
-                  )}
-                </Box>
-              ) : null}
-              <FormControlLabel
-                value="choose"
-                control={<Radio />}
-                label="Choose a route"
-              />
-              {routeChoice === "choose" ? (
-                <Box sx={{ ml: 4, mb: 1 }}>
-                  <FormControl fullWidth error={!!errors.routeId}>
-                    <Select
-                      displayEmpty
-                      value={routeId === "" ? "" : String(routeId)}
-                      onChange={(e) =>
-                        setRouteId(e.target.value === "" ? "" : Number(e.target.value))
-                      }
-                    >
-                      <MenuItem value="">
-                        <em>Select a route…</em>
-                      </MenuItem>
-                      {routes.map((r) => (
-                        <MenuItem key={String(r.id)} value={String(r.id)}>
-                          {r.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                    {errors.routeId ? (
-                      <Typography variant="caption" color="error">
-                        {errors.routeId}
-                      </Typography>
-                    ) : null}
-                  </FormControl>
-                </Box>
-              ) : null}
-              <FormControlLabel
-                value="none"
-                control={<Radio />}
-                label="No route"
-              />
-            </RadioGroup>
-          </FormControl>
           <Box>
             <BboxEditor
               label="Tracker area"

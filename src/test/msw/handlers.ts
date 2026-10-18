@@ -71,6 +71,10 @@ export const handlers: HttpHandler[] = [
   }),
 
   // Routes
+  http.get("*/admin/route", () => HttpResponse.json(f.siteRoute)),
+  http.get("*/admin/routes/:id/route-map", () =>
+    HttpResponse.json({ routeMap: f.siteRoute.published?.routeMap ?? null })
+  ),
   http.get("*/admin/routes", () => HttpResponse.json({ items: f.routes })),
   http.get("*/admin/routes/:id", () => HttpResponse.json(f.routes[0])),
   http.post("*/admin/routes", () => HttpResponse.json(f.routes[0], { status: 201 })),

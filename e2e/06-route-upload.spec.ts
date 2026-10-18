@@ -1,31 +1,15 @@
 import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import {
-  fetchAdminAccessToken,
-  readAdmin,
-  readCurrentEventName,
-  signIn,
-} from "./helpers";
+import { readAdmin, signIn } from "./helpers";
 
 // Spec 6 (docs/admin.md § 9.3): upload the vendored route fixture (with
-// `schemaVersion` stripped by the test) to an event; the route section
-// shows its point count.
+// `schemaVersion` stripped by the test) on the Flight recordings page;
+// its row shows its point count. An event carries no route, so the
+// upload links nothing.
 
 test.describe("route upload", () => {
-  let adminToken: string | null = null;
-
-  test.beforeAll(async ({ browser }) => {
-    adminToken = await fetchAdminAccessToken(browser);
-  });
-
   test("strip schemaVersion, upload, point count renders", async ({ page }, info) => {
-    // The "Current" chip in EventsList is not part of the row's text, so
-    // the row must be found by the event's name; fetch that from the
-    // admin API before driving the panel.
-    if (adminToken === null) throw new Error("admin token not fetched");
-    const currentEventName = await readCurrentEventName(adminToken);
-
     const admin = readAdmin();
     await signIn(page, admin);
 
@@ -41,16 +25,8 @@ test.describe("route upload", () => {
     delete stripped.schemaVersion;
     const buffer = Buffer.from(JSON.stringify(stripped));
 
-    await page.getByRole("link", { name: "Events", exact: true }).click();
-    // Every row also carries an "Edit <name>" pencil link (M19), so a
-    // loose regex on the row's name link would match the pencil too;
-    // pin the name link with `exact: true`.
-    const row = page.getByRole("row", { name: new RegExp(currentEventName) });
-    await row.getByRole("link", { name: currentEventName, exact: true }).click();
-
-    // RouteSection's button is labelled "Upload" (opens the dialog); the
-    // dialog's submit is also "Upload" and is scoped by the dialog role.
-    await page.getByRole("button", { name: /^upload$/i }).click();
+    await page.getByRole("link", { name: "Flight recordings", exact: true }).click();
+    await page.getByRole("button", { name: /^upload recording$/i }).click();
     await page.setInputFiles('input[type="file"]', {
       name: "route.json",
       mimeType: "application/json",
@@ -65,10 +41,10 @@ test.describe("route upload", () => {
       body: String(expectedCount),
       contentType: "text/plain",
     });
-    // RouteSection prints the count as "pointCount:<n>" alongside the
-    // linked route's other fields.
+    // The new row (or the identical recording's existing row) carries
+    // the point count among its lines.
     await expect(
-      page.getByText(new RegExp(`pointCount:\\s*${expectedCount}\\b`, "i")),
-    ).toBeVisible();
+      page.getByRole("row", { name: new RegExp(raw.name) }).first(),
+    ).toContainText(String(expectedCount));
   });
 });

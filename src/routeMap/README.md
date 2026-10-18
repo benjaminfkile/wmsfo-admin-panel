@@ -28,9 +28,10 @@ the arrowhead image added to every poster map, and the composed JPEG with
 the attribution chip drawn into it. `posterStyle.ts` holds the route
 styling options, the time labels, and `buildPosterStyle`, the one style
 call the live preview and the export render share. `eventRouteMap.ts`
-holds an event's `routeMapConfig` as the panel edits it, the values the
-site resolves from it, the Route map card's summary, the theme and map
-the dialog's preview draws (`eventRouteMapSource`), and
+holds the site route's `settings.route.mapConfig` as the panel edits it,
+the values the site resolves from it, the Route card's summary, the event
+the route view follows (`routeViewEvent`), the theme and map the Route
+map settings dialog's preview draws (`eventRouteMapSource`), and
 `eventRouteMapStyle`, the one style call that preview draws with.
 `posterLayout.ts` holds the poster layout document saved on a poster (the
 whole studio design, the chosen theme and map by id, and its overlay

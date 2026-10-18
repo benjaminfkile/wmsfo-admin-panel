@@ -67,16 +67,17 @@ async function openMenu(name: string) {
 }
 
 describe("PostersList", () => {
-  it("lists each poster with its name, recording, and update time", async () => {
+  it("lists each poster with its name and update time, and no recording column", async () => {
     render(<Harness />);
     const main = await screen.findByTestId("poster-row-12");
     expect(within(main).getByRole("link", { name: "Main street" })).toHaveAttribute(
       "href",
       "/posters/12",
     );
-    await waitFor(() => expect(main).toHaveTextContent(f.routes[0]!.name!));
     expect(main).toHaveTextContent(formatStamp(f.posters[0]!.updatedAt));
-    expect(screen.getByTestId("poster-row-11")).toHaveTextContent("No recording");
+    expect(main).not.toHaveTextContent(f.routes[0]!.name!);
+    expect(screen.getByTestId("poster-row-11")).not.toHaveTextContent("No recording");
+    expect(screen.queryByRole("columnheader", { name: /flight recording/i })).toBeNull();
     expect(screen.getByRole("link", { name: "Edit Main street" })).toHaveAttribute(
       "href",
       "/posters/12",
@@ -115,7 +116,7 @@ describe("PostersList", () => {
     expect(bodies).toEqual([{ name: "Downtown" }]);
   });
 
-  it("Duplicate creates a copy named \"<name> copy\" with the recording and the layout", async () => {
+  it("Duplicate creates a copy named \"<name> copy\" with the layout", async () => {
     const layout = { version: 1, theme: "dark", elements: [] };
     const bodies: unknown[] = [];
     server.use(
@@ -131,7 +132,7 @@ describe("PostersList", () => {
     const { user, menu } = await openMenu("Main street");
     await user.click(within(menu).getByRole("menuitem", { name: "Duplicate" }));
     await waitFor(() =>
-      expect(bodies).toEqual([{ name: "Main street copy", routeId: 4, layout }]),
+      expect(bodies).toEqual([{ name: "Main street copy", layout }]),
     );
     expect(await screen.findByText("Poster duplicated")).toBeInTheDocument();
     expect(screen.queryByTestId("poster-editor")).toBeNull();

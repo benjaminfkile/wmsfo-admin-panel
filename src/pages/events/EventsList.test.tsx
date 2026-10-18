@@ -126,10 +126,11 @@ describe("EventsList rows", () => {
     expect(within(confirm).getByTestId("help-events.set-current")).toBeInTheDocument();
   });
 
-  it("shows the route name for the row, from the routes list", async () => {
+  it("shows no route column: the route is a site setting", async () => {
     render(<Harness />);
     const row = await screen.findByTestId(`event-row-${f.events[0]!.id}`);
-    expect(within(row).getByText(f.routes[0]!.name!)).toBeInTheDocument();
+    expect(within(row).queryByText(f.routes[0]!.name!)).toBeNull();
+    expect(screen.queryByRole("columnheader", { name: /^route$/i })).toBeNull();
   });
 
   it("clicking Delete on a deletable event opens the impact dialog with its name", async () => {
@@ -163,21 +164,17 @@ describe("EventsList rows", () => {
     expect(item).toHaveAttribute("aria-disabled", "true");
   });
 
-  it("New event dialog shows the inherit preview naming the latest route", async () => {
+  it("New event dialog offers no route choice", async () => {
     const user = userEvent.setup();
     render(<Harness />);
     const newBtn = await screen.findByRole("button", { name: /new event/i });
     await user.click(newBtn);
-    await screen.findByText(/inherit the most recent route/i);
-    // Latest route in fixtures is route 4 "2026 draft" from the 2026 event.
-    expect(
-      await screen.findByText(
-        new RegExp(`will inherit ${f.routes[0]!.name}`, "i")
-      )
-    ).toBeInTheDocument();
+    await screen.findByTestId("tracker-preview");
+    expect(screen.queryByText(/inherit the most recent route/i)).toBeNull();
+    expect(screen.queryByText(/will inherit/i)).toBeNull();
   });
 
-  it("Clone opens the dialog with defaults (source year + 1, name with year replaced, all four flags on)", async () => {
+  it("Clone opens the dialog with defaults (source year + 1, name with year replaced, both flags on)", async () => {
     const user = userEvent.setup();
     render(<Harness />);
     const row = await screen.findByTestId(`event-row-${f.events[0]!.id}`);
@@ -199,16 +196,13 @@ describe("EventsList rows", () => {
         String(Number(f.events[0]!.year) + 1)
       )
     );
-    for (const label of [
-      /sponsors for the year/i,
-      /flight history/i,
-      /route map settings/i,
-      /tracker map and themes/i,
-    ]) {
+    for (const label of [/sponsors for the year/i, /tracker map and themes/i]) {
       const cb = within(dialog).getByRole("checkbox", { name: label });
       expect(cb).toBeChecked();
     }
-    expect(within(dialog).getAllByRole("checkbox")).toHaveLength(4);
+    expect(within(dialog).getAllByRole("checkbox")).toHaveLength(2);
+    expect(within(dialog).queryByRole("checkbox", { name: /flight history/i })).toBeNull();
+    expect(within(dialog).queryByRole("checkbox", { name: /route map settings/i })).toBeNull();
     expect(
       within(dialog).getByText("The tracker area copies either way.")
     ).toBeInTheDocument();
@@ -254,45 +248,10 @@ describe("EventsList rows", () => {
     });
     expect((posts[0]?.body as { copy: unknown }).copy).toEqual({
       sponsors: false,
-      route: true,
-      routeMapConfig: true,
       tracker: true,
     });
   });
 
-  it("Clone sends routeMapConfig: false when Route map settings is unchecked", async () => {
-    const user = userEvent.setup();
-    const posts: unknown[] = [];
-    server.use(
-      http.post(
-        `${testConfig.apiBaseUrl}/admin/events/:id/clone`,
-        async ({ request }) => {
-          posts.push(await request.json());
-          return HttpResponse.json(
-            { ...f.events[0]!, id: 99, year: 2027 },
-            { status: 201 }
-          );
-        }
-      )
-    );
-    render(<Harness />);
-    const row = await screen.findByTestId(`event-row-${f.events[0]!.id}`);
-    await user.click(
-      within(row).getByRole("button", { name: /actions for/i })
-    );
-    await user.click(
-      await screen.findByRole("menuitem", { name: /^clone$/i })
-    );
-    const dialog = await screen.findByRole("dialog", { name: /clone event/i });
-    await user.click(
-      within(dialog).getByRole("checkbox", { name: /route map settings/i })
-    );
-    await user.click(within(dialog).getByRole("button", { name: /^clone$/i }));
-    await waitFor(() => expect(posts.length).toBe(1));
-    expect(posts[0]).toMatchObject({
-      copy: { sponsors: true, route: true, routeMapConfig: false },
-    });
-  });
 
   it("Clone sends tracker: false when Tracker map and themes is unchecked", async () => {
     const user = userEvent.setup();
@@ -324,7 +283,7 @@ describe("EventsList rows", () => {
     await user.click(within(dialog).getByRole("button", { name: /^clone$/i }));
     await waitFor(() => expect(posts.length).toBe(1));
     expect(posts[0]).toMatchObject({
-      copy: { sponsors: true, route: true, routeMapConfig: true, tracker: false },
+      copy: { sponsors: true, tracker: false },
     });
   });
 
@@ -363,16 +322,12 @@ describe("EventsList rows", () => {
     ).toBeInTheDocument();
   });
 
-  it("Create with No route sends the correct body", async () => {
+  it("Create sends no route fields", async () => {
     const user = userEvent.setup();
-    const captured: Array<{ inheritRoute: boolean; routeId: number | null }> = [];
+    const captured: Array<Record<string, unknown>> = [];
     server.use(
       http.post(`${testConfig.apiBaseUrl}/admin/events`, async ({ request }) => {
-        const body = (await request.json()) as {
-          inheritRoute: boolean;
-          routeId: number | null;
-        };
-        captured.push(body);
+        captured.push((await request.json()) as Record<string, unknown>);
         return HttpResponse.json(f.events[0], { status: 201 });
       })
     );
@@ -380,20 +335,16 @@ describe("EventsList rows", () => {
     const newBtn = await screen.findByRole("button", { name: /new event/i });
     await user.click(newBtn);
 
-    // Enter name.
     const name = await screen.findByLabelText(/name/i);
     await user.clear(name);
     await user.type(name, "Test event");
-
-    // Choose "No route".
-    await user.click(screen.getByLabelText(/no route/i));
-    // Submit.
     await user.click(screen.getByRole("button", { name: /^create$/i }));
 
     await waitFor(() => expect(captured.length).toBeGreaterThan(0));
-    const body = captured[0];
-    expect(body?.inheritRoute).toBe(false);
-    expect(body?.routeId).toBeNull();
+    const body = captured[0]!;
+    expect(body.name).toBe("Test event");
+    expect("routeId" in body).toBe(false);
+    expect("inheritRoute" in body).toBe(false);
   });
 
   it("renders a card per event on compact with the pencil and the menu button", async () => {

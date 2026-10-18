@@ -48,8 +48,6 @@ export default function EventCloneDialog({
   const [year, setYear] = useState("");
   const [name, setName] = useState("");
   const [sponsors, setSponsors] = useState(true);
-  const [route, setRoute] = useState(true);
-  const [routeMapConfig, setRouteMapConfig] = useState(true);
   const [tracker, setTracker] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -60,8 +58,6 @@ export default function EventCloneDialog({
     setYear(String(targetYear));
     setName(defaultName(source, sourceYear, targetYear));
     setSponsors(true);
-    setRoute(true);
-    setRouteMapConfig(true);
     setTracker(true);
     setErrors({});
   }, [open, source]);
@@ -89,7 +85,7 @@ export default function EventCloneDialog({
       body: {
         year: y,
         name: trimmedName,
-        copy: { sponsors, route, routeMapConfig, tracker },
+        copy: { sponsors, tracker },
       },
     };
   };
@@ -142,24 +138,6 @@ export default function EventCloneDialog({
                 />
               }
               label="Sponsors for the year"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={route}
-                  onChange={(_, v) => setRoute(v)}
-                />
-              }
-              label="Flight history"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={routeMapConfig}
-                  onChange={(_, v) => setRouteMapConfig(v)}
-                />
-              }
-              label="Route map settings"
             />
             <Stack direction="row" alignItems="center" spacing={0.5}>
               <FormControlLabel

@@ -19,7 +19,7 @@ interface Props {
 
 const FIT_PADDING = 48;
 
-// The live preview of the event's route map: a `maplibre-gl` map that
+// The live preview of the site route's map: a `maplibre-gl` map that
 // fills its box and takes gestures directly (the scroll wheel zooms, a
 // drag pans), fitted to the path when it is created and whenever the
 // path changes. Every new style reaches it through setStyle, and the
@@ -27,7 +27,7 @@ const FIT_PADDING = 48;
 // buttons the site shows: the fullscreen button (full screen for the
 // preview box) and the terrain toggle, each only while the config keeps
 // it.
-export default function EventRouteMapPreview({
+export default function RouteMapPreview({
   style,
   path,
   fullscreenButton,

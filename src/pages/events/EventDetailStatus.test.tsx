@@ -152,9 +152,9 @@ afterEach(() => {
 });
 
 // The page's queries settle after a test's last assertion (React's act
-// warning) and the flight history select gets the event's route id before the
-// routes list loads (MUI's out-of-range warning); both are dropped so the file
-// prints nothing, and any other console output goes through.
+// warning) and a select can get its value before its options load (MUI's
+// out-of-range warning); both are dropped so the file prints nothing, and
+// any other console output goes through.
 const quiet = /not wrapped in act|out-of-range value/;
 const loud = { error: console.error, warn: console.warn };
 beforeAll(() => {

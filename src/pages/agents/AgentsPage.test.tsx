@@ -183,6 +183,16 @@ describe("AgentsPage", () => {
     expect(prompt).toContain("rich_text data takes textSize normal|large");
   });
 
+  it("the prompt describes the one site route", () => {
+    const prompt = buildAgentPrompt("https://api.example");
+    expect(prompt).toContain("route: `{ routeId, mapConfig? }`, the site route");
+    expect(prompt).toContain("GET /admin/route: `{ published, draft }`");
+    expect(prompt).toContain("Delete is 409 route_in_use while the site settings draft or the newest published version names it");
+    expect(prompt).toContain("copy: { sponsors, tracker }");
+    expect(prompt).toContain("it carries no route (routeId in a poster write is 400 validation_failed)");
+    expect(prompt).toContain("An event has no route field");
+  });
+
   it("the prompt carries none of the stale statements and no dashes", () => {
     const prompt = buildAgentPrompt("https://api.example");
     for (const stale of [
@@ -193,6 +203,17 @@ describe("AgentsPage", () => {
       "tight|normal|loose|none",
       "limit defaults to 50 and caps at 500",
       "backtick code, [label](href), a newline for a line break",
+      "inheritRoute true copies the latest event's recording and refuses routeId (400).",
+      "Its display comes from the event's routeMapConfig",
+      "copy: { sponsors, route, routeMapConfig, tracker }",
+      "GET /admin/events/{id}/route-map",
+      "locations, route-map) and /admin/posters/*",
+      "POST `{ name 1..200, routeId?, layout? }`",
+      "Delete unlinks the events and posters that used it.",
+      "Attach a recording with PATCH on the event or poster.",
+      "a route unlinks events and posters",
+      "fundsPercent, routeId, scheduleTimeZone",
+      "routeMapConfig (an object or null; unknown fields are 400)",
     ]) {
       expect(prompt).not.toContain(stale);
     }

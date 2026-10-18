@@ -252,25 +252,30 @@ describe("the poster layout document", () => {
     );
   });
 
-  it("picks the light default theme and the map of the newest event flying the recording", () => {
+  it("picks the light default theme and the map of the current event, else the newest, else the seeded map", () => {
     const theme = (id: number, light: boolean) =>
       ({ id, key: `t${id}`, renderer: "maplibre", defaultLightMode: light });
     const map = (id: number, prefix: string) => ({ id, prefix, state: "ready" });
     const themes = [theme(4, false), theme(5, true)];
     const maps = [map(3, "maps/3"), map(1, "basemap"), map(6, "maps/6")];
     const events = [
-      { year: 2024, routeId: 7, trackerMapId: 3 },
-      { year: 2025, routeId: 7, trackerMapId: 6 },
-      { year: 2026, routeId: 8, trackerMapId: 3 },
+      { year: 2024, isCurrent: false, trackerMapId: 3 },
+      { year: 2025, isCurrent: true, trackerMapId: 6 },
+      { year: 2026, isCurrent: false, trackerMapId: 3 },
     ];
-    expect(layoutChoices(themes, maps, events, 7)).toMatchObject({ defaultThemeId: 5, defaultMapId: 6 });
-    expect(layoutChoices(themes, maps, events, 9).defaultMapId).toBe(1);
-    expect(layoutChoices(themes, maps, events, null).defaultMapId).toBe(1);
-    expect(layoutChoices([theme(4, false)], [map(3, "maps/3")], [], null)).toMatchObject({
+    expect(layoutChoices(themes, maps, events)).toMatchObject({ defaultThemeId: 5, defaultMapId: 6 });
+    const none = events.map((e) => ({ ...e, isCurrent: false }));
+    expect(layoutChoices(themes, maps, none).defaultMapId).toBe(3);
+    expect(layoutChoices(themes, maps, [{ year: 2026, isCurrent: false, trackerMapId: null }]).defaultMapId)
+      .toBe(1);
+    expect(layoutChoices(themes, maps, [{ year: 2026, isCurrent: true, trackerMapId: 9 }]).defaultMapId)
+      .toBe(1);
+    expect(layoutChoices(themes, maps, []).defaultMapId).toBe(1);
+    expect(layoutChoices([theme(4, false)], [map(3, "maps/3")], [])).toMatchObject({
       defaultThemeId: 4,
       defaultMapId: 3,
     });
-    expect(layoutChoices([], [], [], null)).toMatchObject({ defaultThemeId: null, defaultMapId: null });
+    expect(layoutChoices([], [], [])).toMatchObject({ defaultThemeId: null, defaultMapId: null });
   });
 
   it("snaps the nearest edge or centre within the threshold", () => {

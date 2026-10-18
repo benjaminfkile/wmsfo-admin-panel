@@ -412,9 +412,6 @@ function CurrentEventCard({
             <LabeledLine label="fundsPercent">
               {String(event.fundsPercent)}%
             </LabeledLine>
-            <LabeledLine label="route">
-              {event.routeId === null ? "no route" : `#${event.routeId}`}
-            </LabeledLine>
           </Stack>
         )}
       </CardContent>

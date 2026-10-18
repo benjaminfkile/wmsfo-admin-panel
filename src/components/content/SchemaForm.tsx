@@ -23,6 +23,7 @@ import BlocksField from "./fields/BlocksField";
 import LinkListField from "./fields/LinkListField";
 import PlacesField from "./fields/PlacesField";
 import TrackerField from "./fields/TrackerField";
+import RouteField from "./fields/RouteField";
 import ViewpointsField from "./fields/ViewpointsField";
 import PresentationPanelField from "./fields/PresentationPanelField";
 import OptionalField, { extractOptional } from "./fields/OptionalField";
@@ -117,7 +118,8 @@ function RoutedSchemaField(props: FieldProps) {
 }
 
 // UiSchema-based custom fields (used by SiteSettings for the theme
-// object, the viewpoints list, the places, and the tracker area; RJSF
+// object, the viewpoints list, the places, the tracker area, and the
+// site route; RJSF
 // resolves these via `ui:field: "<name>"`).
 const FIELDS: RegistryFieldsType = {
   SchemaField: RoutedSchemaField,
@@ -125,6 +127,7 @@ const FIELDS: RegistryFieldsType = {
   ViewpointsField,
   PlacesField,
   TrackerField,
+  RouteField,
 };
 
 // A `const` inside a `oneOf` branch is never used as a default, so an

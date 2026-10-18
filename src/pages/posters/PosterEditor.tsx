@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import {
   Alert,
   Button,
-  MenuItem,
   Stack,
   TextField,
   Typography,
@@ -12,7 +11,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { events as eventsApi } from "../../api/resources/events";
 import { maps as mapsApi } from "../../api/resources/maps";
 import { posters as postersApi } from "../../api/resources/posters";
-import { routes as routesApi } from "../../api/resources/routes";
 import { themes as themesApi } from "../../api/resources/themes";
 import type { Event, Poster, TrackerMap, TrackerTheme } from "../../api/types";
 import ErrorAlert from "../../components/ErrorAlert";
@@ -31,7 +29,6 @@ import {
 } from "../../routeMap/posterLayout";
 import PosterStudioWorkspace from "./PosterStudioWorkspace";
 
-export const NO_RECORDING_HINT = "Choose a flight recording to draw the poster's map.";
 export const NO_BASEMAP_HINT =
   "Poster generation needs VITE_ROUTE_BASEMAP_URL, which is not set.";
 export const NAME_REQUIRED = "The poster needs a name.";
@@ -74,14 +71,14 @@ export default function PosterEditor() {
   );
 }
 
-// The header holds the editable name, the Flight recording picker, Save,
-// and the way back to the list. The poster's layout is read once, when
-// the page opens; the workspace reports every change of the design and
-// Save sends the name, the recording, and the whole layout document.
-// While no recording is chosen, the basemap URL is unset, or there is no
+// The header holds the editable name, Save, and the way back to the list.
+// The poster's layout is read once, when the page opens; the workspace
+// reports every change of the design and Save sends the name and the
+// whole layout document. The workspace draws the published site route
+// (GET /admin/route). While the basemap URL is unset, or there is no
 // MapLibre theme or ready map to draw, a hint stands in place of the
-// workspace; the design survives the switch. A layout whose theme or map
-// read as the default shows the notice from open until the next save.
+// workspace. A layout whose theme or map read as the default shows the
+// notice from open until the next save.
 function PosterEditorBody({
   poster,
   themes: allThemes,
@@ -98,13 +95,10 @@ function PosterEditorBody({
   const qc = useQueryClient();
   const notify = useNotify();
   const [name, setName] = useState(poster.name ?? "");
-  const [routeId, setRouteId] = useState<number | null>(
-    poster.routeId === null || poster.routeId === undefined ? null : Number(poster.routeId),
-  );
   const themes = useMemo(() => posterThemes(allThemes), [allThemes]);
   const maps = useMemo(() => posterMaps(allMaps), [allMaps]);
   const [opened] = useState(() => {
-    const choices = layoutChoices(themes, maps, events, routeId);
+    const choices = layoutChoices(themes, maps, events);
     return parsePosterLayout(poster.layout, choices) ?? {
       layout: defaultPosterLayout(choices),
       replaced: false,
@@ -115,15 +109,9 @@ function PosterEditorBody({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const routesQ = useQuery({ queryKey: keys.routes, queryFn: () => routesApi.list() });
-  const recordings = routesQ.data?.items ?? [];
-  const unknownRecording =
-    routeId !== null && routesQ.isSuccess && !recordings.some((r) => Number(r.id) === routeId);
-
   const trimmed = name.trim();
 
-  // PATCHes the name, the recording, and `next`; resolves whether it was
-  // saved.
+  // PATCHes the name and `next`; resolves whether it was saved.
   const save = async (next: PosterLayout): Promise<boolean> => {
     setSaveError(null);
     if (!trimmed) {
@@ -132,7 +120,7 @@ function PosterEditorBody({
     }
     setSaving(true);
     try {
-      const saved = await postersApi.patch(id, { name: trimmed, routeId, layout: next });
+      const saved = await postersApi.patch(id, { name: trimmed, layout: next });
       qc.setQueryData(keys.poster(id), saved);
     } catch (e) {
       setSaveError(`The poster could not be saved. ${e instanceof Error && e.message ? e.message : "Unknown error."}`);
@@ -146,9 +134,7 @@ function PosterEditorBody({
   };
 
   const hint =
-    routeId === null
-      ? NO_RECORDING_HINT
-      : routeBasemapBase(config) === null
+    routeBasemapBase(config) === null
         ? NO_BASEMAP_HINT
         : themes.length === 0
           ? NO_THEME_HINT
@@ -174,28 +160,6 @@ function PosterEditorBody({
               slotProps={{ htmlInput: { maxLength: 200, "data-testid": "poster-name" } }}
               sx={{ minWidth: { sm: 280 } }}
             />
-            <TextField
-              select
-              label="Flight recording"
-              size="small"
-              value={routeId === null ? "" : String(routeId)}
-              onChange={(e) => setRouteId(e.target.value === "" ? null : Number(e.target.value))}
-              slotProps={{
-                select: { displayEmpty: true },
-                inputLabel: { shrink: true },
-              }}
-              sx={{ minWidth: { sm: 280 } }}
-            >
-              <MenuItem value="">No recording</MenuItem>
-              {unknownRecording ? (
-                <MenuItem value={String(routeId)}>{`#${routeId}`}</MenuItem>
-              ) : null}
-              {recordings.map((r) => (
-                <MenuItem key={String(r.id)} value={String(r.id)}>
-                  {r.name}
-                </MenuItem>
-              ))}
-            </TextField>
           </Stack>
         }
         actions={
@@ -218,7 +182,6 @@ function PosterEditorBody({
           </>
         }
       />
-      {routesQ.error ? <ErrorAlert error={routesQ.error} /> : null}
       {notice ? (
         <Alert severity="info" sx={{ mb: 2 }} data-testid="poster-replaced-notice">
           {REPLACED_NOTICE}
@@ -229,14 +192,13 @@ function PosterEditorBody({
           {saveError}
         </Alert>
       ) : null}
-      {hint || routeId === null ? (
+      {hint ? (
         <Alert severity="info" data-testid="poster-studio-hint">
           {hint}
         </Alert>
       ) : (
         <PosterStudioWorkspace
           posterName={trimmed || (poster.name ?? "")}
-          routeId={routeId}
           themes={themes}
           maps={maps}
           initialLayout={layout}

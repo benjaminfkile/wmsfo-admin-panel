@@ -81,8 +81,6 @@ import { OverlayLoadError, sourceKey, useOverlaySources } from "./overlaySources
 interface Props {
   // The poster's name, which names the generated file.
   posterName: string;
-  // The flight recording the map is built from.
-  routeId: number;
   // The Theme select's options, the MapLibre themes in their order; never
   // empty.
   themes: readonly TrackerTheme[];
@@ -98,7 +96,10 @@ interface Props {
 
 type Phase = "idle" | "rendering" | "uploading" | "confirming" | "ready" | "failed";
 
-const NO_PATH_MESSAGE = "The chosen flight recording has no path to draw.";
+const NO_PATH_MESSAGE = "The site route has no path to draw.";
+
+export const NO_SITE_ROUTE_NOTICE =
+  "Set a route in Site settings and publish to draw it here.";
 
 export const SIZE_LIMIT_MESSAGE =
   "The poster image is over the 20 MB limit for images. Choose a smaller size or the other theme and generate again.";
@@ -121,7 +122,8 @@ const NEW_ELEMENT_WIDTH: Record<LayoutElement["type"], number> = {
 };
 
 // The workspace of the poster editor (admin.md 6.3, Poster studio). The
-// working column holds a large live preview of the recording's route map
+// working column holds a large live preview of the published site route
+// (GET /admin/route `published.routeMap`)
 // drawn with the chosen tracker theme over the chosen tracker map, at the
 // chosen orientation, size, and route styling (colour, arrows, time
 // labels), with the hillshade when Terrain is checked (offered only while
@@ -133,10 +135,11 @@ const NEW_ELEMENT_WIDTH: Record<LayoutElement["type"], number> = {
 // goes to `onLayoutChange`. Generate renders the same style offscreen,
 // draws the overlays over it at the print scale and the attribution last,
 // uploads the JPEG through the media upload flow, saves the poster, and
-// links the ready asset in the media library.
+// links the ready asset in the media library. With no published site
+// route the notice stands in place of the preview, the design stays
+// editable, and Generate is disabled.
 export default function PosterStudioWorkspace({
   posterName,
-  routeId,
   themes,
   maps,
   initialLayout,
@@ -225,12 +228,13 @@ export default function PosterStudioWorkspace({
 
   const { states: sources, whenReady } = useOverlaySources(elements, config.siteBaseUrl);
 
-  const routeMapQuery = {
-    queryKey: keys.routeMap(routeId),
-    queryFn: async () => toRouteMapData((await routesApi.routeMap(routeId)).routeMap),
-  };
-  const routeMapResult = useQuery(routeMapQuery);
-  const routeMap = routeMapResult.data ?? null;
+  const siteRouteResult = useQuery({
+    queryKey: keys.siteRoute,
+    queryFn: () => routesApi.site(),
+  });
+  const published = siteRouteResult.data?.published ?? null;
+  const noSiteRoute = siteRouteResult.isSuccess && published === null;
+  const routeMap = useMemo(() => toRouteMapData(published?.routeMap ?? null), [published]);
 
   const drawable = routeMap && routeMap.path.length > 0 ? routeMap : null;
   // The theme the preview draws: the chosen one once its body has loaded,
@@ -332,7 +336,7 @@ export default function PosterStudioWorkspace({
     setPhase("rendering");
     let blob: Blob;
     try {
-      const data = routeMap ?? (await qc.fetchQuery(routeMapQuery));
+      const data = routeMap;
       if (!data || data.path.length === 0) {
         throw new Error(NO_PATH_MESSAGE);
       }
@@ -422,11 +426,15 @@ export default function PosterStudioWorkspace({
       <Alert severity="warning" data-testid="route-poster-preview-error">
         The theme style could not load. {messageOf(bodyResult.error)}
       </Alert>
-    ) : routeMapResult.isError ? (
+    ) : siteRouteResult.isError ? (
       <Alert severity="warning" data-testid="route-poster-preview-error">
-        The preview could not load. {messageOf(routeMapResult.error)}
+        The preview could not load. {messageOf(siteRouteResult.error)}
       </Alert>
-    ) : routeMapResult.isSuccess && !drawable ? (
+    ) : noSiteRoute ? (
+      <Alert severity="info" data-testid="poster-no-site-route">
+        {NO_SITE_ROUTE_NOTICE}
+      </Alert>
+    ) : siteRouteResult.isSuccess && !drawable ? (
       <Alert severity="warning" data-testid="route-poster-preview-error">
         {NO_PATH_MESSAGE}
       </Alert>
@@ -710,7 +718,7 @@ export default function PosterStudioWorkspace({
             <Button
               variant={asset ? "outlined" : "contained"}
               onClick={() => void generate()}
-              disabled={busy}
+              disabled={busy || !drawable}
               data-testid="route-poster-generate-run"
             >
               {phase === "failed" ? "Try again" : asset ? "Generate another" : "Generate"}

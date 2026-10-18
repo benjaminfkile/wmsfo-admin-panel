@@ -63,7 +63,6 @@ function renderDialog(
             <EventCreateDialog
               open
               events={events}
-              routes={[]}
               submitting={false}
               error={null}
               onCancel={() => undefined}
@@ -105,11 +104,11 @@ describe("EventCreateDialog: Tracker area", () => {
     expect(field("north").value).toBe("47.0000");
 
     await user.type(screen.getByLabelText(/^name/i), "Area flight");
-    await user.click(screen.getByLabelText(/no route/i));
     await user.click(screen.getByRole("button", { name: /^create$/i }));
     const body = onSubmit.mock.calls[0]![0] as CreateEventBody;
     expect(body.trackerBbox).toEqual(SITE_BOX);
-    expect(body).toMatchObject({ inheritRoute: false, routeId: null });
+    expect(Object.keys(body)).not.toContain("routeId");
+    expect(Object.keys(body)).not.toContain("inheritRoute");
   });
 
   it("shows the Missoula valley box without a tracker key, and Use site default puts it back", async () => {
@@ -158,6 +157,18 @@ describe("EventCreateDialog: Tracker area", () => {
   });
 });
 
+describe("EventCreateDialog: no route", () => {
+  it("offers no route control: the route is a site setting", async () => {
+    renderDialog(vi.fn(), f.events);
+    await screen.findByTestId("tracker-preview");
+    expect(screen.queryByText(/^route$/i)).toBeNull();
+    expect(screen.queryByLabelText(/inherit the most recent route/i)).toBeNull();
+    expect(screen.queryByLabelText(/choose a route/i)).toBeNull();
+    expect(screen.queryByLabelText(/no route/i)).toBeNull();
+    expect(screen.queryByText(/will inherit/i)).toBeNull();
+  });
+});
+
 describe("EventCreateDialog: timezone", () => {
   it("defaults the zone to the browser zone and reads the scheduled time in it", async () => {
     const user = userEvent.setup();
@@ -172,7 +183,6 @@ describe("EventCreateDialog: timezone", () => {
     fireEvent.change(screen.getByLabelText(/scheduled at/i), {
       target: { value: "2026-11-01T01:30" },
     });
-    await user.click(screen.getByLabelText(/no route/i));
     await user.click(screen.getByRole("button", { name: /^create$/i }));
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
@@ -201,7 +211,6 @@ describe("EventCreateDialog: timezone", () => {
     expect(
       screen.getByText(formatStamp("2026-12-24T10:00:00.000Z"))
     ).toBeInTheDocument();
-    await user.click(screen.getByLabelText(/no route/i));
     await user.click(screen.getByRole("button", { name: /^create$/i }));
 
     const body = onSubmit.mock.calls[0]![0] as CreateEventBody;

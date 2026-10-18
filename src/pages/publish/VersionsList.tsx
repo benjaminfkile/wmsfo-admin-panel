@@ -47,6 +47,7 @@ export default function VersionsList({ currentPublishedId }: Props) {
       void qc.invalidateQueries({ queryKey: keys.contentStatus });
       void qc.invalidateQueries({ queryKey: keys.pages });
       void qc.invalidateQueries({ queryKey: keys.siteSettings });
+      void qc.invalidateQueries({ queryKey: keys.routes });
     },
   });
 
@@ -63,6 +64,7 @@ export default function VersionsList({ currentPublishedId }: Props) {
       void qc.invalidateQueries({ queryKey: keys.versions });
       void qc.invalidateQueries({ queryKey: keys.pages });
       void qc.invalidateQueries({ queryKey: keys.siteSettings });
+      void qc.invalidateQueries({ queryKey: keys.routes });
     },
   });
 
