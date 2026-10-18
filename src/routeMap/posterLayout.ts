@@ -346,25 +346,22 @@ export function posterMaps(maps: readonly TrackerMap[]): TrackerMap[] {
 export const SEEDED_MAP_PREFIX = "basemap";
 
 // The defaults of the two selects over their options: the theme carrying
-// `defaultLightMode`, else the first; the map of the most recent event by
-// year whose `routeId` is the poster's recording, else the seeded
+// `defaultLightMode`, else the first; the map of the current event, else
+// of the newest event by year (when that map is offered), else the seeded
 // Missoula valley map, else the first.
 export function layoutChoices(
   themes: readonly TrackerTheme[],
   maps: readonly TrackerMap[],
-  events: readonly Pick<Event, "year" | "routeId" | "trackerMapId">[],
-  routeId: number | null,
+  events: readonly Pick<Event, "year" | "isCurrent" | "trackerMapId">[],
 ): LayoutChoices {
   const theme = themes.find((t) => t.defaultLightMode === true) ?? themes[0];
-  const offered = (id: unknown) => maps.find((m) => Number(m.id) === Number(id));
+  const event =
+    events.find((e) => e.isCurrent === true) ??
+    [...events].sort((a, b) => Number(b.year) - Number(a.year))[0];
   const eventMap =
-    routeId === null
+    event?.trackerMapId == null
       ? undefined
-      : [...events]
-          .filter((e) => e.routeId != null && Number(e.routeId) === routeId)
-          .sort((a, b) => Number(b.year) - Number(a.year))
-          .map((e) => (e.trackerMapId == null ? undefined : offered(e.trackerMapId)))
-          .find((m) => m !== undefined);
+      : maps.find((m) => Number(m.id) === Number(event.trackerMapId));
   const map = eventMap ?? maps.find((m) => m.prefix === SEEDED_MAP_PREFIX) ?? maps[0];
   return {
     themes,

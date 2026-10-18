@@ -1,14 +1,16 @@
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
-import RouteMapSection from "./RouteMapSection";
+import RouteMapConfigDialog from "./RouteMapConfigDialog";
 import { ConfigProvider } from "../../ConfigContext";
 import { NotifyProvider } from "../../hooks/useNotify";
 import { installClient } from "../../api/client";
 import type { Event } from "../../api/types";
+import type { RouteMapConfigValue } from "../../routeMap/eventRouteMap";
 import { buildTheme } from "../../theme/theme";
 import { server } from "../../test/msw/server";
 import * as f from "../../test/msw/fixtures";
@@ -121,11 +123,40 @@ const ROUTE_MAP = {
   },
 };
 
+// The site route the dialog previews.
+const ROUTE_ID = 4;
+
 function makeEvent(over: Partial<Event> = {}): Event {
   return { ...(f.events[0] as Event), ...over };
 }
 
-function Harness({ event }: { event: Event }) {
+// Stands in for the Route card: holds the draft's `mapConfig`, opens the
+// dialog over it, and records every config the dialog hands back.
+function DialogHost({ initial, places }: { initial: unknown; places?: unknown }) {
+  const [mapConfig, setMapConfig] = useState<unknown>(initial);
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        Configure route map
+      </button>
+      {open ? (
+        <RouteMapConfigDialog
+          routeId={ROUTE_ID}
+          mapConfig={mapConfig}
+          places={places}
+          onSave={(next: RouteMapConfigValue | null) => {
+            saves.push({ mapConfig: next });
+            setMapConfig(next);
+          }}
+          onClose={() => setOpen(false)}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function Harness({ config = null, places }: { config?: unknown; places?: unknown }) {
   const client = new QueryClient({
     defaultOptions: {
       queries: { retry: false, staleTime: 0, gcTime: 0 },
@@ -139,7 +170,7 @@ function Harness({ event }: { event: Event }) {
         <QueryClientProvider client={client}>
           <MemoryRouter>
             <NotifyProvider>
-              <RouteMapSection event={event} />
+              <DialogHost initial={config} places={places} />
             </NotifyProvider>
           </MemoryRouter>
         </QueryClientProvider>
@@ -148,33 +179,30 @@ function Harness({ event }: { event: Event }) {
   );
 }
 
-let patches: Array<Record<string, unknown>> = [];
+let saves: Array<Record<string, unknown>> = [];
 let routeMapReads = 0;
+let routeMapIds: number[] = [];
 
-function serve(event: Event) {
+function serve(routeMap: Record<string, unknown> = ROUTE_MAP) {
   server.use(
-    http.get(`${testConfig.apiBaseUrl}/admin/events/:id/route-map`, () => {
+    http.get(`${testConfig.apiBaseUrl}/admin/routes/:id/route-map`, ({ params }) => {
       routeMapReads += 1;
-      return HttpResponse.json(ROUTE_MAP);
-    }),
-    http.patch(`${testConfig.apiBaseUrl}/admin/events/:id`, async ({ request }) => {
-      const body = (await request.json()) as Record<string, unknown>;
-      patches.push(body);
-      return HttpResponse.json({ ...event, ...body });
+      routeMapIds.push(Number(params.id));
+      return HttpResponse.json(routeMap);
     })
   );
 }
 
-async function openDialog(event: Event): Promise<HTMLElement> {
-  serve(event);
-  render(<Harness event={event} />);
+const DIALOG = "Route map settings";
+
+async function openDialog(config: unknown, places?: unknown): Promise<HTMLElement> {
+  serve();
+  render(<Harness config={config} places={places} />);
   fireEvent.click(screen.getByRole("button", { name: "Configure route map" }));
-  const dialog = await screen.findByRole("dialog", { name: "Route map" });
-  expect(within(dialog).getByTestId("help-events.detail.route-map-dialog")).toBeInTheDocument();
-  if (event.routeId !== null && event.routeId !== undefined) {
-    await within(dialog).findByTestId("route-map-preview");
-    await waitFor(() => expect(maps.length).toBeGreaterThan(0));
-  }
+  const dialog = await screen.findByRole("dialog", { name: DIALOG });
+  expect(within(dialog).getByTestId("help-site-settings.route")).toBeInTheDocument();
+  await within(dialog).findByTestId("route-map-preview");
+  await waitFor(() => expect(maps.length).toBeGreaterThan(0));
   return dialog;
 }
 
@@ -191,13 +219,13 @@ function expectPreviewInSync() {
 }
 
 async function save(dialog: HTMLElement): Promise<Record<string, unknown>> {
-  const before = patches.length;
+  const before = saves.length;
   fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
-  await waitFor(() => expect(patches.length).toBe(before + 1));
+  await waitFor(() => expect(saves.length).toBe(before + 1));
   await waitFor(() =>
-    expect(screen.queryByRole("dialog", { name: "Route map" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("dialog", { name: DIALOG })).not.toBeInTheDocument()
   );
-  return patches.at(-1)!;
+  return saves.at(-1)!;
 }
 
 function pickOption(dialog: HTMLElement, testId: string, option: string) {
@@ -210,40 +238,11 @@ function group(dialog: HTMLElement, name: string): HTMLElement {
   return within(dialog).getByRole("region", { name });
 }
 
-// The events list the copy picker reads: this event and three others,
-// served out of year order.
-function serveEvents(event: Event) {
-  const other = (id: number, year: number, routeMapConfig: unknown): Event =>
-    makeEvent({
-      id,
-      year,
-      name: `Santa Flyover ${year}`,
-      routeMapConfig: routeMapConfig as Event["routeMapConfig"],
-    });
-  server.use(
-    http.get(`${testConfig.apiBaseUrl}/admin/events`, () =>
-      HttpResponse.json({
-        items: [
-          other(4, 2023, { controls: { terrain: false } }),
-          event,
-          other(6, 2025, FULL_CONFIG),
-          other(5, 2024, null),
-        ],
-      })
-    )
-  );
-}
-
-async function waitForEnabledCombo(region: HTMLElement): Promise<HTMLElement> {
-  const combo = within(region).getByRole("combobox");
-  await waitFor(() => expect(combo).not.toHaveAttribute("aria-disabled", "true"));
-  return combo;
-}
-
 beforeEach(() => {
   maps.length = 0;
-  patches = [];
+  saves = [];
   routeMapReads = 0;
+  routeMapIds = [];
   vi.mocked(eventRouteMapStyle).mockClear();
   installClient({
     config: testConfig,
@@ -258,84 +257,19 @@ afterEach(() => {
   server.resetHandlers();
 });
 
-describe("the Route map card", () => {
-  it("summarises a null config as all defaults and says nothing of landmarks", () => {
-    render(<Harness event={makeEvent({ routeMapConfig: null })} />);
-    const card = screen.getByTestId("route-map-card");
-    expect(within(card).queryByTestId("route-map-landmarks")).toBeNull();
-    expect(card.textContent ?? "").not.toMatch(/landmark|viewpoint/i);
-    expect(within(card).getByTestId("route-map-changed")).toHaveTextContent(
-      "Every setting is at its default."
-    );
-    expect(within(card).getByRole("button", { name: "Configure route map" })).toBeInTheDocument();
-  });
-
-  it("lists each setting that differs from the default", () => {
-    render(
-      <Harness
-        event={makeEvent({
-          routeMapConfig: FULL_CONFIG as unknown as Event["routeMapConfig"],
-        })}
-      />
-    );
-    const card = screen.getByTestId("route-map-card");
-    const chips = within(within(card).getByTestId("route-map-changed"))
-      .getAllByText(/: /)
-      .map((c) => c.textContent);
-    expect(chips).toEqual([
-      "Time labels: Every 10 minutes",
-      "Arrows: Off",
-      "Arrow size: Large",
-      "Route line: Thick",
-      "Label size: Small",
-      "Fullscreen button: Off",
-      "Terrain toggle: Off",
-    ]);
-  });
-
-  it("never names points of interest, even for a stored pois key", () => {
-    render(
-      <Harness
-        event={makeEvent({
-          routeMapConfig: { ...FULL_CONFIG, pois: { kinds: ["park"] } } as unknown as Event["routeMapConfig"],
-        })}
-      />
-    );
-    const card = screen.getByTestId("route-map-card");
-    expect(card.textContent ?? "").not.toMatch(/points of interest/i);
-  });
-
-  it("leaves out a stored value equal to its default", () => {
-    render(
-      <Harness
-        event={makeEvent({
-          routeMapConfig: {
-            display: { timeLabelIntervalMinutes: 15, arrows: true, routeWidth: "thin" },
-            controls: { fullscreen: true },
-          } as unknown as Event["routeMapConfig"],
-        })}
-      />
-    );
-    const card = screen.getByTestId("route-map-card");
-    const changed = within(card).getByTestId("route-map-changed");
-    expect(within(changed).getAllByText(/: /).map((c) => c.textContent)).toEqual([
-      "Route line: Thin",
-    ]);
-  });
-});
-
-describe("the Route map modal", () => {
-  it("previews this event's route over the shared style call with gestures on", async () => {
-    const dialog = await openDialog(makeEvent({ routeMapConfig: null }));
+describe("the Route map settings dialog", () => {
+  it("previews the site route over the shared style call with gestures on", async () => {
+    const dialog = await openDialog(null);
     expect(routeMapReads).toBe(1);
+    expect(routeMapIds).toEqual([ROUTE_ID]);
     const map = maps.at(-1)!;
     expect(map.options.interactive).toBe(true);
     const input = lastStyleInput();
     expect(input.routeMap.path).toEqual(ROUTE_MAP.routeMap.path);
     expect(input.routeMapConfig).toEqual({});
     expectPreviewInSync();
-    // The event's map and its enabled MapLibre theme carrying the light
-    // default, with that theme's loaded body.
+    // The current event's map and its enabled MapLibre theme carrying the
+    // light default, with that theme's loaded body.
     const light = f.trackerThemes.find((t) => t.key === "light")!;
     expect(input.map).toMatchObject({ id: 1, tilesUrl: f.trackerMaps[0]!.tilesUrl });
     expect(input.theme.overlay).toEqual(light.overlay);
@@ -347,7 +281,7 @@ describe("the Route map modal", () => {
   });
 
   it("previews the theme carrying the dark default when Dark is picked", async () => {
-    const dialog = await openDialog(makeEvent({ routeMapConfig: null }));
+    const dialog = await openDialog(null);
     fireEvent.click(within(dialog).getByRole("button", { name: "Dark" }));
     const dark = f.trackerThemes.find((t) => t.key === "dark")!;
     await waitFor(() => expect(lastStyleInput().theme.overlay).toEqual(dark.overlay));
@@ -355,16 +289,20 @@ describe("the Route map modal", () => {
     expectPreviewInSync();
   });
 
-  it("shows the one-line hint for an event without a map or a MapLibre theme", async () => {
-    const cases: Array<[Partial<Event>, string]> = [
-      [{ trackerMapId: null }, NO_MAP_HINT],
-      [{ trackerThemeIds: [3] }, NO_THEME_HINT],
+  it("shows the one-line hint when the route view's event has no map or no MapLibre theme", async () => {
+    const cases: Array<[Event[], string]> = [
+      [[makeEvent({ trackerMapId: null })], NO_MAP_HINT],
+      [[makeEvent({ trackerThemeIds: [3] })], NO_THEME_HINT],
+      [[], NO_MAP_HINT],
     ];
-    for (const [over, hint] of cases) {
-      serve(makeEvent(over));
-      const { unmount } = render(<Harness event={makeEvent({ ...over, routeMapConfig: null })} />);
+    for (const [items, hint] of cases) {
+      serve();
+      server.use(
+        http.get(`${testConfig.apiBaseUrl}/admin/events`, () => HttpResponse.json({ items }))
+      );
+      const { unmount } = render(<Harness />);
       fireEvent.click(screen.getByRole("button", { name: "Configure route map" }));
-      const dialog = await screen.findByRole("dialog", { name: "Route map" });
+      const dialog = await screen.findByRole("dialog", { name: DIALOG });
       expect(await within(dialog).findByTestId("route-map-preview-hint")).toHaveTextContent(hint);
       expect(within(dialog).queryByTestId("route-map-preview")).not.toBeInTheDocument();
       expect(vi.mocked(eventRouteMapStyle)).not.toHaveBeenCalled();
@@ -372,15 +310,26 @@ describe("the Route map modal", () => {
     }
   });
 
-  it("renders no Viewpoints editor", async () => {
-    const dialog = await openDialog(
-      makeEvent({
-        routeMapConfig: {
-          ...FULL_CONFIG,
-          landmarks: [{ name: "Caras Park", lat: 46.8703, lng: -113.9958 }],
-        } as unknown as Event["routeMapConfig"],
-      })
+  it("draws over the newest event's map when no event is current", async () => {
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/events`, () =>
+        HttpResponse.json({
+          items: [
+            makeEvent({ id: 5, year: 2024, isCurrent: false, trackerMapId: null }),
+            makeEvent({ id: 6, year: 2025, isCurrent: false }),
+          ],
+        })
+      )
     );
+    await openDialog(null);
+    expect(lastStyleInput().map).toMatchObject({ id: 1 });
+  });
+
+  it("renders no Viewpoints editor", async () => {
+    const dialog = await openDialog({
+      ...FULL_CONFIG,
+      landmarks: [{ name: "Caras Park", lat: 46.8703, lng: -113.9958 }],
+    });
     expect(within(dialog).queryByRole("region", { name: "Viewpoints" })).toBeNull();
     expect(within(dialog).queryByTestId("viewpoints-field")).toBeNull();
     expect(within(dialog).queryByRole("button", { name: /add viewpoint/i })).toBeNull();
@@ -389,9 +338,7 @@ describe("the Route map modal", () => {
   });
 
   it("round-trips a full config unchanged", async () => {
-    const dialog = await openDialog(
-      makeEvent({ routeMapConfig: FULL_CONFIG as unknown as Event["routeMapConfig"] })
-    );
+    const dialog = await openDialog(FULL_CONFIG);
     expect(lastStyleInput().routeMapConfig).toEqual(FULL_CONFIG);
     const display = group(dialog, "Display");
     expect(within(within(display).getByTestId("route-map-display-timeLabelIntervalMinutes")).getByRole("combobox")).toHaveTextContent(
@@ -400,13 +347,11 @@ describe("the Route map modal", () => {
     expect(within(display).getByRole("switch", { name: "Arrows" })).not.toBeChecked();
     expect(within(group(dialog, "Controls")).getByRole("switch", { name: "Fullscreen button" })).not.toBeChecked();
     const body = await save(dialog);
-    expect(body).toEqual({ routeMapConfig: FULL_CONFIG });
+    expect(body).toEqual({ mapConfig: FULL_CONFIG });
   });
 
   it("changes the display group alone, and each pick reaches the preview", async () => {
-    const dialog = await openDialog(
-      makeEvent({ routeMapConfig: FULL_CONFIG as unknown as Event["routeMapConfig"] })
-    );
+    const dialog = await openDialog(FULL_CONFIG);
     pickOption(dialog, "route-map-display-routeWidth", "Extra thick");
     expect(lastStyleInput().routeMapConfig.display?.routeWidth).toBe("xthick");
     expectPreviewInSync();
@@ -418,7 +363,7 @@ describe("the Route map modal", () => {
     expectPreviewInSync();
     const body = await save(dialog);
     expect(body).toEqual({
-      routeMapConfig: {
+      mapConfig: {
         ...FULL_CONFIG,
         display: { ...FULL_CONFIG.display, routeWidth: "xthick", timeLabelIntervalMinutes: 0, arrows: true },
       },
@@ -426,9 +371,7 @@ describe("the Route map modal", () => {
   });
 
   it("changes the controls group alone", async () => {
-    const dialog = await openDialog(
-      makeEvent({ routeMapConfig: FULL_CONFIG as unknown as Event["routeMapConfig"] })
-    );
+    const dialog = await openDialog(FULL_CONFIG);
     expect(within(dialog).queryByTestId("route-map-preview-fullscreen")).not.toBeInTheDocument();
     fireEvent.click(
       within(group(dialog, "Controls")).getByRole("switch", { name: "Fullscreen button" })
@@ -439,17 +382,19 @@ describe("the Route map modal", () => {
     expect(within(dialog).queryByTestId("route-map-preview-terrain")).not.toBeInTheDocument();
     const body = await save(dialog);
     expect(body).toEqual({
-      routeMapConfig: { ...FULL_CONFIG, controls: { fullscreen: true, terrain: false } },
+      mapConfig: { ...FULL_CONFIG, controls: { fullscreen: true, terrain: false } },
     });
   });
 
   it("has no Points of interest editor and points to Site settings for the places", async () => {
-    const dialog = await openDialog(makeEvent({ routeMapConfig: null }));
+    const dialog = await openDialog(null);
     expect(within(dialog).queryByRole("region", { name: "Points of interest" })).toBeNull();
     expect(within(dialog).queryByTestId("pois-field")).toBeNull();
     expect(within(dialog).queryByRole("radio")).toBeNull();
     const caption = within(group(dialog, "Display")).getByTestId("route-map-places-caption");
-    expect(caption).toHaveTextContent("Places are set for every map in Site settings.");
+    expect(caption).toHaveTextContent(
+      "Places are set for every map under Places on the maps in Site settings."
+    );
     expect(within(caption).getByRole("link", { name: "Site settings" })).toHaveAttribute(
       "href",
       "/site-settings"
@@ -457,34 +402,18 @@ describe("the Route map modal", () => {
   });
 
   it("draws the route map places of the site settings draft in the preview", async () => {
-    server.use(
-      http.get(`${testConfig.apiBaseUrl}/admin/site-settings`, () =>
-        HttpResponse.json({
-          ...f.siteSettingsDraft,
-          data: {
-            ...(f.siteSettingsDraft.data as Record<string, unknown>),
-            places: { tracker: { kinds: ["park"] }, routeMap: { kinds: ["hospital", "school"] } },
-          },
-        })
-      )
-    );
-    await openDialog(makeEvent({ routeMapConfig: null }));
+    await openDialog(null, {
+      tracker: { kinds: ["park"] },
+      routeMap: { kinds: ["hospital", "school"] },
+    });
     await waitFor(() => expect(lastStyleInput().poiKinds).toEqual(["hospital", "school"]));
     expectPreviewInSync();
-    const body = await save(screen.getByRole("dialog", { name: "Route map" }));
-    expect(body).toEqual({ routeMapConfig: null });
+    const body = await save(screen.getByRole("dialog", { name: DIALOG }));
+    expect(body).toEqual({ mapConfig: null });
   });
 
   it("draws no places while the site settings draft has none", async () => {
-    let settingsReads = 0;
-    server.use(
-      http.get(`${testConfig.apiBaseUrl}/admin/site-settings`, () => {
-        settingsReads += 1;
-        return HttpResponse.json(f.siteSettingsDraft);
-      })
-    );
-    await openDialog(makeEvent({ routeMapConfig: null }));
-    await waitFor(() => expect(settingsReads).toBe(1));
+    await openDialog(null);
     await act(async () => {
       await new Promise((r) => setTimeout(r, 50));
     });
@@ -494,7 +423,7 @@ describe("the Route map modal", () => {
   });
 
   it("shows the built-in defaults while unset, writes a pick, and Default removes it", async () => {
-    const dialog = await openDialog(makeEvent({ routeMapConfig: null }));
+    const dialog = await openDialog(null);
     const display = group(dialog, "Display");
     const combo = (key: string) =>
       within(within(display).getByTestId(`route-map-display-${key}`)).getByRole("combobox");
@@ -512,11 +441,11 @@ describe("the Route map modal", () => {
     expect(lastStyleInput().routeMapConfig).toEqual({});
 
     const body = await save(dialog);
-    expect(body).toEqual({ routeMapConfig: null });
+    expect(body).toEqual({ mapConfig: null });
   });
 
   it("shows Label size as Medium until picked, passes the mapped scale to the preview, and saves the pick", async () => {
-    const dialog = await openDialog(makeEvent({ routeMapConfig: null }));
+    const dialog = await openDialog(null);
     const display = group(dialog, "Display");
     const combo = within(within(display).getByTestId("route-map-display-labelSize")).getByRole(
       "combobox"
@@ -538,13 +467,11 @@ describe("the Route map modal", () => {
     expectPreviewInSync();
 
     const body = await save(dialog);
-    expect(body).toEqual({ routeMapConfig: { display: { labelSize: "small" } } });
+    expect(body).toEqual({ mapConfig: { display: { labelSize: "small" } } });
   });
 
   it("draws a stored label size at its scale in the preview", async () => {
-    await openDialog(
-      makeEvent({ routeMapConfig: FULL_CONFIG as unknown as Event["routeMapConfig"] })
-    );
+    await openDialog(FULL_CONFIG);
     expect(resolveRouteMapConfig(lastStyleInput().routeMapConfig).labelScale).toBe(0.8);
     const style = maps.at(-1)!.styles.at(-1) as { layers: { id: string; layout?: Record<string, unknown> }[] };
     const timeLabels = style.layers.find((l) => l.id === TIME_LABELS_LAYER);
@@ -560,7 +487,7 @@ describe("the Route map modal", () => {
   });
 
   it("reads each control on while absent and writes the flipped value", async () => {
-    const dialog = await openDialog(makeEvent({ routeMapConfig: null }));
+    const dialog = await openDialog(null);
     const controls = group(dialog, "Controls");
     const fullscreen = within(controls).getByRole("switch", { name: "Fullscreen button" });
     const terrain = within(controls).getByRole("switch", { name: "Terrain toggle" });
@@ -573,31 +500,28 @@ describe("the Route map modal", () => {
     fireEvent.click(terrain);
     expect(lastStyleInput().routeMapConfig).toEqual({ controls: { terrain: true } });
     const body = await save(dialog);
-    expect(body).toEqual({ routeMapConfig: { controls: { terrain: true } } });
+    expect(body).toEqual({ mapConfig: { controls: { terrain: true } } });
   });
 
-  it("Cancel discards the draft without a request", async () => {
-    const event = makeEvent({ routeMapConfig: FULL_CONFIG as unknown as Event["routeMapConfig"] });
-    const dialog = await openDialog(event);
+  it("Cancel discards the draft and writes nothing", async () => {
+    const dialog = await openDialog(FULL_CONFIG);
     fireEvent.click(
       within(group(dialog, "Controls")).getByRole("switch", { name: "Fullscreen button" })
     );
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     await waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Route map" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("dialog", { name: DIALOG })).not.toBeInTheDocument()
     );
     fireEvent.click(screen.getByRole("button", { name: "Configure route map" }));
-    const again = await screen.findByRole("dialog", { name: "Route map" });
+    const again = await screen.findByRole("dialog", { name: DIALOG });
     expect(
       within(group(again, "Controls")).getByRole("switch", { name: "Fullscreen button" })
     ).not.toBeChecked();
-    expect(patches).toEqual([]);
+    expect(saves).toEqual([]);
   });
 
-  it("Clear all asks first, then saves null", async () => {
-    const dialog = await openDialog(
-      makeEvent({ routeMapConfig: FULL_CONFIG as unknown as Event["routeMapConfig"] })
-    );
+  it("Clear all asks first, then writes null", async () => {
+    const dialog = await openDialog(FULL_CONFIG);
     fireEvent.click(within(dialog).getByRole("button", { name: "Clear all" }));
     let confirm = await screen.findByRole("dialog", { name: "Clear the route map settings?" });
     fireEvent.click(within(confirm).getByRole("button", { name: "Cancel" }));
@@ -606,111 +530,45 @@ describe("the Route map modal", () => {
         screen.queryByRole("dialog", { name: "Clear the route map settings?" })
       ).not.toBeInTheDocument()
     );
-    expect(patches).toEqual([]);
+    expect(saves).toEqual([]);
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Clear all" }));
     confirm = await screen.findByRole("dialog", { name: "Clear the route map settings?" });
     await act(async () => {
       fireEvent.click(within(confirm).getByRole("button", { name: "Clear all" }));
     });
-    await waitFor(() => expect(patches).toEqual([{ routeMapConfig: null }]));
+    await waitFor(() => expect(saves).toEqual([{ mapConfig: null }]));
     await waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Route map" })).not.toBeInTheDocument()
+      expect(screen.queryByRole("dialog", { name: DIALOG })).not.toBeInTheDocument()
     );
   });
 
-  it("with no linked recording shows the hint, an empty preview, and working controls", async () => {
-    const dialog = await openDialog(makeEvent({ routeId: null, routeMapConfig: null }));
+  it("with a route without a path shows the hint, an empty preview, and working controls", async () => {
+    serve({ routeMap: null });
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: "Configure route map" }));
+    const dialog = await screen.findByRole("dialog", { name: DIALOG });
     const area = within(dialog).getByTestId("route-map-preview-area");
-    expect(within(area).getByTestId("route-map-preview-hint")).toHaveTextContent(
-      "Link a flight recording to this event under Flight history to preview its route map."
+    expect(await within(area).findByTestId("route-map-preview-hint")).toHaveTextContent(
+      "The site route has no path to draw."
     );
     expect(within(dialog).queryByTestId("route-map-preview")).not.toBeInTheDocument();
-    expect(routeMapReads).toBe(0);
     expect(maps).toHaveLength(0);
     expect(vi.mocked(eventRouteMapStyle)).not.toHaveBeenCalled();
     fireEvent.click(
       within(group(dialog, "Controls")).getByRole("switch", { name: "Fullscreen button" })
     );
     const body = await save(dialog);
-    expect(body).toEqual({ routeMapConfig: { controls: { fullscreen: false } } });
+    expect(body).toEqual({ mapConfig: { controls: { fullscreen: false } } });
   });
 
-  it("Copy from another event lists the others newest year first with a config marked", async () => {
-    const event = makeEvent({ id: 7, year: 2026, routeMapConfig: null });
-    serveEvents(event);
-    const dialog = await openDialog(event);
-    const copy = group(dialog, "Copy from another event");
-    fireEvent.mouseDown(await waitForEnabledCombo(copy));
-    const options = within(screen.getByRole("listbox")).getAllByRole("option");
-    expect(options.map((o) => o.getAttribute("data-testid"))).toEqual([
-      "route-map-copy-option-6",
-      "route-map-copy-option-5",
-      "route-map-copy-option-4",
-    ]);
-    expect(options[0]).toHaveTextContent("2025 Santa Flyover 2025");
-    expect(options[0]).toHaveTextContent("Has route map settings");
-    expect(options[1]).toHaveTextContent("No route map settings");
-    expect(options[2]).toHaveTextContent("2023 Santa Flyover 2023");
-    expect(options[2]).toHaveTextContent("Has route map settings");
+  it("offers no Copy from another event", async () => {
+    const dialog = await openDialog(null);
+    expect(within(dialog).queryByRole("region", { name: "Copy from another event" })).toBeNull();
+    expect(within(dialog).queryByTestId("route-map-copy-loaded")).toBeNull();
   });
 
-  it("Copy from another event loads the config into the editors without writing, and Save persists it", async () => {
-    const event = makeEvent({ id: 7, year: 2026, routeMapConfig: null });
-    serveEvents(event);
-    const dialog = await openDialog(event);
-    const copy = group(dialog, "Copy from another event");
-    fireEvent.mouseDown(await waitForEnabledCombo(copy));
-    fireEvent.click(within(screen.getByRole("listbox")).getByTestId("route-map-copy-option-6"));
-    expect(within(copy).getByTestId("route-map-copy-loaded")).toHaveTextContent(
-      "Loaded the route map settings of Santa Flyover 2025. Review them, then Save to keep them."
-    );
 
-    const display = group(dialog, "Display");
-    expect(
-      within(within(display).getByTestId("route-map-display-timeLabelIntervalMinutes")).getByRole("combobox")
-    ).toHaveTextContent("Every 10 minutes");
-    expect(within(display).getByRole("switch", { name: "Arrows" })).not.toBeChecked();
-    expect(within(group(dialog, "Controls")).getByRole("switch", { name: "Terrain toggle" })).not.toBeChecked();
-    expect(within(group(dialog, "Controls")).getByRole("switch", { name: "Fullscreen button" })).not.toBeChecked();
-    expect(lastStyleInput().routeMapConfig).toEqual(FULL_CONFIG);
-    expectPreviewInSync();
-    await act(async () => {
-      await new Promise((r) => setTimeout(r, 50));
-    });
-    expect(patches).toEqual([]);
 
-    const body = await save(dialog);
-    expect(body).toEqual({ routeMapConfig: FULL_CONFIG });
-  });
 
-  it("copying an event with no config resets the draft to the defaults", async () => {
-    const event = makeEvent({
-      id: 7,
-      year: 2026,
-      routeMapConfig: FULL_CONFIG as unknown as Event["routeMapConfig"],
-    });
-    serveEvents(event);
-    const dialog = await openDialog(event);
-    const copy = group(dialog, "Copy from another event");
-    fireEvent.mouseDown(await waitForEnabledCombo(copy));
-    fireEvent.click(within(screen.getByRole("listbox")).getByTestId("route-map-copy-option-5"));
-    expect(within(copy).getByTestId("route-map-copy-loaded")).toHaveTextContent(
-      "Santa Flyover 2024 has no route map settings"
-    );
-    expect(within(group(dialog, "Controls")).getByRole("switch", { name: "Terrain toggle" })).toBeChecked();
-    expect(patches).toEqual([]);
-    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Route map" })).not.toBeInTheDocument()
-    );
-    expect(patches).toEqual([]);
-  });
-
-  it("the card on a page without a recording says the preview stays empty", () => {
-    render(<Harness event={makeEvent({ routeId: null })} />);
-    expect(
-      screen.getByText("No flight recording is linked, so the preview stays empty until one is.")
-    ).toBeInTheDocument();
-  });
 });

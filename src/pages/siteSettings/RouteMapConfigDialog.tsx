@@ -16,19 +16,16 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link as RouterLink } from "react-router-dom";
 import AppDialog from "../../components/AppDialog";
 import ConfirmDialog from "../../components/ConfirmDialog";
-import ErrorAlert from "../../components/ErrorAlert";
 import RouteMapDisplayControls from "../../components/content/fields/RouteMapDisplayControls";
 import { events as eventsApi } from "../../api/resources/events";
+import { routes as routesApi } from "../../api/resources/routes";
 import { maps as mapsApi } from "../../api/resources/maps";
 import { themes as themesApi } from "../../api/resources/themes";
-import { siteSettings as siteSettingsApi } from "../../api/resources/siteSettings";
 import { placesPart } from "../../components/content/places";
-import type { Event } from "../../api/types";
-import { useNotify } from "../../hooks/useNotify";
 import { keys } from "../../queries/keys";
 import {
   ROUTE_MAP_CONTROL_KEYS,
@@ -37,6 +34,7 @@ import {
   eventRouteMapStyle,
   readControl,
   routeMapConfigBody,
+  routeViewEvent,
   toRouteMapConfig,
   withControl,
   withGroup,
@@ -45,50 +43,56 @@ import {
 } from "../../routeMap/eventRouteMap";
 import { toRouteMapData } from "../../routeMap/poster";
 import { themeStyleQuery } from "../../routeMap/themeStyle";
-import EventRouteMapPreview from "./EventRouteMapPreview";
-import RouteMapCopyFrom from "./RouteMapCopyFrom";
+import RouteMapPreview from "./RouteMapPreview";
 import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 
 interface Props {
-  event: Event;
+  // The site route the preview draws (`settings.route.routeId`).
+  routeId: number;
+  // The draft's `settings.route.mapConfig`.
+  mapConfig: unknown;
+  // The draft's `places`, whose `routeMap.kinds` the preview labels.
+  places: unknown;
+  // Writes the new `mapConfig` into the site settings draft (null when no
+  // group is set).
+  onSave: (mapConfig: RouteMapConfigValue | null) => void;
   onClose: () => void;
 }
 
-const NO_RECORDING_HINT =
-  "Link a flight recording to this event under Flight history to preview its route map.";
-const NO_PATH_HINT = "The linked flight recording has no path to draw.";
+const NO_PATH_HINT = "The site route has no path to draw.";
 
-// Configures the event's route map: a live preview of this event's route
-// beside "Copy from another event" and two groups of controls (Display,
-// with a caption that points to Site settings for the places, and
-// Controls). Full screen on phones and nearly the whole window on desktop.
-// The dialog edits a draft of `routeMapConfig`; every change rebuilds the
-// preview's style through `eventRouteMapStyle`, which draws the event's
-// tracker map with its enabled MapLibre theme carrying the default flag
-// for the Light or Dark toggle and labels the places of the site settings
-// draft (`places.routeMap.kinds`, none when absent). Copying replaces the
-// whole draft with the picked event's config and writes nothing until
-// Save. Save sends `PATCH { routeMapConfig }` (null when no group is set);
-// Cancel drops the draft; Clear all, after a confirm, sends
-// `routeMapConfig: null`. With no linked recording, no path, no tracker
-// map, or no enabled MapLibre theme the preview area holds only the hint.
-export default function RouteMapConfigDialog({ event, onClose }: Props) {
-  const qc = useQueryClient();
-  const notify = useNotify();
-  const id = Number(event.id);
-  const routeId = event.routeId === null || event.routeId === undefined ? null : Number(event.routeId);
-  const [draft, setDraft] = useState<RouteMapConfigValue>(() =>
-    toRouteMapConfig(event.routeMapConfig)
-  );
+// Configures the site route's map (`settings.route.mapConfig`): a live
+// preview of the route beside two groups of controls (Display, with a
+// caption that points to the places in Site settings, and Controls).
+// Full screen on phones and nearly the whole window on desktop. The
+// dialog edits a draft of the config; every change rebuilds the
+// preview's style through `eventRouteMapStyle`, which draws the route
+// (GET /admin/routes/{id}/route-map) over the tracker map of the route
+// view's event with its enabled MapLibre theme carrying the default flag
+// for the Light or Dark toggle, and labels the places of the site
+// settings draft (`places.routeMap.kinds`, none when absent). Save hands
+// the config to `onSave` (null when no group is set), which writes it
+// into the site settings draft; Cancel drops it; Clear all, after a
+// confirm, hands null. With no path, no tracker map, or no enabled
+// MapLibre theme the preview area holds only the hint.
+export default function RouteMapConfigDialog({ routeId, mapConfig, places, onSave, onClose }: Props) {
+  const [draft, setDraft] = useState<RouteMapConfigValue>(() => toRouteMapConfig(mapConfig));
   const [appearance, setAppearance] = useState<Appearance>("light");
   const [terrainOn, setTerrainOn] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
 
   const mapsQ = useQuery({ queryKey: keys.maps, queryFn: () => mapsApi.list() });
   const themesQ = useQuery({ queryKey: keys.themes, queryFn: () => themesApi.list() });
+  const eventsQ = useQuery({ queryKey: keys.events, queryFn: () => eventsApi.list() });
+  const viewEvent = eventsQ.data ? routeViewEvent(eventsQ.data.items) : undefined;
   const source =
-    mapsQ.data && themesQ.data
-      ? eventRouteMapSource(event, mapsQ.data.items, themesQ.data.items, appearance)
+    mapsQ.data && themesQ.data && eventsQ.data
+      ? eventRouteMapSource(
+          viewEvent ?? { trackerMapId: null, trackerThemeIds: [] },
+          mapsQ.data.items,
+          themesQ.data.items,
+          appearance
+        )
       : null;
   const theme = source?.theme ?? null;
   const map = source?.map ?? null;
@@ -97,22 +101,12 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
   const terrainAvailable = !!map?.terrainUrl;
 
   const routeMapQ = useQuery({
-    queryKey: keys.eventRouteMap(id, routeId),
-    queryFn: async () => toRouteMapData((await eventsApi.routeMap(id)).routeMap),
-    enabled: routeId !== null,
+    queryKey: keys.routeMap(routeId),
+    queryFn: async () => toRouteMapData((await routesApi.routeMap(routeId)).routeMap),
   });
   const routeMap = routeMapQ.data ?? null;
 
-  const settingsQ = useQuery({
-    queryKey: keys.siteSettings,
-    queryFn: () => siteSettingsApi.get(),
-  });
-  const poiKinds = useMemo(
-    () =>
-      placesPart((settingsQ.data?.data as { places?: unknown } | undefined)?.places, "routeMap")
-        ?.kinds,
-    [settingsQ.data]
-  );
+  const poiKinds = useMemo(() => placesPart(places, "routeMap")?.kinds, [places]);
   const drawable = routeMap && routeMap.path.length > 0 ? routeMap : null;
 
   const terrainKept = readControl(draft.controls, "terrain");
@@ -132,28 +126,19 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
     [drawable, theme, map, body, draft, terrainOn, terrainAvailable, poiKinds]
   );
 
-  const saveMut = useMutation({
-    mutationFn: (routeMapConfig: RouteMapConfigValue | null) =>
-      eventsApi.patch(id, { routeMapConfig }),
-    onSuccess: (_data, routeMapConfig) => {
-      notify(routeMapConfig === null ? "Route map cleared" : "Route map saved");
-      void qc.invalidateQueries({ queryKey: keys.event(id) });
-      void qc.invalidateQueries({ queryKey: keys.events });
-      onClose();
-    },
-  });
-
   const set = <K extends keyof RouteMapConfigValue>(
     key: K,
     value: RouteMapConfigValue[K] | undefined
   ) => setDraft((d) => withGroup(d, key, value));
 
-  const busy = saveMut.isPending;
+  const save = (next: RouteMapConfigValue | null) => {
+    onSave(next);
+    onClose();
+  };
 
   const preview = (() => {
-    if (routeId === null) return <Hint>{NO_RECORDING_HINT}</Hint>;
     if (source?.hint) return <Hint>{source.hint}</Hint>;
-    const failed = routeMapQ.error ?? mapsQ.error ?? themesQ.error ?? bodyQ.error;
+    const failed = routeMapQ.error ?? mapsQ.error ?? themesQ.error ?? eventsQ.error ?? bodyQ.error;
     if (failed) {
       return (
         <Alert severity="warning" data-testid="route-map-preview-hint">
@@ -183,7 +168,7 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
       );
     }
     return (
-      <EventRouteMapPreview
+      <RouteMapPreview
         style={previewStyle}
         path={drawable.path}
         fullscreenButton={readControl(draft.controls, "fullscreen")}
@@ -198,7 +183,7 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
     <>
       <AppDialog
         open
-        onClose={busy ? undefined : onClose}
+        onClose={onClose}
         maxWidth={false}
         fullWidth
         aria-labelledby="route-map-config-title"
@@ -209,8 +194,8 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
         }}
         data-testid="route-map-config-dialog"
       >
-        <DialogTitleWithHelp id="route-map-config-title" help="events.detail.route-map-dialog">
-          Route map
+        <DialogTitleWithHelp id="route-map-config-title" help="site-settings.route">
+          Route map settings
         </DialogTitleWithHelp>
         <DialogContent
           dividers
@@ -242,10 +227,6 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
             sx={{ width: { xs: "100%", md: 400 }, flexShrink: 0, overflowY: { md: "auto" }, pr: { md: 1 } }}
             data-testid="route-map-config-controls"
           >
-            {saveMut.error ? <ErrorAlert error={saveMut.error} /> : null}
-            <Group title="Copy from another event">
-              <RouteMapCopyFrom eventId={id} disabled={busy} onPick={setDraft} />
-            </Group>
             <Group title="Display">
               <RouteMapDisplayControls
                 value={draft.display}
@@ -254,7 +235,6 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
                 testId="route-map-display"
                 title="Route line and labels"
                 help="Each setting shows the built-in default until you pick one."
-                disabled={busy}
               />
               <Typography
                 variant="caption"
@@ -263,7 +243,7 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
                 sx={{ mt: 1 }}
                 data-testid="route-map-places-caption"
               >
-                Places are set for every map in{" "}
+                Places are set for every map under Places on the maps in{" "}
                 <Link component={RouterLink} to="/site-settings">
                   Site settings
                 </Link>
@@ -278,7 +258,6 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
                       control={
                         <Switch
                           checked={readControl(draft.controls, key)}
-                          disabled={busy}
                           onChange={(e) =>
                             set("controls", withControl(draft.controls, key, e.target.checked))
                           }
@@ -298,19 +277,12 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
           <Button
             color="error"
             onClick={() => setConfirmClear(true)}
-            disabled={busy}
             sx={{ mr: "auto" }}
           >
             Clear all
           </Button>
-          <Button onClick={onClose} disabled={busy}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => saveMut.mutate(routeMapConfigBody(draft))}
-            disabled={busy}
-          >
+          <Button onClick={onClose}>Cancel</Button>
+          <Button variant="contained" onClick={() => save(routeMapConfigBody(draft))}>
             Save
           </Button>
         </DialogActions>
@@ -318,14 +290,13 @@ export default function RouteMapConfigDialog({ event, onClose }: Props) {
       <ConfirmDialog
         open={confirmClear}
         title="Clear the route map settings?"
-        body={`Every route map setting of ${event.name ?? "this event"} returns to its default.`}
+        body="Every route map setting returns to its default."
         confirmLabel="Clear all"
         danger
-        disabled={busy}
         onCancel={() => setConfirmClear(false)}
         onConfirm={() => {
           setConfirmClear(false);
-          saveMut.mutate(null);
+          save(null);
         }}
       />
     </>

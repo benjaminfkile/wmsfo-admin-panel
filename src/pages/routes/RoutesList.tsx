@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
   DialogActions,
   DialogContent,
   IconButton,
@@ -17,6 +18,7 @@ import {
   Typography,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import { Link as RouterLink } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { events as eventsApi } from "../../api/resources/events";
 import { routes as routesApi } from "../../api/resources/routes";
@@ -84,24 +86,14 @@ export default function RoutesList() {
     onSuccess: () => {
       notify("Route deleted");
       void qc.invalidateQueries({ queryKey: keys.routes });
-      void qc.invalidateQueries({ queryKey: keys.events });
       setConfirmDelete(null);
     },
-    onError: (e) =>
-      notify(e instanceof Error ? e.message : "Delete failed", "error"),
   });
 
   const routes = [...(routesQ.data?.items ?? [])].sort((a, b) =>
     (a.createdAt ?? "") < (b.createdAt ?? "") ? 1 : -1
   );
   const events = eventsQ.data?.items ?? [];
-
-  const usedByLabel = (r: Route): string => {
-    const usedBy = events.filter(
-      (e) => e.routeId !== null && Number(e.routeId) === Number(r.id)
-    );
-    return usedBy.length === 0 ? "none" : usedBy.map((e) => e.name).join(", ");
-  };
 
   const columns: Column<Route>[] = [
     {
@@ -149,10 +141,12 @@ export default function RoutesList() {
         ),
     },
     {
-      key: "usedBy",
-      header: "Used by",
-      role: "line",
-      render: (r) => usedByLabel(r),
+      key: "site",
+      header: "Site route",
+      role: "chip",
+      render: (r) => <SiteRouteChips route={r} />,
+      renderCompact: (r) =>
+        r.isSiteRoute || r.isDraftRoute ? <SiteRouteChips route={r} /> : null,
     },
   ];
 
@@ -173,9 +167,13 @@ export default function RoutesList() {
         }
       />
       <CommentBox>
-        Recordings of past flights. The one linked to an event is its flight
-        history on the tracker, and what Red-Nose replay and exports use. The
-        route page shows the poster on each event.
+        Recordings of past flights. The site route is chosen in{" "}
+        <Link component={RouterLink} to="/site-settings">
+          Site settings
+        </Link>
+        : the route map, the tracker&apos;s flight history, and every poster
+        draw it once it is published. A recording the site settings name
+        cannot be deleted.
       </CommentBox>
 
       {routesQ.error ? (
@@ -248,11 +246,39 @@ export default function RoutesList() {
           id={Number(confirmDelete.id)}
           name={confirmDelete.name ?? "recording"}
           disabled={deleteMut.isPending}
-          onCancel={() => setConfirmDelete(null)}
+          error={deleteMut.error}
+          onCancel={() => {
+            setConfirmDelete(null);
+            deleteMut.reset();
+          }}
           onConfirm={() => deleteMut.mutate(Number(confirmDelete.id))}
         />
       ) : null}
     </>
+  );
+}
+
+// The Routes page's site route chips: "Site route" on the recording the
+// newest published site settings name (`isSiteRoute`), "Draft" on the one
+// the site settings draft names (`isDraftRoute`), both when they agree,
+// and "none" when neither does.
+function SiteRouteChips({ route }: { route: Route }) {
+  if (!route.isSiteRoute && !route.isDraftRoute) {
+    return (
+      <Box component="span" sx={{ color: "text.secondary" }}>
+        none
+      </Box>
+    );
+  }
+  return (
+    <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
+      {route.isSiteRoute ? (
+        <Chip size="small" color="primary" label="Site route" data-testid={`route-site-${route.id}`} />
+      ) : null}
+      {route.isDraftRoute ? (
+        <Chip size="small" variant="outlined" label="Draft" data-testid={`route-draft-${route.id}`} />
+      ) : null}
+    </Stack>
   );
 }
 

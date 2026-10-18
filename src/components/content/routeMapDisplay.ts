@@ -1,5 +1,6 @@
 // The route map display knobs (`display` of RouteMapConfig in
-// primitives.schema.json), set per event in its `routeMapConfig`. Every
+// primitives.schema.json), set once for the site in
+// `settings.route.mapConfig`. Every
 // key is optional; the site resolves each key on its own, the stored
 // value first, then the built-in default below.
 export type RouteMapDisplayKey =

@@ -34,6 +34,7 @@ import type {
   QrCode,
   QrCodeDetail,
   Route,
+  SiteRoute,
   SectionAdmin,
   Setting,
   SiteSettingsDraft,
@@ -105,8 +106,6 @@ export const events: Event[] = [
     wentLiveAt: "2026-12-22T01:02:11.000Z",
     endedAt: null,
     fundsPercent: 63,
-    routeId: 4,
-    routeUrl: "https://cdn.example/routes/9c0e77ab.json",
     trackerBbox: { west: -114.3, south: 46.75, east: -113.8, north: 47.05 },
     trackerMapId: 1,
     trackerThemeIds: [1, 2],
@@ -124,8 +123,6 @@ export const events: Event[] = [
     wentLiveAt: "2025-12-22T01:02:11.000Z",
     endedAt: "2025-12-22T02:14:00.000Z",
     fundsPercent: 100,
-    routeId: 3,
-    routeUrl: null,
     createdBy: AUTHOR,
     createdAt: "2025-12-01T00:00:00.000Z",
     updatedAt: "2025-12-22T02:14:00.000Z",
@@ -185,14 +182,42 @@ export const routes: Route[] = [
     pointCount: 42,
     uploadedBy: AUTHOR,
     createdAt: NOW,
+    isSiteRoute: true,
+    isDraftRoute: true,
   },
 ];
+
+// GET /admin/route: recording 4 is the site route, published and in the
+// draft (contracts 4.5 Routes).
+export const siteRoutePath = [
+  { lat: 46.8721, lng: -114.0012 },
+  { lat: 46.874, lng: -114.0083 },
+  { lat: 46.8862, lng: -114.0174 },
+];
+
+export const siteRoute: SiteRoute = {
+  published: {
+    routeId: 4,
+    name: "2026 draft",
+    routeMap: {
+      path: siteRoutePath,
+      timeline: [
+        { minutes: 0, lat: 46.8721, lng: -114.0012 },
+        { minutes: 5, lat: 46.874, lng: -114.0083 },
+        { minutes: 8, lat: 46.8862, lng: -114.0174 },
+      ],
+      durationMinutes: 8,
+      timed: true,
+    },
+    mapConfig: null,
+  },
+  draft: { routeId: 4, name: "2026 draft", mapConfig: null },
+};
 
 export const posters: Poster[] = [
   {
     id: 12,
     name: "Main street",
-    routeId: 4,
     layout: null,
     createdBy: AUTHOR,
     createdAt: NOW,
@@ -202,7 +227,6 @@ export const posters: Poster[] = [
   {
     id: 11,
     name: "Flyer without a map",
-    routeId: null,
     layout: null,
     createdBy: AUTHOR,
     createdAt: NOW,
@@ -214,7 +238,6 @@ export const posters: Poster[] = [
 export const posterSummaries: PosterSummary[] = posters.map((p) => ({
   id: p.id,
   name: p.name,
-  routeId: p.routeId,
   updatedAt: p.updatedAt,
 }));
 

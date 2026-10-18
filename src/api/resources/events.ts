@@ -1,13 +1,11 @@
 import { del, get, patch, post, request } from "../client";
 import type { DeleteImpact } from "../impact";
-import type { RouteMapConfigValue } from "../../routeMap/eventRouteMap";
 import type { Bbox } from "../../validation/bbox";
 import type {
   Event,
   EventMessage,
   LocationRow,
   Page,
-  RouteMapResponse,
   SeedCookiesRequest,
   SeedCookiesResponse,
   StatusHistory,
@@ -19,8 +17,6 @@ export type CreateEventBody = {
   name: string;
   scheduledAt: string | null;
   fundsPercent: number;
-  routeId: number | null;
-  inheritRoute: boolean;
   scheduleTimeZone: string | null;
   trackerBbox: Bbox | null;
 };
@@ -33,8 +29,6 @@ export type PatchEventBody = Partial<{
   wentLiveAt: string | null;
   endedAt: string | null;
   fundsPercent: number;
-  routeId: number | null;
-  routeMapConfig: RouteMapConfigValue | null;
   trackerBbox: Bbox;
   trackerMapId: number | null;
   trackerThemeIds: number[];
@@ -45,8 +39,6 @@ export type CloneEventBody = {
   name: string;
   copy: {
     sponsors: boolean;
-    route: boolean;
-    routeMapConfig: boolean;
     tracker: boolean;
   };
 };
@@ -78,8 +70,6 @@ export const events = {
   patch: (id: number, b: PatchEventBody) =>
     patch<Event>(`/admin/events/${id}`, b),
   remove: (id: number) => del(`/admin/events/${id}`),
-  routeMap: (id: number) =>
-    get<RouteMapResponse>(`/admin/events/${id}/route-map`),
   setCurrent: (id: number) => post<Event>(`/admin/events/${id}/current`),
   clearCurrent: (id: number) =>
     request<Event>({ method: "DELETE", path: `/admin/events/${id}/current` }),

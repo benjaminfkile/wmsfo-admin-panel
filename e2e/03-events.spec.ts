@@ -11,9 +11,8 @@ import {
   waitForCdnJson,
 } from "./helpers";
 
-// Spec 3 (docs/admin.md § 9.3): create an event with inherit; set it
-// current; walk planned → scheduled → live → ended through the
-// confirmations; after each change `GET <dev cdn>/live/location.json`
+// Spec 3 (docs/admin.md § 9.3): create an event; set it current; walk
+// planned → scheduled → live → ended through the confirmations; after each change `GET <dev cdn>/live/location.json`
 // reports the new eventStatusId within 10 s.
 //
 // `afterAll` restores the event that was current when the spec started
@@ -79,7 +78,6 @@ test.describe("events lifecycle", () => {
     await page.getByRole("button", { name: /new event/i }).click();
     await page.getByLabel(/^year$/i).fill(String(year));
     await page.getByLabel(/^name$/i).fill(title);
-    await page.getByLabel(/inherit/i).check();
     await page.getByRole("button", { name: /^create$/i }).click();
 
     // Creating the event opens its detail page (`/events/{id}`); read

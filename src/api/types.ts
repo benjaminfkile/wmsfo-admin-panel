@@ -7,6 +7,7 @@ export type EventMessage = S["EventMessageDto"];
 export type StatusHistory = S["StatusHistoryDto"];
 export type Route = S["RouteDto"];
 export type RouteMapResponse = S["RouteMapResponse"];
+export type SiteRoute = S["SiteRouteResponse"];
 export type Poster = S["PosterDto"];
 export type PosterSummary = S["PosterSummaryDto"];
 export type Beacon = S["BeaconDto"];

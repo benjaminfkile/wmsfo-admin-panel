@@ -39,7 +39,7 @@ Base URL: ${baseUrl}
   - 401: unauthenticated.
   - 403: forbidden.
   - 404: not_found, upload_not_found (a media confirm, a map confirm, or a sprite confirm when an object never arrived).
-  - 409: event_status_unchanged, event_not_current, another_event_live, scheduled_at_required, no_healthy_beacon (status change); current_event_live (make current, clear current); event_live (cookie type writes while live, deleting a live event, clearing locations while live); event_current (deleting the current event); event_not_live (seeding cookies); year_taken (event create, patch, clone); year_exists (sponsor copy-from); pinned_position_taken (sponsor year); place_name_taken (place create and patch); beacon_revoked (activate, rotate); slug_taken (page); kind_not_allowed (section create and move); content_unchanged (publish); media_not_ready (a reference to a media asset that is not ready); media_not_pending (confirm twice); package_exists (map create when a ready map has the package; map parts, complete, and confirm on a ready map); package_invalid (map confirm when an archive does not match the row); last_google_theme (theme delete when the theme is the only Google theme enabled on an event).
+  - 409: event_status_unchanged, event_not_current, another_event_live, scheduled_at_required, no_healthy_beacon (status change); current_event_live (make current, clear current); event_live (cookie type writes while live, deleting a live event, clearing locations while live); event_current (deleting the current event); event_not_live (seeding cookies); year_taken (event create, patch, clone); year_exists (sponsor copy-from); pinned_position_taken (sponsor year); place_name_taken (place create and patch); route_in_use (deleting the site route); beacon_revoked (activate, rotate); slug_taken (page); kind_not_allowed (section create and move); content_unchanged (publish); media_not_ready (a reference to a media asset that is not ready); media_not_pending (confirm twice); package_exists (map create when a ready map has the package; map parts, complete, and confirm on a ready map); package_invalid (map confirm when an archive does not match the row); last_google_theme (theme delete when the theme is the only Google theme enabled on an event).
   - 413: payload_too_large.
   - 415: unsupported_media_type.
   - 422: content_invalid (publish; details.problems).
@@ -64,8 +64,8 @@ Base URL: ${baseUrl}
 
 ## 5. Capabilities
 There are 21. A key reaches only the groups it was minted with. Each delete's impact route rides with its resource.
-- \`events\`: /admin/events/* (status, messages, notify, clone, cookies, locations, route-map) and /admin/posters/*.
-- \`routes\`: /admin/routes/* (flight recordings and their route-map).
+- \`events\`: /admin/events/* (status, messages, notify, clone, cookies, locations) and /admin/posters/*.
+- \`routes\`: /admin/routes/* (flight recordings and their route-map) and GET /admin/route (the site route).
 - \`maps\`: /admin/maps/* (the tracker's tile packages).
 - \`themes\`: /admin/themes/* (the tracker's map looks).
 - \`beacons\`: /admin/beacons/*.
@@ -93,7 +93,7 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
 - Kinds: rich_text, hero, media, links, icon_row, divider (content); funds_ring, countdown, event_times, latest_message, map (live page only), leaderboard, sponsor_carousel, sponsor_grid, route_preview, cookie_control, alerts_signup, contact_form (live data).
 - hero data also takes iconSize (sm|md|lg|xl|null) and showLogo (true draws the site logoMedia in place of icon). The hero background is presentation.background with kind media.
 - map data: controls.landmarks (absent means true: the Viewpoints toggle) and overlays.onlineCount (absent means true). The places a map draws come from site settings, not the section.
-- route_preview data is only heading, disclaimer, emptyText. Its display comes from the event's routeMapConfig, its landmarks and places from site settings.
+- route_preview data is only heading, disclaimer, emptyText. It draws the published site route (settings.route) with or without a current event; its display comes from settings.route.mapConfig, its landmarks and places from site settings.
 - Presentation keys: width full|wide|narrow; align start|center; background \`{kind:"none"}\` | \`{kind:"token", token: surface|muted|accent|night}\` | \`{kind:"media", media: MediaRef, overlay 0..1}\`; spacing tight|normal|loose; iconBefore Icon|null; iconAfter Icon|null; anchor null or ^[a-z0-9]+(-[a-z0-9]+)*$ unique on the page; card bool|null (null means true; never applied to map); iconSize sm|md|lg|xl|null (null means sm); cardOpacityLight and cardOpacityDark integer 0..100 or null (null means the sitewide value).
 - Items: \`{ data, isHidden, position }\` for kinds with hasItems (media, links, icon_row).
 - Icon: \`{ source:"library", id, display? }\` with an id from GET /admin/icons, or \`{ source:"media", id, display? }\` with the id of any ready media asset (raster, gif, or svg).
@@ -112,35 +112,37 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
   - landmarks, shown to people as Viewpoints: 0..50 of \`{ name 1..80, lat, lng, icon?, description? 1..300 }\`. Both maps draw them.
   - places: \`{ tracker: { kinds: PlaceKind[] 0..9 }, routeMap: { kinds: string[] up to 100 } }\`. PlaceKind is attraction, business, government, medical, park, place_of_worship, school, sports_complex, or transit. routeMap kinds match ^[a-z0-9_]+$, 1..50 each.
   - tracker: \`{ defaultBbox: Bbox }\`, each side 0.05 to 20 degrees, no other key: the box a new event takes when its create body names none. Absent means the built-in Missoula valley box. Changing it leaves existing events alone.
+  - route: \`{ routeId, mapConfig? }\`, the site route: the one flight recording the route map, the tracker's flight history, and every poster draw, whatever the event. routeId is a recording id or null (no route); mapConfig is a RouteMapConfig or null (every built-in default); no other key. Changing the route is a site settings edit and a publish; posters already generated keep the old route until they are generated again. Publish reports a routeId naming no recording as a problem at /settings/route/routeId.
+  - RouteMapConfig: \`{ display: { timeLabelIntervalMinutes 0|5|10|15|30, arrows bool, arrowSize small|medium|large|xlarge, routeWidth thin|normal|thick|xthick, labelSize small|medium|large }, controls: { fullscreen bool, terrain bool } }\`. Every key optional. Landmarks and places never go here; they are their own site settings.
 - Validation has two levels. Draft (every working set write) checks types, enums, and unknown keys but not required fields, minimums, or references: a section can be saved half filled and its problems array says what is missing. Publish checks the full schema plus: every MediaRef and media Icon names a ready asset, every library icon id exists, every href is valid, site paths name existing non-hidden pages, anchors are unique per page, map sits only on the live page. Publish fails with 422 content_invalid and details.problems.
 
 ## 7. Endpoint reference by capability
 
 ### events
 - GET /admin/events: \`{ items: Event[] }\` by year desc.
-- POST /admin/events \`{ year 2000..2100, name 1..200, inheritRoute, scheduledAt?, fundsPercent? 0..100, routeId?, scheduleTimeZone?, trackerBbox? }\`: year, name, inheritRoute required. trackerBbox is a Bbox \`{ west, south, east, north }\` in degrees with sides 0.05 to 20. inheritRoute true copies the latest event's recording and refuses routeId (400). 409 year_taken.
+- POST /admin/events \`{ year 2000..2100, name 1..200, scheduledAt?, fundsPercent? 0..100, scheduleTimeZone?, trackerBbox? }\`: year and name required. trackerBbox is a Bbox \`{ west, south, east, north }\` in degrees with sides 0.05 to 20. An event carries no route: routeId, inheritRoute, or routeMapConfig in the body is 400 validation_failed like any unknown field. 409 year_taken.
 - What the create body leaves out: the box comes from the published site settings' tracker.defaultBbox, or the built-in Missoula valley box when there is none; the map and the enabled theme set are copied from the event with the greatest year, the map only when its package contains the box.
-- GET /admin/events/{id}; PATCH with any of name, year, scheduledAt, wentLiveAt, endedAt, fundsPercent, routeId, scheduleTimeZone (an IANA id such as America/Denver, or null), routeMapConfig (an object or null; unknown fields are 400), trackerBbox (a Bbox; never null; while the event has a map it must stay inside the map's package), trackerMapId (a ready map whose package contains the event's box, or null), trackerThemeIds (the whole enabled set: distinct theme ids, at least one Google theme). A broken tracker rule is 400 validation_failed at its field; an unknown map or theme id is 404. 409 year_taken, scheduled_at_required.
-- routeMapConfig: \`{ display: { timeLabelIntervalMinutes 0|5|10|15|30, arrows bool, arrowSize small|medium|large|xlarge, routeWidth thin|normal|thick|xthick, labelSize small|medium|large }, controls: { fullscreen bool, terrain bool } }\`. Every key optional. Landmarks never go here; they are site settings.
+- GET /admin/events/{id}; PATCH with any of name, year, scheduledAt, wentLiveAt, endedAt, fundsPercent, scheduleTimeZone (an IANA id such as America/Denver, or null), trackerBbox (a Bbox; never null; while the event has a map it must stay inside the map's package), trackerMapId (a ready map whose package contains the event's box, or null), trackerThemeIds (the whole enabled set: distinct theme ids, at least one Google theme). A broken tracker rule is 400 validation_failed at its field; an unknown map or theme id is 404. 409 year_taken, scheduled_at_required.
+- An event has no route field: the route is the site setting settings.route. To change the route an event draws, write the site settings and publish.
 - DELETE /admin/events/{id}: takes messages, cookies, status history, and locations. 409 event_live or event_current. GET .../impact answers blocked with the reason while the event is live or current.
 - POST /admin/events/{id}/current: 200. 409 current_event_live.
 - DELETE /admin/events/{id}/current: 200 Event with isCurrent false; no event is current and / renders the no_event page. On an event that is not current it is a no-op 200. 409 current_event_live while the current event is live.
 - POST /admin/events/{id}/status \`{ statusId, notify, message? 1..1000 }\`: statusId 1 planned, 2 scheduled, 3 live, 4 ended, 5 cancelled, 6 postponed. See section 10.
 - GET /admin/events/{id}/status-history.
 - POST /admin/events/{id}/notify \`{ message? 1..1000 }\`: announces the current status to subscribers now. Use it when the human wants a status re-announced.
-- POST /admin/events/{id}/clone \`{ year, name, copy: { sponsors, route, routeMapConfig, tracker } }\`: 201, a new planned event. tracker copies the source's map and enabled theme set; the box always copies. Use it to start next year from this year.
+- POST /admin/events/{id}/clone \`{ year, name, copy: { sponsors, tracker } }\`: 201, a new planned event. copy takes only these two keys; route or routeMapConfig in it is 400 validation_failed. tracker copies the source's map and enabled theme set; the box always copies. Use it to start next year from this year.
 - GET/POST /admin/events/{id}/messages (\`{ body 1..1000, notify }\`), PATCH (\`{ body }\`) and DELETE .../messages/{messageId}.
 - POST /admin/events/{id}/cookies \`{ items: [{ cookieTypeId, count 1..100 }] }\`: 201, seeds cookies on the live event. 409 event_not_live.
-- GET /admin/events/{id}/route-map: the event's recording built as the site draws it.
 - GET /admin/events/{id}/locations?cursor=&limit=&beaconId=&publishedOnly=: paged; Accept: text/csv streams every row.
 - DELETE /admin/events/{id}/locations?beaconId=: clears the recording, one beacon's when beaconId is given. 409 event_live. Preview with GET .../locations/impact.
-- Posters (the panel's print documents, never public): GET /admin/posters, POST \`{ name 1..200, routeId?, layout? }\`, GET/PATCH/DELETE /admin/posters/{id}, GET .../impact. layout is an object of at most 32 KB that the API never reads.
+- Posters (the panel's print documents, never public): GET /admin/posters, POST \`{ name 1..200, layout? }\`, GET/PATCH/DELETE /admin/posters/{id}, GET .../impact. A poster is a name and a layout, an object of at most 32 KB that the API never reads; it carries no route (routeId in a poster write is 400 validation_failed). The panel draws the published site route into every poster.
 
 ### routes
-- GET /admin/routes, GET/DELETE /admin/routes/{id}, GET /admin/routes/{id}/route-map, GET .../impact.
+- GET /admin/routes, GET/DELETE /admin/routes/{id}, GET /admin/routes/{id}/route-map, GET .../impact. Each Route carries isSiteRoute (the newest published site settings name it) and isDraftRoute (the site settings draft names it).
+- GET /admin/route: \`{ published, draft }\`, the site route. published is the newest published settings.route with the recording's name, its routeMap built as the site draws it, and its mapConfig; draft is the draft's route with name and mapConfig, no map. Each is null when its settings name no route.
 - POST /admin/routes \`{ name 1..200, points: [{ lat, lng, recordedAt }] }\` with points 2..50000. 201, or 200 when the identical recording exists. 502 route_write_failed.
 - POST /admin/routes/from-event/{eventId} \`{ name }\`: a recording from the event's published fixes.
-- Delete unlinks the events and posters that used it. Attach a recording with PATCH on the event or poster.
+- Nothing references a recording but the site settings: no event and no poster carries one. Delete is 409 route_in_use while the site settings draft or the newest published version names it (details.where lists "draft" and "published"); choose another route or none in the site settings, publish, then delete. The impact preview answers blocked with the same reason.
 
 ### maps
 - A map is one tile package for the tracker: a box, a vector archive, an optional terrain archive, a zoom range. An event with a ready map draws MapLibre; an event without one draws Google Maps.
@@ -270,9 +272,9 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
 ## 8. Delete safety
 - Every delete has a preview: GET /admin/<resource>/{id}/impact for events, routes, maps, themes, sponsors, cookie-types, pages, media, places, qr-codes, beacons, subscribers, people, contact-messages, posters, and GET /admin/events/{id}/locations/impact for a recording.
 - DeleteImpact: \`{ blocked: string|null, deletes: [{ entity, count, names }], unlinks: [...], warnings: string[] }\`. The preview and the delete run the same queries.
-- Blocked: only the live event and the current event (409 event_live, 409 event_current), clearing the locations of a live event, and deleting the last Google theme enabled on an event (409 last_google_theme; a Google replacementId lifts it).
+- Blocked: only the live event and the current event (409 event_live, 409 event_current), clearing the locations of a live event, the site route while the site settings draft or the published settings name it (409 route_in_use), and deleting the last Google theme enabled on an event (409 last_google_theme; a Google replacementId lifts it).
 - Cascade (deletes): an event takes its messages, cookies, history, and locations; a page takes its sections and items; a cookie type takes its cookies; a place takes its subtree; a QR code takes its attachments and scans; a person takes their subscriptions and cookies; a sponsor takes its years.
-- Unlink (unlinks): a route unlinks events and posters; a map unlinks its events, which fall back to Google Maps; a theme leaves its events' enabled sets; a media asset is cleared from every section, item, page icon, sponsor logo, cookie type, theme thumbnail, site logo or favicon, and every asset whose dark or small version it was.
+- Unlink (unlinks): a map unlinks its events, which fall back to Google Maps; a theme leaves its events' enabled sets; a media asset is cleared from every section, item, page icon, sponsor logo, cookie type, theme thumbnail, site logo or favicon, and every asset whose dark or small version it was.
 - A role page needs ?roleTo=<page id>; the impact warns which role moves.
 - Always fetch the impact first, show it to the human, and delete only on their word.
 
