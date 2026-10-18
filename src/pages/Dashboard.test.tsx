@@ -109,6 +109,28 @@ describe("Dashboard", () => {
     expect(screen.getByText("Live object (CDN)")).toBeInTheDocument();
   });
 
+  it("orders the cards with Email quota after Snapshot and Live object last", async () => {
+    render(<Harness />);
+    await screen.findByText(f.events[0]!.name!);
+    await screen.findByText("Live object (CDN)");
+    await screen.findByTestId("email-quota-card");
+    const titles = [
+      "Current event",
+      "Active beacon",
+      "Published state",
+      "Snapshot",
+      "Email quota",
+      "Live object (CDN)",
+    ];
+    const nodes = titles.map((t) => screen.getByText(t));
+    for (let i = 1; i < nodes.length; i++) {
+      expect(
+        nodes[i - 1]!.compareDocumentPosition(nodes[i]!) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+    }
+  });
+
   it("reports write_error in red", async () => {
     server.use(
       http.get(`${testConfig.apiBaseUrl}/admin/live`, () =>
