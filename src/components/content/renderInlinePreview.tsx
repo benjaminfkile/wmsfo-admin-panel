@@ -1,5 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 import { Box } from "@mui/material";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import IconPreview from "./IconPreview";
 import { formatStamp } from "../../lib/time";
 import type { Icon } from "../../api/types";
@@ -14,7 +15,7 @@ type Token =
   | { kind: "bold"; body: string }
   | { kind: "italic"; body: string }
   | { kind: "code"; body: string }
-  | { kind: "link"; label: string; href: string }
+  | { kind: "link"; label: string; href: string; newTab: boolean }
   | { kind: "icon-library"; id: string }
   | { kind: "icon-media"; id: string }
   | { kind: "event-name" }
@@ -27,9 +28,10 @@ type Match = { start: number; end: number; token: Token };
 // A pipe-alternation regex whose groups let the parser pick which token
 // matched, in a single scan. Bold is listed before italic so `**x**`
 // resolves to bold rather than `*` + `*x*` + `*`. Link and icon and
-// event placeholders each own their capture groups.
+// event placeholders each own their capture groups; a link's optional
+// group captures a `{newtab}` marker directly after its closing paren.
 const PATTERN =
-  /\*\*([\s\S]+?)\*\*|\*([\s\S]+?)\*|`([\s\S]+?)`|\[([^\]]+)\]\(([^)]+)\)|\{icon:media:([^}]+)\}|\{icon:([^}]+)\}|\{event:(name|year|scheduledAt)\}|\n/g;
+  /\*\*([\s\S]+?)\*\*|\*([\s\S]+?)\*|`([\s\S]+?)`|\[([^\]]+)\]\(([^)]+)\)(\{newtab\})?|\{icon:media:([^}]+)\}|\{icon:([^}]+)\}|\{event:(name|year|scheduledAt)\}|\n/g;
 
 function nextMatch(text: string, from: number): Match | null {
   PATTERN.lastIndex = from;
@@ -50,18 +52,23 @@ function nextMatch(text: string, from: number): Match | null {
     return {
       start,
       end,
-      token: { kind: "link", label: m[4], href: m[5] },
+      token: {
+        kind: "link",
+        label: m[4],
+        href: m[5],
+        newTab: m[6] !== undefined,
+      },
     };
   }
-  if (m[6] !== undefined) {
-    return { start, end, token: { kind: "icon-media", id: m[6] } };
-  }
   if (m[7] !== undefined) {
-    return { start, end, token: { kind: "icon-library", id: m[7] } };
+    return { start, end, token: { kind: "icon-media", id: m[7] } };
   }
   if (m[8] !== undefined) {
-    if (m[8] === "name") return { start, end, token: { kind: "event-name" } };
-    if (m[8] === "year") return { start, end, token: { kind: "event-year" } };
+    return { start, end, token: { kind: "icon-library", id: m[8] } };
+  }
+  if (m[9] !== undefined) {
+    if (m[9] === "name") return { start, end, token: { kind: "event-name" } };
+    if (m[9] === "year") return { start, end, token: { kind: "event-year" } };
     return { start, end, token: { kind: "event-scheduledAt" } };
   }
   return { start, end, token: { kind: "newline" } };
@@ -101,8 +108,16 @@ function renderToken(
           sx={{ textDecoration: "underline" }}
           data-testid="inline-preview-link"
           data-href={token.href}
+          data-newtab={token.newTab ? "true" : undefined}
         >
           {token.label}
+          {token.newTab ? (
+            <OpenInNewIcon
+              data-testid="inline-preview-link-newtab"
+              aria-label="Opens in a new tab"
+              sx={{ fontSize: "0.85em", ml: 0.25, verticalAlign: "-0.1em" }}
+            />
+          ) : null}
         </Box>
       );
     case "icon-library": {
@@ -151,8 +166,9 @@ function renderToken(
 }
 
 // Parses the constrained inline markdown of contracts 1.3a and returns
-// React nodes: `**bold**`, `*italic*`, `` `code` ``, `[label](href)`,
-// `{icon:<id>}` or `{icon:media:<id>}`, a newline as a line break, and
+// React nodes: `**bold**`, `*italic*`, `` `code` ``, `[label](href)`
+// (followed by a small external-link icon when the link carries the
+// `{newtab}` marker), `{icon:<id>}` or `{icon:media:<id>}`, a newline as a line break, and
 // the placeholders `{event:name}`, `{event:year}`, `{event:scheduledAt}`
 // resolved from `event` (blank when the event is null; `scheduledAt`
 // formatted by `formatStamp` in `timeZone`, the viewer's zone when
@@ -210,7 +226,7 @@ function tokenToPlainText(
 
 // Plain text form of the same inline markdown, using the same parser as
 // `renderInlinePreview`: bold, italic, and code lose their markers, a
-// link becomes its label, icons disappear, a newline becomes a space,
+// link becomes its label (its `{newtab}` marker dropped), icons disappear, a newline becomes a space,
 // and the event placeholders are filled from `event` exactly as the
 // preview fills them (blank when the event is null).
 export function inlineToPlainText(

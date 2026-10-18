@@ -5,7 +5,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@mui/material";
 import { MemoryRouter } from "react-router-dom";
 import type { ReactNode } from "react";
+import validator from "@rjsf/validator-ajv8";
+import type { RJSFSchema } from "@rjsf/utils";
 import SchemaForm from "./SchemaForm";
+import { bundleSchema } from "../../schemas/bundle";
+import { deriveDraftSchema } from "../../schemas/draft";
 import { labelsFor, type FieldLabels } from "./labels";
 import { buildTheme } from "../../theme/theme";
 import kindsJson from "../../../contracts/kinds.json";
@@ -216,6 +220,67 @@ describe("SchemaForm: human labels from labels.ts", () => {
     const sizeCombo = screen.getByRole("combobox", { name: /icon size/i });
     expect(sizeCombo).toHaveTextContent("Small");
     expect(seen.every((d) => d.iconSize == null)).toBe(true);
+  });
+
+  it("shows the rich text Text size above Blocks, Normal while unset, and writes large", () => {
+    const blocks = [{ kind: "paragraph", text: "Hello" }];
+    let last: Record<string, unknown> = {};
+    const { container } = render(
+      <Providers>
+        <SchemaForm
+          schema={richText as Sch}
+          kind="rich_text"
+          formData={{ blocks }}
+          onChange={(d) => {
+            last = d as Record<string, unknown>;
+          }}
+        />
+      </Providers>
+    );
+    const text = container.textContent ?? "";
+    const sizeAt = text.indexOf("Text size");
+    const blocksAt = text.indexOf("Blocks");
+    expect(sizeAt).toBeGreaterThanOrEqual(0);
+    expect(blocksAt).toBeGreaterThan(sizeAt);
+    expect(text).toContain(
+      "Large makes this section's paragraphs, lists, and quotes bigger."
+    );
+    const sizeCombo = screen.getByRole("combobox", { name: /text size/i });
+    expect(sizeCombo).toHaveTextContent("Normal");
+    fireEvent.mouseDown(sizeCombo);
+    const listbox = screen.getByRole("listbox");
+    expect(within(listbox).getByText("Normal")).toBeInTheDocument();
+    fireEvent.click(within(listbox).getByText("Large"));
+    expect(last.textSize).toBe("large");
+    expect(last.blocks).toEqual(blocks);
+    const prepared = deriveDraftSchema(
+      bundleSchema(richText as Sch)
+    ) as RJSFSchema;
+    expect(validator.validateFormData(last, prepared).errors).toEqual([]);
+  });
+
+  it("writes normal when Normal is picked on the rich text Text size", () => {
+    let last: Record<string, unknown> = {};
+    render(
+      <Providers>
+        <SchemaForm
+          schema={richText as Sch}
+          kind="rich_text"
+          formData={{
+            blocks: [{ kind: "paragraph", text: "Hello" }],
+            textSize: null,
+          }}
+          onChange={(d) => {
+            last = d as Record<string, unknown>;
+          }}
+        />
+      </Providers>
+    );
+    const sizeCombo = screen.getByRole("combobox", { name: /text size/i });
+    expect(sizeCombo).toHaveTextContent("Normal");
+    fireEvent.mouseDown(sizeCombo);
+    fireEvent.click(within(screen.getByRole("listbox")).getByText("Normal"));
+    expect(last.textSize).toBe("normal");
   });
 
   it("places the hero site logo switch after Icon and before Icon size", () => {

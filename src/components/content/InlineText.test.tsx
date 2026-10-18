@@ -132,6 +132,95 @@ describe("InlineText toolbar", () => {
     expect(readValue()).toBe("[click](/about) here");
   });
 
+  it("Open in a new tab is unchecked by default and the link has no marker", async () => {
+    const user = userEvent.setup();
+    render(
+      <Harness>
+        <Controlled initial="click here" />
+      </Harness>
+    );
+    const input = screen.getByLabelText("Text") as HTMLInputElement;
+    input.focus();
+    input.setSelectionRange(0, 5);
+    await user.click(screen.getByRole("button", { name: "Link" }));
+    const box = await screen.findByRole("checkbox", {
+      name: "Open in a new tab",
+    });
+    expect((box as HTMLInputElement).checked).toBe(false);
+    await user.type(screen.getByLabelText("Link address"), "/about");
+    await user.click(screen.getByRole("button", { name: "Insert" }));
+    expect(readValue()).toBe("[click](/about) here");
+  });
+
+  it("checking Open in a new tab writes the {newtab} marker after the link", async () => {
+    const user = userEvent.setup();
+    render(
+      <Harness>
+        <Controlled initial="give now" />
+      </Harness>
+    );
+    const input = screen.getByLabelText("Text") as HTMLInputElement;
+    input.focus();
+    input.setSelectionRange(0, 4);
+    await user.click(screen.getByRole("button", { name: "Link" }));
+    await user.type(
+      await screen.findByLabelText("Link address"),
+      "https://example.org/give"
+    );
+    await user.click(screen.getByRole("checkbox", { name: "Open in a new tab" }));
+    await user.click(screen.getByRole("button", { name: "Insert" }));
+    expect(readValue()).toBe("[give](https://example.org/give){newtab} now");
+  });
+
+  it("editing an existing new tab link prefills the address and the checkbox and replaces it in place", async () => {
+    const user = userEvent.setup();
+    const initial = "a [Donate](https://example.org/give){newtab} b";
+    render(
+      <Harness>
+        <Controlled initial={initial} />
+      </Harness>
+    );
+    const input = screen.getByLabelText("Text") as HTMLInputElement;
+    input.focus();
+    const start = initial.indexOf("[");
+    const end = initial.indexOf(" b");
+    input.setSelectionRange(start, end);
+    await user.click(screen.getByRole("button", { name: "Link" }));
+    const addr = (await screen.findByLabelText(
+      "Link address"
+    )) as HTMLInputElement;
+    expect(addr.value).toBe("https://example.org/give");
+    const box = screen.getByRole("checkbox", {
+      name: "Open in a new tab",
+    }) as HTMLInputElement;
+    expect(box.checked).toBe(true);
+    await user.clear(addr);
+    await user.type(addr, "/give");
+    await user.click(screen.getByRole("button", { name: "Insert" }));
+    expect(readValue()).toBe("a [Donate](/give){newtab} b");
+  });
+
+  it("editing an existing link selected without its marker keeps a single marker", async () => {
+    const user = userEvent.setup();
+    const initial = "[Donate](/give){newtab}";
+    render(
+      <Harness>
+        <Controlled initial={initial} />
+      </Harness>
+    );
+    const input = screen.getByLabelText("Text") as HTMLInputElement;
+    input.focus();
+    input.setSelectionRange(0, "[Donate](/give)".length);
+    await user.click(screen.getByRole("button", { name: "Link" }));
+    const box = (await screen.findByRole("checkbox", {
+      name: "Open in a new tab",
+    })) as HTMLInputElement;
+    expect(box.checked).toBe(true);
+    await user.click(box);
+    await user.click(screen.getByRole("button", { name: "Insert" }));
+    expect(readValue()).toBe("[Donate](/give)");
+  });
+
   it("Insert icon opens the icon picker and inserts a library icon token", async () => {
     server.use(
       http.get(`${testConfig.apiBaseUrl}/admin/icons`, () =>
@@ -290,6 +379,25 @@ describe("renderInlinePreview parses contracts 1.3a", () => {
     const link = within(preview).getByTestId("inline-preview-link");
     expect(link.textContent).toBe("docs");
     expect(link.getAttribute("data-href")).toBe("/help");
+  });
+
+  it("marks a {newtab} link with an external link icon and hides the marker", () => {
+    draw("see [docs](/help){newtab} below");
+    const preview = screen.getByTestId("preview");
+    const link = within(preview).getByTestId("inline-preview-link");
+    expect(link.textContent).toBe("docs");
+    expect(
+      within(link).getByTestId("inline-preview-link-newtab")
+    ).toBeInTheDocument();
+    expect(preview.textContent).not.toContain("{newtab}");
+  });
+
+  it("draws a plain link without the external link icon", () => {
+    draw("see [docs](/help) below");
+    const preview = screen.getByTestId("preview");
+    expect(
+      within(preview).queryByTestId("inline-preview-link-newtab")
+    ).toBeNull();
   });
 
   it("renders a library icon token as an IconPreview image or missing box", async () => {
