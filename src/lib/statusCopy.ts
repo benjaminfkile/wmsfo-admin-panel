@@ -10,7 +10,7 @@ export function stockParagraph(statusId: StatusId, eventName: string): string {
   const name = eventName || "The event";
   switch (statusId) {
     case 1:
-      return `${name} is on the calendar. A specific time will be announced when it is known.`;
+      return `${name} is in the works. Santa is checking his list twice, and the date will be announced as soon as it is set.`;
     case 2:
       return `${name} is scheduled.`;
     case 3:

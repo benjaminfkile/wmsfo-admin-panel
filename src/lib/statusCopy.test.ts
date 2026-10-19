@@ -11,6 +11,12 @@ describe("stockParagraph", () => {
     expect(new Set(ps).size).toBe(6);
   });
 
+  it("planned paragraph says the flight is in the works", () => {
+    expect(stockParagraph(1, "Santa Flyover 2027")).toBe(
+      "Santa Flyover 2027 is in the works. Santa is checking his list twice, and the date will be announced as soon as it is set."
+    );
+  });
+
   it("scheduled paragraph names the event and carries no time", () => {
     expect(stockParagraph(2, "Santa Flyover 2027")).toBe("Santa Flyover 2027 is scheduled.");
   });
