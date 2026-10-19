@@ -18,6 +18,7 @@ import type { Icon, IconInfo, MediaAsset } from "../../../api/types";
 import AppDialog from "../../AppDialog";
 import ErrorAlert from "../../ErrorAlert";
 import MediaGrid, { type GridFilters } from "../../media/MediaGrid";
+import { IMAGE_KINDS } from "../../../api/resources/media";
 import Uploader from "../../media/Uploader";
 import { useCompact } from "../../../hooks/useCompact";
 
@@ -165,10 +166,11 @@ export default function IconPicker({
               selected?.source === "media" ? (selected.id as string) : null
             }
             fixedState="ready"
+            kinds={IMAGE_KINDS}
             emptyText="No media"
           />
         ) : (
-          <Uploader onReady={handleUploaded} />
+          <Uploader onReady={handleUploaded} allowVideo={false} />
         )}
       </DialogContent>
       <DialogActions>

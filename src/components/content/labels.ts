@@ -28,6 +28,9 @@ export interface FieldLabel {
   // shows, so the field stays a multi-select (which writes values in the
   // order picked) instead of the checkboxes an enum array renders as.
   ordered?: boolean;
+  // For a media reference: the picker offers videos as well as images
+  // (the media section item's media only, contracts 1.3b).
+  video?: boolean;
 }
 
 export interface FieldCondition {
@@ -400,7 +403,7 @@ const SECTION: Record<string, FieldLabels> = {
 
 const ITEM: Record<string, FieldLabels> = {
   media: {
-    media: { label: "Image" },
+    media: { label: "Image or video", video: true },
     caption: { label: "Caption" },
     link: { label: "Link" },
   },

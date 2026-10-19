@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { media as mediaApi } from "../../api/resources/media";
 import { keys } from "../../queries/keys";
 import type { MediaAsset } from "../../api/types";
+import VideoThumb from "../media/VideoThumb";
+import { formatDuration } from "../media/duration";
 
 interface Props {
   mediaId: string;
@@ -11,7 +13,8 @@ interface Props {
 // Renders the media asset for a MediaRef as a thumbnail with its
 // filename and dimensions under it. Smallest variant when present,
 // otherwise `url`; a missing asset shows a "Missing" placeholder box
-// with the id in a tooltip.
+// with the id in a tooltip. A video shows its poster or a placeholder,
+// each with a play glyph (never a playing video), and its duration.
 export default function MediaPreview({ mediaId }: Props) {
   const enabled = typeof mediaId === "string" && mediaId.length > 0;
   const q = useQuery({
@@ -45,6 +48,7 @@ export default function MediaPreview({ mediaId }: Props) {
   }
 
   const asset = q.data as MediaAsset | undefined;
+  const isVideo = asset?.kind === "video";
   const src = asset ? smallestVariantUrl(asset) ?? (asset.url ?? null) : null;
 
   if (!asset || !src) {
@@ -71,26 +75,34 @@ export default function MediaPreview({ mediaId }: Props) {
     );
   }
 
-  const dims =
+  const size =
     typeof asset.width === "number" && typeof asset.height === "number"
       ? `${asset.width} x ${asset.height}`
       : null;
+  const duration = isVideo ? formatDuration(asset.durationMs) : null;
+  const dims = [size, duration].filter((p) => p !== null).join(", ") || null;
   const filename = asset.filename ?? mediaId;
 
   return (
     <Stack spacing={0.5} data-testid="media-preview">
-      <Box
-        component="img"
-        src={src}
-        alt={asset.alt ?? filename}
-        sx={{
-          height: 96,
-          maxWidth: "100%",
-          objectFit: "contain",
-          display: "block",
-        }}
-        data-testid="media-preview-image"
-      />
+      {isVideo ? (
+        <Box sx={{ width: 160, maxWidth: "100%" }} data-testid="media-preview-video">
+          <VideoThumb asset={asset} variant="smallest" height={96} />
+        </Box>
+      ) : (
+        <Box
+          component="img"
+          src={src}
+          alt={asset.alt ?? filename}
+          sx={{
+            height: 96,
+            maxWidth: "100%",
+            objectFit: "contain",
+            display: "block",
+          }}
+          data-testid="media-preview-image"
+        />
+      )}
       <Typography variant="caption" sx={{ wordBreak: "break-all" }}>
         {filename}
       </Typography>

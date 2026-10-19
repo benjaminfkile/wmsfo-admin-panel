@@ -12,6 +12,8 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import ImageIcon from "@mui/icons-material/Image";
 import type { MediaAsset } from "../../api/types";
+import VideoThumb from "./VideoThumb";
+import { formatDuration } from "./duration";
 
 interface Props {
   asset: MediaAsset;
@@ -20,10 +22,12 @@ interface Props {
 }
 
 // Grid card. Shows the 480 px variant for raster (or the original for
-// svg/gif), plus filename, dimensions, size, the credit when set, and
-// kind and state chips.
+// svg/gif; for a video its poster's 480 px variant or a placeholder, each
+// with a play glyph), plus filename, dimensions (and a video's duration),
+// size, the credit when set, and kind and state chips.
 export default function MediaCard({ asset, onClick, selected = false }: Props) {
-  const preview = previewUrlFor(asset);
+  const isVideo = asset.kind === "video";
+  const preview = isVideo ? null : previewUrlFor(asset);
   const stateChip = stateChipFor(asset);
   const deepZoom = typeof asset.dziUrl === "string" && asset.dziUrl.length > 0;
   return (
@@ -52,7 +56,9 @@ export default function MediaCard({ asset, onClick, selected = false }: Props) {
             overflow: "hidden",
           }}
         >
-          {preview ? (
+          {isVideo ? (
+            <VideoThumb asset={asset} variant="480" />
+          ) : preview ? (
             <CardMedia
               component="img"
               image={preview}
@@ -89,7 +95,7 @@ export default function MediaCard({ asset, onClick, selected = false }: Props) {
           <Stack direction="row" spacing={0.5} sx={{ mt: 0.5, flexWrap: "wrap" }}>
             <Chip
               size="small"
-              label={asset.kind ?? "media"}
+              label={isVideo ? "Video" : (asset.kind ?? "media")}
               data-testid={`media-kind-${asset.id}`}
             />
             {deepZoom ? (
@@ -190,8 +196,9 @@ function expiryLabel(asset: MediaAsset): string {
 function dimensionsLabel(asset: MediaAsset): string {
   const w = toNumber(asset.width);
   const h = toNumber(asset.height);
-  if (w !== null && h !== null) return `${w} × ${h}`;
-  return "no dimensions";
+  const dims = w !== null && h !== null ? `${w} × ${h}` : "no dimensions";
+  const duration = asset.kind === "video" ? formatDuration(asset.durationMs) : null;
+  return duration ? `${dims} · ${duration}` : dims;
 }
 
 function sizeLabel(v: unknown): string {

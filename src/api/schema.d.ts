@@ -6677,6 +6677,9 @@ export interface components {
             invertInDark?: boolean;
             smallMediaId?: null | string;
             credit?: null | string;
+            /** Format: int32 */
+            durationMs?: null | number | string;
+            posterMediaId?: null | string;
             uploadedBy?: string;
             /** Format: date-time */
             createdAt?: string;
@@ -6711,6 +6714,9 @@ export interface components {
             small?: null | components["schemas"]["MediaSmallEntry"];
             smallMediaId?: null | string;
             credit?: null | string;
+            /** Format: int32 */
+            durationMs?: null | number | string;
+            posterMediaId?: null | string;
         };
         MediaPatchRequest: {
             alt?: null | string;
@@ -6721,6 +6727,8 @@ export interface components {
             /** Format: uuid */
             smallMediaId?: null | string;
             credit?: null | string;
+            /** Format: uuid */
+            posterMediaId?: null | string;
         };
         MediaSmallEntry: {
             url?: string;
@@ -6752,6 +6760,7 @@ export interface components {
             themes?: components["schemas"]["MediaUsageThemeRef"][];
             siteSettings?: boolean;
             darkVersionOf?: components["schemas"]["MediaUsageMediaRef"][];
+            posterOf?: components["schemas"]["MediaUsageMediaRef"][];
         };
         MediaUsageMediaRef: {
             id?: string;
