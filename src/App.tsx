@@ -8,6 +8,7 @@ import { ConfigProvider } from "./ConfigContext";
 import { installClient } from "./api/client";
 import { installCdn } from "./api/cdn";
 import AppRoutes from "./AppRoutes";
+import EnvFrame from "./components/EnvFrame";
 import { buildTheme, type AppThemeMode } from "./theme/theme";
 import { getStoredTheme, setStoredTheme } from "./theme/themeStorage";
 
@@ -43,6 +44,7 @@ export default function App({ config, userManager, queryClient }: AppProps) {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <ConfigProvider config={config}>
+        <EnvFrame />
         <QueryClientProvider client={client}>
           <AuthProvider userManager={userManager}>
             <ClientInstaller config={config} userManager={userManager} />

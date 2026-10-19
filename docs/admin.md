@@ -94,7 +94,7 @@ wmsfo-admin-panel/
     lib/        time.ts  csv.ts  download.ts  publishedState.ts  beaconFlags.ts  thresholds.ts  statusNames.ts  statusCopy.ts
                 roles.ts  errorMessages.ts  fieldErrors.ts
     hooks/      useNotify.tsx  useNow.ts  useDebouncedSave.ts  useCompact.ts
-    components/ layout/MainLayout.tsx  layout/PageHeader.tsx  EnvBadge.tsx  NetworkBanner.tsx  ErrorAlert.tsx  AppDialog.tsx  ConfirmDialog.tsx  DeleteDialog.tsx
+    components/ layout/MainLayout.tsx  layout/PageHeader.tsx  EnvBadge.tsx  EnvFrame.tsx  NetworkBanner.tsx  ErrorAlert.tsx  AppDialog.tsx  ConfirmDialog.tsx  DeleteDialog.tsx
                 KeyRevealDialog.tsx  ThemedJsonView.tsx  CommentBox.tsx  StatusChip.tsx  FlagChip.tsx
                 audit/    AuditCell.tsx  AuditHistoryDialog.tsx  auditFormat.ts
                 list/     ResponsiveTable.tsx
@@ -846,6 +846,8 @@ Drawer entries for `admin`: Dashboard, Events, Flight recordings, Maps, Tracker 
 **The Publish button in the bar.** `PublishBarButton` (`src/components/layout/PublishBarButton.tsx`) sits between the `EnvBadge` and the email. `MainLayout` renders it only when `navFor(role).includes("publish")`, that is for `admin` and `editor`; a `canvasser` never sees it and never queries the status. It reads `keys.contentStatus` polled every 30 seconds while the tab is visible (4.6) and renders nothing while the status is loading, failed, or `hasUnpublishedChanges` is false, so it shows only while the draft has unpublished changes. On desktop it is a contained "Publish" button, on compact a 44 px `IconButton` with a publish icon and `aria-label="Publish"`; both carry `data-testid="bar-publish"`. With no problems a click opens the same `PublishLabelDialog` the Publish page uses (6.18) and confirming publishes through the shared `usePublishMutation` from any page: success toasts "Published version <id>" and refreshes the status (the button then disappears), `409 content_unchanged` toasts "Nothing to publish", and `422 content_invalid` toasts "The draft has publish problems" and opens `/publish`. With problems the same button carries an MUI `Badge` in the warning colour with the problem count and a click opens `/publish` instead of the dialog.
 
 `EnvBadge`: an MUI `Chip` with `config.env.toUpperCase()`; colour `error` for `prod`, `success` for `dev`, `info` for `local`; tooltip shows `config.apiBaseUrl`. On `dev` and `local` the document title is prefixed `[DEV]` or `[LOCAL]`. The badge also appears on `SignIn`, `NoRole`, and `MfaSetup`.
+
+`EnvFrame` (`src/components/EnvFrame.tsx`): a 3 px coloured frame around the whole viewport that says which environment the panel is talking to, in the `EnvBadge` mapping: `theme.palette.error.main` (red) on `prod`, `theme.palette.success.main` (green) on `dev`, `theme.palette.info.main` (blue) on `local`. `App` mounts it inside the theme provider, so it shows on every route including `SignIn`, `NoRole`, and `MfaSetup`. It is one `div` with `data-testid="env-frame"` and `data-env`, `position: fixed; inset: 0; pointer-events: none` at z-index `theme.zIndex.tooltip + 1`, drawing the frame as `box-shadow: inset 0 0 0 3px <colour>`: it sits over dialogs, drawers, and snackbars, never scrolls away, and never takes a click or a tap. `ConfigError` (no config) renders no frame.
 
 Help: a `HelpButton` with `bar.env-badge` sits beside the `EnvBadge` in the bar (in the bar's text colour, through its `color="inherit"`), and one with `drawer` at the end of the permanent drawer's title row.
 
