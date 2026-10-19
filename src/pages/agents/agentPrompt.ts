@@ -96,8 +96,9 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
 - route_preview data is only heading, disclaimer, emptyText. It draws the published site route (settings.route) with or without a current event; its display comes from settings.route.mapConfig, its landmarks and places from site settings.
 - Presentation keys: width full|wide|narrow; align start|center; background \`{kind:"none"}\` | \`{kind:"token", token: surface|muted|accent|night}\` | \`{kind:"media", media: MediaRef, overlay 0..1}\`; spacing tight|normal|loose; iconBefore Icon|null; iconAfter Icon|null; anchor null or ^[a-z0-9]+(-[a-z0-9]+)*$ unique on the page; card bool|null (null means true; never applied to map); iconSize sm|md|lg|xl|null (null means sm); cardOpacityLight and cardOpacityDark integer 0..100 or null (null means the sitewide value).
 - Items: \`{ data, isHidden, position }\` for kinds with hasItems (media, links, icon_row).
-- Icon: \`{ source:"library", id, display? }\` with an id from GET /admin/icons, or \`{ source:"media", id, display? }\` with the id of any ready media asset (raster, gif, or svg).
+- Icon: \`{ source:"library", id, display? }\` with an id from GET /admin/icons, or \`{ source:"media", id, display? }\` with the id of any ready media asset but a video (raster, gif, or svg).
 - MediaRef: \`{ mediaId, alt, display? }\`. alt null means the asset's own alt; at most 500.
+- Video: a MediaRef may name a video asset only in a rich_text media block's media and a media section item's media. Everywhere else a video is a problem ("media asset \`<id>\` is a video and cannot be used here"): a section background, a hero or section icon, any media Icon (inline \`{icon:media:...}\` too), a page icon, the site settings logo, favicon, and logoMedia, a viewpoint (landmark) icon, a sponsor logo, a cookie type icon, and a theme thumbnail. Section, item, and site settings writes refuse it with 400 validation_failed even at the draft level.
 - Display (optional on any Icon or MediaRef, every key optional): sizePx 12..600, fit contain|cover, shape none|circle|rounded|square, paddingPx 0..48, background none|surface|muted|accent|night, shadow bool, align start|center|end. sizePx wins over preset sizes.
 - Link: \`{ label Inline, href, icon Icon|null, newTab }\`, all four required. href is an absolute http or https URL, a mailto: address, or a site path /<slug> with an optional #anchor naming an existing non-hidden page.
 - Rich text: rich_text data takes textSize normal|large (absent or null is normal; large makes the paragraphs, lists, and quotes bigger) beside its blocks.
@@ -213,10 +214,11 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
 - POST /admin/content/preview-token \`{ ttlMinutes? }\` 15..1440, default 15: a preview URL to hand the human.
 
 ### media
-- GET /admin/media?kind=&state=&q=&cursor=&limit=: kind raster|svg|gif, state pending|ready|orphaned, q matches filename, title, alt.
+- GET /admin/media?kind=&state=&q=&cursor=&limit=: kind raster|svg|gif|video, state pending|ready|orphaned, q matches filename, title, alt.
 - POST /admin/media/upload-url, POST /admin/media/{id}/confirm: see section 9.
 - GET /admin/media/{id}, GET .../usage, GET .../impact, DELETE.
-- PATCH /admin/media/{id}: alt, title, darkMediaId (another ready asset or null), invertInDark, smallMediaId (another ready asset or null), credit (1..200 or null).
+- PATCH /admin/media/{id}: alt, title, darkMediaId (another ready asset or null), invertInDark, smallMediaId (another ready asset or null), credit (1..200 or null), posterMediaId (a video only: another ready raster or gif asset, or null).
+- A video asset carries durationMs and posterMediaId; it never takes darkMediaId or smallMediaId (400 validation_failed), and is never another asset's dark or small version. GET .../usage lists posterOf, the videos whose poster the asset is.
 
 ### icons
 - GET /admin/icons: the library \`{ id, name, tags, url }\`.
@@ -274,16 +276,17 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
 - DeleteImpact: \`{ blocked: string|null, deletes: [{ entity, count, names }], unlinks: [...], warnings: string[] }\`. The preview and the delete run the same queries.
 - Blocked: only the live event and the current event (409 event_live, 409 event_current), clearing the locations of a live event, the site route while the site settings draft or the published settings name it (409 route_in_use), and deleting the last Google theme enabled on an event (409 last_google_theme; a Google replacementId lifts it).
 - Cascade (deletes): an event takes its messages, cookies, history, and locations; a page takes its sections and items; a cookie type takes its cookies; a place takes its subtree; a QR code takes its attachments and scans; a person takes their subscriptions and cookies; a sponsor takes its years.
-- Unlink (unlinks): a map unlinks its events, which fall back to Google Maps; a theme leaves its events' enabled sets; a media asset is cleared from every section, item, page icon, sponsor logo, cookie type, theme thumbnail, site logo or favicon, and every asset whose dark or small version it was.
+- Unlink (unlinks): a map unlinks its events, which fall back to Google Maps; a theme leaves its events' enabled sets; a media asset is cleared from every section, item, page icon, sponsor logo, cookie type, theme thumbnail, site logo or favicon, every asset whose dark or small version it was, and every video whose poster it was.
 - A role page needs ?roleTo=<page id>; the impact warns which role moves.
 - Always fetch the impact first, show it to the human, and delete only on their word.
 
 ## 9. Media pipeline
-1. POST /admin/media/upload-url \`{ filename, contentType, sizeBytes, alt, title }\`. alt (0..500) and title (0..200) are required; write a real alt. contentType is image/png, image/jpeg, image/webp, image/gif, or image/svg+xml, and the filename extension must match it. 413 over 20 MB for raster or gif, 1 MB for SVG. It answers an UploadTicket \`{ media, uploadUrl, method:"PUT", headers, expiresAt }\`.
+1. POST /admin/media/upload-url \`{ filename, contentType, sizeBytes, alt, title }\`. alt (0..500) and title (0..200) are required; write a real alt. contentType is image/png, image/jpeg, image/webp, image/gif, image/svg+xml, or video/mp4, and the filename extension must match it (.mp4 for video/mp4). 413 over 20 MB for raster or gif, 1 MB for SVG, 500 MB for an MP4 video. It answers an UploadTicket \`{ media, uploadUrl, method:"PUT", headers, expiresAt }\`.
 2. PUT the bytes to uploadUrl with exactly the ticket's headers. The presigned PUT expires in 15 minutes.
 3. POST /admin/media/{id}/confirm: 200 with state ready. Errors: 404 upload_not_found (the bytes never arrived), 409 media_not_pending (already confirmed), 413 (too large), 400 (the type sniff, SVG rules, or decode failed; the row is removed).
 - SVG is refused if it carries script, foreignObject, on* attributes, or external hrefs.
 - Raster gets WebP variants and, from 2048 px, a zoom pyramid. Reference media by id; never hotlink.
+- An MP4 video is served as uploaded: no variants, no transcoding. Its confirm records width, height, and durationMs. To give it a poster (the picture shown before it plays), upload a picture and PATCH the video's posterMediaId.
 - Orphans: a ready asset referenced nowhere for 30 days becomes orphaned, then is deleted. GET /admin/media?state=orphaned shows what is about to go.
 
 ## 10. Event lifecycle
@@ -298,7 +301,7 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
 ## 11. Common workflows
 1. Edit a page: GET /admin/pages, GET /admin/pages/{id}, GET /admin/content/kinds for the kind, PATCH the section with the whole data object, GET /admin/content/status for problems, mint a preview token and hand the human the URL, publish with a short label only when told. Content work needs pages, sections, content, media, and icons.
 2. Add a page: POST /admin/pages, POST a section for each block of content, PUT /admin/pages/order if placement matters, preview, publish on approval.
-3. Add a picture: upload-url, PUT, confirm, then reference the id from a MediaRef, a media Icon, a sponsor logo, or a cookie type icon.
+3. Add a picture: upload-url, PUT, confirm, then reference the id from a MediaRef, a media Icon, a sponsor logo, or a cookie type icon. Add a video the same way with video/mp4, set its poster, and place it only in a rich_text media block or a media section item.
 4. Add a sponsor: POST /admin/sponsors, upload the logo and PATCH logoMediaId, PUT the year. No publish step.
 5. Change site settings: GET /admin/site-settings, change the data, PUT the whole document, preview, publish on approval.
 6. Check the site: GET /admin/content/status, GET /admin/events, GET /admin/snapshot, GET /admin/live.

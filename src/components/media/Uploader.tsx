@@ -13,7 +13,11 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import CloseIcon from "@mui/icons-material/Close";
 import ReplayIcon from "@mui/icons-material/Replay";
 import type { MediaAsset } from "../../api/types";
-import { RASTER_MAX_BYTES, SVG_MAX_BYTES } from "../../validation/image";
+import {
+  RASTER_MAX_BYTES,
+  SVG_MAX_BYTES,
+  VIDEO_MAX_BYTES,
+} from "../../validation/image";
 import { useMediaUpload, type UploadItem } from "./useMediaUpload";
 import HelpButton from "../../help/HelpButton";
 import type { HelpKey } from "../../help/helpKeys";
@@ -23,13 +27,22 @@ interface Props {
   onReady?: (asset: MediaAsset) => void;
   compact?: boolean;
   help?: HelpKey;
+  // false refuses MP4 videos (the pickers that offer images only).
+  allowVideo?: boolean;
 }
+
+const IMAGE_ACCEPT = "image/png,image/jpeg,image/webp,image/gif,image/svg+xml";
 
 // The drop zone at the top of the media library (admin.md 6.15) and the
 // inline uploader inside the MediaPicker's Upload tab. `help` puts a help
 // button after the drop zone's text.
-export default function Uploader({ onReady, compact = false, help }: Props) {
-  const upload = useMediaUpload(onReady);
+export default function Uploader({
+  onReady,
+  compact = false,
+  help,
+  allowVideo = true,
+}: Props) {
+  const upload = useMediaUpload(onReady, allowVideo);
   const [alt, setAlt] = useState("");
   const [title, setTitle] = useState("");
   const [dragActive, setDragActive] = useState(false);
@@ -111,13 +124,13 @@ export default function Uploader({ onReady, compact = false, help }: Props) {
           )}
         </Stack>
         <Typography variant="caption" color="text.secondary" display="block">
-          PNG, JPEG, WebP, GIF up to {formatBytes(RASTER_MAX_BYTES)}; SVG up to {formatBytes(SVG_MAX_BYTES)}
+          {limitsText(allowVideo)}
         </Typography>
         <input
           ref={inputRef}
           type="file"
           multiple
-          accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+          accept={allowVideo ? `${IMAGE_ACCEPT},video/mp4,.mp4` : IMAGE_ACCEPT}
           style={{ display: "none" }}
           onChange={(e) => acceptFiles(e.target.files)}
           data-testid="media-file-input"
@@ -142,6 +155,15 @@ export default function Uploader({ onReady, compact = false, help }: Props) {
       ) : null}
     </Stack>
   );
+}
+
+// "Images up to 20 MB, SVG up to 1 MB, MP4 video up to 500 MB"; the
+// video clause only where videos are allowed.
+function limitsText(allowVideo: boolean): string {
+  const images = `Images up to ${formatBytes(RASTER_MAX_BYTES)}, SVG up to ${formatBytes(SVG_MAX_BYTES)}`;
+  return allowVideo
+    ? `${images}, MP4 video up to ${formatBytes(VIDEO_MAX_BYTES)}`
+    : images;
 }
 
 function UploadRow({

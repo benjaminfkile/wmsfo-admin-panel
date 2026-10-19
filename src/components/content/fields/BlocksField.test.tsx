@@ -607,7 +607,7 @@ describe("BlocksField gate over every block kind", () => {
     quote: { body: ["Text", "Attribution (optional)"] },
     media: {
       body: [
-        "Image",
+        "Image or video",
         "Alt text (leave empty to use the image's own)",
         "Caption (optional)",
         "Size",
@@ -630,7 +630,7 @@ describe("BlocksField gate over every block kind", () => {
     paragraph: { text: "Text" },
     list: { style: "Style", icon: "Icon (required)", items: "Lines" },
     quote: { text: "Text", attribution: "Attribution (optional)" },
-    media: { media: "Image", caption: "Caption (optional)", size: "Size" },
+    media: { media: "Image or video", caption: "Caption (optional)", size: "Size" },
     links: { links: "Links", style: "Style" },
     icon: { icon: "Icon (required)", size: "Size", align: "Align" },
     divider: { style: "Style" },

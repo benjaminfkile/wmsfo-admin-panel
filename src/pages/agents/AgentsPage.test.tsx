@@ -183,6 +183,19 @@ describe("AgentsPage", () => {
     expect(prompt).toContain("rich_text data takes textSize normal|large");
   });
 
+  it("the prompt names the video rules", () => {
+    const prompt = buildAgentPrompt("https://api.example");
+    expect(prompt).toContain("or video/mp4, and the filename extension must match it (.mp4 for video/mp4)");
+    expect(prompt).toContain("500 MB for an MP4 video");
+    expect(prompt).toContain("posterMediaId (a video only: another ready raster or gif asset, or null)");
+    expect(prompt).toContain("a MediaRef may name a video asset only in a rich_text media block's media and a media section item's media");
+    expect(prompt).toContain("a section background, a hero or section icon, any media Icon");
+    expect(prompt).toContain("the site settings logo, favicon, and logoMedia");
+    expect(prompt).toContain("it never takes darkMediaId or smallMediaId");
+    expect(prompt).toContain("kind raster|svg|gif|video");
+    expect(prompt).toContain("GET .../usage lists posterOf");
+  });
+
   it("the prompt describes the one site route", () => {
     const prompt = buildAgentPrompt("https://api.example");
     expect(prompt).toContain("route: `{ routeId, mapConfig? }`, the site route");

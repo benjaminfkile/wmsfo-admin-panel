@@ -315,6 +315,9 @@ function buildUiSchemaFromLabels(
       patch["ui:widget"] = "DefaultedSwitchWidget";
       patch["ui:options"] = { switchDefault: entry.switchDefault };
     }
+    if (entry.video === true) {
+      patch["ui:options"] = { video: true };
+    }
     if (!entry.ordered && isEnumArray(schema, nodeAt(schema, path))) {
       patch["ui:widget"] = "checkboxes";
     }

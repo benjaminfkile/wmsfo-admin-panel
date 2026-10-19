@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   RASTER_MAX_BYTES,
   SVG_MAX_BYTES,
+  VIDEO_MAX_BYTES,
+  checkFile,
   checkSize,
   contentTypeFor,
   sizeIssueMessage,
@@ -139,5 +141,63 @@ describe("contentTypeFor", () => {
     expect(contentTypeFor("webp")).toBe("image/webp");
     expect(contentTypeFor("gif")).toBe("image/gif");
     expect(contentTypeFor("svg")).toBe("image/svg+xml");
+    expect(contentTypeFor("mp4")).toBe("video/mp4");
+  });
+});
+
+// An MP4 opens with its `ftyp` box: a 4-byte size, then "ftyp", then the
+// major brand.
+const MP4 = new Uint8Array([
+  0x00, 0x00, 0x00, 0x20,
+  0x66, 0x74, 0x79, 0x70,
+  0x69, 0x73, 0x6f, 0x6d,
+]);
+
+describe("MP4 pre-check", () => {
+  it("sniffs bytes 4 to 8 reading ftyp as mp4", async () => {
+    expect(sniffBytes(MP4)).toBe("mp4");
+    const kind = await sniff(makeFile(MP4, "flight.mp4"));
+    expect(kind).toBe("mp4");
+    expect(checkFile("flight.mp4", 300 * 1024 * 1024, kind)).toBeNull();
+    expect(contentTypeFor("mp4")).toBe("video/mp4");
+  });
+
+  it("accepts a video at exactly 500 MB and refuses one byte more", () => {
+    expect(VIDEO_MAX_BYTES).toBe(500 * 1024 * 1024);
+    expect(checkSize(VIDEO_MAX_BYTES, "mp4")).toBeNull();
+    const issue = checkSize(VIDEO_MAX_BYTES + 1, "mp4");
+    expect(issue?.kind).toBe("video_too_large");
+    expect(sizeIssueMessage(issue!)).toBe("Video is larger than 500 MB");
+  });
+
+  it("does not take ftyp anywhere but bytes 4 to 8", () => {
+    const shifted = new Uint8Array([0x00, 0x66, 0x74, 0x79, 0x70, 0x00, 0x00, 0x00]);
+    expect(sniffBytes(shifted)).toBeNull();
+  });
+
+  it("rejects a png renamed to .mp4", async () => {
+    const file = makeFile(PNG, "renamed.mp4");
+    const kind = await sniff(file);
+    expect(kind).toBe("png");
+    const issue = checkFile(file.name, file.size, kind);
+    expect(issue?.kind).toBe("not_mp4");
+    expect(sizeIssueMessage(issue!)).toBe("Not an MP4 video");
+  });
+
+  it("refuses MP4 bytes without the .mp4 name the API requires", () => {
+    expect(checkFile("flight.mov", 1000, "mp4")?.kind).toBe("mp4_name");
+  });
+
+  it("refuses an MP4 where only images are allowed", () => {
+    const issue = checkFile("flight.mp4", 1000, "mp4", false);
+    expect(issue?.kind).toBe("video_not_allowed");
+    expect(sizeIssueMessage(issue!)).toBe("A video cannot be used here");
+  });
+
+  it("leaves pictures to the size check", () => {
+    expect(checkFile("hangar.png", 1000, "png")).toBeNull();
+    expect(checkFile("big.png", 21 * 1024 * 1024, "png")?.kind).toBe(
+      "raster_too_large"
+    );
   });
 });

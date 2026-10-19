@@ -12,10 +12,17 @@ import MediaPreview from "../MediaPreview";
 import DisplayControls from "../DisplayControls";
 import { withDisplay } from "../display";
 import type { MediaAsset, MediaRef } from "../../../api/types";
+import {
+  IMAGE_AND_VIDEO_KINDS,
+  IMAGE_KINDS,
+} from "../../../api/resources/media";
 
 // The `MediaRef` primitive. MediaPreview stands in for the id; keep the
 // Choose button, an alt override text field, and, with media picked, the
-// collapsed Advanced section (DisplayControls) for its `display`.
+// collapsed Advanced section (DisplayControls) for its `display`. The
+// picker offers images only, plus videos where the uiSchema sets
+// `ui:options.video` (the media section item's media, from its labels
+// entry).
 type MediaRefWithDisplay = MediaRef & { display?: unknown };
 
 export default function MediaField(props: FieldProps) {
@@ -24,6 +31,9 @@ export default function MediaField(props: FieldProps) {
     alt: null,
   };
   const [open, setOpen] = useState(false);
+  const allowVideo =
+    (props.uiSchema?.["ui:options"] as { video?: unknown } | undefined)
+      ?.video === true;
 
   const uiTitle = (props.uiSchema as { "ui:title"?: unknown } | undefined)?.[
     "ui:title"
@@ -86,6 +96,7 @@ export default function MediaField(props: FieldProps) {
       ) : null}
       <MediaPicker
         open={open}
+        kinds={allowVideo ? IMAGE_AND_VIDEO_KINDS : IMAGE_KINDS}
         onCancel={() => setOpen(false)}
         onPick={pick}
       />

@@ -5,7 +5,7 @@ import {
   uploadToS3,
 } from "../../api/resources/upload";
 import {
-  checkSize,
+  checkFile,
   contentTypeFor,
   sizeIssueMessage,
   sniff,
@@ -62,8 +62,11 @@ export type MediaUploadApi = {
   updateMeta: (id: string, meta: UploadMeta) => void;
 };
 
+// `allowVideo` false refuses an MP4 at the pre-check (the pickers that
+// offer images only).
 export function useMediaUpload(
-  onReady?: (asset: MediaAsset) => void
+  onReady?: (asset: MediaAsset) => void,
+  allowVideo = true
 ): MediaUploadApi {
   const [items, setItems] = useState<UploadItem[]>([]);
   const itemsRef = useRef<UploadItem[]>([]);
@@ -110,7 +113,7 @@ export function useMediaUpload(
       if (row.sniffed === null) {
         setItem(row.id, {
           stage: "failed",
-          error: "Unsupported image type",
+          error: "Unsupported file type",
           errorFrom: "precheck",
         });
         return;
@@ -205,7 +208,12 @@ export function useMediaUpload(
       // Run sniff+size checks then move to prechecked.
       for (const row of rows) {
         void sniff(row.file).then((sniffed) => {
-          const issue = checkSize(row.file.size, sniffed);
+          const issue = checkFile(
+            row.file.name,
+            row.file.size,
+            sniffed,
+            allowVideo
+          );
           if (issue) {
             setItem(row.id, {
               stage: "failed",
@@ -219,7 +227,7 @@ export function useMediaUpload(
         });
       }
     },
-    [setItem]
+    [setItem, allowVideo]
   );
 
   const retry = useCallback(

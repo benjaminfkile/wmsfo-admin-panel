@@ -8,7 +8,11 @@ import {
   Typography,
 } from "@mui/material";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { media as mediaApi, type MediaQuery } from "../../api/resources/media";
+import {
+  media as mediaApi,
+  type MediaKind,
+  type MediaQuery,
+} from "../../api/resources/media";
 import { keys } from "../../queries/keys";
 import ErrorAlert from "../ErrorAlert";
 import type { MediaAsset } from "../../api/types";
@@ -28,12 +32,23 @@ interface Props {
   // Filters that callers force (MediaPicker fixes state=ready and passes kind).
   fixedKind?: MediaQuery["kind"];
   fixedState?: MediaQuery["state"];
+  // The kinds the grid offers (MediaPicker passes images, or images plus
+  // video); absent offers every kind. The kind filter lists only these,
+  // and an asset of another kind never shows.
+  kinds?: MediaKind[];
   // Assets left out of the grid (the drawer's own asset when choosing
   // its dark mode version).
   excludeIds?: string[];
   showFilters?: boolean;
   emptyText?: string;
 }
+
+const KIND_OPTIONS: { value: MediaKind; label: string }[] = [
+  { value: "raster", label: "Raster" },
+  { value: "svg", label: "SVG" },
+  { value: "gif", label: "GIF" },
+  { value: "video", label: "Video" },
+];
 
 // The library grid backed by keys.media(q) as an infinite query
 // (admin.md 6.15). Filters live above the grid; the caller can freeze
@@ -45,13 +60,21 @@ export default function MediaGrid({
   selectedId,
   fixedKind,
   fixedState,
+  kinds,
   excludeIds,
   showFilters = true,
   emptyText = "No media",
 }: Props) {
   const [searchInput, setSearchInput] = useState(filters.q ?? "");
+  const offered = kinds ?? KIND_OPTIONS.map((o) => o.value);
+  const pickedKind =
+    filters.kind !== undefined && offered.includes(filters.kind)
+      ? filters.kind
+      : undefined;
+  // The API filters one kind at a time; with several kinds offered and
+  // none picked the grid asks for every kind and drops the others here.
   const effective: MediaQuery = {
-    kind: fixedKind ?? filters.kind,
+    kind: fixedKind ?? pickedKind ?? (offered.length === 1 ? offered[0] : undefined),
     state: fixedState ?? filters.state,
     q: filters.q,
     limit: 50,
@@ -65,7 +88,14 @@ export default function MediaGrid({
   });
 
   const items: MediaAsset[] = (query.data?.pages ?? []).flatMap((p) =>
-    (p.items ?? []).filter((a) => !excludeIds?.includes(a.id ?? ""))
+    (p.items ?? []).filter(
+      (a) =>
+        !excludeIds?.includes(a.id ?? "") &&
+        (fixedKind !== undefined ||
+          kinds === undefined ||
+          typeof a.kind !== "string" ||
+          kinds.includes(a.kind as MediaKind))
+    )
   );
 
   return (
@@ -94,12 +124,12 @@ export default function MediaGrid({
             }
             fullWidth
           />
-          {fixedKind === undefined ? (
+          {fixedKind === undefined && offered.length > 1 ? (
             <TextField
               select
               size="small"
               label="Kind"
-              value={filters.kind ?? ""}
+              value={pickedKind ?? ""}
               onChange={(e) =>
                 onFiltersChange({
                   ...filters,
@@ -111,9 +141,13 @@ export default function MediaGrid({
               sx={{ minWidth: { xs: "100%", sm: 140 } }}
             >
               <MenuItem value="">All kinds</MenuItem>
-              <MenuItem value="raster">Raster</MenuItem>
-              <MenuItem value="svg">SVG</MenuItem>
-              <MenuItem value="gif">GIF</MenuItem>
+              {KIND_OPTIONS.filter((o) => offered.includes(o.value)).map(
+                (o) => (
+                  <MenuItem key={o.value} value={o.value}>
+                    {o.label}
+                  </MenuItem>
+                )
+              )}
             </TextField>
           ) : null}
           {fixedState === undefined ? (

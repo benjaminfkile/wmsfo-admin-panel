@@ -2,15 +2,27 @@
 // Size caps and magic-byte sniffing keep the browser from asking for
 // an upload ticket when the file already fails the API's rules.
 
-export type SniffedType = "png" | "jpeg" | "webp" | "gif" | "svg" | null;
+export type SniffedType =
+  | "png"
+  | "jpeg"
+  | "webp"
+  | "gif"
+  | "svg"
+  | "mp4"
+  | null;
 
 export const RASTER_MAX_BYTES = 20 * 1024 * 1024;
 export const SVG_MAX_BYTES = 1 * 1024 * 1024;
+export const VIDEO_MAX_BYTES = 500 * 1024 * 1024;
 
 export type SizeIssue =
   | { kind: "raster_too_large"; limit: number; size: number }
   | { kind: "svg_too_large"; limit: number; size: number }
-  | { kind: "unsupported_type" };
+  | { kind: "video_too_large"; limit: number; size: number }
+  | { kind: "unsupported_type" }
+  | { kind: "not_mp4" }
+  | { kind: "mp4_name" }
+  | { kind: "video_not_allowed" };
 
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const JPEG_MAGIC = [0xff, 0xd8, 0xff];
@@ -18,6 +30,7 @@ const GIF_87A = [0x47, 0x49, 0x46, 0x38, 0x37, 0x61];
 const GIF_89A = [0x47, 0x49, 0x46, 0x38, 0x39, 0x61];
 const RIFF = [0x52, 0x49, 0x46, 0x46];
 const WEBP = [0x57, 0x45, 0x42, 0x50];
+const FTYP = [0x66, 0x74, 0x79, 0x70];
 
 function startsWith(bytes: Uint8Array, prefix: number[], offset = 0): boolean {
   if (bytes.length < offset + prefix.length) return false;
@@ -32,6 +45,8 @@ function sniffBytes(bytes: Uint8Array): SniffedType {
   if (startsWith(bytes, JPEG_MAGIC)) return "jpeg";
   if (startsWith(bytes, GIF_87A) || startsWith(bytes, GIF_89A)) return "gif";
   if (startsWith(bytes, RIFF) && startsWith(bytes, WEBP, 8)) return "webp";
+  // MP4: the first box is `ftyp`, so bytes 4 to 8 read "ftyp".
+  if (startsWith(bytes, FTYP, 4)) return "mp4";
   if (looksLikeSvg(bytes)) return "svg";
   return null;
 }
@@ -115,6 +130,12 @@ function readAsArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
 
 export function checkSize(size: number, sniffed: SniffedType): SizeIssue | null {
   if (sniffed === null) return { kind: "unsupported_type" };
+  if (sniffed === "mp4") {
+    if (size > VIDEO_MAX_BYTES) {
+      return { kind: "video_too_large", limit: VIDEO_MAX_BYTES, size };
+    }
+    return null;
+  }
   if (sniffed === "svg") {
     if (size > SVG_MAX_BYTES) {
       return { kind: "svg_too_large", limit: SVG_MAX_BYTES, size };
@@ -139,7 +160,29 @@ export function contentTypeFor(sniffed: Exclude<SniffedType, null>): string {
       return "image/gif";
     case "svg":
       return "image/svg+xml";
+    case "mp4":
+      return "video/mp4";
   }
+}
+
+// The whole pre-check for one file: the size against the sniffed type's
+// limit, and the name against the bytes. A name ending in `.mp4` must
+// sniff as MP4 (a renamed picture is refused), and MP4 bytes must carry
+// the `.mp4` name the API requires for `video/mp4`. With `allowVideo`
+// false (a picker that offers images only) an MP4 is refused.
+export function checkFile(
+  name: string,
+  size: number,
+  sniffed: SniffedType,
+  allowVideo = true
+): SizeIssue | null {
+  const namedMp4 = /\.mp4$/i.test(name.trim());
+  if (namedMp4 && sniffed !== "mp4") return { kind: "not_mp4" };
+  if (sniffed === "mp4") {
+    if (!allowVideo) return { kind: "video_not_allowed" };
+    if (!namedMp4) return { kind: "mp4_name" };
+  }
+  return checkSize(size, sniffed);
 }
 
 export function sizeIssueMessage(issue: SizeIssue): string {
@@ -148,8 +191,16 @@ export function sizeIssueMessage(issue: SizeIssue): string {
       return "File is larger than 20 MB";
     case "svg_too_large":
       return "SVG is larger than 1 MB";
+    case "video_too_large":
+      return "Video is larger than 500 MB";
+    case "not_mp4":
+      return "Not an MP4 video";
+    case "mp4_name":
+      return "An MP4 video's name must end in .mp4";
+    case "video_not_allowed":
+      return "A video cannot be used here";
     case "unsupported_type":
-      return "Unsupported image type";
+      return "Unsupported file type";
   }
 }
 

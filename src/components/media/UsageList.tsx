@@ -7,20 +7,23 @@ interface Props {
 }
 
 // Renders the media usage document: draft pages as links to their
-// editors, version count, sponsors, cookie types, and site settings.
+// editors, version count, sponsors, cookie types, site settings, and the
+// videos whose poster it is ("poster of <filename>").
 export default function UsageList({ usage }: Props) {
   const pages = usage.draftPages ?? [];
   const sponsors = usage.sponsors ?? [];
   const cookieTypes = usage.cookieTypes ?? [];
   const versionCount = normNumber(usage.versionCount);
   const inSiteSettings = usage.siteSettings === true;
+  const posterOf = usage.posterOf ?? [];
 
   const empty =
     pages.length === 0 &&
     sponsors.length === 0 &&
     cookieTypes.length === 0 &&
     versionCount === 0 &&
-    !inSiteSettings;
+    !inSiteSettings &&
+    posterOf.length === 0;
   if (empty) {
     return (
       <Typography variant="body2" color="text.secondary">
@@ -90,6 +93,11 @@ export default function UsageList({ usage }: Props) {
       {inSiteSettings ? (
         <Typography variant="body2">Referenced by site settings</Typography>
       ) : null}
+      {posterOf.map((v) => (
+        <Typography key={String(v.id)} variant="body2">
+          poster of {v.filename ?? v.id}
+        </Typography>
+      ))}
     </Stack>
   );
 }

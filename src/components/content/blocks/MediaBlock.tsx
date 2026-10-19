@@ -14,6 +14,7 @@ import InlineText from "../InlineText";
 import DisplayControls from "../DisplayControls";
 import { withDisplay } from "../display";
 import type { MediaAsset } from "../../../api/types";
+import { IMAGE_AND_VIDEO_KINDS } from "../../../api/resources/media";
 
 type MediaRef = { mediaId: string; alt: string | null; display?: unknown };
 type BlockLike = { kind: string; [k: string]: unknown };
@@ -42,7 +43,8 @@ function toMediaRef(v: unknown): MediaRef {
   return { mediaId: "", alt: null };
 }
 
-// The media block editor. Media (preview, Choose, alt override, and with
+// The media block editor. Media, an image or a video (preview, Choose
+// through a picker that offers both, alt override, and with
 // media picked the collapsed Advanced section for its `display`), an
 // optional Caption (empty stores null), and a Size select.
 export default function MediaBlockEditor({ value, onChange }: Props) {
@@ -66,7 +68,7 @@ export default function MediaBlockEditor({ value, onChange }: Props) {
     <Stack spacing={2} data-testid="block-media">
       <Box>
         <Typography variant="caption" color="text.secondary">
-          Image
+          Image or video
         </Typography>
         <Stack
           direction="row"
@@ -132,6 +134,8 @@ export default function MediaBlockEditor({ value, onChange }: Props) {
       </Box>
       <MediaPicker
         open={open}
+        kinds={IMAGE_AND_VIDEO_KINDS}
+        title="Choose an image or video"
         onCancel={() => setOpen(false)}
         onPick={pick}
       />
