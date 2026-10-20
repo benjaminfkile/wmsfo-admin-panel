@@ -480,6 +480,18 @@ export const settings: Setting[] = [
     updatedAt: NOW,
   },
   {
+    key: "sign_ups_open",
+    value: true,
+    updatedBy: null,
+    updatedAt: null,
+  },
+  {
+    key: "subscriptions_open",
+    value: true,
+    updatedBy: null,
+    updatedAt: null,
+  },
+  {
     key: "route_map_simplify_tolerance_m",
     value: 30,
     updatedBy: null,

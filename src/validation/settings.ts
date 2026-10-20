@@ -10,6 +10,8 @@ export type SettingKey =
   | "location_min_interval_ms"
   | "location_min_distance_m"
   | "hub_enabled"
+  | "sign_ups_open"
+  | "subscriptions_open"
   | "route_map_simplify_tolerance_m"
   | "route_map_max_points"
   | "route_map_default_duration_minutes";
@@ -103,6 +105,26 @@ export const SETTING_SPECS: SettingSpec[] = [
     label: "hub_enabled",
     description:
       "Whether visitors' browsers use the hub; off takes every visitor onto the poll within one poll",
+    unit: "",
+    min: 0,
+    max: 1,
+    kind: "boolean",
+  },
+  {
+    key: "sign_ups_open",
+    label: "sign_ups_open",
+    description:
+      "Whether visitors can create an account on the site; off closes the sign-up page and the pool at once",
+    unit: "",
+    min: 0,
+    max: 1,
+    kind: "boolean",
+  },
+  {
+    key: "subscriptions_open",
+    label: "subscriptions_open",
+    description:
+      "Whether visitors can add an alert email address; off refuses new sign-ups and resends",
     unit: "",
     min: 0,
     max: 1,

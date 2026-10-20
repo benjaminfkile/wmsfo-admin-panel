@@ -234,6 +234,8 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
   - location_min_interval_ms 0..60000
   - location_min_distance_m 0..10000 (decimal)
   - hub_enabled bool
+  - sign_ups_open bool: whether visitors can create an account on the site. Off closes the sign-up page and the account pool's self sign-up at once. The PUT updates the pool before the row: 502 upstream_failed when the pool update failed (the row keeps its value), 503 unavailable when the API has no pool client.
+  - subscriptions_open bool: whether visitors can add an alert email address. Off refuses new alert sign-ups and verification resends with 409 subscriptions_closed; unsubscribe and verify keep working.
   - route_map_simplify_tolerance_m 1..500
   - route_map_max_points 100..10000
   - route_map_default_duration_minutes 10..720

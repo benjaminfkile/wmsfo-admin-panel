@@ -167,6 +167,71 @@ describe("Settings", () => {
     expect(captured[0]?.body).toEqual({ value: false });
   });
 
+  it.each([
+    ["sign_ups_open", /create an account on the site/i, "Sign-ups open"],
+    ["subscriptions_open", /add an alert email address/i, "Subscriptions open"],
+  ])(
+    "renders %s as a switch with its help button and PUTs a boolean when flipped",
+    async (key, description, helpLabel) => {
+      const user = userEvent.setup();
+      const captured: Array<{ url: string; body: unknown }> = [];
+      server.use(
+        http.put(
+          `${testConfig.apiBaseUrl}/admin/settings/:key`,
+          async ({ request }) => {
+            const body = await request.json();
+            captured.push({ url: request.url, body });
+            return HttpResponse.json({
+              key,
+              value: false,
+              updatedBy: "tester",
+              updatedAt: new Date().toISOString(),
+            });
+          }
+        )
+      );
+      render(<Harness />);
+      const row = await screen.findByTestId(`setting-row-${key}`);
+      expect(within(row).getByText(description)).toBeInTheDocument();
+      expect(
+        within(row).getByRole("button", { name: new RegExp(helpLabel, "i") })
+      ).toBeInTheDocument();
+      expect(within(row).queryByRole("spinbutton")).toBeNull();
+      const toggle = within(row).getByRole("switch", { name: key });
+      expect(toggle).toBeChecked();
+      await user.click(toggle);
+      await waitFor(() => expect(captured.length).toBe(1));
+      expect(captured[0]?.url).toMatch(new RegExp(`/admin/settings/${key}$`));
+      expect(captured[0]?.body).toEqual({ value: false });
+      await waitFor(() => expect(toggle).not.toBeChecked());
+    }
+  );
+
+  it("shows the API message and keeps the saved value on a 502 from sign_ups_open", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.put(`${testConfig.apiBaseUrl}/admin/settings/:key`, () =>
+        HttpResponse.json(
+          {
+            code: "upstream_failed",
+            message: "the account pool could not be updated",
+          },
+          { status: 502 }
+        )
+      )
+    );
+    render(<Harness />);
+    const row = await screen.findByTestId("setting-row-sign_ups_open");
+    const toggle = within(row).getByRole("switch", { name: "sign_ups_open" });
+    expect(toggle).toBeChecked();
+    await user.click(toggle);
+    expect(
+      await within(row).findByText("the account pool could not be updated")
+    ).toBeInTheDocument();
+    expect(toggle).toBeChecked();
+    expect(toggle).not.toBeDisabled();
+  });
+
   it("rejects out-of-range values without calling the API", async () => {
     const user = userEvent.setup();
     const requests: string[] = [];
@@ -195,7 +260,7 @@ describe("Settings", () => {
   });
 
   it("has a spec for every documented key", () => {
-    // contracts 6 lists twelve keys in a specific order; SETTING_SPECS is that order.
+    // contracts 6 lists fourteen keys in a specific order; SETTING_SPECS is that order.
     expect(SETTING_SPECS.map((s) => s.key)).toEqual([
       "poll_interval_ms",
       "cookie_limit_per_person",
@@ -206,6 +271,8 @@ describe("Settings", () => {
       "location_min_interval_ms",
       "location_min_distance_m",
       "hub_enabled",
+      "sign_ups_open",
+      "subscriptions_open",
       "route_map_simplify_tolerance_m",
       "route_map_max_points",
       "route_map_default_duration_minutes",
@@ -324,7 +391,7 @@ describe("Settings help buttons (admin.md 6.26)", () => {
   it("mounts the header help and a help button in the Key cell of every row", async () => {
     render(<Harness />);
     expect(await screen.findByTestId("help-settings")).toBeInTheDocument();
-    expect(SETTING_SPECS).toHaveLength(12);
+    expect(SETTING_SPECS).toHaveLength(14);
     for (const spec of SETTING_SPECS) {
       const row = await screen.findByTestId(`setting-row-${spec.key}`);
       expect(

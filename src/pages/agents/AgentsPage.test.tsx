@@ -196,6 +196,20 @@ describe("AgentsPage", () => {
     expect(prompt).toContain("GET .../usage lists posterOf");
   });
 
+  it("the prompt names the two switches under settings with what each does", () => {
+    const prompt = buildAgentPrompt("https://api.example");
+    const settings = prompt.slice(prompt.indexOf("### settings\n"));
+    const section = settings.slice(0, settings.indexOf("\n### ", 1));
+    expect(section).toContain(
+      "sign_ups_open bool: whether visitors can create an account on the site."
+    );
+    expect(section).toContain("502 upstream_failed");
+    expect(section).toContain(
+      "subscriptions_open bool: whether visitors can add an alert email address."
+    );
+    expect(section).toContain("409 subscriptions_closed");
+  });
+
   it("the prompt describes the one site route", () => {
     const prompt = buildAgentPrompt("https://api.example");
     expect(prompt).toContain("route: `{ routeId, mapConfig? }`, the site route");
