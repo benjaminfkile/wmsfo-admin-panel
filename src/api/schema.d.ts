@@ -310,8 +310,8 @@ export interface paths {
                 };
             };
             responses: {
-                /** @description Created */
-                201: {
+                /** @description Accepted */
+                202: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -445,41 +445,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MeResponse"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/me/subscriptions": {
         parameters: {
             query?: never;
@@ -601,41 +566,6 @@ export interface paths {
                 };
             };
         };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/me/alerts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ItemsResponseOfAlertItemDto"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -5881,25 +5811,6 @@ export interface components {
             lastWriteNode?: null | string;
             node?: components["schemas"]["AdminLiveNode"];
         };
-        AlertItemDto: {
-            /** Format: int64 */
-            id?: number | string;
-            /** Format: int64 */
-            subscriptionId?: number | string;
-            address?: string;
-            kind?: string;
-            /** Format: int64 */
-            eventId?: number | string;
-            eventName?: string;
-            /** Format: int32 */
-            statusId?: null | number | string;
-            /** Format: int64 */
-            messageId?: null | number | string;
-            subject?: string;
-            message?: null | string;
-            /** Format: date-time */
-            sentAt?: string;
-        };
         ApiKeyDto: {
             /** Format: int64 */
             id?: number | string;
@@ -6114,10 +6025,8 @@ export interface components {
             message?: string;
         };
         ContactResponse: {
-            /** Format: int64 */
-            id?: number | string;
             /** Format: date-time */
-            createdAt?: string;
+            receivedAt?: string;
         };
         ContentBundleDto: {
             content?: components["schemas"]["JsonElement"];
@@ -6484,9 +6393,6 @@ export interface components {
         ItemOrderRequest: {
             ids?: (number | string)[];
         };
-        ItemsResponseOfAlertItemDto: {
-            items?: components["schemas"]["AlertItemDto"][];
-        };
         ItemsResponseOfApiKeyDto: {
             items?: components["schemas"]["ApiKeyDto"][];
         };
@@ -6782,10 +6688,6 @@ export interface components {
             id?: number | string;
             name?: string;
         };
-        MeResponse: {
-            person?: components["schemas"]["PersonDto"];
-            isAdmin?: boolean;
-        };
         MintQrCodesRequest: {
             /** Format: int32 */
             count?: number | string;
@@ -7040,16 +6942,6 @@ export interface components {
             chrome?: components["schemas"]["JsonElement"];
             overlay?: components["schemas"]["JsonElement"];
             thumbnailMediaId?: components["schemas"]["JsonElement"];
-        };
-        PersonDto: {
-            /** Format: int64 */
-            id?: number | string;
-            email?: string;
-            /** Format: date-time */
-            createdAt?: string;
-            /** Format: date-time */
-            lastSeenAt?: string;
-            audit?: null | components["schemas"]["AuditStampDto"];
         };
         PersonWithCookieCountDto: {
             /** Format: int64 */

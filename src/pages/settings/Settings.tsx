@@ -108,7 +108,20 @@ export default function Settings() {
       });
     },
     onError: (e, vars) => {
-      notify(e instanceof Error ? e.message : "Save failed", "error");
+      const message = e instanceof Error ? e.message : "Save failed";
+      notify(message, "error");
+      // A switch that failed to save (a `502 upstream_failed` on
+      // `sign_ups_open`, for one) goes back to its saved value and shows
+      // the API message in the row.
+      if (specFor(vars.key)?.kind === "boolean") {
+        const saved = settings.find((s) => s.key === vars.key);
+        setRow(vars.key, {
+          input: saved ? initialFor(saved) : String(!vars.value),
+          error: message,
+          saving: false,
+        });
+        return;
+      }
       setRow(vars.key, { saving: false });
     },
   });
@@ -138,21 +151,28 @@ export default function Settings() {
     if (spec?.kind === "boolean") {
       const on = state.input === "true";
       return (
-        <HubSwitchLabel
-          control={
-            <HubSwitch
-              checked={on}
-              disabled={state.saving}
-              onChange={(e) => {
-                const next = e.target.checked;
-                setRow(key, { input: String(next), error: null, saving: true });
-                saveMut.mutate({ key, value: next });
-              }}
-              slotProps={{ input: { "aria-label": key } }}
-            />
-          }
-          label={on ? "on" : "off"}
-        />
+        <Stack alignItems="flex-end">
+          <HubSwitchLabel
+            control={
+              <HubSwitch
+                checked={on}
+                disabled={state.saving}
+                onChange={(e) => {
+                  const next = e.target.checked;
+                  setRow(key, { input: String(next), error: null, saving: true });
+                  saveMut.mutate({ key, value: next });
+                }}
+                slotProps={{ input: { "aria-label": key } }}
+              />
+            }
+            label={on ? "on" : "off"}
+          />
+          {state.error && (
+            <Typography variant="caption" color="error" role="alert">
+              {state.error}
+            </Typography>
+          )}
+        </Stack>
       );
     }
     return (
@@ -250,7 +270,9 @@ export default function Settings() {
       <PageHeader title="Settings" help="settings" />
       <CommentBox>
         Every save rebuilds the snapshot and rewrites the live object, so a new
-        poll interval reaches the site within its next poll.
+        poll interval reaches the site within its next poll. The sign-ups
+        switch also changes the account pool, so it takes effect for new
+        sign-ups at once.
       </CommentBox>
       {settingsQ.error ? (
         <ErrorAlert error={settingsQ.error} />
