@@ -58,6 +58,8 @@ function messageForCode(err: ApiError, ctx: MessageContext): string {
       return "An event for this year exists";
     case "scheduled_at_required":
       return "Required while the event is scheduled";
+    case "scheduled_at_past":
+      return "The scheduled time has passed. Set a new one first.";
     case "event_status_unchanged":
       return "The event is already in that status";
     case "event_not_current":

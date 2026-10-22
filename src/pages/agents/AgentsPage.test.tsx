@@ -218,6 +218,13 @@ describe("AgentsPage", () => {
     expect(prompt).toContain("copy: { sponsors, tracker }");
     expect(prompt).toContain("it carries no route (routeId in a poster write is 400 validation_failed)");
     expect(prompt).toContain("An event has no route field");
+    expect(prompt).toContain(
+      "2 scheduled needs scheduledAt still ahead (409 scheduled_at_required, 409 scheduled_at_past); 1 planned from 2 clears scheduledAt"
+    );
+    expect(prompt).toContain(
+      "scheduled_at_required, scheduled_at_past, no_healthy_beacon (status change)"
+    );
+    expect(prompt).toContain("409 year_taken, scheduled_at_required, scheduled_at_past");
   });
 
   it("the prompt carries none of the stale statements and no dashes", () => {
@@ -241,6 +248,8 @@ describe("AgentsPage", () => {
       "a route unlinks events and posters",
       "fundsPercent, routeId, scheduleTimeZone",
       "routeMapConfig (an object or null; unknown fields are 400)",
+      "2 scheduled needs scheduledAt (409 scheduled_at_required).",
+      "409 year_taken, scheduled_at_required.",
     ]) {
       expect(prompt).not.toContain(stale);
     }

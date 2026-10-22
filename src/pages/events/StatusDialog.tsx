@@ -17,6 +17,7 @@ import { keys } from "../../queries/keys";
 import { subscribers as subsApi } from "../../api/resources/subscribers";
 import EmailQuotaNotice from "../../components/EmailQuotaNotice";
 import { ApiError } from "../../api/errors";
+import { toCopy } from "../../lib/errorMessages";
 import { statusName } from "../../lib/statusNames";
 import { stockParagraph } from "../../lib/statusCopy";
 import MessageHelper from "./MessageHelper";
@@ -133,7 +134,13 @@ export default function StatusDialog({
   );
 
   const gateBlocked = target === 3 && healthyReason !== null;
-  const beaconErrorText = noHealthyBeaconMessage(error);
+  // The gate codes a race can still hit (the beacon dropping, the
+  // scheduled time passing after the page loaded) show in the dialog.
+  const gateErrorText =
+    noHealthyBeaconMessage(error) ??
+    (error instanceof ApiError && error.code === "scheduled_at_past"
+      ? toCopy(error).message
+      : null);
 
   const trimmedMessage = message.trim();
   const messageToSend = trimmedMessage.length > 0 ? trimmedMessage : null;
@@ -182,8 +189,8 @@ export default function StatusDialog({
                 {healthyReason}
               </Typography>
             ) : null}
-            {beaconErrorText ? (
-              <Alert severity="error">{beaconErrorText}</Alert>
+            {gateErrorText ? (
+              <Alert severity="error">{gateErrorText}</Alert>
             ) : null}
             {target === 3 && anotherEventLive ? (
               <Typography variant="body2" color="error">

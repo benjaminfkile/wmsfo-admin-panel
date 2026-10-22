@@ -396,3 +396,62 @@ describe("EventDetail: status notified state and history", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("EventDetail: the Scheduled gate (admin.md 6.3)", () => {
+  const plannedEvent = { ...event, statusId: 1, wentLiveAt: null };
+
+  it("disables Scheduled with the reason when the scheduled time has passed", async () => {
+    const user = userEvent.setup();
+    server.use(
+      getEvent({ ...plannedEvent, scheduledAt: "2020-12-22T01:00:00.000Z" })
+    );
+    render(<Harness />);
+    const button = await screen.findByRole("button", { name: /^scheduled$/i });
+    expect(button).toBeDisabled();
+    await user.hover(button.parentElement!);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "The scheduled time has passed. Set a new one first"
+    );
+  });
+
+  it("leaves Scheduled enabled while the time is still ahead", async () => {
+    server.use(
+      getEvent({ ...plannedEvent, scheduledAt: "2099-12-22T01:00:00.000Z" })
+    );
+    render(<Harness />);
+    expect(
+      await screen.findByRole("button", { name: /^scheduled$/i })
+    ).toBeEnabled();
+  });
+
+  it("the Details card shows the scheduled time empty after a change to Planned", async () => {
+    const user = userEvent.setup();
+    const scheduledEvent = {
+      ...event,
+      statusId: 2,
+      wentLiveAt: null,
+      scheduledAt: "2099-12-22T01:00:00.000Z",
+    };
+    // The API clears scheduledAt on 2 to 1; the refetched event carries it.
+    const plannedAfter = { ...scheduledEvent, statusId: 1, scheduledAt: null };
+    let current: typeof event = scheduledEvent;
+    server.use(
+      http.get(`${api}/admin/events/:id`, () => HttpResponse.json(current)),
+      http.post(`${api}/admin/events/:id/status`, () => {
+        current = plannedAfter;
+        return HttpResponse.json(plannedAfter);
+      })
+    );
+    render(<Harness />);
+    const field = await screen.findByLabelText(/^scheduled at/i);
+    await vi.waitFor(() => expect(field).not.toHaveValue(""));
+    await user.click(screen.getByRole("button", { name: /^planned$/i }));
+    await screen.findByLabelText(/^message/i);
+    await user.click(
+      screen.getByRole("button", { name: /^change and notify$/i })
+    );
+    await vi.waitFor(() =>
+      expect(screen.getByLabelText(/^scheduled at/i)).toHaveValue("")
+    );
+  });
+});
