@@ -563,6 +563,20 @@ export const DISPLAY_LABELS: FieldLabels = {
   align: { label: "Alignment" },
 };
 
+// The fields every rich text block row header edits, keyed by the block
+// field name. `align` is the optional alignment of the heading,
+// paragraph, list, quote, media, and links blocks (contracts 1.3a); the
+// "follow" option stands for an absent key, and picking it removes the
+// key.
+export const BLOCK_LABELS: FieldLabels = {
+  align: {
+    label: "Alignment",
+    help: "Follow section uses the section's alignment",
+    options: { follow: "Follow section", start: "Start", center: "Centre" },
+    unset: "follow",
+  },
+};
+
 // The text fields of the media detail drawer, keyed by the field name
 // the drawer PATCHes.
 export const MEDIA_DETAIL_LABELS: FieldLabels = {
