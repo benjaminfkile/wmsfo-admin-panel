@@ -183,6 +183,14 @@ describe("AgentsPage", () => {
     expect(prompt).toContain("rich_text data takes textSize normal|large");
   });
 
+  it("the prompt names the optional block align", () => {
+    const prompt = buildAgentPrompt("https://api.example");
+    expect(prompt).toContain(
+      "The heading, paragraph, list, quote, media, and links blocks take an optional align start|center; absent follows the section's presentation.align"
+    );
+    expect(prompt).toContain("The icon block's align stays required; the divider has none.");
+  });
+
   it("the prompt names the video rules", () => {
     const prompt = buildAgentPrompt("https://api.example");
     expect(prompt).toContain("or video/mp4, and the filename extension must match it (.mp4 for video/mp4)");

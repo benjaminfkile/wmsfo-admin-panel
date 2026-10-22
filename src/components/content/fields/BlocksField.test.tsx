@@ -542,6 +542,171 @@ describe("BlocksField icon block", () => {
   });
 });
 
+// The Alignment select in the row header of the heading, paragraph,
+// list, quote, media, and links blocks (contracts 1.3a, A132).
+describe("BlocksField block alignment", () => {
+  const ALIGNABLE: Block[] = [
+    { kind: "heading", level: 2, text: "Head", icon: null },
+    { kind: "paragraph", text: "Para" },
+    { kind: "list", style: "bullet", icon: null, items: ["one"] },
+    { kind: "quote", text: "Say", attribution: null },
+    {
+      kind: "media",
+      media: { mediaId: "align-media", alt: null },
+      caption: null,
+      size: "medium",
+    },
+    {
+      kind: "links",
+      style: "buttons",
+      links: [{ label: "L", href: "/", icon: null, newTab: false }],
+    },
+  ];
+
+  function alignCombo(index: number): HTMLElement {
+    return within(screen.getByTestId(`block-align-${index}`)).getByRole(
+      "combobox"
+    );
+  }
+
+  it.each(ALIGNABLE.map((b, i) => [b.kind, i] as const))(
+    "shows the Alignment select on the %s block, Follow section while unset",
+    (_kind, i) => {
+      render(
+        <Harness>
+          <Controlled initial={ALIGNABLE} />
+        </Harness>
+      );
+      const row = screen.getByTestId(`block-row-${i}`);
+      const combo = within(row).getByRole("combobox", { name: "Alignment" });
+      expect(combo).toHaveTextContent("Follow section");
+      expect(
+        within(row).getByText("Follow section uses the section's alignment")
+      ).toBeInTheDocument();
+    }
+  );
+
+  it("has no Alignment select on the divider block", () => {
+    render(
+      <Harness>
+        <Controlled initial={[{ kind: "divider", style: "line" }]} />
+      </Harness>
+    );
+    const row = screen.getByTestId("block-row-0");
+    expect(within(row).queryByText("Alignment")).toBeNull();
+    expect(screen.queryByTestId("block-align-0")).toBeNull();
+  });
+
+  it("keeps the icon block's own Align select and adds no header select", () => {
+    render(
+      <Harness>
+        <Controlled
+          initial={[
+            {
+              kind: "icon",
+              icon: { source: "library", id: "star" },
+              size: "md",
+              align: "center",
+            },
+          ]}
+        />
+      </Harness>
+    );
+    expect(screen.queryByTestId("block-align-0")).toBeNull();
+    const own = within(screen.getByTestId("block-icon-align")).getByRole(
+      "combobox"
+    );
+    expect(own).toHaveTextContent("Centre");
+    expect(
+      within(screen.getByTestId("block-row-0")).queryByText(/Alignment:/)
+    ).toBeNull();
+  });
+
+  it.each(ALIGNABLE.map((b, i) => [b.kind, i] as const))(
+    "Start and Centre set align on the %s block; Follow section removes it",
+    async (_kind, i) => {
+      const user = userEvent.setup();
+      render(
+        <Harness>
+          <Controlled initial={ALIGNABLE} />
+        </Harness>
+      );
+      await user.click(alignCombo(i));
+      await user.click(await screen.findByRole("option", { name: "Start" }));
+      expect(readValue()[i]).toMatchObject({ align: "start" });
+
+      await user.click(alignCombo(i));
+      await user.click(await screen.findByRole("option", { name: "Centre" }));
+      expect(readValue()[i]).toMatchObject({ align: "center" });
+
+      await user.click(alignCombo(i));
+      await user.click(
+        await screen.findByRole("option", { name: "Follow section" })
+      );
+      expect("align" in readValue()[i]!).toBe(false);
+      // The rest of the block is untouched.
+      expect(readValue()[i]).toEqual(ALIGNABLE[i]);
+    }
+  );
+
+  it("shows the alignment in the summary line only when set", async () => {
+    const user = userEvent.setup();
+    render(
+      <Harness>
+        <Controlled
+          initial={[
+            { kind: "paragraph", text: "Hello there", align: "center" },
+            { kind: "quote", text: "Say", attribution: null },
+          ]}
+        />
+      </Harness>
+    );
+    expect(screen.getByTestId("block-summary-0")).toHaveTextContent(
+      "Hello there · Alignment: Centre"
+    );
+    expect(alignCombo(0)).toHaveTextContent("Centre");
+    expect(screen.getByTestId("block-summary-1")).toHaveTextContent("Say");
+    expect(screen.getByTestId("block-summary-1")).not.toHaveTextContent(
+      "Alignment"
+    );
+
+    await user.click(alignCombo(1));
+    await user.click(await screen.findByRole("option", { name: "Start" }));
+    expect(screen.getByTestId("block-summary-1")).toHaveTextContent(
+      "Say · Alignment: Start"
+    );
+
+    await user.click(alignCombo(0));
+    await user.click(
+      await screen.findByRole("option", { name: "Follow section" })
+    );
+    expect(screen.getByTestId("block-summary-0")).toHaveTextContent(
+      "Hello there"
+    );
+    expect(screen.getByTestId("block-summary-0")).not.toHaveTextContent(
+      "Alignment"
+    );
+  });
+
+  it("keeps align on a duplicated block", async () => {
+    const user = userEvent.setup();
+    render(
+      <Harness>
+        <Controlled initial={[{ kind: "paragraph", text: "P", align: "start" }]} />
+      </Harness>
+    );
+    await user.click(
+      within(screen.getByTestId("block-row-0")).getByRole("button", {
+        name: "Duplicate",
+      })
+    );
+    expect(readValue()).toEqual([
+      { kind: "paragraph", text: "P", align: "start" },
+      { kind: "paragraph", text: "P", align: "start" },
+    ]);
+  });
+});
+
 // The gate: build a fixture from contracts.md 1.3a shapes (one block per
 // kind, every field populated) plus every rich text block in
 // starter-content.json, render it in a single BlocksField, and for each
@@ -593,18 +758,24 @@ describe("BlocksField gate over every block kind", () => {
   // that live inside a nested sub-testId are listed under `nested`.
   const FIELDS_BY_KIND: Record<
     string,
-    { body: string[]; nested?: { testId: string; labels: string[] }[] }
+    {
+      body: string[];
+      nested?: { testId: string; labels: string[] }[];
+      header?: string[];
+    }
   > = {
     heading: {
       body: ["Text", "Heading level"],
       nested: [{ testId: "block-heading-icon", labels: ["Icon"] }],
+      header: ["Alignment"],
     },
-    paragraph: { body: ["Text"] },
+    paragraph: { body: ["Text"], header: ["Alignment"] },
     list: {
       body: ["Style", "Lines"],
       nested: [{ testId: "block-list-icon", labels: ["Icon (required)"] }],
+      header: ["Alignment"],
     },
-    quote: { body: ["Text", "Attribution (optional)"] },
+    quote: { body: ["Text", "Attribution (optional)"], header: ["Alignment"] },
     media: {
       body: [
         "Image or video",
@@ -612,8 +783,9 @@ describe("BlocksField gate over every block kind", () => {
         "Caption (optional)",
         "Size",
       ],
+      header: ["Alignment"],
     },
-    links: { body: ["Style", "Links"] },
+    links: { body: ["Style", "Links"], header: ["Alignment"] },
     icon: {
       body: ["Size", "Align"],
       nested: [{ testId: "block-icon-icon", labels: ["Icon (required)"] }],
@@ -626,12 +798,31 @@ describe("BlocksField gate over every block kind", () => {
   // field in contracts/schema/primitives.schema.json fails this test
   // until it has an editor and an entry here.
   const CONTROL_BY_FIELD: Record<string, Record<string, string>> = {
-    heading: { level: "Heading level", text: "Text", icon: "Icon" },
-    paragraph: { text: "Text" },
-    list: { style: "Style", icon: "Icon (required)", items: "Lines" },
-    quote: { text: "Text", attribution: "Attribution (optional)" },
-    media: { media: "Image or video", caption: "Caption (optional)", size: "Size" },
-    links: { links: "Links", style: "Style" },
+    heading: {
+      level: "Heading level",
+      text: "Text",
+      icon: "Icon",
+      align: "Alignment",
+    },
+    paragraph: { text: "Text", align: "Alignment" },
+    list: {
+      style: "Style",
+      icon: "Icon (required)",
+      items: "Lines",
+      align: "Alignment",
+    },
+    quote: {
+      text: "Text",
+      attribution: "Attribution (optional)",
+      align: "Alignment",
+    },
+    media: {
+      media: "Image or video",
+      caption: "Caption (optional)",
+      size: "Size",
+      align: "Alignment",
+    },
+    links: { links: "Links", style: "Style", align: "Alignment" },
     icon: { icon: "Icon (required)", size: "Size", align: "Align" },
     divider: { style: "Style" },
   };
@@ -654,6 +845,7 @@ describe("BlocksField gate over every block kind", () => {
       const labels = [
         ...spec.body,
         ...(spec.nested ?? []).flatMap((n) => n.labels),
+        ...(spec.header ?? []),
       ];
       for (const label of Object.values(CONTROL_BY_FIELD[kind]!)) {
         expect(labels).toContain(label);
@@ -696,6 +888,10 @@ describe("BlocksField gate over every block kind", () => {
         for (const label of nest.labels) {
           expect(within(scopes[0]!).getByText(label)).toBeInTheDocument();
         }
+      }
+      for (const label of spec.header ?? []) {
+        const row = body.closest('[data-testid^="block-row-"]') as HTMLElement;
+        expect(within(row).getAllByText(label).length).toBeGreaterThan(0);
       }
     }
   });

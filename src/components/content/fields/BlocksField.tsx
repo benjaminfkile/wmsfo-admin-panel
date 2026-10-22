@@ -6,6 +6,7 @@ import {
   MenuItem,
   Select,
   Stack,
+  TextField,
   Typography,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -42,6 +43,7 @@ import LinksBlockEditor from "../blocks/LinksBlock";
 import IconBlockEditor from "../blocks/IconBlock";
 import MediaFilename from "../blocks/MediaFilename";
 import IconName from "../blocks/IconName";
+import { BLOCK_LABELS } from "../labels";
 
 type Block = { kind: string; [k: string]: unknown };
 
@@ -77,6 +79,36 @@ const LINKS_STYLE_LABELS: Record<string, string> = {
   buttons: "buttons",
   list: "list",
 };
+
+// The block kinds whose row header carries the Alignment select. The
+// icon block keeps its own required Align select in its body, and the
+// divider has no alignment.
+const ALIGNABLE_KINDS = new Set([
+  "heading",
+  "paragraph",
+  "list",
+  "quote",
+  "media",
+  "links",
+]);
+
+const ALIGN_LABEL = BLOCK_LABELS.align!;
+const ALIGN_OPTIONS = ALIGN_LABEL.options!;
+const ALIGN_FOLLOW = ALIGN_LABEL.unset!;
+
+// The block's alignment as a select value: "start" or "center" when the
+// block sets one, otherwise the Follow section option.
+function alignValue(b: Block): string {
+  return b.align === "start" || b.align === "center" ? b.align : ALIGN_FOLLOW;
+}
+
+// Follow section removes `align` from the block; Start and Centre set it.
+function withAlign(b: Block, value: string): Block {
+  if (value === "start" || value === "center") return { ...b, align: value };
+  const next = { ...b };
+  delete next.align;
+  return next;
+}
 
 function truncate(text: string, max: number): string {
   if (text.length <= max) return text;
@@ -166,6 +198,7 @@ interface RowProps {
   onMoveDown: () => void;
   onDuplicate: () => void;
   onRemove: () => void;
+  onChange: (next: Block) => void;
   children: ReactNode;
 }
 
@@ -179,6 +212,7 @@ function SortableBlockRow({
   onMoveDown,
   onDuplicate,
   onRemove,
+  onChange,
   children,
 }: RowProps) {
   const {
@@ -198,6 +232,12 @@ function SortableBlockRow({
   const summary = summarize(block);
   const hasSummary =
     typeof summary === "string" ? summary.length > 0 : summary !== null;
+  const alignable = ALIGNABLE_KINDS.has(block.kind);
+  const align = alignValue(block);
+  const alignNote =
+    alignable && align !== ALIGN_FOLLOW
+      ? `${ALIGN_LABEL.label}: ${ALIGN_OPTIONS[align]}`
+      : null;
   return (
     <Box
       ref={setNodeRef}
@@ -235,16 +275,37 @@ function SortableBlockRow({
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
             {label}
           </Typography>
-          {hasSummary ? (
+          {hasSummary || alignNote ? (
             <Typography
               variant="caption"
               color="text.secondary"
               sx={{ display: "block", wordBreak: "break-word" }}
+              data-testid={`block-summary-${index}`}
             >
-              {summary}
+              {hasSummary ? summary : null}
+              {hasSummary && alignNote ? " · " : null}
+              {alignNote}
             </Typography>
           ) : null}
         </Box>
+        {alignable ? (
+          <TextField
+            select
+            size="small"
+            label={ALIGN_LABEL.label}
+            helperText={ALIGN_LABEL.help}
+            value={align}
+            onChange={(e) => onChange(withAlign(block, e.target.value))}
+            sx={{ minWidth: 160, maxWidth: 220, mx: 1 }}
+            data-testid={`block-align-${index}`}
+          >
+            {Object.entries(ALIGN_OPTIONS).map(([value, text]) => (
+              <MenuItem key={value} value={value}>
+                {text}
+              </MenuItem>
+            ))}
+          </TextField>
+        ) : null}
         <Button size="small" onClick={onDuplicate}>
           Duplicate
         </Button>
@@ -264,8 +325,10 @@ function SortableBlockRow({
 }
 
 // The `Block[]` primitive: a sortable list of blocks. Each row shows a
-// human label and a summary, a drag handle, up and down arrows,
-// Duplicate, and Delete; the body is a per kind editor for one of the
+// human label and a summary (with the block's alignment when set), a
+// drag handle, up and down arrows, an Alignment select on the heading,
+// paragraph, list, quote, media, and links blocks, Duplicate, and
+// Delete; the body is a per kind editor for one of the
 // eight kinds (heading, paragraph, list, quote, media, links, icon,
 // divider) that reads every field of its shape and preserves anything
 // it does not know.
@@ -353,6 +416,7 @@ export default function BlocksField(props: FieldProps) {
                 onMoveDown={() => move(i, i + 1)}
                 onDuplicate={() => duplicate(i)}
                 onRemove={() => remove(i)}
+                onChange={(next) => replaceAt(i, next)}
               >
                 <BlockBody
                   block={b}

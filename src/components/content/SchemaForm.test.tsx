@@ -112,6 +112,28 @@ describe("SchemaForm: every vendored kind schema renders from its defaults", () 
     unmount();
   });
 
+  it("starts a new map section with the flight history on", () => {
+    const kind = kinds.find((k) => k.kind === "map");
+    expect(kind).toBeDefined();
+    const defaults = kind!.defaults as Record<string, unknown>;
+    expect(defaults.flightHistoryDefault).toBe(true);
+    const { unmount } = render(
+      <Providers>
+        <SchemaForm
+          schema={map as Sch}
+          kind="map"
+          formData={defaults}
+          onChange={() => undefined}
+        />
+      </Providers>
+    );
+    const toggle = screen.getByRole("checkbox", {
+      name: "Show the flight history when the map opens",
+    });
+    expect(toggle).toBeChecked();
+    unmount();
+  });
+
   it.each(
     kinds
       .filter((k) => k.hasItems && k.itemDefaults !== null)
