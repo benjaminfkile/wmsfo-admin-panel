@@ -18,11 +18,13 @@ import {
 } from "../../test/renderWithProviders";
 import { MESSAGE_HELPER, stockParagraph } from "../../lib/statusCopy";
 import type { Event, StatusId } from "../../api/types";
+import { ApiError } from "../../api/errors";
 
 function Harness(props: {
   event: Event;
   target: StatusId;
   onConfirm: (args: { notify: boolean; message: string | null }) => void;
+  error?: unknown;
 }) {
   const client = new QueryClient({
     defaultOptions: {
@@ -45,7 +47,7 @@ function Harness(props: {
               healthyReason={null}
               now={Date.now()}
               confirming={false}
-              error={null}
+              error={props.error ?? null}
               onCancel={() => undefined}
               onConfirm={props.onConfirm}
             />
@@ -336,5 +338,26 @@ describe("StatusDialog", () => {
     } finally {
       restore();
     }
+  });
+
+  it("shows scheduled_at_past in the dialog's Alert", async () => {
+    const error = new ApiError(409, {
+      code: "scheduled_at_past",
+      message: "scheduledAt is in the past",
+      details: { scheduledAt: "2026-10-01T18:00:00Z" },
+      requestId: "req-9",
+    });
+    render(
+      <Harness
+        event={f.events[0]!}
+        target={2 as StatusId}
+        onConfirm={() => undefined}
+        error={error}
+      />
+    );
+    const text = await screen.findByText(
+      "The scheduled time has passed. Set a new one first."
+    );
+    expect(text.closest("[role='alert']")).toHaveClass("MuiAlert-colorError");
   });
 });

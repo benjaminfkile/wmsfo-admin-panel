@@ -345,6 +345,33 @@ describe("Dashboard", () => {
     await user.click(item);
     expect(await screen.findByRole("dialog")).toHaveTextContent(/postponed/i);
   });
+
+  it("the Change status menu disables Scheduled with the reason once the time has passed", async () => {
+    const user = userEvent.setup();
+    const past = {
+      ...f.events[0]!,
+      statusId: 1,
+      wentLiveAt: null,
+      scheduledAt: "2020-12-22T01:00:00.000Z",
+    };
+    server.use(
+      http.get("*/admin/events", () =>
+        HttpResponse.json({ items: [past, f.events[1]!] })
+      )
+    );
+    render(<Harness />);
+    await screen.findByText(past.name!);
+    await user.click(screen.getByRole("button", { name: /change status/i }));
+    const item = await screen.findByRole("menuitem", { name: "Scheduled" });
+    expect(item).toHaveAttribute("aria-disabled", "true");
+    expect(
+      screen.getByRole("menuitem", { name: "Ended" })
+    ).not.toHaveAttribute("aria-disabled", "true");
+    await user.hover(item.parentElement!);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "The scheduled time has passed. Set a new one first"
+    );
+  });
 });
 
 describe("Dashboard help buttons (admin.md 6.26)", () => {

@@ -12,10 +12,12 @@ import {
   Grid,
   Link,
   Stack,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
 import { STATUS_IDS, statusName } from "../lib/statusNames";
+import { healthyBeaconReason, statusDisabledReason } from "../lib/statusGate";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { events as eventsApi } from "../api/resources/events";
 import { snapshot as snapshotApi } from "../api/resources/snapshot";
@@ -155,23 +157,6 @@ export default function Dashboard() {
   const staleAfterS = beaconsQ.data?.staleAfterS ?? 45;
   const anyLive = eventsList.some((e) => e.statusId === 3);
 
-  const healthyReason = (): string | null => {
-    if (activeBeacon === null) return "none is active";
-    if (activeBeacon.revokedAt !== null && activeBeacon.revokedAt !== undefined) {
-      return `${activeBeacon.name ?? "the active beacon"} is revoked`;
-    }
-    if (activeBeacon.staleSince !== null && activeBeacon.staleSince !== undefined) {
-      return `${activeBeacon.name ?? "the active beacon"} is stale`;
-    }
-    if (activeBeacon.lastHeartbeatAt === null || activeBeacon.lastHeartbeatAt === undefined) {
-      return `${activeBeacon.name ?? "the active beacon"} has never been heard from`;
-    }
-    if (activeBeacon.healthy !== true) {
-      return `${activeBeacon.name ?? "the active beacon"} is not healthy`;
-    }
-    return null;
-  };
-
   const previousMismatched = useRef(false);
   const cdnStatus = cdnQ.error instanceof CdnError ? cdnQ.error.status : null;
   const cdnError =
@@ -225,6 +210,9 @@ export default function Dashboard() {
             error={eventsQ.error}
             loading={eventsQ.isLoading}
             onOpenStatus={openStatus}
+            eventsList={eventsList}
+            activeBeacon={activeBeacon}
+            now={now}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
@@ -287,7 +275,9 @@ export default function Dashboard() {
           target={statusTarget}
           eventsList={eventsList}
           activeBeacon={activeBeacon}
-          healthyReason={statusTarget === 3 ? healthyReason() : null}
+          healthyReason={
+            statusTarget === 3 ? healthyBeaconReason(activeBeacon) : null
+          }
           now={now}
           confirming={setStatusMut.isPending}
           error={setStatusMut.error}
@@ -363,11 +353,17 @@ function CurrentEventCard({
   error,
   loading,
   onOpenStatus,
+  eventsList,
+  activeBeacon,
+  now,
 }: {
   event: Event | null;
   error: unknown;
   loading: boolean;
   onOpenStatus: (id: StatusId) => void;
+  eventsList: Event[];
+  activeBeacon: Beacon | null;
+  now: number;
 }) {
   const [statusMenuAnchor, setStatusMenuAnchor] = useState<HTMLElement | null>(null);
   return (
@@ -431,17 +427,36 @@ function CurrentEventCard({
             open={statusMenuAnchor !== null}
             onClose={() => setStatusMenuAnchor(null)}
           >
-            {STATUS_IDS.filter((s) => s !== Number(event.statusId)).map((target) => (
-              <MenuItem
-                key={target}
-                onClick={() => {
-                  setStatusMenuAnchor(null);
-                  onOpenStatus(target);
-                }}
-              >
-                {statusName(target)}
-              </MenuItem>
-            ))}
+            {STATUS_IDS.filter((s) => s !== Number(event.statusId)).map((target) => {
+              const reason = statusDisabledReason(
+                target,
+                event,
+                eventsList,
+                activeBeacon,
+                now
+              );
+              const item = (
+                <MenuItem
+                  key={target}
+                  disabled={reason !== null}
+                  onClick={() => {
+                    setStatusMenuAnchor(null);
+                    onOpenStatus(target);
+                  }}
+                >
+                  {statusName(target)}
+                </MenuItem>
+              );
+              // A disabled MenuItem gets no pointer events, so the
+              // tooltip hangs on a span around it.
+              return reason ? (
+                <Tooltip key={target} title={reason} placement="right">
+                  <span>{item}</span>
+                </Tooltip>
+              ) : (
+                item
+              );
+            })}
           </Menu>
           <Button
             size="small"

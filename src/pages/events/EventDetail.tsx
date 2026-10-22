@@ -28,6 +28,7 @@ import ResponsiveTable, {
   type Column,
 } from "../../components/list/ResponsiveTable";
 import { STATUS_IDS, statusName } from "../../lib/statusNames";
+import { healthyBeaconReason, statusDisabledReason } from "../../lib/statusGate";
 import { useNotify } from "../../hooks/useNotify";
 import { useNow } from "../../hooks/useNow";
 import { useCompact } from "../../hooks/useCompact";
@@ -281,46 +282,6 @@ export default function EventDetail() {
   }
 
   const currentStatusId = Number(event.statusId) as StatusId;
-  const anotherEventLive = eventsList.some(
-    (e) => Number(e.statusId) === 3 && Number(e.id) !== Number(event.id)
-  );
-  const liveEventName = eventsList.find(
-    (e) => Number(e.statusId) === 3 && Number(e.id) !== Number(event.id)
-  )?.name;
-
-  const healthyReason = (): string | null => {
-    // Return null when the panel can confirm a healthy, active beacon;
-    // otherwise return the reason for the tooltip and gate.
-    const beaconItems = beaconsQ.data?.items ?? [];
-    const active = beaconItems.find((b) => b.isActive === true) ?? null;
-    if (active === null) return "none is active";
-    if (active.revokedAt !== null && active.revokedAt !== undefined) {
-      return `${active.name ?? "the active beacon"} is revoked`;
-    }
-    if (active.staleSince !== null && active.staleSince !== undefined) {
-      return `${active.name ?? "the active beacon"} is stale since ${formatStamp(active.staleSince)}`;
-    }
-    if (active.lastHeartbeatAt === null || active.lastHeartbeatAt === undefined) {
-      return `${active.name ?? "the active beacon"} has never been heard from`;
-    }
-    if (active.healthy !== true) {
-      return `${active.name ?? "the active beacon"} is not healthy`;
-    }
-    return null;
-  };
-
-  const disabledReason = (target: StatusId): string | null => {
-    if (target === 2 && !event.scheduledAt) return "Set a scheduled time first";
-    if (target === 3 && !event.isCurrent) return "Set this event current first";
-    if (target === 3 && anotherEventLive)
-      return `${liveEventName ?? "Another event"} is live`;
-    if (target === 3) {
-      const reason = healthyReason();
-      if (reason !== null) return `No healthy active beacon: ${reason}`;
-    }
-    return null;
-  };
-
   const openStatus = (target: StatusId) => {
     setStatusTarget(target);
     setStatusDialogOpen(true);
@@ -551,7 +512,13 @@ export default function EventDetail() {
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 {STATUS_IDS.filter((s) => s !== currentStatusId).map(
                   (target) => {
-                    const reason = disabledReason(target);
+                    const reason = statusDisabledReason(
+                      target,
+                      event,
+                      eventsList,
+                      activeBeacon,
+                      now
+                    );
                     const btn = (
                       <span key={`w-${target}`}>
                         <Button
@@ -621,7 +588,9 @@ export default function EventDetail() {
           target={statusTarget}
           eventsList={eventsList}
           activeBeacon={activeBeacon}
-          healthyReason={statusTarget === 3 ? healthyReason() : null}
+          healthyReason={
+            statusTarget === 3 ? healthyBeaconReason(activeBeacon) : null
+          }
           now={now}
           confirming={statusMut.isPending}
           error={statusMut.error}
