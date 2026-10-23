@@ -606,7 +606,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/me/notifications": {
+    "/me": {
         parameters: {
             query?: never;
             header?: never;
@@ -628,7 +628,117 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["MeNotificationsResponse"];
+                        "application/json": components["schemas"]["MeResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PreferencesDto"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/seen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MeSeenRequest"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Alias, removed once the site has moved to /me */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MeResponse"];
                     };
                 };
             };
@@ -649,6 +759,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
+        /** @description Alias, removed once the site has moved to /me */
         put: {
             parameters: {
                 query?: never;
@@ -658,7 +769,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["MeNotificationsSeenRequest"];
+                    "application/json": components["schemas"]["MeSeenRequest"];
                 };
             };
             responses: {
@@ -6760,12 +6871,13 @@ export interface components {
             id?: number | string;
             name?: string;
         };
-        MeNotificationsResponse: {
+        MeResponse: {
             subscription?: null | components["schemas"]["SubscriptionDto"];
             /** Format: int64 */
             seenUpToId?: null | number | string;
+            preferences?: null | components["schemas"]["PreferencesDto"];
         };
-        MeNotificationsSeenRequest: {
+        MeSeenRequest: {
             /** Format: int64 */
             seenUpToId?: null | number | string;
         };
@@ -7133,6 +7245,10 @@ export interface components {
             name?: string;
             /** Format: date-time */
             updatedAt?: string;
+        };
+        PreferencesDto: {
+            theme?: null | string;
+            tracker?: components["schemas"]["TrackerPreferencesDto"];
         };
         PresentationDto: {
             width?: string;
@@ -7681,6 +7797,15 @@ export interface components {
         TrackerMapUploadsDto: {
             tiles?: components["schemas"]["TrackerMapUploadIdDto"];
             terrain?: null | components["schemas"]["TrackerMapUploadIdDto"];
+        };
+        TrackerPreferencesDto: {
+            flightHistory?: null | boolean;
+            timeLabels?: null | boolean;
+            landmarks?: null | boolean;
+            flightDock?: null | boolean;
+            cookieTally?: null | boolean;
+            snow?: null | boolean;
+            mapType?: null | string;
         };
         TrackerThemeDto: {
             /** Format: int64 */
