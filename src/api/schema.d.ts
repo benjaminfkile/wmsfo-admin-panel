@@ -7806,6 +7806,7 @@ export interface components {
             cookieTally?: null | boolean;
             snow?: null | boolean;
             mapType?: null | string;
+            theme?: null | string;
         };
         TrackerThemeDto: {
             /** Format: int64 */
