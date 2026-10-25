@@ -863,8 +863,9 @@ export const placePins: PlacePin[] = [
 // resource so handlers can return the appropriate shape without extra
 // bookkeeping. The default for anything not overridden is a `blocked:
 // null` empty impact ("Nothing else is affected").
-// The seeded Missoula valley map (prefix `basemap`) and one package
-// whose upload has not been confirmed (admin.md 6.27).
+// The seeded Missoula valley map (prefix `basemap`) as the seed writes
+// it (terrain to zoom 15, sizes not yet measured, no source build) and
+// one package whose upload has not been confirmed (admin.md 6.27).
 export const trackerMaps: TrackerMap[] = [
   {
     id: 1,
@@ -875,9 +876,9 @@ export const trackerMaps: TrackerMap[] = [
     minZoom: 0,
     maxZoom: 15,
     terrainMaxZoom: 15,
-    tilesBytes: 1503238553,
-    terrainBytes: 268435456,
-    sourceBuild: "2026-10-01",
+    tilesBytes: null,
+    terrainBytes: null,
+    sourceBuild: null,
     state: "ready",
     builtAt: "2026-09-20T18:00:00.000Z",
     tilesUrl: "https://cdn.example/basemap/tiles.pmtiles",

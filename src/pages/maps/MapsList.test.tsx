@@ -122,9 +122,13 @@ describe("MapsList", () => {
     ).toBeInTheDocument();
     expect(within(row).getByText("Ready")).toBeInTheDocument();
     expect(within(row).getByText("0 to 15")).toBeInTheDocument();
-    expect(within(row).getByText("1.4 GB")).toBeInTheDocument();
-    expect(within(row).getByText("256 MB to zoom 15")).toBeInTheDocument();
-    expect(within(row).getByText("Oct 1, 2026")).toBeInTheDocument();
+    // The seeded row: terrain to zoom 15, sizes not measured, no build.
+    expect(within(row).getByText("Not measured yet")).toBeInTheDocument();
+    expect(
+      within(row).getByText("to zoom 15, size not measured")
+    ).toBeInTheDocument();
+    expect(within(row).getByText("Not recorded")).toBeInTheDocument();
+    expect(within(row).queryByText("none")).toBeNull();
     const count = await within(row).findByTestId(`map-events-${missoula.id}`);
     expect(count).toHaveTextContent("1");
     await user.hover(count);
@@ -137,8 +141,57 @@ describe("MapsList", () => {
     expect(within(other).getByText("Pending")).toBeInTheDocument();
     expect(within(other).getByText("0 to 14")).toBeInTheDocument();
     expect(within(other).getByText("300 MB")).toBeInTheDocument();
-    // Terrain, Source build, and Events all read "none".
-    expect(within(other).getAllByText("none")).toHaveLength(3);
+    // Terrain and Events read "none"; Source build "Not recorded".
+    expect(within(other).getAllByText("none")).toHaveLength(2);
+    expect(within(other).getByText("Not recorded")).toBeInTheDocument();
+  });
+
+  it("terrain follows terrainMaxZoom, never the size on record", async () => {
+    server.use(
+      http.get(`${API}/admin/maps`, () =>
+        HttpResponse.json({
+          items: [
+            {
+              ...missoula,
+              terrainMaxZoom: 15,
+              terrainBytes: null,
+              tilesBytes: null,
+            },
+            {
+              ...flathead,
+              tilesBytes: 1503238553,
+              terrainBytes: 268435456,
+              sourceBuild: "2026-10-01",
+            },
+            {
+              ...missoula,
+              id: 4,
+              name: "Lolo",
+              terrainMaxZoom: null,
+              terrainUrl: null,
+              tilesBytes: 314572800,
+            },
+          ],
+        })
+      )
+    );
+    render(<Harness />);
+    const unmeasured = await screen.findByTestId(`map-row-${missoula.id}`);
+    expect(
+      within(unmeasured).getByText("to zoom 15, size not measured")
+    ).toBeInTheDocument();
+    expect(within(unmeasured).getByText("Not measured yet")).toBeInTheDocument();
+    expect(within(unmeasured).queryByText("none")).toBeNull();
+
+    const measured = screen.getByTestId(`map-row-${flathead.id}`);
+    expect(within(measured).getByText("1.4 GB")).toBeInTheDocument();
+    expect(within(measured).getByText("256 MB to zoom 15")).toBeInTheDocument();
+    expect(within(measured).getByText("Oct 1, 2026")).toBeInTheDocument();
+
+    const flat = screen.getByTestId("map-row-4");
+    expect(within(flat).getByText("300 MB")).toBeInTheDocument();
+    // Terrain and Events read "none".
+    expect(within(flat).getAllByText("none")).toHaveLength(2);
   });
 
   it("Rename patches the name and toasts", async () => {

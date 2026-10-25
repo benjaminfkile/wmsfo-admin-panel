@@ -41,19 +41,29 @@ function areaLabel(m: TrackerMap): string {
   return `${d(b.west)}, ${d(b.south)} to ${d(b.east)}, ${d(b.north)}`;
 }
 
-// `sourceBuild` is a calendar date (YYYY-MM-DD), shown as "Oct 1, 2026".
+// `sourceBuild` is a calendar date (YYYY-MM-DD), shown as "Oct 1, 2026";
+// a hand-uploaded package has none and reads "Not recorded".
 function sourceBuildLabel(m: TrackerMap): string {
-  if (!m.sourceBuild) return "none";
+  if (!m.sourceBuild) return "Not recorded";
   const d = new Date(`${m.sourceBuild}T00:00:00Z`);
   return Number.isNaN(d.getTime()) ? m.sourceBuild : sourceBuildFormat.format(d);
 }
 
+// Whether a map has terrain follows `terrainMaxZoom` (null: no terrain
+// archive), never the size; a null `terrainBytes` means not yet measured.
 function terrainLabel(m: TrackerMap): string {
-  if (m.terrainBytes == null) return "none";
-  const size = formatBytes(Number(m.terrainBytes));
-  return m.terrainMaxZoom == null
-    ? size
-    : `${size} to zoom ${String(m.terrainMaxZoom)}`;
+  if (m.terrainMaxZoom == null) return "none";
+  const zoom = String(m.terrainMaxZoom);
+  return m.terrainBytes == null
+    ? `to zoom ${zoom}, size not measured`
+    : `${formatBytes(Number(m.terrainBytes))} to zoom ${zoom}`;
+}
+
+// A null `tilesBytes` means the size is not yet measured.
+function tilesLabel(m: TrackerMap): string {
+  return m.tilesBytes == null
+    ? "Not measured yet"
+    : formatBytes(Number(m.tilesBytes));
 }
 
 // The Maps page (admin.md 6.27): the tile packages the CLI uploaded,
@@ -147,8 +157,7 @@ export default function MapsList() {
       key: "tiles",
       header: "Tiles",
       role: "line",
-      render: (m) =>
-        m.tilesBytes == null ? "none" : formatBytes(Number(m.tilesBytes)),
+      render: (m) => tilesLabel(m),
     },
     {
       key: "terrain",
