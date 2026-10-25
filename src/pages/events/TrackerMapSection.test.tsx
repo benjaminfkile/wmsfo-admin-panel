@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import { MemoryRouter } from "react-router-dom";
@@ -18,22 +18,13 @@ import {
   makeUser,
   testConfig,
 } from "../../test/renderWithProviders";
+import { FakeMap, startViewMap } from "../../test/fakeGoogleMap";
 
 vi.setConfig({ testTimeout: 20_000 });
 
-// The box editor's map: a Google map on the Maps key, never drawn here.
-const created: Record<string, unknown>[] = [];
-vi.mock("../../pages/places/googleMaps", () => {
-  class Map {
-    constructor(_div: HTMLElement, opts: Record<string, unknown>) {
-      created.push(opts);
-    }
-    fitBounds() {}
-    setOptions() {}
-    addListener() {
-      return { remove: () => undefined };
-    }
-  }
+// The box editor's and the start view's maps: Google maps on the Maps key.
+vi.mock("../../pages/places/googleMaps", async () => {
+  const { FakeMap: Map } = await import("../../test/fakeGoogleMap");
   class Overlay {
     setMap() {}
     setBounds() {}
@@ -99,7 +90,7 @@ function Harness({ event }: { event: Event }) {
 }
 
 beforeEach(() => {
-  created.length = 0;
+  FakeMap.instances.length = 0;
   installClient({
     config: testConfig,
     userManager: makeFakeUserManager(
@@ -160,9 +151,12 @@ describe("TrackerMapSection", () => {
     expect(field("east").value).toBe("-113.8000");
     expect(field("north").value).toBe("47.0500");
     expect(within(card).getByTestId("bbox-min-zoom")).toHaveTextContent(/^Minimum zoom: .+ on a phone, .+ on a desktop$/);
-    // The editor's map is a Google map.
-    await waitFor(() => expect(created).toHaveLength(1));
-    expect(created[0]).toMatchObject({ gestureHandling: "greedy" });
+    // The editor's map and the start view's are Google maps.
+    await waitFor(() => expect(FakeMap.instances).toHaveLength(2));
+    expect(FakeMap.instances.map((m) => m.opts)).toContainEqual(
+      expect.objectContaining({ gestureHandling: "greedy" })
+    );
+    expect(within(card).getByTestId("help-events.detail.tracker-map.start-view")).toBeInTheDocument();
 
     expect(within(card).getByRole("checkbox", { name: "Light" })).toBeChecked();
     expect(within(card).getByRole("checkbox", { name: "Dark" })).toBeChecked();
@@ -399,5 +393,94 @@ describe("TrackerMapSection", () => {
     await user.click(await screen.findByRole("option", { name: /Missoula valley/ }));
     await user.click(within(card).getByTestId("tracker-map-save"));
     expect(await within(card).findByText("The map is not ready")).toBeInTheDocument();
+  });
+
+  it("Save sends the start view set by moving the map", async () => {
+    const user = userEvent.setup();
+    const bodies: unknown[] = [];
+    server.use(
+      http.patch(`${testConfig.apiBaseUrl}/admin/events/:id`, async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json(makeEvent());
+      })
+    );
+    const card = await renderCard();
+    expect(within(card).getByTestId("start-view-caption")).toHaveTextContent("Whole area");
+    await waitFor(() => expect(startViewMap()?.options.restriction).toBeDefined());
+    act(() => startViewMap()!.pan({ lat: 46.9, lng: -114.05 }, 12));
+    await user.click(within(card).getByTestId("tracker-map-save"));
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toEqual({
+      trackerStartView: { center: { lat: 46.9, lng: -114.05 }, zoom: 12 },
+    });
+  });
+
+  it("Use whole area sends null for a stored start view", async () => {
+    const user = userEvent.setup();
+    const bodies: unknown[] = [];
+    server.use(
+      http.patch(`${testConfig.apiBaseUrl}/admin/events/:id`, async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json(makeEvent());
+      })
+    );
+    const card = await renderCard(
+      makeEvent({ trackerStartView: { center: { lat: 46.9, lng: -114 }, zoom: 11 } })
+    );
+    expect(within(card).getByTestId("start-view-caption")).toHaveTextContent(
+      "Centre 46.90000, -114.00000 at zoom 11"
+    );
+    await user.click(within(card).getByRole("button", { name: "Use whole area" }));
+    await user.click(within(card).getByTestId("tracker-map-save"));
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toEqual({ trackerStartView: null });
+  });
+
+  it("a box change that strands the start view moves it inside, says so, and saves both", async () => {
+    const user = userEvent.setup();
+    const bodies: unknown[] = [];
+    server.use(
+      http.patch(`${testConfig.apiBaseUrl}/admin/events/:id`, async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json(makeEvent());
+      })
+    );
+    const card = await renderCard(
+      makeEvent({ trackerStartView: { center: { lat: 47, lng: -113.85 }, zoom: 11 } })
+    );
+    fireEvent.change(field("east"), { target: { value: "-114" } });
+    expect(within(card).getByTestId("start-view-moved")).toHaveTextContent(
+      "Start view moved inside the new area"
+    );
+    await user.click(within(card).getByTestId("tracker-map-save"));
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toEqual({
+      trackerBbox: { ...BOX, east: -114 },
+      trackerStartView: { center: { lat: 47, lng: -114 }, zoom: 11 },
+    });
+  });
+
+  it("a 400 at trackerStartView shows under the field", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.patch(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
+        HttpResponse.json(
+          {
+            code: "validation_failed",
+            message: "Validation failed",
+            details: { fields: { "/trackerStartView": "must lie inside trackerBbox" } },
+            requestId: "req-4",
+          },
+          { status: 400 }
+        )
+      )
+    );
+    const card = await renderCard();
+    await waitFor(() => expect(startViewMap()?.options.restriction).toBeDefined());
+    act(() => startViewMap()!.pan({ lat: 46.9, lng: -114.05 }, 12));
+    await user.click(within(card).getByTestId("tracker-map-save"));
+    expect(await within(card).findByTestId("start-view-error")).toHaveTextContent(
+      "must lie inside trackerBbox"
+    );
   });
 });

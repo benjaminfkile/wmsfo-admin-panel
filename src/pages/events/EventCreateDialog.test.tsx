@@ -20,6 +20,8 @@ import {
   makeUser,
   testConfig,
 } from "../../test/renderWithProviders";
+import { FakeMap, startViewMap } from "../../test/fakeGoogleMap";
+import { ApiError } from "../../api/errors";
 
 // Without the Maps key the box editor shows its fields alone.
 const config = { ...testConfig, googleMapsKey: "" };
@@ -27,14 +29,8 @@ const config = { ...testConfig, googleMapsKey: "" };
 // The box editor's Google map, for the tests that drag a handle.
 type Point = { lat: number; lng: number };
 const handles: Array<{ title: string; position: Point; drag: (p: Point) => void }> = [];
-vi.mock("../../pages/places/googleMaps", () => {
-  class Map {
-    fitBounds() {}
-    setOptions() {}
-    addListener() {
-      return { remove: () => undefined };
-    }
-  }
+vi.mock("../../pages/places/googleMaps", async () => {
+  const { FakeMap: Map } = await import("../../test/fakeGoogleMap");
   class Overlay {
     setMap() {}
     setBounds() {}
@@ -92,6 +88,7 @@ vi.setConfig({ testTimeout: 15_000 });
 // default is predictable.
 beforeEach(() => {
   handles.length = 0;
+  FakeMap.instances.length = 0;
   server.use(
     http.get(`${config.apiBaseUrl}/admin/maps`, () =>
       HttpResponse.json({ items: [f.trackerMaps[0], FLATHEAD, f.trackerMaps[1]] })
@@ -119,7 +116,8 @@ afterEach(() => {
 function renderDialog(
   onSubmit: (b: CreateEventBody) => void,
   events: Event[] = [],
-  withConfig: Config = config
+  withConfig: Config = config,
+  error: unknown = null
 ) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -134,7 +132,7 @@ function renderDialog(
               open
               events={events}
               submitting={false}
-              error={null}
+              error={error}
               onCancel={() => undefined}
               onSubmit={onSubmit}
             />
@@ -326,6 +324,78 @@ describe("EventCreateDialog: Tracker area", () => {
     renderDialog(vi.fn());
     expect(await screen.findByTestId("tracker-preview")).toHaveTextContent(
       "Will use no map and every theme"
+    );
+  });
+});
+
+describe("EventCreateDialog: the start view", () => {
+  it("has none by default: the line says the whole area and the body leaves it out", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderDialog(onSubmit);
+    expect(await screen.findByTestId("tracker-preview")).toHaveTextContent(
+      "Will use no map and every theme, opening on the whole area"
+    );
+    expect(screen.getByTestId("start-view-caption")).toHaveTextContent("Whole area");
+    expect(screen.getByRole("button", { name: "Use whole area" })).toBeDisabled();
+    await user.type(screen.getByLabelText(/^name/i), "Whole flight");
+    await user.click(screen.getByRole("button", { name: /^create$/i }));
+    const body = onSubmit.mock.calls[0]![0] as CreateEventBody;
+    expect(Object.keys(body)).not.toContain("trackerStartView");
+  });
+
+  it("moving the map sets the start view, named in the line and sent in the body", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderDialog(onSubmit, [], testConfig);
+    await screen.findByText(/will use no map/i);
+    await waitFor(() => expect(startViewMap()?.options.restriction).toBeDefined());
+    act(() => startViewMap()!.pan({ lat: 46.87123, lng: -113.99456 }, 11));
+    expect(screen.getByTestId("tracker-preview")).toHaveTextContent(
+      "opening at 46.87123, -113.99456, zoom 11"
+    );
+    await user.type(screen.getByLabelText(/^name/i), "Viewed flight");
+    await user.click(screen.getByRole("button", { name: /^create$/i }));
+    const body = onSubmit.mock.calls[0]![0] as CreateEventBody;
+    expect(body.trackerStartView).toEqual({
+      center: { lat: 46.87123, lng: -113.99456 },
+      zoom: 11,
+    });
+
+    // Use whole area takes it back out.
+    await user.click(screen.getByRole("button", { name: "Use whole area" }));
+    await user.click(screen.getByRole("button", { name: /^create$/i }));
+    const second = onSubmit.mock.calls[1]![0] as CreateEventBody;
+    expect(Object.keys(second)).not.toContain("trackerStartView");
+  });
+
+  it("picking a map that leaves the centre out moves it inside and says so", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderDialog(onSubmit, [], testConfig);
+    await screen.findByText(/will use no map/i);
+    await waitFor(() => expect(startViewMap()?.options.restriction).toBeDefined());
+    act(() => startViewMap()!.pan({ lat: 46.87, lng: -114 }, 11));
+    await pickMap(user, /Flathead/);
+    expect(screen.getByTestId("start-view-moved")).toHaveTextContent(
+      "Start view moved inside the new area"
+    );
+    await user.type(screen.getByLabelText(/^name/i), "Moved flight");
+    await user.click(screen.getByRole("button", { name: /^create$/i }));
+    const body = onSubmit.mock.calls[0]![0] as CreateEventBody;
+    expect(body.trackerStartView).toEqual({ center: { lat: 47.7, lng: -114 }, zoom: 11 });
+  });
+
+  it("a 400 at trackerStartView shows under the field", async () => {
+    const error = new ApiError(400, {
+      code: "validation_failed",
+      message: "Validation failed",
+      details: { fields: { "/trackerStartView": "must lie inside trackerBbox" } },
+      requestId: "req-5",
+    });
+    renderDialog(vi.fn(), [], config, error);
+    expect(await screen.findByTestId("start-view-error")).toHaveTextContent(
+      "must lie inside trackerBbox"
     );
   });
 });

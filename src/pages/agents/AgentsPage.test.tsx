@@ -250,14 +250,14 @@ describe("AgentsPage", () => {
   it("the prompt names the map choice on create and clone", () => {
     const prompt = buildAgentPrompt("https://api.example");
     expect(prompt).toContain(
-      "scheduleTimeZone?, trackerMapId?, trackerBbox? }`: year and name required."
+      "scheduleTimeZone?, trackerMapId?, trackerBbox?, trackerStartView? }`: year and name required."
     );
     expect(prompt).toContain(
       "trackerMapId is optional: a ready map's id sets the area to the map's, and a trackerBbox given with it must lie inside the map's area"
     );
     expect(prompt).toContain("null means no map, Google Maps only; absent inherits the map by the rule below.");
     expect(prompt).toContain(
-      "copy: { sponsors, tracker }, trackerMapId?, trackerBbox? }`: 201, a new planned event."
+      "copy: { sponsors, tracker }, trackerMapId?, trackerBbox?, trackerStartView? }`: 201, a new planned event."
     );
     expect(prompt).toContain("trackerMapId and trackerBbox are optional and checked as on create.");
     expect(prompt).toContain(
@@ -265,6 +265,23 @@ describe("AgentsPage", () => {
     );
     expect(prompt).toContain(
       "- An event created without trackerBbox gets the map's area when a map is named, else the site settings' box."
+    );
+  });
+
+  it("the prompt names trackerStartView on create, patch, and clone", () => {
+    const prompt = buildAgentPrompt("https://api.example");
+    expect(prompt).toContain(
+      "trackerStartView is optional, where the tracker opens: `{ center: { lat, lng }, zoom }` with zoom an integer 3 to 18 and center inside the event's trackerBbox"
+    );
+    expect(prompt).toContain("null or absent means none, and the tracker fits the whole box.");
+    expect(prompt).toContain(
+      "trackerStartView (optional: `{ center: { lat, lng }, zoom 3..18 }` with center inside the event's trackerBbox after this write; null clears it, absent leaves it; a patch that moves trackerBbox and names no trackerStartView has the API clear a stored view its new box leaves outside)"
+    );
+    expect(prompt).toContain(
+      "trackerStartView is optional (center inside the clone's trackerBbox, zoom 3 to 18): a view or null wins; absent copies the source's, which the API clears when the clone's box leaves its center outside."
+    );
+    expect(prompt).toContain(
+      "- An event's trackerStartView centre always lies inside its trackerBbox; a box change that leaves it outside clears it."
     );
   });
 

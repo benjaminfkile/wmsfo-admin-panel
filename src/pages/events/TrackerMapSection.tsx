@@ -17,6 +17,13 @@ import { themes as themesApi } from "../../api/resources/themes";
 import type { Event, TrackerTheme } from "../../api/types";
 import { keys } from "../../queries/keys";
 import TrackerAreaField from "../../components/events/TrackerAreaField";
+import StartViewField from "../../components/events/StartViewField";
+import {
+  sameStartView,
+  startViewInside,
+  toStartView,
+  type StartView,
+} from "../../components/events/startView";
 import {
   MISSOULA_VALLEY_BBOX,
   bboxValid,
@@ -35,12 +42,18 @@ interface Props {
   event: Event;
 }
 
-type Draft = { bbox: Bbox; mapId: number | null; themeIds: number[] };
+type Draft = {
+  bbox: Bbox;
+  mapId: number | null;
+  startView: StartView | null;
+  themeIds: number[];
+};
 
 function draftOf(event: Event): Draft {
   return {
     bbox: toBbox(event.trackerBbox) ?? MISSOULA_VALLEY_BBOX,
     mapId: event.trackerMapId == null ? null : Number(event.trackerMapId),
+    startView: toStartView(event.trackerStartView),
     themeIds: (event.trackerThemeIds ?? []).map(Number),
   };
 }
@@ -56,10 +69,11 @@ function bySortOrder(a: TrackerTheme, b: TrackerTheme): number {
 }
 
 // The Tracker map card on the event detail page (admin.md 6.3): a draft
-// of the event's `trackerBbox`, `trackerMapId`, and `trackerThemeIds`
-// with one Save that sends only the changed fields. The map and the box
-// are one choice, TrackerAreaField: the box comes from the map and stays
-// inside its area. The Themes checklist holds the Google and MapLibre
+// of the event's `trackerBbox`, `trackerMapId`, `trackerStartView`, and
+// `trackerThemeIds` with one Save that sends only the changed fields. The
+// map and the box are one choice, TrackerAreaField: the box comes from the
+// map and stays inside its area. The start view sits under it,
+// StartViewField, its centre inside the box, null when cleared. The Themes checklist holds the Google and MapLibre
 // groups and needs one Google theme.
 export default function TrackerMapSection({ event }: Props) {
   const qc = useQueryClient();
@@ -88,6 +102,7 @@ export default function TrackerMapSection({ event }: Props) {
   const changed: PatchEventBody = {};
   if (!sameBbox(draft.bbox, saved.bbox)) changed.trackerBbox = draft.bbox;
   if (draft.mapId !== saved.mapId) changed.trackerMapId = draft.mapId;
+  if (!sameStartView(draft.startView, saved.startView)) changed.trackerStartView = draft.startView;
   if (!sameIds(draft.themeIds, saved.themeIds)) changed.trackerThemeIds = draft.themeIds;
   const dirty = Object.keys(changed).length > 0;
 
@@ -105,10 +120,13 @@ export default function TrackerMapSection({ event }: Props) {
   const bboxError = fieldErrorFor(saveMut.error, "trackerBbox");
   const mapError = fieldErrorFor(saveMut.error, "trackerMapId");
   const themesError = fieldErrorFor(saveMut.error, "trackerThemeIds");
+  const startViewError = fieldErrorFor(saveMut.error, "trackerStartView");
+  const startViewOk = draft.startView === null || startViewInside(draft.startView, draft.bbox);
 
   // A legacy row whose box lies outside its map shows the editor's
   // message, and the API's on save.
-  const canSave = dirty && bboxValid(draft.bbox) && !googleMissing && !saveMut.isPending;
+  const canSave =
+    dirty && bboxValid(draft.bbox) && startViewOk && !googleMissing && !saveMut.isPending;
 
   const toggleTheme = (id: number, on: boolean) =>
     setDraft((d) => ({
@@ -156,12 +174,12 @@ export default function TrackerMapSection({ event }: Props) {
           Tracker map
         </CardTitle>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          The tracker&apos;s area, basemap, and looks for this event.
+          The tracker&apos;s area, start view, basemap, and looks for this event.
         </Typography>
         {saveMut.error ? (
           <ErrorAlert
             error={saveMut.error}
-            handledFields={["trackerBbox", "trackerMapId", "trackerThemeIds"]}
+            handledFields={["trackerBbox", "trackerMapId", "trackerStartView", "trackerThemeIds"]}
           />
         ) : null}
         <Stack spacing={3}>
@@ -173,6 +191,13 @@ export default function TrackerMapSection({ event }: Props) {
             mapHelp="events.detail.tracker-map.map"
             bboxError={bboxError}
             mapError={mapError}
+          />
+
+          <StartViewField
+            value={draft.startView}
+            onChange={(startView) => setDraft((d) => ({ ...d, startView }))}
+            bbox={draft.bbox}
+            error={startViewError}
           />
 
           <Box>

@@ -21,6 +21,12 @@ import { fieldErrorFor } from "../../lib/fieldErrors";
 import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 import HelpButton from "../../help/HelpButton";
 import TrackerAreaField from "../../components/events/TrackerAreaField";
+import StartViewField from "../../components/events/StartViewField";
+import {
+  startViewInside,
+  toStartView,
+  type StartView,
+} from "../../components/events/startView";
 import { findMap, mapArea, type TrackerArea } from "../../components/events/trackerArea";
 import {
   MISSOULA_VALLEY_BBOX,
@@ -69,6 +75,8 @@ export default function EventCloneDialog({
   const [tracker, setTracker] = useState(true);
   // The chosen map and box, or null while they follow the source's.
   const [picked, setPicked] = useState<TrackerArea | null>(null);
+  // The clone's start view, from the source's when the dialog opens.
+  const [startView, setStartView] = useState<StartView | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const mapsQ = useQuery({
@@ -95,6 +103,7 @@ export default function EventCloneDialog({
     setSponsors(true);
     setTracker(true);
     setPicked(null);
+    setStartView(toStartView(source.trackerStartView));
     setErrors({});
   }, [open, source]);
 
@@ -115,6 +124,8 @@ export default function EventCloneDialog({
     else if (trimmedName.length > 200)
       next.name = "Name must be 200 characters or fewer";
     if (!boxOk) next.trackerBbox = "Fix the tracker area";
+    if (startView !== null && !startViewInside(startView, area.bbox))
+      next.trackerStartView = "The start view must lie inside the tracker area";
     setErrors(next);
     if (Object.keys(next).length > 0) return { ok: false };
     return {
@@ -125,6 +136,7 @@ export default function EventCloneDialog({
         copy: { sponsors, tracker },
         trackerMapId: area.mapId,
         trackerBbox: area.bbox,
+        trackerStartView: startView,
       },
     };
   };
@@ -147,7 +159,13 @@ export default function EventCloneDialog({
           {error ? (
             <ErrorAlert
               error={error}
-              handledFields={[...Object.keys(errors), "year", "trackerBbox", "trackerMapId"]}
+              handledFields={[
+                ...Object.keys(errors),
+                "year",
+                "trackerBbox",
+                "trackerMapId",
+                "trackerStartView",
+              ]}
             />
           ) : null}
           <TextField
@@ -175,6 +193,12 @@ export default function EventCloneDialog({
             bboxError={fieldErrorFor(error, "trackerBbox")}
             mapError={fieldErrorFor(error, "trackerMapId")}
           />
+          <StartViewField
+            value={startView}
+            onChange={setStartView}
+            bbox={area.bbox}
+            error={errors.trackerStartView ?? fieldErrorFor(error, "trackerStartView")}
+          />
           <FormGroup>
             <FormControlLabel
               control={
@@ -198,7 +222,7 @@ export default function EventCloneDialog({
               <HelpButton topic="events.clone.tracker" />
             </Stack>
             <FormHelperText sx={{ mt: 0, ml: 4 }}>
-              The map and the area are chosen above.
+              The map, the area, and the start view are chosen above.
             </FormHelperText>
           </FormGroup>
         </Stack>
