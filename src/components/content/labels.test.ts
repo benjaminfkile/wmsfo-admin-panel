@@ -203,6 +203,15 @@ describe("labels.ts: Places on the maps", () => {
   });
 });
 
+describe("labels.ts: alerts_signup", () => {
+  it("labels the subscribed heading with one line of help", () => {
+    expect(labelsFor("alerts_signup", false).subscribedHeading).toEqual({
+      label: "Heading shown to subscribers",
+      help: "Shown in place of the heading once the visitor has signed up for alerts.",
+    });
+  });
+});
+
 describe("labels.ts: route map settings live in the site route only", () => {
   it("gives route_preview only heading, disclaimer, and emptyText", () => {
     expect(Object.keys(labelsFor("route_preview", false))).toEqual([

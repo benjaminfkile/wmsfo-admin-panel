@@ -9,6 +9,7 @@ export type SettingKey =
   | "flight_history_max_points"
   | "location_min_interval_ms"
   | "location_min_distance_m"
+  | "heading_min_distance_m"
   | "hub_enabled"
   | "sign_ups_open"
   | "subscriptions_open"
@@ -23,8 +24,9 @@ export type SettingSpec = {
   unit: string;
   min: number;
   max: number;
-  // `location_min_distance_m` is the only key whose JSON type is number,
-  // not int (contracts 6); every other spec accepts whole numbers only.
+  // `location_min_distance_m` and `heading_min_distance_m` are the keys
+  // whose JSON type is number, not int (contracts 6); every other spec
+  // accepts whole numbers only.
   allowDecimal?: boolean;
   kind?: "boolean";
 };
@@ -98,6 +100,16 @@ export const SETTING_SPECS: SettingSpec[] = [
     unit: "m",
     min: 0,
     max: 10000,
+    allowDecimal: true,
+  },
+  {
+    key: "heading_min_distance_m",
+    label: "heading_min_distance_m",
+    description:
+      "Minimum distance for a derived heading: when a fix carries no heading, the API takes the bearing from the newest stored fix at least this far back (default 15)",
+    unit: "m",
+    min: 1,
+    max: 1000,
     allowDecimal: true,
   },
   {

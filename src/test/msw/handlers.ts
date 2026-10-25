@@ -45,7 +45,7 @@ export const handlers: HttpHandler[] = [
   http.get("*/admin/events/:id/locations", ({ request }) => {
     const accept = request.headers.get("accept") ?? "";
     if (accept.includes("text/csv")) {
-      const header = "seq,beaconId,published,recordedAt,receivedAt,lat,lng,speedMps,altitudeM,headingDeg,accuracyM";
+      const header = "seq,beaconId,published,recordedAt,receivedAt,lat,lng,speedMps,speedSource,altitudeM,headingDeg,headingSource,accuracyM";
       const row = f.locations
         .map((l) =>
           [
@@ -56,10 +56,12 @@ export const handlers: HttpHandler[] = [
             l.receivedAt,
             l.lat,
             l.lng,
-            l.speedMps,
-            l.altitudeM,
-            l.headingDeg,
-            l.accuracyM,
+            l.speedMps ?? "",
+            l.speedSource ?? "",
+            l.altitudeM ?? "",
+            l.headingDeg ?? "",
+            l.headingSource ?? "",
+            l.accuracyM ?? "",
           ].join(",")
         )
         .join("\r\n");

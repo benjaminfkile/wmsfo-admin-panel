@@ -218,6 +218,18 @@ describe("AgentsPage", () => {
     expect(section).toContain("409 subscriptions_closed");
   });
 
+  it("the prompt names the heading distance setting and the location CSV columns", () => {
+    const prompt = buildAgentPrompt("https://api.example");
+    const settings = prompt.slice(prompt.indexOf("### settings\n"));
+    const section = settings.slice(0, settings.indexOf("\n### ", 1));
+    expect(section).toContain("  - heading_min_distance_m 1..1000 (decimal)\n");
+    const line =
+      prompt.split("\n").find((l) => l.startsWith("- GET /admin/events/{id}/locations?")) ?? "";
+    expect(line).toContain(
+      "seq,beaconId,published,recordedAt,receivedAt,lat,lng,speedMps,speedSource,altitudeM,headingDeg,headingSource,accuracyM"
+    );
+  });
+
   it("the prompt describes the one site route", () => {
     const prompt = buildAgentPrompt("https://api.example");
     expect(prompt).toContain("route: `{ routeId, mapConfig? }`, the site route");
