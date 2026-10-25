@@ -6190,6 +6190,9 @@ export interface components {
             year?: number | string;
             name?: string;
             copy?: null | components["schemas"]["CloneEventCopy"];
+            trackerMapId?: components["schemas"]["JsonElement"];
+            trackerBbox?: components["schemas"]["JsonElement"];
+            trackerStartView?: components["schemas"]["JsonElement"];
         };
         ContactMessageDto: {
             /** Format: int64 */
@@ -6331,6 +6334,8 @@ export interface components {
             fundsPercent?: number | string;
             scheduleTimeZone?: null | string;
             trackerBbox?: components["schemas"]["JsonElement"];
+            trackerMapId?: components["schemas"]["JsonElement"];
+            trackerStartView?: components["schemas"]["JsonElement"];
         };
         CreatePageRequest: {
             slug?: string;
@@ -6485,6 +6490,7 @@ export interface components {
             trackerBbox?: components["schemas"]["Bbox"];
             /** Format: int64 */
             trackerMapId?: null | number | string;
+            trackerStartView?: null | components["schemas"]["TrackerStartView"];
             trackerThemeIds?: (number | string)[];
             createdBy?: string;
             /** Format: date-time */
@@ -6654,6 +6660,12 @@ export interface components {
             itemSchema?: null | components["schemas"]["JsonElement"];
             defaults?: components["schemas"]["JsonElement"];
             itemDefaults?: null | components["schemas"]["JsonElement"];
+        };
+        LatLng: {
+            /** Format: double */
+            lat?: number | string;
+            /** Format: double */
+            lng?: number | string;
         };
         LiveObject: {
             /** Format: int32 */
@@ -7068,6 +7080,7 @@ export interface components {
             scheduleTimeZone?: components["schemas"]["JsonElement"];
             trackerBbox?: components["schemas"]["JsonElement"];
             trackerMapId?: components["schemas"]["JsonElement"];
+            trackerStartView?: components["schemas"]["JsonElement"];
             trackerThemeIds?: components["schemas"]["JsonElement"];
         };
         PatchPageRequest: {
@@ -7808,6 +7821,11 @@ export interface components {
             snow?: null | boolean;
             mapType?: null | string;
             theme?: null | string;
+        };
+        TrackerStartView: {
+            center?: components["schemas"]["LatLng"];
+            /** Format: int32 */
+            zoom?: number | string;
         };
         TrackerThemeDto: {
             /** Format: int64 */

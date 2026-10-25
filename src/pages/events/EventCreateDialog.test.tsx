@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import EventCreateDialog from "./EventCreateDialog";
@@ -13,7 +13,8 @@ import { NotifyProvider } from "../../hooks/useNotify";
 import { installClient } from "../../api/client";
 import { server } from "../../test/msw/server";
 import * as f from "../../test/msw/fixtures";
-import type { Event } from "../../api/types";
+import type { Event, TrackerMap } from "../../api/types";
+import type { Config } from "../../config";
 import {
   makeFakeUserManager,
   makeUser,
@@ -23,11 +24,79 @@ import {
 // Without the Maps key the box editor shows its fields alone.
 const config = { ...testConfig, googleMapsKey: "" };
 
+// The box editor's Google map, for the tests that drag a handle.
+type Point = { lat: number; lng: number };
+const handles: Array<{ title: string; position: Point; drag: (p: Point) => void }> = [];
+vi.mock("../../pages/places/googleMaps", () => {
+  class Map {
+    fitBounds() {}
+    setOptions() {}
+    addListener() {
+      return { remove: () => undefined };
+    }
+  }
+  class Overlay {
+    setMap() {}
+    setBounds() {}
+    setPaths() {}
+  }
+  class Marker {
+    title: string;
+    position: Point;
+    onDrag: Array<() => void> = [];
+    constructor(o: { title: string; position: Point }) {
+      this.title = o.title;
+      this.position = o.position;
+      handles.push(this);
+    }
+    setMap() {}
+    setPosition(p: Point) {
+      this.position = p;
+    }
+    getPosition() {
+      const p = this.position;
+      return { lat: () => p.lat, lng: () => p.lng };
+    }
+    addListener(_name: string, cb: () => void) {
+      this.onDrag.push(cb);
+      return { remove: () => undefined };
+    }
+    drag(p: Point) {
+      this.position = p;
+      for (const cb of this.onDrag) cb();
+    }
+  }
+  return {
+    loadMaps: vi.fn(async () => ({ Map, Rectangle: Overlay, Polygon: Overlay })),
+    loadMarkers: vi.fn(async () => ({ Marker })),
+    loadPlaces: vi.fn(async () => ({})),
+  };
+});
+
+// A ready map without terrain beside the seeded valley map and the
+// pending package of the fixtures.
+const FLATHEAD: TrackerMap = {
+  ...f.trackerMaps[0]!,
+  id: 3,
+  name: "Flathead",
+  prefix: "maps/3",
+  bbox: { west: -114.6, south: 47.7, east: -113.9, north: 48.4 },
+  terrainUrl: null,
+  terrainBytes: null,
+  terrainMaxZoom: null,
+};
+
 vi.setConfig({ testTimeout: 15_000 });
 
 // The browser zone comes from Intl's resolved options; pin it so the
 // default is predictable.
 beforeEach(() => {
+  handles.length = 0;
+  server.use(
+    http.get(`${config.apiBaseUrl}/admin/maps`, () =>
+      HttpResponse.json({ items: [f.trackerMaps[0], FLATHEAD, f.trackerMaps[1]] })
+    )
+  );
   const real = Intl.DateTimeFormat.prototype.resolvedOptions;
   vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockImplementation(
     function (this: Intl.DateTimeFormat) {
@@ -49,13 +118,14 @@ afterEach(() => {
 
 function renderDialog(
   onSubmit: (b: CreateEventBody) => void,
-  events: Event[] = []
+  events: Event[] = [],
+  withConfig: Config = config
 ) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <ConfigProvider config={config}>
+    <ConfigProvider config={withConfig}>
       <QueryClientProvider client={client}>
         <ThemeProvider theme={buildTheme("light")}>
           <CssBaseline />
@@ -92,8 +162,17 @@ function field(side: string): HTMLInputElement {
   return screen.getByTestId(`bbox-${side}`) as HTMLInputElement;
 }
 
+function mapSelect(): HTMLElement {
+  return screen.getByRole("combobox", { name: /^map$/i });
+}
+
+async function pickMap(user: ReturnType<typeof userEvent.setup>, name: RegExp) {
+  await user.click(mapSelect());
+  await user.click(await screen.findByRole("option", { name }));
+}
+
 describe("EventCreateDialog: Tracker area", () => {
-  it("prefills the box from the settings draft and sends it as trackerBbox", async () => {
+  it("prefills the box from the settings draft and sends it with no map when no event exists", async () => {
     withSiteBox();
     const user = userEvent.setup();
     const onSubmit = vi.fn();
@@ -102,19 +181,102 @@ describe("EventCreateDialog: Tracker area", () => {
     expect(screen.getByText("Tracker area")).toBeInTheDocument();
     await waitFor(() => expect(field("west").value).toBe("-114.2000"));
     expect(field("north").value).toBe("47.0000");
+    expect(mapSelect()).toHaveTextContent("No map");
 
     await user.type(screen.getByLabelText(/^name/i), "Area flight");
     await user.click(screen.getByRole("button", { name: /^create$/i }));
     const body = onSubmit.mock.calls[0]![0] as CreateEventBody;
     expect(body.trackerBbox).toEqual(SITE_BOX);
+    expect(body.trackerMapId).toBeNull();
     expect(Object.keys(body)).not.toContain("routeId");
     expect(Object.keys(body)).not.toContain("inheritRoute");
+  });
+
+  it("lists No map and every ready map by name with its terrain word", async () => {
+    const user = userEvent.setup();
+    renderDialog(vi.fn());
+    await screen.findByText(/will use no map/i);
+    await user.click(mapSelect());
+    const listbox = await screen.findByRole("listbox");
+    expect(within(listbox).getAllByRole("option").map((o) => o.textContent)).toEqual([
+      "No map",
+      "FlatheadNo terrain",
+      "Missoula valleyWith terrain",
+    ]);
+  });
+
+  it("picking a map fills the box with its area and sends trackerMapId with that box", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderDialog(onSubmit);
+    await screen.findByText(/will use no map/i);
+    await pickMap(user, /Flathead/);
+    expect(field("west").value).toBe("-114.6000");
+    expect(field("south").value).toBe("47.7000");
+    expect(field("east").value).toBe("-113.9000");
+    expect(field("north").value).toBe("48.4000");
+    expect(screen.queryByRole("button", { name: "Use site default" })).toBeNull();
+    expect(screen.getByTestId("tracker-preview")).toHaveTextContent(
+      "Will use the map Flathead and every theme"
+    );
+    // Switching maps resets the box to the new map's area.
+    await pickMap(user, /Missoula valley/);
+    expect(field("west").value).toBe("-114.7500");
+    expect(field("north").value).toBe("47.2500");
+
+    await user.type(screen.getByLabelText(/^name/i), "Map flight");
+    await user.click(screen.getByRole("button", { name: /^create$/i }));
+    const body = onSubmit.mock.calls[0]![0] as CreateEventBody;
+    expect(body.trackerMapId).toBe(1);
+    expect(body.trackerBbox).toEqual(f.trackerMaps[0]!.bbox);
+  });
+
+  it("a handle dragged past the map's edge stops on it", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderDialog(onSubmit, [], testConfig);
+    await screen.findByText(/will use no map/i);
+    await pickMap(user, /Flathead/);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(handles).toHaveLength(4));
+    const se = handles.find((h) => h.title === "Drag the se corner")!;
+    act(() => se.drag({ lat: 47.9, lng: -112 }));
+    expect(field("east").value).toBe("-113.9000");
+    expect(field("south").value).toBe("47.9000");
+    expect(se.position).toEqual({ lat: 47.9, lng: -113.9 });
+
+    await user.type(screen.getByLabelText(/^name/i), "Shrunk flight");
+    await user.click(screen.getByRole("button", { name: /^create$/i }));
+    const body = onSubmit.mock.calls[0]![0] as CreateEventBody;
+    expect(body.trackerMapId).toBe(3);
+    expect(body.trackerBbox).toEqual({ west: -114.6, south: 47.9, east: -113.9, north: 48.4 });
+  });
+
+  it("No map sends null and allows a free box", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderDialog(onSubmit);
+    await screen.findByText(/will use no map/i);
+    await pickMap(user, /Flathead/);
+    await pickMap(user, /^No map$/);
+    // No map keeps the box for drawing.
+    expect(field("west").value).toBe("-114.6000");
+    fireEvent.change(field("west"), { target: { value: "-116" } });
+    fireEvent.blur(field("west"));
+    expect(screen.queryByTestId("bbox-outside")).toBeNull();
+    await user.type(screen.getByLabelText(/^name/i), "Free flight");
+    await user.click(screen.getByRole("button", { name: /^create$/i }));
+    const body = onSubmit.mock.calls[0]![0] as CreateEventBody;
+    expect(body.trackerMapId).toBeNull();
+    expect(body.trackerBbox).toEqual({ west: -116, south: 47.7, east: -113.9, north: 48.4 });
   });
 
   it("shows the Missoula valley box without a tracker key, and Use site default puts it back", async () => {
     const onSubmit = vi.fn();
     renderDialog(onSubmit);
-    await screen.findByText(/will use every theme/i);
+    await screen.findByText(/will use no map/i);
     expect(field("west").value).toBe("-114.7500");
     expect(field("south").value).toBe("46.3500");
     expect(field("east").value).toBe("-113.3000");
@@ -128,31 +290,42 @@ describe("EventCreateDialog: Tracker area", () => {
 
   it("disables Create while the box breaks a rule", async () => {
     renderDialog(vi.fn());
-    await screen.findByText(/will use every theme/i);
+    await screen.findByText(/will use no map/i);
     fireEvent.change(field("east"), { target: { value: "-115" } });
     expect(screen.getByText("West must be less than east")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^create$/i })).toBeDisabled();
   });
 
-  it("names the map and themes the new event copies, following the box", async () => {
-    renderDialog(vi.fn(), f.events);
+  it("starts on the map the API would inherit and names it with the copied themes", async () => {
+    withSiteBox();
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderDialog(onSubmit, f.events);
     const line = await screen.findByTestId("tracker-preview");
     await waitFor(() =>
       expect(line).toHaveTextContent(
         "Will use the map Missoula valley and the themes Light, Dark from Santa Flyover 2026"
       )
     );
-    // A box past the map's package drops the map.
-    fireEvent.change(field("west"), { target: { value: "-116" } });
+    expect(mapSelect()).toHaveTextContent("Missoula valley");
+    // The site box lies inside the map, so it stands.
+    expect(field("west").value).toBe("-114.2000");
+    await pickMap(user, /^No map$/);
     expect(line).toHaveTextContent(
-      "Will use no map (the map of Santa Flyover 2026 does not cover this area) and the themes Light, Dark from Santa Flyover 2026"
+      "Will use no map and the themes Light, Dark from Santa Flyover 2026"
     );
+    await pickMap(user, /Missoula valley/);
+    await user.type(screen.getByLabelText(/^name/i), "Next flight");
+    await user.click(screen.getByRole("button", { name: /^create$/i }));
+    const body = onSubmit.mock.calls[0]![0] as CreateEventBody;
+    expect(body.trackerMapId).toBe(1);
+    expect(body.trackerBbox).toEqual(f.trackerMaps[0]!.bbox);
   });
 
-  it("says every theme and the Missoula valley map with no event", async () => {
+  it("says no map and every theme with no event", async () => {
     renderDialog(vi.fn());
     expect(await screen.findByTestId("tracker-preview")).toHaveTextContent(
-      "Will use every theme, and the Missoula valley map when it covers this area"
+      "Will use no map and every theme"
     );
   });
 });

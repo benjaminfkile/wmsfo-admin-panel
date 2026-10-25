@@ -18,6 +18,9 @@ export type CreateEventBody = {
   scheduledAt: string | null;
   fundsPercent: number;
   scheduleTimeZone: string | null;
+  // A ready map's id (the box must lie inside its area), or null for no
+  // map; absent inherits by the API's rule.
+  trackerMapId?: number | null;
   trackerBbox: Bbox | null;
 };
 
@@ -39,8 +42,12 @@ export type CloneEventBody = {
   name: string;
   copy: {
     sponsors: boolean;
+    // The source's theme set, and its map only when no `trackerMapId`
+    // is given.
     tracker: boolean;
   };
+  trackerMapId?: number | null;
+  trackerBbox?: Bbox | null;
 };
 
 export type StatusBody = {

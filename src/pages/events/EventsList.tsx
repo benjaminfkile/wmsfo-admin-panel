@@ -53,6 +53,7 @@ export default function EventsList() {
     onSuccess: (created) => {
       notify("Event created");
       void qc.invalidateQueries({ queryKey: keys.events });
+      void qc.invalidateQueries({ queryKey: keys.maps });
       setCreateOpen(false);
       navigate(`/events/${created.id}`);
     },
@@ -75,6 +76,7 @@ export default function EventsList() {
     onSuccess: (created) => {
       notify("Event cloned");
       void qc.invalidateQueries({ queryKey: keys.events });
+      void qc.invalidateQueries({ queryKey: keys.maps });
       setCloneSource(null);
       navigate(`/events/${created.id}`);
     },
