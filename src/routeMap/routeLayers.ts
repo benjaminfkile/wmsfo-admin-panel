@@ -123,6 +123,7 @@ const FALLBACK_OVERLAY: Overlay = {
   timeLabelFg: "#202124",
   timeLabelOpacity: 1,
   userColor: "#c62828",
+  headingColor: "#ffb300",
 };
 
 function opacity(value: unknown, fallback: number): number {
@@ -141,6 +142,7 @@ export function themeOverlay(theme: Pick<TrackerTheme, "overlay">): Overlay {
     timeLabelFg: o.timeLabelFg || FALLBACK_OVERLAY.timeLabelFg,
     timeLabelOpacity: opacity(o.timeLabelOpacity, FALLBACK_OVERLAY.timeLabelOpacity),
     userColor: o.userColor || FALLBACK_OVERLAY.userColor,
+    headingColor: o.headingColor || FALLBACK_OVERLAY.headingColor,
   };
 }
 

@@ -7111,6 +7111,7 @@ export interface components {
             /** Format: double */
             timeLabelOpacity?: number | string;
             userColor?: string;
+            headingColor?: string;
         };
         PageAdminDto: {
             /** Format: int64 */
