@@ -271,6 +271,39 @@ export const handlers: HttpHandler[] = [
 
   // People
   http.get("*/admin/people", () => HttpResponse.json(page(f.people))),
+  // The block routes come before the people/:id ones they would match.
+  http.get("*/admin/people/blocks", () => HttpResponse.json({ items: f.signupBlocks })),
+  http.get("*/admin/people/blocks/impact", ({ request }) => {
+    const pattern = (new URL(request.url).searchParams.get("pattern") ?? "")
+      .trim()
+      .toLowerCase();
+    if (pattern === f.signupBlockImpact.pattern) {
+      return HttpResponse.json(f.signupBlockImpact);
+    }
+    return HttpResponse.json({
+      pattern,
+      kind: pattern.startsWith("*@") ? "domain" : "address",
+      people: [],
+      subscriptions: 0,
+      cookies: 0,
+    });
+  }),
+  http.post("*/admin/people/blocks", async ({ request }) => {
+    const body = (await request.json()) as { pattern: string; note: string };
+    return HttpResponse.json(
+      {
+        id: 8,
+        pattern: body.pattern,
+        kind: body.pattern.startsWith("*@") ? "domain" : "address",
+        note: body.note,
+        createdBy: "admin@example.com",
+        createdAt: "2026-12-22T02:00:00.000Z",
+        matchingCount: 0,
+      },
+      { status: 201 }
+    );
+  }),
+  http.delete("*/admin/people/blocks/:id", () => new HttpResponse(null, { status: 204 })),
   http.delete("*/admin/people/:id", () => new HttpResponse(null, { status: 204 })),
 
   // Contact messages
