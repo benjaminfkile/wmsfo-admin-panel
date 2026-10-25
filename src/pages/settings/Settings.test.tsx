@@ -260,7 +260,7 @@ describe("Settings", () => {
   });
 
   it("has a spec for every documented key", () => {
-    // contracts 6 lists fourteen keys in a specific order; SETTING_SPECS is that order.
+    // contracts 6 lists fifteen keys in a specific order; SETTING_SPECS is that order.
     expect(SETTING_SPECS.map((s) => s.key)).toEqual([
       "poll_interval_ms",
       "cookie_limit_per_person",
@@ -270,6 +270,7 @@ describe("Settings", () => {
       "flight_history_max_points",
       "location_min_interval_ms",
       "location_min_distance_m",
+      "heading_min_distance_m",
       "hub_enabled",
       "sign_ups_open",
       "subscriptions_open",
@@ -387,11 +388,57 @@ describe("Settings: the route map keys", () => {
   });
 });
 
+describe("Settings: heading_min_distance_m", () => {
+  it("shows the row with its label, unit, range, and help, and PUTs a decimal", async () => {
+    const user = userEvent.setup();
+    const captured: Array<{ url: string; body: unknown }> = [];
+    server.use(
+      http.put(
+        `${testConfig.apiBaseUrl}/admin/settings/:key`,
+        async ({ params, request }) => {
+          const body = await request.json();
+          captured.push({ url: request.url, body });
+          return HttpResponse.json({
+            key: String(params.key),
+            value: 12.5,
+            updatedBy: "admin@example.com",
+            updatedAt: "2026-12-22T02:00:00.000Z",
+          });
+        }
+      )
+    );
+    render(<Harness />);
+    const row = await screen.findByTestId("setting-row-heading_min_distance_m");
+    expect(
+      within(row).getByText(/minimum distance for a derived heading.*\(m\)/i)
+    ).toBeInTheDocument();
+    expect(within(row).getByText("1 to 1000 m")).toBeInTheDocument();
+    expect(
+      within(row).getByTestId("help-settings.heading-min-distance-m")
+    ).toBeInTheDocument();
+    const input = within(row).getByRole("spinbutton");
+    expect(input).toHaveValue(15);
+    await user.clear(input);
+    await user.type(input, "0.5");
+    await user.click(within(row).getByRole("button", { name: /^save$/i }));
+    expect(
+      await within(row).findByText(/Must be a number between 1 and 1000/i)
+    ).toBeInTheDocument();
+    expect(captured.length).toBe(0);
+    await user.clear(input);
+    await user.type(input, "12.5");
+    await user.click(within(row).getByRole("button", { name: /^save$/i }));
+    await waitFor(() => expect(captured.length).toBeGreaterThan(0));
+    expect(captured[0]?.url).toMatch(/\/admin\/settings\/heading_min_distance_m$/);
+    expect(captured[0]?.body).toEqual({ value: 12.5 });
+  });
+});
+
 describe("Settings help buttons (admin.md 6.26)", () => {
   it("mounts the header help and a help button in the Key cell of every row", async () => {
     render(<Harness />);
     expect(await screen.findByTestId("help-settings")).toBeInTheDocument();
-    expect(SETTING_SPECS).toHaveLength(14);
+    expect(SETTING_SPECS).toHaveLength(15);
     for (const spec of SETTING_SPECS) {
       const row = await screen.findByTestId(`setting-row-${spec.key}`);
       expect(

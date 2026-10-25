@@ -9,11 +9,6 @@ import {
   Select,
   Stack,
   Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   Typography,
 } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -26,13 +21,88 @@ import { keys } from "../../queries/keys";
 import { formatStamp } from "../../lib/time";
 import { downloadBlob } from "../../lib/download";
 import { useNotify } from "../../hooks/useNotify";
-import type { Event } from "../../api/types";
+import type { Event, LocationRow } from "../../api/types";
+import ResponsiveTable, {
+  type Column,
+} from "../../components/list/ResponsiveTable";
 import ClearRecordingDialog from "./ClearRecordingDialog";
 import CardTitle from "../../help/CardTitle";
 
 interface Props {
   event: Event;
 }
+
+// A measured value with its source ("beacon", "derived") as a muted
+// word after it; a null value is the placeholder with no source word.
+function withSource(value: string | null, source: string | null | undefined) {
+  if (value === null) {
+    return (
+      <Box component="span" sx={{ color: "text.secondary" }}>
+        none
+      </Box>
+    );
+  }
+  return (
+    <>
+      {value}
+      {source ? (
+        <Box component="span" sx={{ color: "text.secondary", ml: 0.5 }}>
+          {source}
+        </Box>
+      ) : null}
+    </>
+  );
+}
+
+function present(v: number | string | null | undefined): v is number | string {
+  return v !== null && v !== undefined && v !== "";
+}
+
+function formatSpeed(row: LocationRow) {
+  return withSource(
+    present(row.speedMps) ? `${Number(row.speedMps).toFixed(1)} m/s` : null,
+    row.speedSource
+  );
+}
+
+function formatHeading(row: LocationRow) {
+  return withSource(
+    present(row.headingDeg) ? `${Math.round(Number(row.headingDeg))}°` : null,
+    row.headingSource
+  );
+}
+
+const COLUMNS: Column<LocationRow>[] = [
+  {
+    key: "seq",
+    header: "seq",
+    role: "title",
+    render: (r) => String(r.seq),
+    renderCompact: (r) => `seq ${String(r.seq)}`,
+  },
+  {
+    key: "beaconId",
+    header: "beaconId",
+    role: "line",
+    render: (r) => String(r.beaconId),
+  },
+  {
+    key: "published",
+    header: "published",
+    role: "line",
+    render: (r) => (r.published ? "yes" : "no"),
+  },
+  {
+    key: "recordedAt",
+    header: "recordedAt",
+    role: "subtitle",
+    render: (r) => formatStamp(r.recordedAt),
+  },
+  { key: "lat", header: "lat", role: "line", render: (r) => String(r.lat) },
+  { key: "lng", header: "lng", role: "line", render: (r) => String(r.lng) },
+  { key: "speed", header: "Speed", role: "line", render: formatSpeed },
+  { key: "heading", header: "Heading", role: "line", render: formatHeading },
+];
 
 export default function LocationsSection({ event }: Props) {
   const notify = useNotify();
@@ -158,40 +228,14 @@ export default function LocationsSection({ event }: Props) {
           </Typography>
         ) : (
           <Box sx={{ maxHeight: 400, overflow: "auto", maxWidth: "100%" }}>
-            <Table size="small" stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell>seq</TableCell>
-                  <TableCell>beaconId</TableCell>
-                  <TableCell>published</TableCell>
-                  <TableCell>recordedAt</TableCell>
-                  <TableCell>lat</TableCell>
-                  <TableCell>lng</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {items.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6}>
-                      <Typography variant="body2" color="text.secondary">
-                        No locations yet.
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  items.map((row) => (
-                    <TableRow key={String(row.seq)}>
-                      <TableCell>{String(row.seq)}</TableCell>
-                      <TableCell>{String(row.beaconId)}</TableCell>
-                      <TableCell>{row.published ? "yes" : "no"}</TableCell>
-                      <TableCell>{formatStamp(row.recordedAt)}</TableCell>
-                      <TableCell>{String(row.lat)}</TableCell>
-                      <TableCell>{String(row.lng)}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+            <ResponsiveTable<LocationRow>
+              rows={items}
+              columns={COLUMNS}
+              rowKey={(r) => String(r.seq)}
+              rowTestId={(r) => `location-${String(r.seq)}`}
+              emptyText="No locations yet."
+              stickyHeader
+            />
           </Box>
         )}
       </CardContent>

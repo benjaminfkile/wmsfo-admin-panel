@@ -134,7 +134,7 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
 - POST /admin/events/{id}/clone \`{ year, name, copy: { sponsors, tracker } }\`: 201, a new planned event. copy takes only these two keys; route or routeMapConfig in it is 400 validation_failed. tracker copies the source's map and enabled theme set; the box always copies. Use it to start next year from this year.
 - GET/POST /admin/events/{id}/messages (\`{ body 1..1000, notify }\`), PATCH (\`{ body }\`) and DELETE .../messages/{messageId}.
 - POST /admin/events/{id}/cookies \`{ items: [{ cookieTypeId, count 1..100 }] }\`: 201, seeds cookies on the live event. 409 event_not_live.
-- GET /admin/events/{id}/locations?cursor=&limit=&beaconId=&publishedOnly=: paged; Accept: text/csv streams every row.
+- GET /admin/events/{id}/locations?cursor=&limit=&beaconId=&publishedOnly=: paged; Accept: text/csv streams every row with the columns seq,beaconId,published,recordedAt,receivedAt,lat,lng,speedMps,speedSource,altitudeM,headingDeg,headingSource,accuracyM (speedSource and headingSource are beacon, derived, or empty).
 - DELETE /admin/events/{id}/locations?beaconId=: clears the recording, one beacon's when beaconId is given. 409 event_live. Preview with GET .../locations/impact.
 - Posters (the panel's print documents, never public): GET /admin/posters, POST \`{ name 1..200, layout? }\`, GET/PATCH/DELETE /admin/posters/{id}, GET .../impact. A poster is a name and a layout, an object of at most 32 KB that the API never reads; it carries no route (routeId in a poster write is 400 validation_failed). The panel draws the published site route into every poster.
 
@@ -234,6 +234,7 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
   - flight_history_max_points 100..50000
   - location_min_interval_ms 0..60000
   - location_min_distance_m 0..10000 (decimal)
+  - heading_min_distance_m 1..1000 (decimal)
   - hub_enabled bool
   - sign_ups_open bool: whether visitors can create an account on the site. Off closes the sign-up page and the account pool's self sign-up at once. The PUT updates the pool before the row: 502 upstream_failed when the pool update failed (the row keeps its value), 503 unavailable when the API has no pool client.
   - subscriptions_open bool: whether visitors can add an alert email address. Off refuses new alert sign-ups and verification resends with 409 subscriptions_closed; unsubscribe and verify keep working.

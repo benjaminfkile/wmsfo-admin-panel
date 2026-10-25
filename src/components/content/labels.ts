@@ -393,6 +393,10 @@ const SECTION: Record<string, FieldLabels> = {
       label: "Text shown to visitors who are not signed in",
       help: "Explains that signing in is needed to sign up for alerts.",
     },
+    subscribedHeading: {
+      label: "Heading shown to subscribers",
+      help: "Shown in place of the heading once the visitor has signed up for alerts.",
+    },
   },
   contact_form: {
     heading: { label: "Heading" },
