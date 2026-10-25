@@ -19,6 +19,7 @@ export type Overlay = {
   timeLabelFg: string;
   timeLabelOpacity: number;
   userColor: string;
+  headingColor: string;
 };
 
 export type ThemeBody = {

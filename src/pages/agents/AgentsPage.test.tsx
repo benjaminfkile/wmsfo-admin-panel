@@ -310,6 +310,13 @@ describe("AgentsPage", () => {
     expect(prompt).toContain("409 block_exists, 502 upstream_failed");
   });
 
+  it("the themes section lists the eight overlay keys and what headingColor paints", () => {
+    const prompt = buildAgentPrompt("https://api.example");
+    expect(prompt).toContain(
+      "  - overlay: `{ routeColor, routeOpacity, arrowColor, timeLabelBg, timeLabelFg, timeLabelOpacity, userColor, headingColor }`. headingColor is the colour of the beam showing Santa's heading on the live tracker; pick one that differs from the route."
+    );
+  });
+
   it("the prompt carries none of the stale statements and no dashes", () => {
     const prompt = buildAgentPrompt("https://api.example");
     for (const stale of [
@@ -338,6 +345,7 @@ describe("AgentsPage", () => {
       "An event created without trackerBbox gets the site settings' box.",
       "the map and the enabled theme set are copied from the event with the greatest year",
       "DELETE .../{id} (takes their subscriptions and cookies), GET .../{id}/impact.",
+      "timeLabelBg, timeLabelFg, timeLabelOpacity, userColor }`.",
     ]) {
       expect(prompt).not.toContain(stale);
     }
