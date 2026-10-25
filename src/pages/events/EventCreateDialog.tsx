@@ -16,14 +16,15 @@ import ErrorAlert from "../../components/ErrorAlert";
 import TimeZoneSelect from "../../components/TimeZoneSelect";
 import { browserTimeZone, formatStamp, shiftWallZone, wallTimeToUtc } from "../../lib/time";
 import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
-import BboxEditor from "../../components/bbox/BboxEditor";
-import { bboxValid, siteDefaultBbox, type Bbox } from "../../components/bbox/bbox";
+import TrackerAreaField from "../../components/events/TrackerAreaField";
+import { findMap, mapArea, type TrackerArea } from "../../components/events/trackerArea";
+import { bboxContains, bboxValid, siteDefaultBbox } from "../../components/bbox/bbox";
 import { siteSettings as siteSettingsApi } from "../../api/resources/siteSettings";
 import { maps as mapsApi } from "../../api/resources/maps";
 import { themes as themesApi } from "../../api/resources/themes";
 import { keys } from "../../queries/keys";
 import { fieldErrorFor } from "../../lib/fieldErrors";
-import { trackerPreviewLine } from "./trackerPreview";
+import { initialCreateArea, trackerPreviewLine } from "./trackerPreview";
 
 interface Props {
   open: boolean;
@@ -47,8 +48,9 @@ export default function EventCreateDialog({
   const [scheduledAt, setScheduledAt] = useState("");
   const [timeZone, setTimeZone] = useState(browserTimeZone);
   const [fundsPercent, setFundsPercent] = useState("0");
-  // The drawn box, or null while it follows the site setting.
-  const [bbox, setBbox] = useState<Bbox | null>(null);
+  // The chosen map and box, or null while they follow the map the API
+  // would inherit and the site setting.
+  const [picked, setPicked] = useState<TrackerArea | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const settingsQ = useQuery({
@@ -67,12 +69,15 @@ export default function EventCreateDialog({
     enabled: open,
   });
   const siteBox = siteDefaultBbox(settingsQ.data?.data);
-  const box = bbox ?? siteBox;
+  const area = picked ?? initialCreateArea(events, mapsQ.data?.items, siteBox);
+  const box = area.bbox;
+  const chosenMap = findMap(mapsQ.data?.items, area.mapId);
+  const outer = mapArea(chosenMap);
+  const boxOk = bboxValid(box) && (outer === null || bboxContains(outer, box));
   const trackerLine = trackerPreviewLine(
     events,
-    mapsQ.data?.items ?? [],
     themesQ.data?.items ?? [],
-    box
+    chosenMap
   );
 
   useEffect(() => {
@@ -82,7 +87,7 @@ export default function EventCreateDialog({
       setScheduledAt("");
       setTimeZone(browserTimeZone());
       setFundsPercent("0");
-      setBbox(null);
+      setPicked(null);
       setErrors({});
     }
   }, [open]);
@@ -100,7 +105,7 @@ export default function EventCreateDialog({
     const fp = Number(fundsPercent);
     if (!Number.isInteger(fp) || fp < 0 || fp > 100)
       next.fundsPercent = "Must be a whole number between 0 and 100";
-    if (!bboxValid(box)) next.trackerBbox = "Fix the tracker area";
+    if (!boxOk) next.trackerBbox = "Fix the tracker area";
     setErrors(next);
     if (Object.keys(next).length > 0) return { ok: false };
     return {
@@ -111,6 +116,9 @@ export default function EventCreateDialog({
         scheduledAt: wallTimeToUtc(scheduledAt, timeZone),
         scheduleTimeZone: timeZone,
         fundsPercent: fp,
+        // Before the maps load the choice is unknown, and an absent id
+        // lets the API inherit the map as it always has.
+        ...(picked !== null || mapsQ.data !== undefined ? { trackerMapId: area.mapId } : {}),
         trackerBbox: box,
       },
     };
@@ -129,7 +137,7 @@ export default function EventCreateDialog({
           {error ? (
             <ErrorAlert
               error={error}
-              handledFields={[...Object.keys(errors), "trackerBbox"]}
+              handledFields={[...Object.keys(errors), "trackerBbox", "trackerMapId"]}
             />
           ) : null}
           <TextField
@@ -183,21 +191,14 @@ export default function EventCreateDialog({
             inputProps={{ min: 0, max: 100 }}
           />
           <Box>
-            <BboxEditor
-              label="Tracker area"
-              value={box}
-              onChange={setBbox}
+            <TrackerAreaField
+              value={area}
+              onChange={setPicked}
               exportName={name.trim() || "New event"}
-              help="events.create.bbox"
-              error={fieldErrorFor(error, "trackerBbox")}
+              bboxHelp="events.create.bbox"
+              bboxError={fieldErrorFor(error, "trackerBbox")}
+              mapError={fieldErrorFor(error, "trackerMapId")}
             />
-            <Button
-              size="small"
-              onClick={() => setBbox(siteBox)}
-              sx={{ mt: 1 }}
-            >
-              Use site default
-            </Button>
             <Alert
               severity="info"
               variant="outlined"
@@ -214,7 +215,7 @@ export default function EventCreateDialog({
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={submitting || !bboxValid(box)}
+          disabled={submitting || !boxOk}
         >
           Create
         </Button>

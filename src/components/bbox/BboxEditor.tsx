@@ -23,6 +23,9 @@ import {
   EXPORT_TERRAIN_MAX_ZOOM,
   MAX_ZOOM_RANGE,
   TERRAIN_MAX_ZOOM_RANGE,
+  bboxContains,
+  clampBbox,
+  clampPoint,
   clampZoom,
   exportDocument,
   exportFileName,
@@ -43,6 +46,12 @@ interface Props {
   label?: string;
   // A server error at the box, shown under the fields.
   error?: string | null;
+  // The area the box must stay inside (a map's `bbox`): the handles stop
+  // at its edge, a typed side moves inside it on blur, a drawn box stays
+  // inside it, and the map shades what lies outside it.
+  outer?: Bbox | null;
+  // The name the message uses when the box leaves `outer`.
+  outerName?: string;
 }
 
 const FIELD_LABELS: Record<BboxSide, string> = {
@@ -128,6 +137,9 @@ function maskPaths(b: Bbox): Point[][] {
   return [[...WORLD_RING], boxRing(b)];
 }
 
+// The placeholder geometry of the hidden outer shade.
+const NO_OUTER: Bbox = { west: -1, south: -1, east: 1, north: 1 };
+
 function boundsOf(b: Bbox): google.maps.LatLngBoundsLiteral {
   return { north: b.north, south: b.south, east: b.east, west: b.west };
 }
@@ -142,8 +154,19 @@ function fieldText(v: number): string {
 // box; four fields in sync with the map; the minimum zoom caption; the
 // rules as field errors; Export for tile builder and Copy JSON. Without
 // VITE_GOOGLE_MAPS_KEY, or when the map fails to load, everything but the
-// map works under a one-line note.
-export default function BboxEditor({ value, onChange, exportName, help, label, error }: Props) {
+// map works under a one-line note. With `outer` the box stays inside that
+// area, and a box that lies outside it (typed, or given) shows a message
+// naming it.
+export default function BboxEditor({
+  value,
+  onChange,
+  exportName,
+  help,
+  label,
+  error,
+  outer = null,
+  outerName,
+}: Props) {
   const config = useConfig();
   const compact = useCompact();
   const notify = useNotify();
@@ -153,6 +176,9 @@ export default function BboxEditor({ value, onChange, exportName, help, label, e
   const mapRef = useRef<google.maps.Map | null>(null);
   const rectRef = useRef<google.maps.Rectangle | null>(null);
   const maskRef = useRef<google.maps.Polygon | null>(null);
+  const outerMaskRef = useRef<google.maps.Polygon | null>(null);
+  const outerRectRef = useRef<google.maps.Rectangle | null>(null);
+  const outerRef = useRef<Bbox | null>(outer);
   const markersRef = useRef<Partial<Record<Corner, google.maps.Marker>>>({});
   const valueRef = useRef(value);
   const onChangeRef = useRef(onChange);
@@ -175,6 +201,7 @@ export default function BboxEditor({ value, onChange, exportName, help, label, e
   const fallbackRef = useRef<HTMLTextAreaElement | null>(null);
 
   valueRef.current = value;
+  outerRef.current = outer;
   onChangeRef.current = onChange;
   drawingRef.current = drawing;
 
@@ -240,6 +267,30 @@ export default function BboxEditor({ value, onChange, exportName, help, label, e
           draggable: false,
           clickable: false,
         });
+        // A second shade over what lies outside the outer area, and its
+        // outline; shown only while there is one.
+        const o = outerRef.current;
+        outerMaskRef.current = new maps.Polygon({
+          map: o ? map : null,
+          paths: maskPaths(o ?? NO_OUTER),
+          fillColor: "#000000",
+          fillOpacity: 0.3,
+          strokeWeight: 0,
+          strokeOpacity: 0,
+          clickable: false,
+        });
+        outerRectRef.current = new maps.Rectangle({
+          map: o ? map : null,
+          bounds: boundsOf(o ?? NO_OUTER),
+          strokeColor: "#ffffff",
+          strokeOpacity: 0.9,
+          strokeWeight: 2,
+          zIndex: -1,
+          fillOpacity: 0,
+          editable: false,
+          draggable: false,
+          clickable: false,
+        });
         const markerLib = await loadMarkers(key);
         if (cancelled) return;
         for (const corner of CORNERS) {
@@ -252,20 +303,28 @@ export default function BboxEditor({ value, onChange, exportName, help, label, e
           });
           listeners.push(
             marker.addListener("drag", () => {
-              const p = pointOf(marker.getPosition());
-              if (p) fromMap(withCorner(valueRef.current, corner, p));
+              const raw = pointOf(marker.getPosition());
+              if (!raw) return;
+              const lim = outerRef.current;
+              const p = lim ? clampPoint(raw, lim) : raw;
+              if (p.lat !== raw.lat || p.lng !== raw.lng) marker.setPosition(p);
+              fromMap(withCorner(valueRef.current, corner, p));
             }),
           );
           markersRef.current[corner] = marker;
         }
 
+        const inside = (p: Point | null): Point | null => {
+          const lim = outerRef.current;
+          return p && lim ? clampPoint(p, lim) : p;
+        };
         const begin = (e: google.maps.MapMouseEvent) => {
           if (!drawingRef.current) return;
-          drawStartRef.current = pointOf(e.latLng);
+          drawStartRef.current = inside(pointOf(e.latLng));
         };
         const move = (e: google.maps.MapMouseEvent) => {
           const startAt = drawStartRef.current;
-          const p = pointOf(e.latLng);
+          const p = inside(pointOf(e.latLng));
           if (!drawingRef.current || startAt === null || p === null) return;
           fromMap(boxFrom(startAt, p));
         };
@@ -290,6 +349,10 @@ export default function BboxEditor({ value, onChange, exportName, help, label, e
       rectRef.current = null;
       maskRef.current?.setMap(null);
       maskRef.current = null;
+      outerMaskRef.current?.setMap(null);
+      outerMaskRef.current = null;
+      outerRectRef.current?.setMap(null);
+      outerRectRef.current = null;
       mapRef.current = null;
     };
   }, [key]);
@@ -314,7 +377,22 @@ export default function BboxEditor({ value, onChange, exportName, help, label, e
     }
   }, [value, mapState]);
 
+  // The outer shade and outline follow the outer area, hidden without one.
+  const outerKey = outer ? JSON.stringify(outer) : "";
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || mapState !== "ready") return;
+    const o = outerKey === "" ? null : (JSON.parse(outerKey) as Bbox);
+    if (o) {
+      outerMaskRef.current?.setPaths(maskPaths(o));
+      outerRectRef.current?.setBounds(boundsOf(o));
+    }
+    outerMaskRef.current?.setMap(o ? map : null);
+    outerRectRef.current?.setMap(o ? map : null);
+  }, [outerKey, mapState]);
+
   const errors = validateBbox(value);
+  const outside = outer !== null && !bboxContains(outer, value);
   const fieldError = (side: BboxSide): string | undefined => {
     const t = texts[side].trim();
     if (t === "" || !Number.isFinite(Number(t))) return "Enter a number";
@@ -341,6 +419,19 @@ export default function BboxEditor({ value, onChange, exportName, help, label, e
       fromMapRef.current = null;
       onChange(roundBbox({ ...value, [side]: n }));
     }
+  };
+
+  // A typed side outside the outer area moves onto its edge on blur.
+  const onFieldBlur = () => {
+    if (outer === null || !outside) return;
+    fromMapRef.current = null;
+    onChange(roundBbox(clampBbox(value, outer)));
+  };
+
+  const fieldLimits = (side: BboxSide): { min: number; max: number } => {
+    const lng = side === "west" || side === "east";
+    if (outer === null) return lng ? { min: -180, max: 180 } : { min: -90, max: 90 };
+    return lng ? { min: outer.west, max: outer.east } : { min: outer.south, max: outer.north };
   };
 
   const onExport = () => {
@@ -426,18 +517,25 @@ export default function BboxEditor({ value, onChange, exportName, help, label, e
               label={FIELD_LABELS[side]}
               value={texts[side]}
               onChange={(ev) => onField(side, ev.target.value)}
+              onBlur={onFieldBlur}
               error={e !== undefined}
               helperText={e ?? " "}
               inputProps={{
                 step: 0.0001,
-                min: side === "west" || side === "east" ? -180 : -90,
-                max: side === "west" || side === "east" ? 180 : 90,
+                ...fieldLimits(side),
                 "data-testid": `bbox-${side}`,
               }}
             />
           );
         })}
       </Box>
+      {outside ? (
+        <FormHelperText error data-testid="bbox-outside">
+          {outerName
+            ? `The area must lie inside the area of the map ${outerName}`
+            : "The area must lie inside the map's area"}
+        </FormHelperText>
+      ) : null}
       {error ? <FormHelperText error>{error}</FormHelperText> : null}
       <Typography variant="caption" color="text.secondary" component="p" data-testid="bbox-min-zoom">
         {hasErrors ? "Minimum zoom: fix the area first" : minZoomCaption(value)}

@@ -46,29 +46,37 @@ class FakeMap {
 class FakeRectangle {
   options: Record<string, unknown>;
   bounds: unknown;
+  map: unknown;
   constructor(options: Record<string, unknown>) {
     this.options = options;
     this.bounds = options.bounds;
+    this.map = options.map;
     rectangles.push(this);
   }
   setBounds(b: unknown) {
     this.bounds = b;
   }
-  setMap() {}
+  setMap(m: unknown) {
+    this.map = m;
+  }
 }
 
 class FakePolygon {
   options: Record<string, unknown>;
   paths: Point[][];
+  map: unknown;
   constructor(options: Record<string, unknown>) {
     this.options = options;
     this.paths = options.paths as Point[][];
+    this.map = options.map;
     polygons.push(this);
   }
   setPaths(p: Point[][]) {
     this.paths = p;
   }
-  setMap() {}
+  setMap(m: unknown) {
+    this.map = m;
+  }
 }
 
 class FakeMarker {
@@ -116,22 +124,35 @@ import BboxEditor from "./BboxEditor";
 
 const BOX: Bbox = { west: -114.3, south: 46.75, east: -113.8, north: 47.05 };
 
-function Controlled() {
-  const [value, setValue] = useState<Bbox>(BOX);
+// The area of a map the box must stay inside.
+const OUTER: Bbox = { west: -114.75, south: 46.35, east: -113.3, north: 47.25 };
+
+function Controlled({ outer, start = BOX }: { outer?: Bbox; start?: Bbox }) {
+  const [value, setValue] = useState<Bbox>(start);
+  const [limited, setLimited] = useState(outer !== undefined);
   return (
     <>
-      <BboxEditor value={value} onChange={setValue} exportName="Test" />
+      <BboxEditor
+        value={value}
+        onChange={setValue}
+        exportName="Test"
+        outer={limited ? outer : null}
+        outerName="Missoula valley"
+      />
       <pre data-testid="value">{JSON.stringify(value)}</pre>
+      <button type="button" onClick={() => setLimited(false)}>
+        Lift
+      </button>
     </>
   );
 }
 
-function renderEditor(config: Config = testConfig) {
+function renderEditor(config: Config = testConfig, outer?: Bbox, start?: Bbox) {
   return render(
     <ThemeProvider theme={buildTheme("light")}>
       <ConfigProvider config={config}>
         <NotifyProvider>
-          <Controlled />
+          <Controlled outer={outer} start={start} />
         </NotifyProvider>
       </ConfigProvider>
     </ThemeProvider>,
@@ -179,7 +200,10 @@ describe("BboxEditor (admin.md 6.29)", () => {
       gestureHandling: "greedy",
     });
     expect(map.fits).toEqual([{ bounds: boundsOf(BOX), padding: 24 }]);
-    expect(rectangles).toHaveLength(1);
+    // The box outline, and the outer outline hidden without an outer area.
+    expect(rectangles).toHaveLength(2);
+    expect(rectangles[1]!.map).toBeNull();
+    expect(polygons[1]!.map).toBeNull();
     expect(rectangles[0]!.options).toMatchObject({
       strokeColor: "#1a56c4",
       strokeWeight: 2,
@@ -284,5 +308,89 @@ describe("BboxEditor (admin.md 6.29)", () => {
     renderEditor({ ...testConfig, routeBasemapUrl: "" });
     expect(await screen.findByTestId("bbox-map-note")).toHaveTextContent("The map could not load.");
     expect(maps).toHaveLength(0);
+  });
+});
+
+describe("BboxEditor with an outer area (admin.md 6.29)", () => {
+  const ring = (b: Bbox) => [
+    { lat: b.south, lng: b.west },
+    { lat: b.south, lng: b.east },
+    { lat: b.north, lng: b.east },
+    { lat: b.north, lng: b.west },
+  ];
+
+  it("shades what lies outside the outer area and outlines it", async () => {
+    renderEditor(testConfig, OUTER);
+    await ready();
+    const shade = polygons[1]!;
+    expect(shade.map).toBe(maps[0]);
+    expect(shade.options).toMatchObject({ fillColor: "#000000", fillOpacity: 0.3, clickable: false });
+    expect(shade.paths[1]).toEqual(ring(OUTER));
+    expect(rectangles[1]!.map).toBe(maps[0]);
+    expect(rectangles[1]!.bounds).toEqual(boundsOf(OUTER));
+    // The box's own mask still cuts the box.
+    expect(polygons[0]!.paths[1]).toEqual(ring(BOX));
+    expect(screen.queryByTestId("bbox-outside")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Lift" }));
+    expect(shade.map).toBeNull();
+    expect(rectangles[1]!.map).toBeNull();
+  });
+
+  it("a handle dragged past the edge stops on it", async () => {
+    renderEditor(testConfig, OUTER);
+    await ready();
+    act(() => handle("nw").drag({ lat: 48.5, lng: -116 }));
+    expect(stored()).toEqual({ ...BOX, west: -114.75, north: 47.25 });
+    expect(handle("nw").position).toEqual({ lat: 47.25, lng: -114.75 });
+    act(() => handle("se").drag({ lat: 45, lng: -113.5 }));
+    expect(stored()).toEqual({ west: -114.75, south: 46.35, east: -113.5, north: 47.25 });
+  });
+
+  it("a drawn box stays inside the outer area", async () => {
+    renderEditor(testConfig, OUTER);
+    await ready();
+    const map = maps[0]!;
+    fireEvent.click(screen.getByTestId("bbox-draw"));
+    act(() => {
+      map.fire("mousedown", { lat: 46.9, lng: -114.1 });
+      map.fire("mousemove", { lat: 49, lng: -112 });
+      map.fire("mouseup", { lat: 49, lng: -112 });
+    });
+    expect(stored()).toEqual({ west: -114.1, south: 46.9, east: -113.3, north: 47.25 });
+  });
+
+  it("a typed side past the edge names the map, and moves onto the edge on blur", async () => {
+    renderEditor(testConfig, OUTER);
+    await ready();
+    const west = screen.getByTestId("bbox-west");
+    expect(west).toHaveAttribute("min", "-114.75");
+    expect(west).toHaveAttribute("max", "-113.3");
+    fireEvent.change(west, { target: { value: "-115.2" } });
+    expect(screen.getByTestId("bbox-outside")).toHaveTextContent(
+      "The area must lie inside the area of the map Missoula valley",
+    );
+    fireEvent.blur(west);
+    expect(stored()).toEqual({ ...BOX, west: -114.75 });
+    expect(west).toHaveValue(-114.75);
+    expect(screen.queryByTestId("bbox-outside")).toBeNull();
+  });
+
+  it("a given box outside the outer area shows the message without moving it", async () => {
+    const start = { west: -115.5, south: 46.75, east: -114.9, north: 47.05 };
+    renderEditor({ ...testConfig, googleMapsKey: "" }, OUTER, start);
+    expect(screen.getByTestId("bbox-outside")).toHaveTextContent(
+      "The area must lie inside the area of the map Missoula valley",
+    );
+    expect(stored()).toEqual(start);
+  });
+
+  it("without an outer area the handles and fields are free", async () => {
+    renderEditor();
+    await ready();
+    act(() => handle("nw").drag({ lat: 48.5, lng: -116 }));
+    expect(stored()).toEqual({ ...BOX, west: -116, north: 48.5 });
+    expect(screen.getByTestId("bbox-west")).toHaveAttribute("min", "-180");
+    expect(screen.queryByTestId("bbox-outside")).toBeNull();
   });
 });

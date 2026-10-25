@@ -1,30 +1,45 @@
 import type { Event, TrackerMap, TrackerTheme } from "../../api/types";
-import { bboxContains, toBbox, type Bbox } from "../../components/bbox/bbox";
+import { bboxContains, type Bbox } from "../../components/bbox/bbox";
+import { findMap, mapArea, type TrackerArea } from "../../components/events/trackerArea";
 
-// What a new event's tracker copies, by the API's create rule: the map
-// and the enabled theme set of the event with the greatest `year`, the
-// map only when its package contains the new box (admin.md 6.3).
+function latestEvent(events: readonly Event[]): Event | null {
+  if (events.length === 0) return null;
+  return events.reduce((a, b) => (Number(a.year) >= Number(b.year) ? a : b));
+}
+
+// Where the create dialog's map choice starts: the map the API would
+// inherit, the greatest-year event's map while it is ready, so an
+// unchanged dialog behaves as before. The box is the site default when
+// that map's area contains it, else the map's area; with no such map,
+// No map and the site default.
+export function initialCreateArea(
+  events: readonly Event[],
+  maps: readonly TrackerMap[] | undefined,
+  siteBox: Bbox,
+): TrackerArea {
+  const latest = latestEvent(events);
+  const id = latest?.trackerMapId == null ? null : Number(latest.trackerMapId);
+  const map = findMap(maps, id);
+  const area = mapArea(map);
+  if (!map || map.state !== "ready" || !area) return { mapId: null, bbox: siteBox };
+  return { mapId: id, bbox: bboxContains(area, siteBox) ? siteBox : area };
+}
+
+// What a new event's tracker gets (admin.md 6.3): the chosen map, or no
+// map, and the enabled theme set the API copies from the event with the
+// greatest `year` (every theme with no event).
 export function trackerPreviewLine(
   events: readonly Event[],
-  maps: readonly TrackerMap[],
   themes: readonly TrackerTheme[],
-  box: Bbox,
+  map: TrackerMap | null,
 ): string {
-  if (events.length === 0) {
-    return "Will use every theme, and the Missoula valley map when it covers this area";
-  }
-  const latest = events.reduce((a, b) => (Number(a.year) >= Number(b.year) ? a : b));
+  const mapPart = map ? `the map ${map.name ?? ""}` : "no map";
+  const latest = latestEvent(events);
+  if (latest === null) return `Will use ${mapPart} and every theme`;
   const ids = (latest.trackerThemeIds ?? []).map(Number);
   const names = themes
     .filter((t) => ids.includes(Number(t.id)))
     .map((t) => t.name ?? `#${String(t.id)}`)
     .join(", ");
-  const themePart = `the themes ${names === "" ? "none" : names} from ${latest.name ?? ""}`;
-  if (latest.trackerMapId == null) return `Will use no map and ${themePart}`;
-  const map = maps.find((m) => Number(m.id) === Number(latest.trackerMapId));
-  const mapBox = toBbox(map?.bbox);
-  if (map && mapBox && bboxContains(mapBox, box)) {
-    return `Will use the map ${map.name ?? ""} and ${themePart}`;
-  }
-  return `Will use no map (the map of ${latest.name ?? ""} does not cover this area) and ${themePart}`;
+  return `Will use ${mapPart} and the themes ${names === "" ? "none" : names} from ${latest.name ?? ""}`;
 }

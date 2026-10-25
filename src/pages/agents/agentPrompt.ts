@@ -121,8 +121,8 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
 
 ### events
 - GET /admin/events: \`{ items: Event[] }\` by year desc.
-- POST /admin/events \`{ year 2000..2100, name 1..200, scheduledAt?, fundsPercent? 0..100, scheduleTimeZone?, trackerBbox? }\`: year and name required. trackerBbox is a Bbox \`{ west, south, east, north }\` in degrees with sides 0.05 to 20. An event carries no route: routeId, inheritRoute, or routeMapConfig in the body is 400 validation_failed like any unknown field. 409 year_taken.
-- What the create body leaves out: the box comes from the published site settings' tracker.defaultBbox, or the built-in Missoula valley box when there is none; the map and the enabled theme set are copied from the event with the greatest year, the map only when its package contains the box.
+- POST /admin/events \`{ year 2000..2100, name 1..200, scheduledAt?, fundsPercent? 0..100, scheduleTimeZone?, trackerMapId?, trackerBbox? }\`: year and name required. trackerBbox is a Bbox \`{ west, south, east, north }\` in degrees with sides 0.05 to 20. trackerMapId is optional: a ready map's id sets the area to the map's, and a trackerBbox given with it must lie inside the map's area (400 validation_failed at trackerBbox, "must lie inside the map's area"); null means no map, Google Maps only; absent inherits the map by the rule below. An event carries no route: routeId, inheritRoute, or routeMapConfig in the body is 400 validation_failed like any unknown field. 409 year_taken.
+- What the create body leaves out: the box comes from the named map's area when trackerMapId names a map, else from the published site settings' tracker.defaultBbox, or the built-in Missoula valley box when there is none; the enabled theme set, and the map when trackerMapId is absent, are copied from the event with the greatest year, the map only when its package contains the box.
 - GET /admin/events/{id}; PATCH with any of name, year, scheduledAt, wentLiveAt, endedAt, fundsPercent, scheduleTimeZone (an IANA id such as America/Denver, or null), trackerBbox (a Bbox; never null; while the event has a map it must stay inside the map's package), trackerMapId (a ready map whose package contains the event's box, or null), trackerThemeIds (the whole enabled set: distinct theme ids, at least one Google theme). A broken tracker rule is 400 validation_failed at its field; an unknown map or theme id is 404. 409 year_taken, scheduled_at_required, scheduled_at_past (a scheduledAt at or before now while the event is scheduled).
 - An event has no route field: the route is the site setting settings.route. To change the route an event draws, write the site settings and publish.
 - DELETE /admin/events/{id}: takes messages, cookies, status history, and locations. 409 event_live or event_current. GET .../impact answers blocked with the reason while the event is live or current.
@@ -131,7 +131,7 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
 - POST /admin/events/{id}/status \`{ statusId, notify, message? 1..1000 }\`: statusId 1 planned, 2 scheduled, 3 live, 4 ended, 5 cancelled, 6 postponed. See section 10.
 - GET /admin/events/{id}/status-history.
 - POST /admin/events/{id}/notify \`{ message? 1..1000 }\`: announces the current status to subscribers now. Use it when the human wants a status re-announced.
-- POST /admin/events/{id}/clone \`{ year, name, copy: { sponsors, tracker } }\`: 201, a new planned event. copy takes only these two keys; route or routeMapConfig in it is 400 validation_failed. tracker copies the source's map and enabled theme set; the box always copies. Use it to start next year from this year.
+- POST /admin/events/{id}/clone \`{ year, name, copy: { sponsors, tracker }, trackerMapId?, trackerBbox? }\`: 201, a new planned event. copy takes only these two keys; route or routeMapConfig in it is 400 validation_failed. trackerMapId and trackerBbox are optional and checked as on create. tracker copies the source's enabled theme set, and the source's map only when no trackerMapId is given. Without trackerBbox the box is the source's, or the named map's area when that map does not contain the source's box. Use it to start next year from this year.
 - GET/POST /admin/events/{id}/messages (\`{ body 1..1000, notify }\`), PATCH (\`{ body }\`) and DELETE .../messages/{messageId}.
 - POST /admin/events/{id}/cookies \`{ items: [{ cookieTypeId, count 1..100 }] }\`: 201, seeds cookies on the live event. 409 event_not_live.
 - GET /admin/events/{id}/locations?cursor=&limit=&beaconId=&publishedOnly=: paged; Accept: text/csv streams every row with the columns seq,beaconId,published,recordedAt,receivedAt,lat,lng,speedMps,speedSource,altitudeM,headingDeg,headingSource,accuracyM (speedSource and headingSource are beacon, derived, or empty).
@@ -322,7 +322,7 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
 - Every event keeps at least one Google theme.
 - One theme per renderer holds each default flag, light and dark.
 - replacementId on a map or theme delete is optional; without it the events lose the map or the theme.
-- An event created without trackerBbox gets the site settings' box.
+- An event created without trackerBbox gets the map's area when a map is named, else the site settings' box.
 - On 401 or 403, stop and tell the human. Do not work around a missing capability.
 - Say what you changed, with ids, when you finish.
 `;

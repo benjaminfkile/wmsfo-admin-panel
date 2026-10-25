@@ -247,6 +247,27 @@ describe("AgentsPage", () => {
     expect(prompt).toContain("409 year_taken, scheduled_at_required, scheduled_at_past");
   });
 
+  it("the prompt names the map choice on create and clone", () => {
+    const prompt = buildAgentPrompt("https://api.example");
+    expect(prompt).toContain(
+      "scheduleTimeZone?, trackerMapId?, trackerBbox? }`: year and name required."
+    );
+    expect(prompt).toContain(
+      "trackerMapId is optional: a ready map's id sets the area to the map's, and a trackerBbox given with it must lie inside the map's area"
+    );
+    expect(prompt).toContain("null means no map, Google Maps only; absent inherits the map by the rule below.");
+    expect(prompt).toContain(
+      "copy: { sponsors, tracker }, trackerMapId?, trackerBbox? }`: 201, a new planned event."
+    );
+    expect(prompt).toContain("trackerMapId and trackerBbox are optional and checked as on create.");
+    expect(prompt).toContain(
+      "tracker copies the source's enabled theme set, and the source's map only when no trackerMapId is given."
+    );
+    expect(prompt).toContain(
+      "- An event created without trackerBbox gets the map's area when a map is named, else the site settings' box."
+    );
+  });
+
   it("the prompt carries none of the stale statements and no dashes", () => {
     const prompt = buildAgentPrompt("https://api.example");
     for (const stale of [
@@ -270,6 +291,10 @@ describe("AgentsPage", () => {
       "routeMapConfig (an object or null; unknown fields are 400)",
       "2 scheduled needs scheduledAt (409 scheduled_at_required).",
       "409 year_taken, scheduled_at_required.",
+      "scheduleTimeZone?, trackerBbox? }",
+      "tracker copies the source's map and enabled theme set; the box always copies.",
+      "An event created without trackerBbox gets the site settings' box.",
+      "the map and the enabled theme set are copied from the event with the greatest year",
     ]) {
       expect(prompt).not.toContain(stale);
     }

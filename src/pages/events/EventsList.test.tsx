@@ -196,7 +196,7 @@ describe("EventsList rows", () => {
         String(Number(f.events[0]!.year) + 1)
       )
     );
-    for (const label of [/sponsors for the year/i, /tracker map and themes/i]) {
+    for (const label of [/sponsors for the year/i, /^tracker themes$/i]) {
       const cb = within(dialog).getByRole("checkbox", { name: label });
       expect(cb).toBeChecked();
     }
@@ -204,7 +204,7 @@ describe("EventsList rows", () => {
     expect(within(dialog).queryByRole("checkbox", { name: /flight history/i })).toBeNull();
     expect(within(dialog).queryByRole("checkbox", { name: /route map settings/i })).toBeNull();
     expect(
-      within(dialog).getByText("The tracker area copies either way.")
+      within(dialog).getByText("The map and the area are chosen above.")
     ).toBeInTheDocument();
     expect(within(dialog).getByTestId("help-events.clone.tracker")).toBeInTheDocument();
     expect(within(dialog).queryByRole("checkbox", { name: /route poster/i })).toBeNull();
@@ -253,7 +253,7 @@ describe("EventsList rows", () => {
   });
 
 
-  it("Clone sends tracker: false when Tracker map and themes is unchecked", async () => {
+  it("Clone sends tracker: false when Tracker themes is unchecked", async () => {
     const user = userEvent.setup();
     const posts: unknown[] = [];
     server.use(
@@ -278,7 +278,7 @@ describe("EventsList rows", () => {
     );
     const dialog = await screen.findByRole("dialog", { name: /clone event/i });
     await user.click(
-      within(dialog).getByRole("checkbox", { name: /tracker map and themes/i })
+      within(dialog).getByRole("checkbox", { name: /^tracker themes$/i })
     );
     await user.click(within(dialog).getByRole("button", { name: /^clone$/i }));
     await waitFor(() => expect(posts.length).toBe(1));

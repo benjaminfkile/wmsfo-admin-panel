@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Button,
   Checkbox,
@@ -19,6 +20,16 @@ import { ApiError } from "../../api/errors";
 import { fieldErrorFor } from "../../lib/fieldErrors";
 import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 import HelpButton from "../../help/HelpButton";
+import TrackerAreaField from "../../components/events/TrackerAreaField";
+import { findMap, mapArea, type TrackerArea } from "../../components/events/trackerArea";
+import {
+  MISSOULA_VALLEY_BBOX,
+  bboxContains,
+  bboxValid,
+  toBbox,
+} from "../../components/bbox/bbox";
+import { maps as mapsApi } from "../../api/resources/maps";
+import { keys } from "../../queries/keys";
 
 interface Props {
   open: boolean;
@@ -27,6 +38,13 @@ interface Props {
   error: unknown;
   onCancel: () => void;
   onSubmit: (body: CloneEventBody) => void;
+}
+
+// The source's map and box, the map only while it is ready.
+function sourceArea(source: Event | null, ready: (id: number) => boolean): TrackerArea {
+  const bbox = toBbox(source?.trackerBbox) ?? MISSOULA_VALLEY_BBOX;
+  const id = source?.trackerMapId == null ? null : Number(source.trackerMapId);
+  return { mapId: id !== null && ready(id) ? id : null, bbox };
 }
 
 function defaultName(source: Event | null, sourceYear: number, targetYear: number): string {
@@ -49,7 +67,24 @@ export default function EventCloneDialog({
   const [name, setName] = useState("");
   const [sponsors, setSponsors] = useState(true);
   const [tracker, setTracker] = useState(true);
+  // The chosen map and box, or null while they follow the source's.
+  const [picked, setPicked] = useState<TrackerArea | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const mapsQ = useQuery({
+    queryKey: keys.maps,
+    queryFn: () => mapsApi.list(),
+    enabled: open,
+  });
+  const area =
+    picked ??
+    // Until the maps load, the source's map stands.
+    sourceArea(
+      source,
+      (id) => mapsQ.data === undefined || findMap(mapsQ.data.items, id)?.state === "ready"
+    );
+  const outer = mapArea(findMap(mapsQ.data?.items, area.mapId));
+  const boxOk = bboxValid(area.bbox) && (outer === null || bboxContains(outer, area.bbox));
 
   useEffect(() => {
     if (!open || !source) return;
@@ -59,6 +94,7 @@ export default function EventCloneDialog({
     setName(defaultName(source, sourceYear, targetYear));
     setSponsors(true);
     setTracker(true);
+    setPicked(null);
     setErrors({});
   }, [open, source]);
 
@@ -78,6 +114,7 @@ export default function EventCloneDialog({
     if (trimmedName.length < 1) next.name = "Name is required";
     else if (trimmedName.length > 200)
       next.name = "Name must be 200 characters or fewer";
+    if (!boxOk) next.trackerBbox = "Fix the tracker area";
     setErrors(next);
     if (Object.keys(next).length > 0) return { ok: false };
     return {
@@ -86,6 +123,8 @@ export default function EventCloneDialog({
         year: y,
         name: trimmedName,
         copy: { sponsors, tracker },
+        trackerMapId: area.mapId,
+        trackerBbox: area.bbox,
       },
     };
   };
@@ -108,7 +147,7 @@ export default function EventCloneDialog({
           {error ? (
             <ErrorAlert
               error={error}
-              handledFields={[...Object.keys(errors), "year"]}
+              handledFields={[...Object.keys(errors), "year", "trackerBbox", "trackerMapId"]}
             />
           ) : null}
           <TextField
@@ -129,6 +168,13 @@ export default function EventCloneDialog({
             helperText={errors.name ?? ""}
             fullWidth
           />
+          <TrackerAreaField
+            value={area}
+            onChange={setPicked}
+            exportName={name.trim() || "New event"}
+            bboxError={fieldErrorFor(error, "trackerBbox")}
+            mapError={fieldErrorFor(error, "trackerMapId")}
+          />
           <FormGroup>
             <FormControlLabel
               control={
@@ -147,12 +193,12 @@ export default function EventCloneDialog({
                     onChange={(_, v) => setTracker(v)}
                   />
                 }
-                label="Tracker map and themes"
+                label="Tracker themes"
               />
               <HelpButton topic="events.clone.tracker" />
             </Stack>
             <FormHelperText sx={{ mt: 0, ml: 4 }}>
-              The tracker area copies either way.
+              The map and the area are chosen above.
             </FormHelperText>
           </FormGroup>
         </Stack>
@@ -162,7 +208,7 @@ export default function EventCloneDialog({
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={submitting}
+          disabled={submitting || !boxOk}
         >
           Clone
         </Button>

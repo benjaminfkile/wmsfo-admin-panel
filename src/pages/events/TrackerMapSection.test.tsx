@@ -174,7 +174,7 @@ describe("TrackerMapSection", () => {
     expect(within(card).getByTestId("tracker-map-save")).toBeDisabled();
   });
 
-  it("lists the ready maps that contain the box, the others disabled, and no pending map", async () => {
+  it("lists No map and every ready map by name with its terrain word, and no pending map", async () => {
     const user = userEvent.setup();
     const card = await renderCard();
     await user.click(within(card).getByRole("combobox"));
@@ -182,14 +182,10 @@ describe("TrackerMapSection", () => {
     const options = within(listbox).getAllByRole("option");
     expect(options.map((o) => o.textContent)).toEqual([
       "No map",
-      "Flatheaddoes not cover the box",
+      "FlatheadNo terrain",
       "Missoula valleyWith terrain",
     ]);
-    expect(within(listbox).getByRole("option", { name: /Flathead/ })).toHaveAttribute("aria-disabled", "true");
-    expect(within(listbox).getByRole("option", { name: /Missoula valley/ })).not.toHaveAttribute(
-      "aria-disabled",
-      "true"
-    );
+    for (const o of options) expect(o).not.toHaveAttribute("aria-disabled", "true");
     expect(within(listbox).queryByRole("option", { name: /Bitterroot/ })).toBeNull();
 
     await user.click(within(listbox).getByRole("option", { name: "No map" }));
@@ -267,9 +263,14 @@ describe("TrackerMapSection", () => {
     expect(within(card).getByTestId("tracker-map-save")).toBeEnabled();
   });
 
-  it("Use site default puts the draft's box back", async () => {
+  it("Use site default shows under No map only and puts the draft's box back", async () => {
     const user = userEvent.setup();
     const card = await renderCard();
+    expect(within(card).queryByRole("button", { name: "Use site default" })).toBeNull();
+    await user.click(within(card).getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "No map" }));
+    // No map keeps the box.
+    expect(field("west").value).toBe("-114.3000");
     await user.click(within(card).getByRole("button", { name: "Use site default" }));
     expect(field("west").value).toBe("-114.2000");
     expect(field("south").value).toBe("46.8000");
@@ -278,23 +279,66 @@ describe("TrackerMapSection", () => {
     expect(within(card).getByTestId("tracker-map-save")).toBeEnabled();
   });
 
-  it("moving the box past the chosen map shows the message and disables that map", async () => {
+  it("switching maps resets the box to the new map's area, and Save sends both", async () => {
     const user = userEvent.setup();
+    const bodies: unknown[] = [];
+    server.use(
+      http.patch(`${testConfig.apiBaseUrl}/admin/events/:id`, async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json(makeEvent());
+      })
+    );
+    const card = await renderCard();
+    await user.click(within(card).getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: /Flathead/ }));
+    expect(field("west").value).toBe("-114.6000");
+    expect(field("south").value).toBe("47.7000");
+    expect(field("east").value).toBe("-113.9000");
+    expect(field("north").value).toBe("48.4000");
+    await user.click(within(card).getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: /Missoula valley/ }));
+    expect(field("west").value).toBe("-114.7500");
+    expect(field("north").value).toBe("47.2500");
+    await user.click(within(card).getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: /Flathead/ }));
+    await user.click(within(card).getByTestId("tracker-map-save"));
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toEqual({ trackerBbox: FLATHEAD.bbox, trackerMapId: 3 });
+  });
+
+  it("keeps the box inside the chosen map: a side typed past its edge names the map and moves onto it", async () => {
     const card = await renderCard();
     fireEvent.change(field("west"), { target: { value: "-115" } });
-    expect(within(card).getByTestId("tracker-map-uncovered")).toHaveTextContent(
-      "The map Missoula valley does not cover this area. Choose another map or widen the area."
+    expect(within(card).getByTestId("bbox-outside")).toHaveTextContent(
+      "The area must lie inside the area of the map Missoula valley"
     );
-    expect(within(card).getByTestId("tracker-map-save")).toBeDisabled();
-    await user.click(within(card).getByRole("combobox"));
-    const listbox = await screen.findByRole("listbox");
-    expect(within(listbox).getByRole("option", { name: /Missoula valley/ })).toHaveAttribute(
-      "aria-disabled",
-      "true"
-    );
-    await user.click(within(listbox).getByRole("option", { name: "No map" }));
+    fireEvent.blur(field("west"));
+    expect(field("west").value).toBe("-114.7500");
+    expect(within(card).queryByTestId("bbox-outside")).toBeNull();
     expect(within(card).queryByTestId("tracker-map-uncovered")).toBeNull();
-    expect(within(card).getByTestId("tracker-map-save")).toBeEnabled();
+  });
+
+  it("a legacy row whose box lies outside its map shows the message, and the API's on save", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.patch(`${testConfig.apiBaseUrl}/admin/events/:id`, () =>
+        HttpResponse.json(
+          {
+            code: "validation_failed",
+            message: "Validation failed",
+            details: { fields: { "/trackerBbox": "must lie inside the map's area" } },
+            requestId: "req-2",
+          },
+          { status: 400 }
+        )
+      )
+    );
+    const outside = { west: -115.5, south: 46.75, east: -114.9, north: 47.05 };
+    const card = await renderCard(makeEvent({ trackerBbox: outside }));
+    expect(within(card).getByTestId("bbox-outside")).toBeInTheDocument();
+    fireEvent.change(field("north"), { target: { value: "47.1" } });
+    await user.click(within(card).getByTestId("tracker-map-save"));
+    expect(await within(card).findByText("must lie inside the map's area")).toBeInTheDocument();
   });
 
   it("Save sends only the changed fields and toasts", async () => {

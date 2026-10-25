@@ -5,6 +5,8 @@ import {
   TERRAIN_MAX_ZOOM_RANGE,
   bboxContains,
   bboxValid,
+  clampBbox,
+  clampPoint,
   clampZoom,
   exportDocument,
   exportFileName,
@@ -113,5 +115,22 @@ describe("box helpers", () => {
   it("tells whether one box contains another", () => {
     expect(bboxContains(MISSOULA_VALLEY_BBOX, BOX)).toBe(true);
     expect(bboxContains(BOX, MISSOULA_VALLEY_BBOX)).toBe(false);
+  });
+});
+
+describe("clamping into an outer area", () => {
+  it("moves a point onto the nearest edge and leaves an inside point alone", () => {
+    expect(clampPoint({ lat: 48, lng: -116 }, MISSOULA_VALLEY_BBOX)).toEqual({ lat: 47.25, lng: -114.75 });
+    expect(clampPoint({ lat: 46.9, lng: -114 }, MISSOULA_VALLEY_BBOX)).toEqual({ lat: 46.9, lng: -114 });
+  });
+
+  it("moves each side of a box inside the area", () => {
+    expect(clampBbox({ west: -115, south: 46.75, east: -113.8, north: 48 }, MISSOULA_VALLEY_BBOX)).toEqual({
+      west: -114.75,
+      south: 46.75,
+      east: -113.8,
+      north: 47.25,
+    });
+    expect(clampBbox(BOX, MISSOULA_VALLEY_BBOX)).toEqual(BOX);
   });
 });

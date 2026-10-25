@@ -142,3 +142,19 @@ export function clampZoom(text: string, range: { min: number; max: number }, fal
   if (text.trim() === "" || !Number.isInteger(n)) return fallback;
   return Math.min(range.max, Math.max(range.min, n));
 }
+
+// A point moved onto the nearest edge of `outer` when it lies outside it.
+export function clampPoint(p: { lat: number; lng: number }, outer: Bbox): { lat: number; lng: number } {
+  return {
+    lat: Math.min(outer.north, Math.max(outer.south, p.lat)),
+    lng: Math.min(outer.east, Math.max(outer.west, p.lng)),
+  };
+}
+
+// The box with each side moved inside `outer`: longitudes between its
+// west and east, latitudes between its south and north.
+export function clampBbox(b: Bbox, outer: Bbox): Bbox {
+  const lng = (v: number) => Math.min(outer.east, Math.max(outer.west, v));
+  const lat = (v: number) => Math.min(outer.north, Math.max(outer.south, v));
+  return { west: lng(b.west), south: lat(b.south), east: lng(b.east), north: lat(b.north) };
+}
