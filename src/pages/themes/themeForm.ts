@@ -16,6 +16,7 @@ export const OVERLAY_COLOUR_KEYS = [
   "timeLabelBg",
   "timeLabelFg",
   "userColor",
+  "headingColor",
 ] as const;
 export const OVERLAY_OPACITY_KEYS = ["routeOpacity", "timeLabelOpacity"] as const;
 
@@ -39,6 +40,7 @@ export const OVERLAY_LABELS: Record<OverlayColourKey | OverlayOpacityKey, string
   timeLabelBg: "Time label background",
   timeLabelFg: "Time label text",
   userColor: "User marker",
+  headingColor: "Santa's heading beam",
   routeOpacity: "Route opacity",
   timeLabelOpacity: "Time label opacity",
 };
@@ -91,6 +93,7 @@ function overlayText(o: Overlay): ThemeForm["overlay"] {
     timeLabelBg: o.timeLabelBg,
     timeLabelFg: o.timeLabelFg,
     userColor: o.userColor,
+    headingColor: o.headingColor,
     routeOpacity: String(o.routeOpacity),
     timeLabelOpacity: String(o.timeLabelOpacity),
   };
@@ -139,6 +142,7 @@ export function previewOverlay(f: ThemeForm["overlay"]): Overlay {
     timeLabelBg: f.timeLabelBg,
     timeLabelFg: f.timeLabelFg,
     userColor: f.userColor,
+    headingColor: f.headingColor,
     routeOpacity: opacityValue(f.routeOpacity) ?? 1,
     timeLabelOpacity: opacityValue(f.timeLabelOpacity) ?? 1,
   };
@@ -153,6 +157,7 @@ export function toOverlay(f: ThemeForm["overlay"]): Overlay {
     timeLabelFg: f.timeLabelFg.trim(),
     timeLabelOpacity: Number(f.timeLabelOpacity),
     userColor: f.userColor.trim(),
+    headingColor: f.headingColor.trim(),
   };
 }
 

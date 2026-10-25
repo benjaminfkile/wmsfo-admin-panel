@@ -165,7 +165,7 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
   - style for google: an array of \`{ featureType, elementType, stylers }\` objects, at most 64 KB.
   - style for maplibre: a version 8 style whose sources are exactly basemap (type vector) and optionally terrain (type raster-dem), neither with url or tiles; every layer with a source names one of the two; no string starts with http; at most 512 KB. The API replaces glyphs and sprite.
   - chrome: \`{ bg, fg, text, tile, tileFg, panel, accent }\`.
-  - overlay: \`{ routeColor, routeOpacity, arrowColor, timeLabelBg, timeLabelFg, timeLabelOpacity, userColor }\`.
+  - overlay: \`{ routeColor, routeOpacity, arrowColor, timeLabelBg, timeLabelFg, timeLabelOpacity, userColor, headingColor }\`. headingColor is the colour of the beam showing Santa's heading on the live tracker; pick one that differs from the route.
   - Colours are #rrggbb or #rrggbbaa; opacities 0..1; every chrome and overlay key is required and no other key is allowed.
   - Contrast: text on bg and tileFg on tile at 4.5:1 or better (400 at chrome.text or chrome.tileFg).
   - thumbnailMediaId: a ready raster media asset id, or null. 409 media_not_ready.

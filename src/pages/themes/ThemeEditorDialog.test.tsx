@@ -12,7 +12,7 @@ import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ThemeEditorDialog from "./ThemeEditorDialog";
 import { BASEMAP_NOTE } from "./ThemePreview";
-import { KEY_RULE } from "./themeForm";
+import { HEX_RULE, KEY_RULE } from "./themeForm";
 import { readText } from "./readFile";
 import { ConfigProvider } from "../../ConfigContext";
 import { NotifyProvider } from "../../hooks/useNotify";
@@ -563,6 +563,33 @@ describe("ThemeEditorDialog", () => {
       name: "Midnight",
       overlay: { ...byKey("night").overlay, userColor: "#ff0000" },
     });
+  });
+
+  it("renders Santa's heading beam after User marker, holds Save to the hex rule, and patches it", async () => {
+    let body: unknown = null;
+    server.use(
+      http.patch(`${API}/admin/themes/:id`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json(byKey("night"));
+      }),
+    );
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(<Harness theme={byKey("night")} onClose={onClose} />);
+    await screen.findByRole("dialog");
+    const beam = screen.getByRole("textbox", { name: "Santa's heading beam" });
+    expect(beam).toHaveValue(byKey("night").overlay!.headingColor);
+    expect(screen.getByLabelText("Santa's heading beam colour")).toBeInTheDocument();
+    const marker = screen.getByRole("textbox", { name: "User marker" });
+    expect(marker.compareDocumentPosition(beam) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.change(field("overlay.headingColor"), { target: { value: "orange" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText(HEX_RULE)).toBeInTheDocument();
+    expect(writes).toEqual([]);
+    fireEvent.change(field("overlay.headingColor"), { target: { value: "#00ff00" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(body).toEqual({ overlay: { ...byKey("night").overlay, headingColor: "#00ff00" } });
   });
 
   it("lands a 409 on the Key field", async () => {
