@@ -198,6 +198,39 @@ describe("TrackerMapSection", () => {
     );
   });
 
+  it("reads terrain from the terrain archive, never the measured sizes", async () => {
+    // Two ready maps covering the box: one without terrain, one with
+    // terrain and no sizes on record.
+    server.use(
+      http.get(`${testConfig.apiBaseUrl}/admin/maps`, () =>
+        HttpResponse.json({
+          items: [
+            { ...f.trackerMaps[0]!, tilesBytes: null, terrainBytes: null },
+            {
+              ...f.trackerMaps[0]!,
+              id: 5,
+              name: "Rattlesnake",
+              prefix: "maps/5",
+              terrainMaxZoom: null,
+              terrainUrl: null,
+              terrainBytes: null,
+              tilesBytes: 314572800,
+            },
+          ],
+        })
+      )
+    );
+    const user = userEvent.setup();
+    const card = await renderCard();
+    await user.click(within(card).getByRole("combobox"));
+    const listbox = await screen.findByRole("listbox");
+    expect(within(listbox).getAllByRole("option").map((o) => o.textContent)).toEqual([
+      "No map",
+      "Missoula valleyWith terrain",
+      "RattlesnakeNo terrain",
+    ]);
+  });
+
   it("groups the themes with thumbnails, swatches, and the default badges", async () => {
     const card = await renderCard();
     const google = within(card).getByTestId("tracker-themes-google");

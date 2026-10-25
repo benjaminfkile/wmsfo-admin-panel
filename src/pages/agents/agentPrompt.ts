@@ -147,6 +147,7 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
 
 ### maps
 - A map is one tile package for the tracker: a box, a vector archive, an optional terrain archive, a zoom range. An event with a ready map draws MapLibre; an event without one draws Google Maps.
+- terrainMaxZoom says whether a map has terrain (null: no terrain archive); a null tilesBytes or terrainBytes means the size is not yet measured, not that the archive is missing.
 - GET /admin/maps: \`{ items: TrackerMap[] }\`, pending rows included, each with eventCount.
 - PATCH /admin/maps/{id} \`{ name 1..200 }\`: the name only; any other field is 400.
 - GET /admin/maps/{id}/impact.
