@@ -17,6 +17,8 @@ import TimeZoneSelect from "../../components/TimeZoneSelect";
 import { browserTimeZone, formatStamp, shiftWallZone, wallTimeToUtc } from "../../lib/time";
 import DialogTitleWithHelp from "../../help/DialogTitleWithHelp";
 import TrackerAreaField from "../../components/events/TrackerAreaField";
+import StartViewField from "../../components/events/StartViewField";
+import { startViewInside, type StartView } from "../../components/events/startView";
 import { findMap, mapArea, type TrackerArea } from "../../components/events/trackerArea";
 import { bboxContains, bboxValid, siteDefaultBbox } from "../../components/bbox/bbox";
 import { siteSettings as siteSettingsApi } from "../../api/resources/siteSettings";
@@ -51,6 +53,8 @@ export default function EventCreateDialog({
   // The chosen map and box, or null while they follow the map the API
   // would inherit and the site setting.
   const [picked, setPicked] = useState<TrackerArea | null>(null);
+  // None until the admin sets one: a new event opens on the whole area.
+  const [startView, setStartView] = useState<StartView | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const settingsQ = useQuery({
@@ -77,7 +81,8 @@ export default function EventCreateDialog({
   const trackerLine = trackerPreviewLine(
     events,
     themesQ.data?.items ?? [],
-    chosenMap
+    chosenMap,
+    startView
   );
 
   useEffect(() => {
@@ -88,6 +93,7 @@ export default function EventCreateDialog({
       setTimeZone(browserTimeZone());
       setFundsPercent("0");
       setPicked(null);
+      setStartView(null);
       setErrors({});
     }
   }, [open]);
@@ -106,6 +112,8 @@ export default function EventCreateDialog({
     if (!Number.isInteger(fp) || fp < 0 || fp > 100)
       next.fundsPercent = "Must be a whole number between 0 and 100";
     if (!boxOk) next.trackerBbox = "Fix the tracker area";
+    if (startView !== null && !startViewInside(startView, box))
+      next.trackerStartView = "The start view must lie inside the tracker area";
     setErrors(next);
     if (Object.keys(next).length > 0) return { ok: false };
     return {
@@ -120,6 +128,7 @@ export default function EventCreateDialog({
         // lets the API inherit the map as it always has.
         ...(picked !== null || mapsQ.data !== undefined ? { trackerMapId: area.mapId } : {}),
         trackerBbox: box,
+        ...(startView !== null ? { trackerStartView: startView } : {}),
       },
     };
   };
@@ -137,7 +146,12 @@ export default function EventCreateDialog({
           {error ? (
             <ErrorAlert
               error={error}
-              handledFields={[...Object.keys(errors), "trackerBbox", "trackerMapId"]}
+              handledFields={[
+                ...Object.keys(errors),
+                "trackerBbox",
+                "trackerMapId",
+                "trackerStartView",
+              ]}
             />
           ) : null}
           <TextField
@@ -199,6 +213,14 @@ export default function EventCreateDialog({
               bboxError={fieldErrorFor(error, "trackerBbox")}
               mapError={fieldErrorFor(error, "trackerMapId")}
             />
+            <Box sx={{ mt: 2 }}>
+              <StartViewField
+                value={startView}
+                onChange={setStartView}
+                bbox={box}
+                error={errors.trackerStartView ?? fieldErrorFor(error, "trackerStartView")}
+              />
+            </Box>
             <Alert
               severity="info"
               variant="outlined"

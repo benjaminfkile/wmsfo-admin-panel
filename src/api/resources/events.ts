@@ -1,6 +1,7 @@
 import { del, get, patch, post, request } from "../client";
 import type { DeleteImpact } from "../impact";
 import type { Bbox } from "../../validation/bbox";
+import type { StartView } from "../../components/events/startView";
 import type {
   Event,
   EventMessage,
@@ -22,6 +23,9 @@ export type CreateEventBody = {
   // map; absent inherits by the API's rule.
   trackerMapId?: number | null;
   trackerBbox: Bbox | null;
+  // Where the tracker opens, the centre inside the box; absent or null
+  // for none (the tracker fits the box).
+  trackerStartView?: StartView | null;
 };
 
 export type PatchEventBody = Partial<{
@@ -34,6 +38,9 @@ export type PatchEventBody = Partial<{
   fundsPercent: number;
   trackerBbox: Bbox;
   trackerMapId: number | null;
+  // A view sets it, null clears it; a box change that leaves a stored
+  // view outside clears it in the API.
+  trackerStartView: StartView | null;
   trackerThemeIds: number[];
 }>;
 
@@ -48,6 +55,8 @@ export type CloneEventBody = {
   };
   trackerMapId?: number | null;
   trackerBbox?: Bbox | null;
+  // A view or null wins; absent copies the source's.
+  trackerStartView?: StartView | null;
 };
 
 export type StatusBody = {

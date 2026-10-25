@@ -204,7 +204,7 @@ describe("EventsList rows", () => {
     expect(within(dialog).queryByRole("checkbox", { name: /flight history/i })).toBeNull();
     expect(within(dialog).queryByRole("checkbox", { name: /route map settings/i })).toBeNull();
     expect(
-      within(dialog).getByText("The map and the area are chosen above.")
+      within(dialog).getByText("The map, the area, and the start view are chosen above.")
     ).toBeInTheDocument();
     expect(within(dialog).getByTestId("help-events.clone.tracker")).toBeInTheDocument();
     expect(within(dialog).queryByRole("checkbox", { name: /route poster/i })).toBeNull();
