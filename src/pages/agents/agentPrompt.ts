@@ -39,13 +39,13 @@ Base URL: ${baseUrl}
   - 401: unauthenticated.
   - 403: forbidden.
   - 404: not_found, upload_not_found (a media confirm, a map confirm, or a sprite confirm when an object never arrived).
-  - 409: event_status_unchanged, event_not_current, another_event_live, scheduled_at_required, scheduled_at_past, no_healthy_beacon (status change); scheduled_at_past (event patch of a past scheduledAt while scheduled); current_event_live (make current, clear current); event_live (cookie type writes while live, deleting a live event, clearing locations while live); event_current (deleting the current event); event_not_live (seeding cookies); year_taken (event create, patch, clone); year_exists (sponsor copy-from); pinned_position_taken (sponsor year); place_name_taken (place create and patch); route_in_use (deleting the site route); beacon_revoked (activate, rotate); slug_taken (page); kind_not_allowed (section create and move); content_unchanged (publish); media_not_ready (a reference to a media asset that is not ready); media_not_pending (confirm twice); package_exists (map create when a ready map has the package; map parts, complete, and confirm on a ready map); package_invalid (map confirm when an archive does not match the row); last_google_theme (theme delete when the theme is the only Google theme enabled on an event).
+  - 409: event_status_unchanged, event_not_current, another_event_live, scheduled_at_required, scheduled_at_past, no_healthy_beacon (status change); scheduled_at_past (event patch of a past scheduledAt while scheduled); current_event_live (make current, clear current); event_live (cookie type writes while live, deleting a live event, clearing locations while live); event_current (deleting the current event); event_not_live (seeding cookies); year_taken (event create, patch, clone); year_exists (sponsor copy-from); pinned_position_taken (sponsor year); place_name_taken (place create and patch); route_in_use (deleting the site route); beacon_revoked (activate, rotate); slug_taken (page); kind_not_allowed (section create and move); content_unchanged (publish); media_not_ready (a reference to a media asset that is not ready); media_not_pending (confirm twice); package_exists (map create when a ready map has the package; map parts, complete, and confirm on a ready map); package_invalid (map confirm when an archive does not match the row); last_google_theme (theme delete when the theme is the only Google theme enabled on an event); block_exists (a people block on a pattern already blocked).
   - 413: payload_too_large.
   - 415: unsupported_media_type.
   - 422: content_invalid (publish; details.problems).
   - 429: rate_limited.
   - 500: internal_error.
-  - 502: snapshot_write_failed, route_write_failed, media_write_failed, upstream_failed.
+  - 502: snapshot_write_failed, route_write_failed, media_write_failed, upstream_failed (also when a person delete or a people block could not remove the sign-in; nothing was deleted or blocked).
   - 503: unavailable.
 - Paging: paged lists answer \`{"items":[...],"nextCursor":null|"..."}\` and take ?limit= and ?cursor=. limit caps at 500 and defaults to 50 for media and 100 for contact messages, subscribers, people, and event locations. GET /admin/audit defaults to 50, caps at 200, and answers 400 above it. A list without nextCursor is unpaged.
 - Timestamps: RFC 3339 UTC with Z and three fractional digits on output. Inputs take any offset. Bare dates are rejected.
@@ -250,7 +250,13 @@ There are 21. A key reaches only the groups it was minted with. Each delete's im
 - The email quota is Cognito-only. Before any send to subscribers, hand "will this fit the quota" to the human.
 
 ### people
-- GET /admin/people?cursor=&limit= (each with cookieCount), DELETE .../{id} (takes their subscriptions and cookies), GET .../{id}/impact.
+- GET /admin/people?cursor=&limit= (each with cookieCount), GET .../{id}/impact.
+- DELETE /admin/people/{id}: removes the person's sign-in too (signed out everywhere, the account deleted) with their subscriptions and cookies; they can sign up again as a new person with nothing inherited. 502 upstream_failed when the sign-in could not be removed (nothing deleted).
+- Blocked addresses and domains: a pattern is an address (jane@example.com) or a domain (*@example.com, every address whose part after the last @ is the domain; subdomains do not match), trimmed and lowercased, 3..254.
+  - GET /admin/people/blocks: \`{ items: SignupBlock[] }\`, unpaged, newest first. SignupBlock = \`{ id, pattern, kind "address"|"domain", note, createdBy, createdAt, matchingCount }\`, matchingCount the accounts the pattern matches now.
+  - GET /admin/people/blocks/impact?pattern=: SignupBlockImpact = \`{ pattern, kind, people: [{ id, email }], subscriptions, cookies }\`, the accounts a block would remove. Reads only; 400 validation_failed on pattern.
+  - POST /admin/people/blocks \`{ pattern, note 1..300 }\`: 201 SignupBlock. A block removes every matching account in the same write, the way DELETE /admin/people/{id} does. 409 block_exists, 502 upstream_failed (nothing blocked, nothing removed). Read the impact and hand the list of accounts to the human first.
+  - DELETE /admin/people/blocks/{id}: 204; the address or domain can sign up again, each as a new person. 404.
 
 ### diagnostics
 - GET /admin/snapshot, POST /admin/snapshot/rebuild, GET /admin/live, POST /admin/live/republish.

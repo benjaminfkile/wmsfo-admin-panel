@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Alert,
   Box,
@@ -42,6 +42,9 @@ interface Props {
   onCancel: () => void;
   onConfirm: (opts: { replacementId: number | null }) => void;
   help?: HelpKey;
+  // A fixed line under the impact preview for what the delete does
+  // beyond the rows it lists (the person delete's sign-in removal).
+  note?: ReactNode;
 }
 
 const ENTITY_LABELS: Record<string, { singular: string; plural: string }> = {
@@ -116,6 +119,7 @@ export default function DeleteDialog({
   onCancel,
   onConfirm,
   help,
+  note,
 }: Props) {
   const impactQ = useQuery({
     queryKey: ["impact", resource, String(id)],
@@ -210,6 +214,8 @@ export default function DeleteDialog({
                 ) : null}
               </>
             )}
+
+            {note ? <Typography variant="body2">{note}</Typography> : null}
 
             {showReplacement ? (
               <TextField

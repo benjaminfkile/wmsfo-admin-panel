@@ -3849,6 +3849,132 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/people/blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ItemsResponseOfSignupBlockDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateSignupBlockRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SignupBlockDto"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/people/blocks/impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SignupBlockImpactDto"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/people/blocks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/api-keys": {
         parameters: {
             query?: never;
@@ -6371,6 +6497,10 @@ export interface components {
             data?: null | components["schemas"]["JsonElement"];
             presentation?: null | components["schemas"]["PresentationDto"];
         };
+        CreateSignupBlockRequest: {
+            pattern?: null | string;
+            note?: null | string;
+        };
         CreateSponsorRequest: {
             name?: string;
             contactPerson?: null | string;
@@ -6626,6 +6756,9 @@ export interface components {
         };
         ItemsResponseOfSettingDto: {
             items?: components["schemas"]["SettingDto"][];
+        };
+        ItemsResponseOfSignupBlockDto: {
+            items?: components["schemas"]["SignupBlockDto"][];
         };
         ItemsResponseOfSponsorDto: {
             items?: components["schemas"]["SponsorDto"][];
@@ -7567,6 +7700,32 @@ export interface components {
         };
         SettingUpdateRequest: {
             value?: components["schemas"]["JsonElement"];
+        };
+        SignupBlockDto: {
+            /** Format: int64 */
+            id?: number | string;
+            pattern?: string;
+            kind?: string;
+            note?: string;
+            createdBy?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: int32 */
+            matchingCount?: number | string;
+        };
+        SignupBlockImpactDto: {
+            pattern?: string;
+            kind?: string;
+            people?: components["schemas"]["SignupBlockPersonDto"][];
+            /** Format: int32 */
+            subscriptions?: number | string;
+            /** Format: int32 */
+            cookies?: number | string;
+        };
+        SignupBlockPersonDto: {
+            /** Format: int64 */
+            id?: number | string;
+            email?: string;
         };
         SiteRouteResponse: {
             published?: null | components["schemas"]["PublishedSiteRouteDto"];

@@ -285,6 +285,31 @@ describe("AgentsPage", () => {
     );
   });
 
+  it("the people section names the block routes and the delete's reach", () => {
+    const prompt = buildAgentPrompt("https://api.example");
+    expect(prompt).toContain(
+      "- DELETE /admin/people/{id}: removes the person's sign-in too"
+    );
+    for (const route of [
+      "GET /admin/people/blocks:",
+      "GET /admin/people/blocks/impact?pattern=",
+      "POST /admin/people/blocks `{ pattern, note 1..300 }`",
+      "DELETE /admin/people/blocks/{id}: 204",
+    ]) {
+      expect(prompt).toContain(route);
+    }
+    expect(prompt).toContain(
+      "SignupBlock = `{ id, pattern, kind \"address\"|\"domain\", note, createdBy, createdAt, matchingCount }`"
+    );
+    expect(prompt).toContain(
+      "SignupBlockImpact = `{ pattern, kind, people: [{ id, email }], subscriptions, cookies }`"
+    );
+    expect(prompt).toContain(
+      "A block removes every matching account in the same write"
+    );
+    expect(prompt).toContain("409 block_exists, 502 upstream_failed");
+  });
+
   it("the prompt carries none of the stale statements and no dashes", () => {
     const prompt = buildAgentPrompt("https://api.example");
     for (const stale of [
@@ -312,6 +337,7 @@ describe("AgentsPage", () => {
       "tracker copies the source's map and enabled theme set; the box always copies.",
       "An event created without trackerBbox gets the site settings' box.",
       "the map and the enabled theme set are copied from the event with the greatest year",
+      "DELETE .../{id} (takes their subscriptions and cookies), GET .../{id}/impact.",
     ]) {
       expect(prompt).not.toContain(stale);
     }

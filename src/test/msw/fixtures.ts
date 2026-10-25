@@ -25,6 +25,8 @@ import type {
   PageAdmin,
   PageDetail,
   Person,
+  SignupBlock,
+  SignupBlockImpact,
   Place,
   PlacePin,
   Poster,
@@ -454,6 +456,37 @@ export const subscribers: SubscriberAdmin[] = [
 export const people: (Person & { cookieCount: number })[] = [
   { id: 1, email: "person@example.com", createdAt: NOW, lastSeenAt: NOW, cookieCount: 4 },
 ];
+
+// Newest first, as GET /admin/people/blocks answers.
+export const signupBlocks: SignupBlock[] = [
+  {
+    id: 7,
+    pattern: "*@spam.example",
+    kind: "domain",
+    note: "spam sign-ups",
+    createdBy: AUTHOR,
+    createdAt: NOW,
+    matchingCount: 2,
+  },
+  {
+    id: 6,
+    pattern: "troll@example.com",
+    kind: "address",
+    note: "abusive messages",
+    createdBy: AUTHOR,
+    createdAt: NOW,
+    matchingCount: 0,
+  },
+];
+
+// The impact of a block on `*@example.com`: the one fixture person.
+export const signupBlockImpact: SignupBlockImpact = {
+  pattern: "*@example.com",
+  kind: "domain",
+  people: [{ id: 1, email: "person@example.com" }],
+  subscriptions: 1,
+  cookies: 4,
+};
 
 export const contactMessages: ContactMessage[] = [
   {

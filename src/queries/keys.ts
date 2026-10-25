@@ -29,6 +29,7 @@ export const keys = {
   subscribers: (status: SubscriberStatus | undefined) =>
     ["subscribers", "list", status ?? "all"] as const,
   people: ["people"] as const,
+  peopleBlocks: ["people", "blocks"] as const,
   contactMessages: ["contact-messages"] as const,
   snapshot: ["snapshot"] as const,
   live: ["live"] as const,
