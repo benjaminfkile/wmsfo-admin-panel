@@ -7,6 +7,7 @@ import {
   enrollRunBeacon,
   fetchAdminAccessToken,
   listEvents,
+  postRunFix,
   readAdmin,
   readDevCdnBase,
   releaseRunBeacon,
@@ -143,6 +144,7 @@ test.describe("events lifecycle", () => {
     await expect(live).toBeEnabled({ timeout: 30_000 });
     await live.click();
     await changeWithoutNotifying(page);
+    await postRunFix(beacon!);
     await waitForCdnJson<Live>(cdnUrl, (j) => j.eventStatusId === 3);
 
     await page.getByRole("button", { name: /^ended$/i }).click();

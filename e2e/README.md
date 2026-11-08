@@ -34,8 +34,9 @@ with `otpauth`.
 `.github/workflows/e2e.yml` runs on `workflow_dispatch` and nightly at
 07:00 UTC. It uses the `dev` GitHub environment, whose secrets are:
 `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`, `E2E_ADMIN_TOTP_SECRET`,
-`E2E_EDITOR_EMAIL`, `E2E_EDITOR_PASSWORD`, and `E2E_EDITOR_TOTP_SECRET`,
-plus the `VITE_*` variables from `.env.example` pointing at the dev
+`E2E_EDITOR_EMAIL`, `E2E_EDITOR_PASSWORD`, `E2E_EDITOR_TOTP_SECRET`, and
+the failure notice's `E2E_ALERTS_ROLE_ARN` and `E2E_ALERTS_TOPIC_ARN`
+(a failed run emails the WMSFO alarms list through SNS), plus the `VITE_*` variables from `.env.example` pointing at the dev
 Cognito pool, API, CDN, and site.
 
 ## Against the dev stack
@@ -47,8 +48,10 @@ Things the specs rely on:
   hands back the ID token, which is what the panel sends as the bearer.
 - The specs bring what they need and leave dev as they found it. Specs 3,
   5, and 5a enroll a beacon for the run (`enrollRunBeacon`), make it active
-  and heartbeat it before going live, then reactivate the beacon that was
-  active and revoke theirs (`releaseRunBeacon`). Specs 5 and 5a find the
+  and heartbeat it before going live, post a location fix every 5 s while
+  an event is live (so the dev "no location while live" alarm stays quiet),
+  then reactivate the beacon that was active and revoke theirs
+  (`releaseRunBeacon`). Specs 5 and 5a find the
   walk event (year 2100, "E2E walk") or create it, and delete it afterwards
   when they created it (`setUpWalk`, `tearDownWalk`). "Current" goes back
   to the event that was current, or is cleared when none was

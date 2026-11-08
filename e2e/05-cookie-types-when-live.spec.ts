@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
+  adminApi,
   changeWithoutNotifying,
   fetchAdminAccessToken,
   readAdmin,
@@ -23,6 +24,10 @@ import {
 
 test.describe("cookie types are locked while an event is live", () => {
   let fixture: WalkFixture | null = null;
+  // The cookie type the test renames and its name before the run, so
+  // `afterAll` can put the name back if the test stops between the rename
+  // and the rename back.
+  let renamed: { id: number; name: string } | null = null;
 
   test.beforeAll(async ({ browser }) => {
     const adminToken = await fetchAdminAccessToken(browser);
@@ -31,7 +36,13 @@ test.describe("cookie types are locked while an event is live", () => {
   });
 
   test.afterAll(async () => {
-    if (fixture !== null) await tearDownWalk(fixture);
+    if (fixture === null) return;
+    if (renamed !== null) {
+      await adminApi(fixture.token, "PATCH", `/admin/cookie-types/${renamed.id}`, {
+        name: renamed.name,
+      }).catch(() => undefined);
+    }
+    await tearDownWalk(fixture);
   });
 
   test("disabled while live, editable and deletable after end", async ({ page }) => {
@@ -63,20 +74,28 @@ test.describe("cookie types are locked while an event is live", () => {
     await expect(page.getByText(/is live. Cookie types/i)).toBeHidden();
     await expect(page.getByRole("button", { name: /new type/i })).toBeEnabled();
 
-    // Editing a row must round-trip. The row's pencil is the discoverable
-    // edit control (admin.md 1, edit-pencil convention).
+    // Editing a row must round-trip: rename the first type, see the new
+    // name, then rename it back. The row's pencil is the discoverable edit
+    // control (admin.md 1, edit-pencil convention).
     const firstRow = page.getByTestId(/^cookie-type-row-/).first();
-    await firstRow.getByRole("button", { name: /^edit /i }).click();
+    const rowTestId = (await firstRow.getAttribute("data-testid")) ?? "";
+    const row = page.getByTestId(rowTestId);
     const dialog = page.getByRole("dialog");
-    const nameField = dialog.getByLabel(/^name/i);
-    const before = (await nameField.inputValue()) || "cookie";
-    const after = before.endsWith(" (edited)")
-      ? before.slice(0, -" (edited)".length)
-      : `${before} (edited)`;
-    await nameField.fill(after);
-    await dialog.getByRole("button", { name: /^save$/i }).click();
+    const rename = async (name: string): Promise<void> => {
+      await row.getByRole("button", { name: /^edit /i }).click();
+      await dialog.getByLabel(/^name/i).fill(name);
+      await dialog.getByRole("button", { name: /^save$/i }).click();
+      await expect(dialog).toBeHidden();
+      await expect(row.getByText(name, { exact: true })).toBeVisible();
+    };
+    await row.getByRole("button", { name: /^edit /i }).click();
+    const original = await dialog.getByLabel(/^name/i).inputValue();
+    await dialog.getByRole("button", { name: /^cancel$/i }).click();
     await expect(dialog).toBeHidden();
-    await expect(firstRow.getByText(after, { exact: true })).toBeVisible();
+    renamed = { id: Number(rowTestId.replace(/^cookie-type-row-/, "")), name: original };
+    await rename(`${original} (e2e)`);
+    await rename(original);
+    renamed = null;
 
     // A fresh type can be created and deleted round-trip (M32: deleting a
     // cookie type no longer refuses when cookies exist - the impact

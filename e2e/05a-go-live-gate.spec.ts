@@ -5,12 +5,14 @@ import {
   fetchAdminAccessToken,
   listBeacons,
   postBeaconHeartbeat,
+  postRunFix,
   readAdmin,
   readDevCdnBase,
   setEventCurrent,
   setEventStatus,
   setUpWalk,
   signIn,
+  startRunFixes,
   tearDownWalk,
   waitForCdnJson,
   type WalkFixture,
@@ -93,6 +95,9 @@ test.describe("go-live gate refuses status 3 without a healthy active beacon", (
     // Post a heartbeat as the run's beacon and let the panel's poll pick
     // it up. Once the beacons query shows `healthy`, the button opens.
     await postBeaconHeartbeat(fixture.beacon.key);
+    // From here the run beacon posts a fix every 5 s, so once the walk is
+    // live the dev no-location alarm sees locations.
+    startRunFixes(fixture.beacon);
 
     // Confirm the heartbeat landed on the beacon the spec activated: read
     // the beacons list and assert the active beacon is that same one and
@@ -135,6 +140,7 @@ test.describe("go-live gate refuses status 3 without a healthy active beacon", (
 
     await liveBtn.click();
     await changeWithoutNotifying(page);
+    await postRunFix(fixture.beacon);
     await waitForCdnJson<Live>(
       `${readDevCdnBase()}/live/location.json`,
       (j) => j.eventStatusId === 3,

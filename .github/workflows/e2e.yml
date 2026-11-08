@@ -15,6 +15,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: dev
+    # id-token lets the failure notice assume the alerts role through
+    # GitHub's OIDC provider; no AWS keys are stored.
+    permissions:
+      contents: read
+      id-token: write
     env:
       # `vite preview` reads these at build time. The workflow points the
       # built bundle at the dev API, dev Cognito, and dev CDN, per § 9.3.
@@ -52,7 +57,7 @@ jobs:
         run: npm run build
 
       - name: run Playwright specs against vite preview
-        run: npm run e2e
+        run: npm run e2e 2>&1 | tee e2e-output.txt
 
       - name: upload Playwright report
         if: always()
@@ -69,3 +74,27 @@ jobs:
           name: playwright-artifacts
           path: test-results
           if-no-files-found: ignore
+
+      # On any failure (a spec, the build, or setup), email the WMSFO alarm
+      # list through the wmsfo-alarms SNS topic. The role can publish to that
+      # topic and nothing else; both ARNs are dev environment secrets.
+      - name: credentials for the failure notice
+        if: failure()
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.E2E_ALERTS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: email the failure notice
+        if: failure()
+        env:
+          TOPIC_ARN: ${{ secrets.E2E_ALERTS_TOPIC_ARN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          summary="The run stopped before the specs finished (setup or build failed)."
+          if [ -f e2e-output.txt ]; then
+            lines=$(sed 's/\x1b\[[0-9;]*m//g' e2e-output.txt | grep -E '^ +[0-9]+ (failed|flaky|passed|did not run)|^ +\[(chromium|mobile)\] ' | sort -u || true)
+            if [ -n "$lines" ]; then summary="$lines"; fi
+          fi
+          message=$(printf 'The admin panel end-to-end run against dev failed (%s, %s on %s).\n\n%s\n\nReport and traces: %s\n' "${{ github.event_name }}" "${{ github.ref_name }}" "${GITHUB_SHA::7}" "$summary" "$RUN_URL")
+          aws sns publish --topic-arn "$TOPIC_ARN" --subject "WMSFO admin panel e2e failed" --message "$message" > /dev/null

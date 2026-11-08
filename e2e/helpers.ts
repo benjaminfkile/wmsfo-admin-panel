@@ -276,7 +276,41 @@ export type RunBeacon = {
   id: number;
   key: string;
   prevActiveBeaconId: number | null;
+  fixTimer?: ReturnType<typeof setInterval>;
 };
+
+// A fixed point over Missoula. Every fix repeats it, so the first one is
+// stored and the rest are carried (contracts 4.2): published to the live
+// object without adding rows.
+const RUN_FIX = { lat: 46.8721, lng: -113.994 };
+const RUN_FIX_INTERVAL_MS = 5_000;
+
+// Post one location fix for the run's beacon (`POST /locations`, the HTTP
+// door of contracts 4.2). Outside a live event the API answers
+// `409 no_live_event`, which is ignored.
+export async function postRunFix(b: RunBeacon): Promise<void> {
+  await fetch(`${readDevApiBase()}/locations`, {
+    method: "POST",
+    cache: "no-store",
+    headers: { "X-Beacon-Key": b.key, "Content-Type": "application/json" },
+    body: JSON.stringify({ ...RUN_FIX, recordedAt: new Date().toISOString() }),
+  }).catch(() => undefined);
+}
+
+// While an event is live the run's beacon posts a fix every 5 s, as a real
+// flight would, so the dev "no location while live" alarm (live with no
+// location published in two consecutive minutes) stays quiet during a run. Starts once;
+// `releaseRunBeacon` stops it.
+export function startRunFixes(b: RunBeacon): void {
+  if (b.fixTimer !== undefined) return;
+  void postRunFix(b);
+  b.fixTimer = setInterval(() => void postRunFix(b), RUN_FIX_INTERVAL_MS);
+}
+
+function stopRunFixes(b: RunBeacon): void {
+  if (b.fixTimer !== undefined) clearInterval(b.fixTimer);
+  b.fixTimer = undefined;
+}
 
 export async function enrollRunBeacon(token: string): Promise<RunBeacon> {
   const beacons = await listBeacons(token);
@@ -294,13 +328,15 @@ export async function enrollRunBeacon(token: string): Promise<RunBeacon> {
 }
 
 // Make the run's beacon the active one and post a heartbeat for it, so the
-// go-live gate sees a healthy active beacon.
+// go-live gate sees a healthy active beacon, and start its fixes.
 export async function activateRunBeacon(b: RunBeacon): Promise<void> {
   await activateBeacon(b.token, b.id);
   await postBeaconHeartbeat(b.key);
+  startRunFixes(b);
 }
 
 export async function releaseRunBeacon(b: RunBeacon): Promise<void> {
+  stopRunFixes(b);
   if (b.prevActiveBeaconId !== null) {
     await quiet(activateBeacon(b.token, b.prevActiveBeaconId));
   }
@@ -351,7 +387,14 @@ export async function tearDownWalk(f: WalkFixture): Promise<void> {
   await quiet(restoreCurrentEvent(f.token, f.prevCurrentEventId));
   await releaseRunBeacon(f.beacon);
   if (f.createdWalk) {
+    // DELETE takes the event's locations with it.
     await quiet(deleteEvent(f.token, f.walk.id));
+  } else {
+    // A walk event that was already there keeps no rows from this run.
+    // The dev fleet's own beacons (the Red-Nose phone, the simulator) post
+    // to whichever event is live too, so clear every beacon's rows; the
+    // walk event is the suite's own.
+    await quiet(adminApi(f.token, "DELETE", `/admin/events/${f.walk.id}/locations`));
   }
 }
 
@@ -373,6 +416,8 @@ export async function setWalkEventStatus(
   if (Number(walk.statusId) !== statusId) {
     await setEventStatus(f.token, walk.id, statusId);
   }
+  // Publish a location the moment the walk is live, not on the next tick.
+  if (statusId === 3) await postRunFix(f.beacon);
 }
 
 // Sign-in walks the Cognito managed login pages: username, password, TOTP.
