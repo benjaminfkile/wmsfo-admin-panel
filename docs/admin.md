@@ -1573,7 +1573,7 @@ The workflow runs on `workflow_dispatch` and nightly at 07:00 UTC, not on every 
 
 ## 10. CI and deploy
 
-`.github/workflows/ci.yml` on every push and pull request, Node 20: `npm ci`; `npm run check:contracts` (fetches the API repository at `CONTRACTS_SHA` and diffs its `contracts/` against the vendored copy); `npm run gen:api-types` followed by `git diff --exit-code src/api/schema.d.ts`; `npm run typecheck`; `npm run lint`; `npm test`; `npm run build`.
+`.github/workflows/ci.yml` on every push and pull request, Node 24: `npm ci`; `npm run check:contracts` (fetches the API repository at `CONTRACTS_SHA` and diffs its `contracts/` against the vendored copy); `npm run gen:api-types` followed by `git diff --exit-code src/api/schema.d.ts`; `npm run typecheck`; `npm run lint`; `npm test`; `npm run build`.
 
 `.github/workflows/e2e.yml` (section 9.3) uses the `dev` GitHub environment: `VITE_ENV=dev` and the `VITE_*` values (`VITE_API_BASE_URL`, `VITE_CDN_BASE_URL`, `VITE_COGNITO_AUTHORITY`, `VITE_COGNITO_DOMAIN`, `VITE_COGNITO_CLIENT_ID`, `VITE_SITE_BASE_URL`, `VITE_GOOGLE_MAPS_KEY`) from the environment's variables (the build refuses to start without the last two), the `E2E_*` secrets plus `E2E_BEACON_KEY`, installs Chromium, builds, runs `npm run e2e` (both the `chromium` and the `mobile` project), and uploads the Playwright report (always) and the traces (on failure).
 
