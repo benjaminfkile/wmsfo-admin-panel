@@ -1,41 +1,37 @@
 import { expect, test } from "@playwright/test";
 import {
+  changeWithoutNotifying,
   fetchAdminAccessToken,
-  listEvents,
   readAdmin,
-  setEventCurrent,
+  setUpWalk,
   setWalkEventStatus,
   signIn,
+  tearDownWalk,
+  type WalkFixture,
 } from "./helpers";
 
 // Spec 5 (docs/admin.md § 9.3): with the event live, cookie type controls
 // are disabled; after ended, a type can be edited, a fresh type can be
 // created and deleted, and Delete is disabled on a type with cookies.
 //
-// Precondition: the dev walk event (year 2100, site.md § 22.2) is set live
-// through the API before the test runs and ended again after, so this spec
-// carries its own environment and does not require any other spec to have
-// run first. The event that was current when the spec started is restored
-// in `afterAll` so the dev stack ends where it began.
+// The spec brings what it needs: `setUpWalk` finds or creates the walk
+// event (year 2100) and enrolls a beacon for the run, then the walk is set
+// live through the API (current, the run's beacon active and heartbeated).
+// `tearDownWalk` ends the walk, restores the current event and the active
+// beacon, revokes the run's beacon, and deletes the walk event when this run
+// created it, so the dev stack ends where it began.
 
 test.describe("cookie types are locked while an event is live", () => {
-  let adminToken: string | null = null;
-  let prevCurrentEventId: number | null = null;
+  let fixture: WalkFixture | null = null;
 
   test.beforeAll(async ({ browser }) => {
-    adminToken = await fetchAdminAccessToken(browser);
-    const events = await listEvents(adminToken);
-    prevCurrentEventId = events.find((e) => e.isCurrent)?.id ?? null;
-    await setWalkEventStatus(adminToken, 3);
+    const adminToken = await fetchAdminAccessToken(browser);
+    fixture = await setUpWalk(adminToken);
+    await setWalkEventStatus(fixture, 3);
   });
 
   test.afterAll(async () => {
-    if (adminToken === null) return;
-    // Idempotent: on 409 event_status_unchanged the event is already ended.
-    await setWalkEventStatus(adminToken, 4).catch(() => undefined);
-    if (prevCurrentEventId !== null) {
-      await setEventCurrent(adminToken, prevCurrentEventId).catch(() => undefined);
-    }
+    if (fixture !== null) await tearDownWalk(fixture);
   });
 
   test("disabled while live, editable and deletable after end", async ({ page }) => {
@@ -61,11 +57,7 @@ test.describe("cookie types are locked while an event is live", () => {
       .first();
     await currentRow.getByRole("link", { name: /^edit /i }).click();
     await page.getByRole("button", { name: /^ended$/i }).click();
-    await page
-      .getByRole("dialog")
-      .getByRole("button", { name: /^change status$/i })
-      .click();
-    await expect(page.getByRole("dialog")).toBeHidden();
+    await changeWithoutNotifying(page);
 
     await page.getByRole("link", { name: "Cookie types", exact: true }).click();
     await expect(page.getByText(/is live. Cookie types/i)).toBeHidden();

@@ -34,9 +34,6 @@ jobs:
       E2E_EDITOR_EMAIL: ${{ secrets.E2E_EDITOR_EMAIL }}
       E2E_EDITOR_PASSWORD: ${{ secrets.E2E_EDITOR_PASSWORD }}
       E2E_EDITOR_TOTP_SECRET: ${{ secrets.E2E_EDITOR_TOTP_SECRET }}
-      # Only the mobile spec goes through the go-live gate, but the walk
-      # beacon key stays in the environment so spec 5a also has it.
-      E2E_BEACON_KEY: ${{ secrets.E2E_BEACON_KEY }}
     steps:
       - uses: actions/checkout@v4
 

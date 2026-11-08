@@ -8,7 +8,7 @@ describes the CI wiring.
 ## Local run
 
 Copy `.env.example` to `.env.local`, fill in the eight dev `VITE_*`
-variables, and set the dev users and the walk beacon's key:
+variables, and set the dev users:
 
 ```
 E2E_ADMIN_EMAIL=<dev admin email>
@@ -17,7 +17,6 @@ E2E_ADMIN_TOTP_SECRET=<base32 secret>
 E2E_EDITOR_EMAIL=<dev editor email>
 E2E_EDITOR_PASSWORD=<dev editor password>
 E2E_EDITOR_TOTP_SECRET=<base32 secret>
-E2E_BEACON_KEY=<the e2e walk beacon's key>
 ```
 
 Then:
@@ -35,9 +34,9 @@ with `otpauth`.
 `.github/workflows/e2e.yml` runs on `workflow_dispatch` and nightly at
 07:00 UTC. It uses the `dev` GitHub environment, whose secrets are:
 `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`, `E2E_ADMIN_TOTP_SECRET`,
-`E2E_EDITOR_EMAIL`, `E2E_EDITOR_PASSWORD`, `E2E_EDITOR_TOTP_SECRET`, and
-`E2E_BEACON_KEY`, plus the `VITE_*` variables from `.env.example` pointing
-at the dev Cognito pool, API, CDN, and site.
+`E2E_EDITOR_EMAIL`, `E2E_EDITOR_PASSWORD`, and `E2E_EDITOR_TOTP_SECRET`,
+plus the `VITE_*` variables from `.env.example` pointing at the dev
+Cognito pool, API, CDN, and site.
 
 ## Against the dev stack
 
@@ -46,10 +45,19 @@ Things the specs rely on:
 - `signIn` in `helpers.ts` waits for the panel origin, the OIDC user in
   `sessionStorage`, and the drawer before returning; `fetchAdminAccessToken`
   hands back the ID token, which is what the panel sends as the bearer.
+- The specs bring what they need and leave dev as they found it. Specs 3,
+  5, and 5a enroll a beacon for the run (`enrollRunBeacon`), make it active
+  and heartbeat it before going live, then reactivate the beacon that was
+  active and revoke theirs (`releaseRunBeacon`). Specs 5 and 5a find the
+  walk event (year 2100, "E2E walk") or create it, and delete it afterwards
+  when they created it (`setUpWalk`, `tearDownWalk`). "Current" goes back
+  to the event that was current, or is cleared when none was
+  (`restoreCurrentEvent`). Status changes always take the silent path, so a
+  run emails no one.
 - Spec 3 creates its event in an unused year (one event per year, 2000 to
-  2100), drives "Set current" and the status walk from the event's detail
-  page, and hands "current" back to the standing walk event before deleting
-  its own. Spec 5 ends the current event from its detail page the same way.
+  2100) and drives "Set current" and the status walk from the event's detail
+  page; `beforeAll` deletes events an interrupted run left behind. Spec 5
+  ends the current event from its detail page the same way.
 - Spec 7 records the published version id first, exercises the usage
   guard with an asset only the draft references (a published asset stays
   referenced by the version history and cannot be deleted), publishes with

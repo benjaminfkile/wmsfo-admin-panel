@@ -1,26 +1,38 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
+  activateRunBeacon,
+  adminApi,
+  changeWithoutNotifying,
   deleteEvent,
+  enrollRunBeacon,
   fetchAdminAccessToken,
   listEvents,
   readAdmin,
   readDevCdnBase,
-  setEventCurrent,
+  releaseRunBeacon,
+  restoreCurrentEvent,
   setEventStatus,
   signIn,
   waitForCdnJson,
+  type RunBeacon,
 } from "./helpers";
 
 // Spec 3 (docs/admin.md § 9.3): create an event; set it current; walk
 // planned → scheduled → live → ended through the confirmations; after each change `GET <dev cdn>/live/location.json`
 // reports the new eventStatusId within 10 s.
 //
-// `afterAll` restores the event that was current when the spec started
-// and deletes this run's event through `DELETE /admin/events/{id}`
-// (contracts 4.5 Events), so the dev events list is unchanged whether
-// the test passed, failed, or was interrupted.
+// The spec brings what it needs: `beforeAll` removes events an interrupted
+// run left behind (named "e2e event ..."), records the current event, and
+// enrolls a run beacon, which is made active and heartbeated before Live so
+// the go-live gate admits status 3. `afterAll` puts "current" back (to the
+// event that was current, or to none), deletes this run's event through
+// `DELETE /admin/events/{id}` (contracts 4.5 Events), and releases the run
+// beacon, so the dev stack is unchanged whether the test passed, failed, or
+// was interrupted.
 
 type Live = { eventId: number | null; eventStatusId: number | null; publishedAt: string };
+
+const RUN_EVENT_NAME = /^e2e event \d+$/;
 
 test.describe("events lifecycle", () => {
   test.setTimeout(180_000);
@@ -28,26 +40,41 @@ test.describe("events lifecycle", () => {
   let adminToken: string | null = null;
   let prevCurrentEventId: number | null = null;
   let createdEventId: number | null = null;
+  let beacon: RunBeacon | null = null;
 
   test.beforeAll(async ({ browser }) => {
-    adminToken = await fetchAdminAccessToken(browser);
-    const events = await listEvents(adminToken);
-    prevCurrentEventId = events.find((e) => e.isCurrent)?.id ?? null;
+    const token = await fetchAdminAccessToken(browser);
+    adminToken = token;
+    // Events left behind by an interrupted run would collide on year (one
+    // event per year) and may still hold "current"; detach, end, and delete
+    // them before recording what was current.
+    for (const e of await listEvents(token)) {
+      if (!RUN_EVENT_NAME.test(e.name)) continue;
+      if (e.isCurrent) {
+        await adminApi(token, "DELETE", `/admin/events/${e.id}/current`);
+      }
+      if (Number(e.statusId) === 3) await setEventStatus(token, e.id, 4);
+      await deleteEvent(token, e.id);
+    }
+    prevCurrentEventId = (await listEvents(token)).find((e) => e.isCurrent)?.id ?? null;
+    beacon = await enrollRunBeacon(token);
   });
 
   test.afterAll(async () => {
     if (adminToken === null) return;
-    // Detach "current" from this run's event first (DELETE cascades but
-    // does not run on a current event), then push it to `ended` in case
-    // the test bailed while it was still live (`DELETE` answers
-    // `409 event_live` at status 3), then remove the row.
-    if (prevCurrentEventId !== null) {
-      await setEventCurrent(adminToken, prevCurrentEventId).catch(() => undefined);
-    }
+    const quiet = (p: Promise<unknown>) => p.catch(() => undefined);
+    // Push this run's event to `ended` in case the test bailed while it was
+    // still live (`DELETE` answers `409 event_live` at status 3), hand
+    // "current" back (DELETE does not run on a current event), then remove
+    // the row.
     if (createdEventId !== null) {
-      await setEventStatus(adminToken, createdEventId, 4).catch(() => undefined);
-      await deleteEvent(adminToken, createdEventId).catch(() => undefined);
+      await quiet(setEventStatus(adminToken, createdEventId, 4));
     }
+    await quiet(restoreCurrentEvent(adminToken, prevCurrentEventId));
+    if (createdEventId !== null) {
+      await quiet(deleteEvent(adminToken, createdEventId));
+    }
+    if (beacon !== null) await releaseRunBeacon(beacon);
   });
 
   test("create → current → planned → scheduled → live → ended, CDN follows", async ({ page }) => {
@@ -58,14 +85,9 @@ test.describe("events lifecycle", () => {
 
     await page.getByRole("navigation").locator('a[href="/events"]').click();
     await page.getByRole("button", { name: /new event/i }).waitFor();
-    // The standing walk event is always listed; wait for the rows before
-    // reading them.
+    // Past flyovers are always listed; wait for the rows before reading
+    // them.
     await page.getByTestId(/^event-row-/).first().waitFor();
-
-    // Events left behind by an interrupted run would collide on year (one
-    // event per year); delete them before creating this run's event. A row's
-    // text starts with its year, so the name pattern is not anchored.
-    await deleteEventsNamed(page, /e2e event/);
 
     // One event per year, years 2000 to 2100; pick a year no row uses.
     const usedYears = new Set(
@@ -96,19 +118,30 @@ test.describe("events lifecycle", () => {
 
     // Planned (status 1) is the initial state after "set current".
     await waitForCdnJson<Live>(cdnUrl, (j) => j.eventStatusId === 1);
-    await expect(page.getByRole("button", { name: /^save$/i })).toBeVisible();
+    // The detail page has two Save buttons (event details and the tracker
+    // map); the schedule belongs to the details card.
+    const detailsSave = page
+      .getByTestId("event-details-actions")
+      .getByRole("button", { name: /^save$/i });
+    await expect(detailsSave).toBeVisible();
 
     const now = new Date();
     now.setMinutes(now.getMinutes() + 5);
     const iso = now.toISOString().slice(0, 16);
     await page.getByLabel(/scheduled at/i).fill(iso);
-    await page.getByRole("button", { name: /^save$/i }).click();
+    await detailsSave.click();
 
     await page.getByRole("button", { name: /^scheduled$/i }).click();
     await changeWithoutNotifying(page);
     await waitForCdnJson<Live>(cdnUrl, (j) => j.eventStatusId === 2);
 
-    await page.getByRole("button", { name: /^live$/i }).click();
+    // The go-live gate needs a healthy active beacon: make the run's beacon
+    // active, post a heartbeat, and wait for the panel's beacons poll to
+    // enable Live.
+    await activateRunBeacon(beacon!);
+    const live = page.getByRole("button", { name: /^live$/i });
+    await expect(live).toBeEnabled({ timeout: 30_000 });
+    await live.click();
     await changeWithoutNotifying(page);
     await waitForCdnJson<Live>(cdnUrl, (j) => j.eventStatusId === 3);
 
@@ -119,40 +152,3 @@ test.describe("events lifecycle", () => {
     await expect(page.getByText(/ended/i).first()).toBeVisible();
   });
 });
-
-// Confirm the status change through StatusDialog's silent path (admin.md
-// 6.3): press "Change without notifying", then confirm the nested
-// dialog.
-async function changeWithoutNotifying(page: Page): Promise<void> {
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: /^change without notifying$/i })
-    .click();
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: /^change without notifying$/i })
-    .click();
-  await expect(page.getByRole("dialog")).toBeHidden();
-}
-
-// Delete every event row whose name matches, through the row's actions
-// menu (Delete lives in the row menu per M19, admin.md 1) and its
-// confirmation. Rows that are current cannot be deleted; callers hand
-// "current" elsewhere first. Used only to clean up rows left behind by
-// an interrupted earlier run; this run's own event is deleted through
-// the API in `afterAll`.
-async function deleteEventsNamed(page: Page, name: RegExp): Promise<void> {
-  for (;;) {
-    const row = page.getByTestId(/^event-row-/).filter({ hasText: name }).first();
-    if ((await row.count()) === 0) return;
-    const before = await page.getByTestId(/^event-row-/).count();
-    await row.getByRole("button", { name: /^actions for/i }).click();
-    await page.getByRole("menuitem", { name: /^delete$/i }).click();
-    // The DeleteDialog (admin.md 8.3) titles with the event name and
-    // keeps confirm disabled until the impact preview has loaded.
-    const dialog = page.getByRole("dialog", { name: /^delete /i });
-    await expect(dialog.getByRole("button", { name: /^delete$/i })).toBeEnabled();
-    await dialog.getByRole("button", { name: /^delete$/i }).click();
-    await expect(page.getByTestId(/^event-row-/)).toHaveCount(before - 1);
-  }
-}

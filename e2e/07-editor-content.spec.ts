@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
   fetchAdminAccessToken,
   readDevCdnBase,
@@ -116,13 +116,14 @@ test.describe("editor authoring flow", () => {
     await pagesListed;
     await page.getByRole("link", { name: "About the flyover", exact: true }).click();
 
-    // Rich text section with a paragraph.
-    await page.getByRole("button", { name: /add section/i }).click();
-    await page.getByRole("button", { name: /rich text/i }).click();
+    // Rich text section with a paragraph. The new section opens expanded
+    // with one default paragraph block whose field is labelled "Text"; the
+    // page's own sections carry Text fields too, so fill the one inside the
+    // section this run added.
+    const richText = await addSection(page, /rich text/i);
     const paragraph = `e2e paragraph ${Date.now()}`;
-    // The new section lands at the end of the stack with one default paragraph
-    // block whose field is labelled "Text"; take the last Text box on the page.
-    await page.getByLabel(/^text$/i).last().fill(paragraph);
+    await richText.getByLabel(/^text$/i).first().fill(paragraph);
+    await waitForSectionSaved(page, richText);
 
     // An asset a draft section references deletes all the same: the API
     // clears the reference and the card goes. The published half uses a
@@ -135,7 +136,7 @@ test.describe("editor authoring flow", () => {
 
     await page.getByRole("link", { name: "Pages", exact: true }).click();
     await page.getByRole("link", { name: "About the flyover", exact: true }).click();
-    await addMediaSection(page, draftRe);
+    const draftSectionId = await addMediaSection(page, draftRe);
 
     await page.getByRole("link", { name: "Media", exact: true }).click();
     await page.getByTestId(/^media-card-/).filter({ hasText: draftRe }).first().click();
@@ -150,7 +151,7 @@ test.describe("editor authoring flow", () => {
 
     await page.getByRole("link", { name: "Pages", exact: true }).click();
     await page.getByRole("link", { name: "About the flyover", exact: true }).click();
-    await deleteLastSection(page);
+    await deleteSection(page, draftSectionId);
 
     await page.getByRole("link", { name: "Media", exact: true }).click();
 
@@ -175,8 +176,11 @@ test.describe("editor authoring flow", () => {
     const cdnUrl = `${readDevCdnBase()}/live/location.json`;
     const live0 = (await (await fetch(cdnUrl, { cache: "no-store" })).json()) as Live;
     await page.getByRole("link", { name: "Publish", exact: true }).click();
+    await page.waitForURL((url) => url.pathname.endsWith("/publish"));
     const label = `e2e publish ${Date.now()}`;
-    await page.getByRole("button", { name: /^publish$/i }).click();
+    // The app bar carries a Publish button of its own; use the Publish
+    // page's.
+    await page.getByRole("main").getByRole("button", { name: /^publish$/i }).click();
     const publishDialog = page.getByRole("dialog", { name: /publish draft/i });
     await publishDialog.getByLabel(/^label/i).fill(label);
     await publishDialog.getByRole("button", { name: /^publish$/i }).click();
@@ -220,12 +224,36 @@ async function uploadPng(page: Page, name: string): Promise<void> {
   ).toBeVisible({ timeout: 30_000 });
 }
 
-// Add a media section at the end of the open page, one item choosing the
-// named asset. Media sections are created with no items, so add one first.
-async function addMediaSection(page: Page, assetName: RegExp): Promise<void> {
+// Add a section of the given kind to the open page and return its card.
+// The card is found by the test id that appears with the add, not by its
+// place in the stack, so the page's own sections are never touched.
+async function addSection(page: Page, kind: RegExp): Promise<Locator> {
+  const cards = page.getByTestId(/^section-card-/);
+  await expect(cards.first().or(page.getByText("No sections yet."))).toBeVisible();
+  const ids = () =>
+    cards.evaluateAll((els) => els.map((e) => e.getAttribute("data-testid") ?? ""));
+  const before = new Set(await ids());
   await page.getByRole("button", { name: /add section/i }).click();
-  await page.getByRole("button", { name: /^media\b/i }).click();
-  const section = page.getByTestId(/^section-card-/).last();
+  await page.getByRole("button", { name: kind }).click();
+  await expect(cards).toHaveCount(before.size + 1);
+  const added = (await ids()).find((id) => !before.has(id));
+  if (added === undefined) throw new Error("the new section card did not appear");
+  return page.getByTestId(added);
+}
+
+// The editor saves each section a second after its last change; let the
+// save fire and settle before leaving the page.
+async function waitForSectionSaved(page: Page, section: Locator): Promise<void> {
+  await page.waitForTimeout(1500);
+  await expect(section.getByText(/saving/i)).toHaveCount(0, { timeout: 15_000 });
+  await expect(section.getByText(/not saved/i)).toHaveCount(0);
+}
+
+// Add a media section to the open page, one item choosing the named asset,
+// and return the section card's test id. Media sections are created with no
+// items, so add one first.
+async function addMediaSection(page: Page, assetName: RegExp): Promise<string> {
+  const section = await addSection(page, /^media\b/i);
   await section.getByRole("button", { name: /^add item$/i }).click();
   await section.getByRole("button", { name: /^choose$/i }).first().click();
   const picker = page.getByRole("dialog", { name: /choose media/i });
@@ -236,18 +264,15 @@ async function addMediaSection(page: Page, assetName: RegExp): Promise<void> {
     .click();
   await picker.getByRole("button", { name: /^choose$/i }).click();
   await expect(picker).toBeHidden();
-  // The editor saves each section a second after its last change; let the
-  // save fire and settle before leaving the page.
-  await page.waitForTimeout(1500);
-  await expect(section.getByText(/saving/i)).toHaveCount(0, { timeout: 15_000 });
-  await expect(section.getByText(/not saved/i)).toHaveCount(0);
+  await waitForSectionSaved(page, section);
+  return (await section.getAttribute("data-testid")) ?? "";
 }
 
-// Delete the last section on the open page through its menu.
-async function deleteLastSection(page: Page): Promise<void> {
-  await page.getByTestId(/^section-card-/).first().waitFor();
+// Delete the section with the given card test id through its menu.
+async function deleteSection(page: Page, testId: string): Promise<void> {
+  const section = page.getByTestId(testId);
+  await section.waitFor();
   const before = await page.getByTestId(/^section-card-/).count();
-  const section = page.getByTestId(/^section-card-/).last();
   await section.getByRole("button", { name: /section menu/i }).click();
   await page.getByRole("menuitem", { name: /^delete$/i }).click();
   await page

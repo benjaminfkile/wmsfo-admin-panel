@@ -1,4 +1,4 @@
-import type { Browser, Page, TestInfo } from "@playwright/test";
+import { expect, type Browser, type Page, type TestInfo } from "@playwright/test";
 import { TOTP } from "otpauth";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -219,12 +219,11 @@ export async function activateBeacon(
   await adminApi(token, "POST", `/admin/beacons/${beaconId}/activate`);
 }
 
-// Post a heartbeat as the e2e walk beacon so the API's go-live gate
-// (admin.md 6.3, 8.2 no_healthy_beacon) admits status 3. `E2E_BEACON_KEY`
-// carries the walk beacon's key; the beacon endpoints require the
-// `X-Beacon-Key` header (contracts 4.2) and refuse a bearer key with 401.
-export async function postWalkBeaconHeartbeat(): Promise<void> {
-  const key = required("E2E_BEACON_KEY");
+// Post a heartbeat with the given beacon key so the API's go-live gate
+// (admin.md 6.3, 8.2 no_healthy_beacon) admits status 3 while that beacon is
+// the active one. The beacon endpoints require the `X-Beacon-Key` header
+// (contracts 4.2) and refuse a bearer key with 401.
+export async function postBeaconHeartbeat(key: string): Promise<void> {
   const res = await fetch(`${readDevApiBase()}/beacons/heartbeat`, {
     method: "POST",
     cache: "no-store",
@@ -248,38 +247,132 @@ export async function postWalkBeaconHeartbeat(): Promise<void> {
   }
 }
 
-// Find the dev walk event (year 2100, site.md § 22.2) and drive it into the
-// requested status through the API. `isCurrent` is set first if needed since
-// status 3 requires the current flag; a fresh heartbeat is posted before
-// status 3 so the API's healthy-beacon gate admits the change.
-export async function setWalkEventStatus(
+// Put "current" back the way a spec found it: the event that was current,
+// or no current event at all when none was.
+export async function restoreCurrentEvent(
   token: string,
-  statusId: number,
-): Promise<EventRow> {
-  const list = (await adminApi(token, "GET", "/admin/events")) as {
-    items: EventRow[];
-  };
-  const walk = (list.items ?? []).find((e) => Number(e.year) === 2100);
-  if (walk === undefined) {
-    throw new Error(
-      "dev walk event (year 2100, site.md § 22.2) not found in /admin/events",
-    );
+  prevCurrentEventId: number | null,
+): Promise<void> {
+  if (prevCurrentEventId !== null) {
+    await setEventCurrent(token, prevCurrentEventId);
+    return;
   }
-  if (statusId === 3 && !walk.isCurrent) {
-    await adminApi(token, "POST", `/admin/events/${walk.id}/current`);
+  const current = (await listEvents(token)).find((e) => e.isCurrent);
+  if (current !== undefined) {
+    await adminApi(token, "DELETE", `/admin/events/${current.id}/current`);
+  }
+}
+
+const quiet = (p: Promise<unknown>) => p.catch(() => undefined);
+
+// A beacon of the run's own, for the specs that go live: the go-live gate
+// (admin.md 6.3) needs a healthy active beacon, and the dev fleet's beacons
+// are real devices whose keys the suite does not hold. `enrollRunBeacon`
+// records the active beacon and enrolls a fresh one (never heartbeated, so
+// it starts stale); `releaseRunBeacon` puts the active beacon back and
+// revokes the run's one.
+export type RunBeacon = {
+  token: string;
+  id: number;
+  key: string;
+  prevActiveBeaconId: number | null;
+};
+
+export async function enrollRunBeacon(token: string): Promise<RunBeacon> {
+  const beacons = await listBeacons(token);
+  const prevActiveBeaconId = beacons.items.find((b) => b.isActive)?.id ?? null;
+  const enrolled = (await adminApi(token, "POST", "/admin/beacons", {
+    name: `e2e-run-${Date.now()}`,
+    notes: "Created by the e2e suite for one run; revoked when the spec ends",
+  })) as { beacon: { id: number }; key: string };
+  return {
+    token,
+    id: Number(enrolled.beacon.id),
+    key: enrolled.key,
+    prevActiveBeaconId,
+  };
+}
+
+// Make the run's beacon the active one and post a heartbeat for it, so the
+// go-live gate sees a healthy active beacon.
+export async function activateRunBeacon(b: RunBeacon): Promise<void> {
+  await activateBeacon(b.token, b.id);
+  await postBeaconHeartbeat(b.key);
+}
+
+export async function releaseRunBeacon(b: RunBeacon): Promise<void> {
+  if (b.prevActiveBeaconId !== null) {
+    await quiet(activateBeacon(b.token, b.prevActiveBeaconId));
+  }
+  await quiet(adminApi(b.token, "POST", `/admin/beacons/${b.id}/revoke`));
+}
+
+export const WALK_YEAR = 2100;
+export const WALK_NAME = "E2E walk";
+
+// What the walk specs (5 and 5a) need on the dev stack, created by the
+// specs themselves: the walk event (year 2100; reused when one exists,
+// created otherwise) and a run beacon. `setUpWalk` records the current
+// event first; `tearDownWalk` ends the walk, restores the current event
+// and the active beacon, revokes the run's beacon, and deletes the walk
+// event when the run created it, so dev ends where it began.
+export type WalkFixture = {
+  token: string;
+  walk: EventRow;
+  createdWalk: boolean;
+  beacon: RunBeacon;
+  prevCurrentEventId: number | null;
+};
+
+export async function setUpWalk(token: string): Promise<WalkFixture> {
+  const events = await listEvents(token);
+  const prevCurrentEventId = events.find((e) => e.isCurrent)?.id ?? null;
+  let walk = events.find((e) => Number(e.year) === WALK_YEAR);
+  let createdWalk = false;
+  if (walk === undefined) {
+    walk = (await adminApi(token, "POST", "/admin/events", {
+      year: WALK_YEAR,
+      name: WALK_NAME,
+    })) as EventRow;
+    createdWalk = true;
+  }
+  return {
+    token,
+    walk,
+    createdWalk,
+    beacon: await enrollRunBeacon(token),
+    prevCurrentEventId,
+  };
+}
+
+export async function tearDownWalk(f: WalkFixture): Promise<void> {
+  // Ended first: DELETE answers 409 event_live at status 3.
+  await quiet(setEventStatus(f.token, f.walk.id, 4));
+  await quiet(restoreCurrentEvent(f.token, f.prevCurrentEventId));
+  await releaseRunBeacon(f.beacon);
+  if (f.createdWalk) {
+    await quiet(deleteEvent(f.token, f.walk.id));
+  }
+}
+
+// Drive the walk event into the requested status through the API. Status 3
+// needs the walk current and a healthy active beacon, so both are arranged
+// first.
+export async function setWalkEventStatus(
+  f: WalkFixture,
+  statusId: number,
+): Promise<void> {
+  const walk = (await listEvents(f.token)).find((e) => e.id === f.walk.id);
+  if (walk === undefined) {
+    throw new Error(`walk event ${f.walk.id} is gone from /admin/events`);
   }
   if (statusId === 3) {
-    await postWalkBeaconHeartbeat();
+    if (!walk.isCurrent) await setEventCurrent(f.token, walk.id);
+    await activateRunBeacon(f.beacon);
   }
   if (Number(walk.statusId) !== statusId) {
-    return (await adminApi(
-      token,
-      "POST",
-      `/admin/events/${walk.id}/status`,
-      { statusId, notify: false, message: null },
-    )) as EventRow;
+    await setEventStatus(f.token, walk.id, statusId);
   }
-  return walk;
 }
 
 // Sign-in walks the Cognito managed login pages: username, password, TOTP.
@@ -361,6 +454,22 @@ export async function signIn(page: Page, user: DevUser): Promise<void> {
   // theme toggle is present at every viewport width (the permanent drawer
   // is hidden below md), so that button is the panel's "signed in" signal.
   await page.getByRole("button", { name: /toggle theme/i }).waitFor();
+}
+
+// Confirm a status change through StatusDialog's silent path (admin.md
+// 6.3): press "Change without notifying", then confirm the nested dialog.
+// The specs never take the notify path, so a run sends no email to the dev
+// stack's subscribers.
+export async function changeWithoutNotifying(page: Page): Promise<void> {
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /^change without notifying$/i })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /^change without notifying$/i })
+    .click();
+  await expect(page.getByRole("dialog")).toBeHidden();
 }
 
 export async function signOut(page: Page): Promise<void> {
